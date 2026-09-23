@@ -165,7 +165,9 @@
 - **廠商準確率**：Semgrep、Claude Security、Codex Security、CodeMender、Copilot Autofix 的數字都是廠商自報。
 - **授權**：Hypothesis、fast-check、PyRIT、garak 的授權本次未查（promptfoo 為 MIT [V][E:reference_systems-25]）。
 
-## 6. 計畫審查的修訂紀錄
+## 6. 修訂紀錄
+
+### 6.1 計畫審查
 
 初版計畫經 4 個審查代理審查後，主要修訂如下：
 
@@ -176,3 +178,16 @@
 | 架構 | ・加入 W0.5 安全不變量規格＋G1（解決「oracle 沒有來源」）<br>・確定性叢集鍵<br>・切片同等性單位<br>・禁止跨家族 fallback 並處理缺票<br>・`tool_binding` 列舉<br>・LangGraph 節點冪等邊界<br>・Credential／Session Provider<br>・閘道背壓<br>・成本模型<br>・CI 兩條線<br>・人工關卡的簽章紀錄<br>・Commander 決策節點與覆蓋下限 |
 | 安全 | ・ROE 改為機器可驗證（簽章、到期、目標所有權 token），並在第一個接觸網路的步驟就檢查<br>・產物驗證<br>・信任區分離（Z1–Z4）<br>・安全等級由程式碼計算<br>・每主機限速與自動停止條件<br>・資料等級 fail-closed<br>・promptfoo 雲端生成<br>・PII 偵測<br>・供應鏈延伸到受測應用與產生的測試<br>・法遵段落與授權登錄表 |
 | 需求符合度 | ・加入需求對照表<br>・兩個完整範例（IDOR、LLM 工具濫用）<br>・LLM 功能的機率型判定<br>・白箱→黑箱的種子威脅交接<br>・「灰箱威脅建模＋黑箱執行」的名詞說明<br>・Nemotron 雲端只限評估與原型<br>・OWASP LLM Top 10 版本管理 |
+
+### 6.2 文件審查
+
+文件完成後，4 個獨立代理逐條比對證據帳本並檢查一致性（約 590 個事實陳述），主要修訂如下：
+
+| 類別 | 修訂 |
+|---|---|
+| 事實 | ・ZAP 的 exit code 對應（FAIL、只有 WARN、執行失敗三種分開）<br>・promptfoo 的遠端服務與關閉方式（S-08、S-09）<br>・Anthropic／OpenAI 資料保留的細節<br>・vLLM 與 SGLang 參數的差異<br>・OWASP LLM06:2025 對應 2026 版的 LLM03<br>・WSTG 頁面改用 GitHub v4.2 原始檔<br>・對齊 V／P／C 標記、預印本與立場論文的限定詞 |
+| 一致性 | ・裁決改為有序規則 R0–R8，新增 `UNCORROBORATED`；定義「合格票」<br>・驗證者家族不得出現在叢集的回報者中<br>・種子威脅改用叢集 ID，並納入已確認叢集<br>・CONFIRMED_EXECUTABLE 需另一家族確認解讀<br>・狀態機補上 G0a、切片節點、加派回圈、多個 S2 job、重新裁決；回饋改為後續執行 |
+| 安全 | ・新增白箱前的委任設定驗章（G0a）<br>・所有權驗證改由 Z3 經 Scope Proxy<br>・Z3 以受限 relay 取得多輪 LLM 輸入<br>・TruffleHog 驗證使用第三方接觸白名單<br>・每個 job 的請求白名單由 Scope Proxy 強制（DELETE 只限 seed manifest）<br>・核准者金鑰改由 out-of-band 金鑰登錄管理<br>・發起者不得是自動化帳號 |
+| 資料模型 | ・新增 engagement、testresult schema<br>・GateRecord 支援多位核准者<br>・ROE 新增 signatories、gate_approvers、test_roles、`tester_controlled` 目標<br>・驗證程式新增上述規則的檢查 |
+| 範圍 | Binding 表補上 GraphQL（輸入驗證、欄位層級授權、查詢深度、introspection）；README 需求表補上追問的回答 |
+

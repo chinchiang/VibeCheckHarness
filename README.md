@@ -26,8 +26,12 @@
 | 白箱每個 agent 可接不同 LLM（Claude、Nemotron、ChatGPT 等）以減少模型偏誤 | `agents.yaml` 逐一綁模型；LiteLLM 接 Anthropic／OpenAI／NVIDIA（雲端＋自架）；規則：驗證者必須不同家族、不跨家族 fallback、第一輪互不可見 | [02 §2](docs/02-methodology.md#2-白箱階段w0w5)、[05](docs/05-bias-calibration.md)、[examples](docs/examples/) | 多家族**只能降低、不能消除**偏誤；是否勝過「單一最佳模型多次取樣」必須自己量 |
 | 黑箱階段一定先做威脅建模，再依結果設計 test cases | B2 威脅建模是強制關卡（G3 人工簽核）；B3 以「威脅→需求→測試」可追溯鏈產生案例；附兩個完整範例 | [02 §3](docs/02-methodology.md#3-黑箱階段b0b6)、[04](docs/04-threat-to-testcase.md) | 追溯鏈並非每一環都有官方對照，需人審對照表 |
 | 先上網搜尋可參考的專案與資料 | 8 個主題、321 條發現，逐條查核 | [01](docs/01-research-survey.md)、[ledger](docs/evidence/ledger.md) | 搜尋未窮盡（部分產品與論文未查） |
-| 完整的方法論 | 白箱 W0–W5、黑箱 B0–B6、關卡 G0–G5、偏誤控制、校準實驗 | [02](docs/02-methodology.md)、[05](docs/05-bias-calibration.md) | — |
+| 完整的方法論 | 白箱 W0–W5、黑箱 B0–B6、事先簽署 G0a／G0b 與人工關卡 G1–G5、偏誤控制、校準實驗 | [02](docs/02-methodology.md)、[05](docs/05-bias-calibration.md) | — |
 | 詳細的系統架構 | 元件、信任區部署、LangGraph 狀態機、資料模型（JSON Schema）、設定範例、成本模型、CI 兩條線 | [03](docs/03-system-architecture.md)、[schemas](docs/schemas/) | 尚未實作，數字皆為設計假設 |
+| 目標應用：Web＋REST／GraphQL API、含 LLM／Agent 功能的應用 | Binding 表涵蓋 REST 與 GraphQL（輸入驗證、欄位層級授權、查詢深度、introspection）與 LLM／Agent 威脅（OWASP LLM Top 10、ASI、MAESTRO） | [04 §4.3](docs/04-threat-to-testcase.md#43-binding-表)、[02 B2](docs/02-methodology.md#b2-威脅建模g3-強制簽核) | 行動 App 不在本版範圍 |
+| 以 Python 實作 | LangGraph＋LiteLLM＋Pydantic；資料模型與驗證工具已用 Python 撰寫 | [03 §3](docs/03-system-architecture.md#3-框架選型)、[07](docs/07-roadmap.md)、[tools/](tools/) | 本次只交付文件與驗證工具，尚未實作 |
+| Nemotron 同時支援雲端（build.nvidia.com）與自架（NIM／vLLM） | 兩種模式都接在 LiteLLM；雲端只收公開或合成程式碼，機密碼只用自架 | [03 §8.2](docs/03-system-architecture.md#82-nemotron-雙模式)、[examples/serving](docs/examples/serving/README.md) | 雲端試用條款禁止機密資訊與正式用途；自架需要 GPU |
+| 文件放在 repo 根目錄 | `README.md`＋`docs/` | — | — |
 | 做不到的事就說做不到 | 15 條明列 | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
 | 所有內容經交叉比對核實 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經獨立代理對抗式審查 | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
 
@@ -75,6 +79,17 @@
 | DFD (Data Flow Diagram) | 資料流程圖 | 元件、資料存放、資料流、信任邊界 |
 | family / lineage | 模型家族／血統 | 同一廠商或同一基礎模型衍生的模型歸為同家族 |
 | staging | 預備環境 | 與正式環境分離的測試環境 |
+| engagement | 委任 | 一次受授權的測試委託；委任設定（G0a）記錄程式碼所有權、資料等級、允許的模型 |
+| RLS (Row-Level Security) | 列層級安全 | 資料庫依使用者限制可存取的資料列（例如 Supabase／PostgreSQL） |
+| ZDR (Zero Data Retention) | 零資料保留 | LLM 供應商不保留請求與回應內容的合約選項 |
+| IDOR／BOLA／BOPLA | 不安全的直接物件參照／物件層級授權失效／物件屬性層級授權失效 | 修改物件 ID 或欄位就能存取不屬於自己的資料 |
+| canary | 金絲雀標記 | 我方控制的標記字串或網址；出現或被存取就代表發生外洩或越權 |
+| quorum | 法定票數 | fan-in 時至少要有幾個家族回傳結果 |
+| missing vote | 缺票 | 因逾時、限速、schema 錯誤等原因沒有取得的一票 |
+| seed threat | 種子威脅 | 由白箱叢集轉成、交給黑箱威脅建模的威脅 |
+| slopsquatting | — | 搶註 LLM 常幻覺出來的套件名稱 |
+| 共同輸入上限 | （同等性單位） | 所有參與模型中最小的可用 context；確保各家族看到相同切片 |
+| 裁決狀態 | — | `CONFIRMED_EXECUTABLE`、`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`、`REJECTED`，定義見 [05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則) |
 | SARIF | — | OASIS 靜態分析結果交換格式 2.1.0 |
 
 ## 快速驗證本 repo 的資料模型

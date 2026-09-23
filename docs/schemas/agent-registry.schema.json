@@ -58,6 +58,13 @@
             "write_blackboard"
           ]
         }
+      },
+      "fallback_models": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "跨家族 fallback 只允許不參與裁決的角色（reporter）"
       }
     },
     "required": [

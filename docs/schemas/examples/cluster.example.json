@@ -26,6 +26,10 @@
     "openai",
     "anthropic"
   ],
+  "lineages": [
+    "gpt",
+    "claude"
+  ],
   "independent_families": [
     "openai",
     "anthropic"

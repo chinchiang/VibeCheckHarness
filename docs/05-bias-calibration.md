@@ -50,10 +50,10 @@
 ## 3. 設計規則
 
 1. **獨立優先**：第一輪平行、互不可見；用加權多數決，不做多輪辯論。
-2. **不自評**：驗證者的 `family` 與 `lineage` 都必須與報告者不同；驗證時去除來源模型資訊；候選順序隨機化。karpathy/llm-council 也把互評匿名化，以免模型「偏袒」[V][E:reference_systems-31]。
+2. **不自評**：一張票只有在投票者的 `family` **不在**叢集的 `families` 中、`lineage` **不在**叢集的 `lineages` 中時才有效（叢集可能由多個家族回報，所以是「不屬於任何回報者的家族」，不只是「不同於某一個報告者」）；驗證時去除來源模型資訊；候選順序隨機化。若沒有任何合格的驗證者（例如 3 個家族都回報了同一叢集），設 `no_eligible_verifier`，改由可執行測試（種子威脅）或 G2 人審確認。karpathy/llm-council 也把互評匿名化，以免模型「偏袒」[V][E:reference_systems-31]。
 3. **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback，且要記錄；失敗就記為缺票。
-   - 可用家族少於 2 時照常執行，但裁決最高只到 `LIKELY`，報告標示 `diversity_degraded` 並列出缺少的家族。
-4. **輸入一致**：所有家族看同一個切片（同等性單位＝最小可用 context，見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。
+   - 可用家族少於 2 時照常執行並照常裁決，但**只靠投票**得到的確認最高只到 `LIKELY`；報告標示 `diversity_degraded` 並列出缺少的家族。有可執行證明或工具佐證的確認不受此上限影響（見 §4.2 R8）。
+4. **輸入一致**：所有家族看同一個切片（共同輸入上限＝所有參與模型中最小的可用 context，見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。
 5. **證據接地**：每個發現項都要通過逐字片段比對；優先以 SARIF 或可執行測試佐證。
 6. **校準加權**：投票權重取自各模型在校準語料上、分 CWE 家族的實測精準度，不是等權。
 7. **分歧→人工（G2）**：這是 **[H] 設計假設**，需要量測 DISPUTED 佇列的精準度。Trust or Escalate（ICLR 2025）支持「信心不足就不自動判定」，但它是升級給**更強的 LLM 評審**並選擇棄權，**不是交給人**，而且用的是單一評審的校準信心，不是跨廠商分歧 [P][E:multi_llm_bias-34]。
@@ -80,25 +80,51 @@
   - **且**屬於同一個桶
 - 同一桶內若 CWE 不一致，保留清單；不同桶則分成不同叢集，但互相連結。
 - **「獨立報告」的定義**：不同家族在**第一輪**各自貢獻了同一叢集的成員。
-- 叢集結果依 [schemas/cluster.schema.json](schemas/cluster.schema.json) 保存，含 `member_finding_ids` 與 `families`。
+- 叢集結果依 [schemas/cluster.schema.json](schemas/cluster.schema.json) 保存，含 `member_finding_ids`、`families`、`lineages`。
 
-### 4.2 裁決狀態
+### 4.2 裁決狀態與有序規則
 
-| 狀態 | 條件（Aggregator 以程式碼判定） |
+**狀態**
+
+| 狀態 | 意思 |
 |---|---|
-| `CONFIRMED_EXECUTABLE` | 有可重播的測試證明（W4 或 B4）。**LLM 功能類**：固定設定跑 n 次、記錄目標模型與版本，k/n 次違反，且有確定性 oracle（工具呼叫紀錄、canary、狀態差異） |
-| `CONFIRMED_CORROBORATED` | 片段比對通過，**且**（有 SARIF 佐證**或**至少 1 個不同家族驗證者同意） |
-| `LIKELY` | 至少 2 個家族獨立報告，且沒有成立的反駁；或只有 LLM 評分支持（例如 promptfoo、PyRIT 的 LLM 評分）；或因多樣性降低而被封頂 |
-| `DISPUTED` | 家族之間衝突（有報告、也有成立的反駁）→ G2 |
-| `REJECTED` | 片段比對失敗，或多數跨家族驗證者反駁且理由成立 |
-| `UNVERIFIED` | 片段比對失敗但尚未處理（暫時狀態，不刪除） |
+| `CONFIRMED_EXECUTABLE` | 有可重播的測試證明，且解讀經另一家族確認 |
+| `CONFIRMED_CORROBORATED` | 有工具佐證或合格驗證票支持，沒有合格的反駁 |
+| `LIKELY` | 至少 2 個家族獨立回報，但沒有合格驗證票；或因多樣性降低而封頂 |
+| `UNCORROBORATED` | 只有 1 個家族回報，也沒有工具佐證或合格驗證票 |
+| `DISPUTED` | 同時有合格的支持與反駁，或反駁未達門檻 → G2 人審 |
+| `REJECTED` | 所有成員的證據片段都比對失敗，或合格反駁達到門檻 |
 
-每張票依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`fallback_used`、`anonymized`、`order_randomized`。
+`UNVERIFIED` 只是**發現項層級**的暫時狀態（片段比對失敗），不是叢集裁決；片段比對失敗的發現項不計入叢集的支持。
+
+**合格票（valid vote）的操作定義**：
+- 投票者的家族與血統都不在叢集中（§3 規則 2）；
+- 候選已匿名化、順序已隨機化；
+- 理由**引用了具體證據**：通過片段比對的程式位置（例如「第 57 行已有 `tenant_id` 條件」），或工具結果。沒有可比對證據的票一律視為棄權。
+- 「理由成立」因此不需要主觀判斷：Aggregator 只檢查引用的證據能否被程式碼比對。
+
+**有序規則**（由上而下，第一條成立者決定狀態；每次都寫入 `rule_trace`）：
+
+| 規則 | 條件 | 結果 |
+|---|---|---|
+| R0 | 叢集所有成員的片段比對都失敗 | `REJECTED`（原因：無證據） |
+| R1 | 有可執行證明：確定性 oracle 失敗且重播結果相同；LLM 功能類為固定設定 n 次中 k 次違反且有確定性 oracle；**並且**由另一家族的 Result Analyst 確認解讀 | `CONFIRMED_EXECUTABLE` |
+| R2 | 計算合格票，以及加權分數 S＝Σ w × 立場（支持＋1、反駁−1、棄權 0；w 見 §4.3） | — |
+| R3 | 同時有合格支持與合格反駁 | `DISPUTED` |
+| R4 | 只有合格反駁：若 S ≤ −θ_reject → `REJECTED`；否則 `DISPUTED` | — |
+| R5 | 有工具佐證（同一正規位置與桶的 SARIF 結果），或只有合格支持且 S ≥ θ_confirm | `CONFIRMED_CORROBORATED` |
+| R6 | 沒有合格票（含 `no_eligible_verifier`），且獨立回報的家族 ≥ 2 | `LIKELY` |
+| R7 | 其他（單一家族回報、沒有合格票、沒有工具佐證） | `UNCORROBORATED` → CMD-2 加派；仍無法確認就成為種子威脅 |
+| R8 | 上限：若 `diversity_degraded`，且狀態只由投票得到（R5 的「只有合格支持」分支），降為 `LIKELY`。R1 與有工具佐證的 R5 **不受**此上限影響 | — |
+
+- θ_reject、θ_confirm 由 §5 的實驗決定。
+- W4 或 B5 產生新的測試結果時，Aggregator 對相關叢集**重新裁決**（例如從 `LIKELY` 升為 `CONFIRMED_EXECUTABLE`），並保留每一版裁決。
+- 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`。
 
 ### 4.3 投票加權
 - 權重 w(model, cwe_bucket)＝該模型在校準語料上、該桶的精準度，並做平滑。
-- 叢集分數＝Σ w × 票（同意＋1、反駁−1、棄權 0）。
-- **門檻由 §5 的實驗決定**，不是事先拍腦袋。
+- 加權分數 S 用於 §4.2 的 R4、R5。
+- **門檻由 §5 的實驗決定**，不是事先憑直覺設定。
 - 權重低到接近 0 的模型，仍保留在報告中並註明，不偷偷移除。
 
 ## 5. Calibration & Bias Lab

@@ -6,7 +6,7 @@
     "INV-AC-007"
   ],
   "abuse_case_id": "ABUSE_CASE_012",
-  "source_finding_id": "K-005",
+  "source_cluster_id": "K-005",
   "target_ids": [
     "tgt-staging-api"
   ],
@@ -48,6 +48,24 @@
     "requests_per_second": 2,
     "max_requests": 30
   },
+  "request_allowlist": [
+    {
+      "target_id": "tgt-staging-api",
+      "method": "GET",
+      "path": "/api/invoices/{seed:tenant_b_invoice}"
+    },
+    {
+      "target_id": "tgt-staging-api",
+      "method": "PUT",
+      "path": "/api/invoices/{seed:tenant_b_invoice}"
+    },
+    {
+      "target_id": "tgt-staging-api",
+      "method": "DELETE",
+      "path": "/api/invoices/{seed:tenant_b_invoice}"
+    }
+  ],
+  "seed_manifest_ref": "seeds/eng-acme-invoices-2026q4.yaml",
   "data_needed": {
     "seed_data": [
       "tenant_a_invoice",

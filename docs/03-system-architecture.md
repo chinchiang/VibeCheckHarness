@@ -84,10 +84,17 @@ flowchart TB
 - 出站白名單在 proxy／namespace 層強制，例如 Anthropic sandbox-runtime 的 `allowedDomains`（research preview）[V][E:blackbox-40] 或 nftables。工具自己的 origin 選項不是安全邊界 [V][E:blackbox-24]。
 
 **Scope Proxy（Z3 唯一出口）**：
-- 只放行 ROE 目標 ID 解析出的主機。解析由 Policy Engine 做，不經 LLM。
-- 固定 DNS 解析結果，擋內網、雲端 metadata 位址，以及 ROE 以外的 redirect。
+- 只放行 ROE 目標的主機。目標 ID→主機名稱的對應由 Policy Engine 完成（不經 LLM）；DNS 解析結果由 Scope Proxy 固定。
+- 擋內網、雲端 metadata 位址，以及 ROE 以外的 redirect。
+- **每個 job 的請求白名單**：依測試案例的 `request_allowlist`（目標 ID × HTTP 方法 × 路徑樣板）逐一放行，並強制 `max_requests`。DELETE 只允許 seed manifest 中的 ID。這是真正的強制點；對產物做的靜態抽取（§7.2）只是第一道檢查。
 - 每個主機設請求預算與並行上限，**與工具設定無關**。
+- **所有權驗證**從這裡發出：Executor 經 Scope Proxy 讀取目標的 DNS TXT 或 well-known path token，結果簽署後回傳 Policy Engine（Z1 本身不能連目標）。
+- **第三方接觸是另一份白名單**：TruffleHog 驗證只能連到 ROE `secrets_verification.providers` 列出的供應商端點，每次都標記為「第三方接觸」並記錄；預設這份白名單是空的。
 - 支援 kill switch：一鍵取消所有 Executor 工作並記錄原因。
+
+**Z3 與 LLM 的關係**：Z3 不持有 LLM 金鑰、不能直連 LLM 端點。
+- 單輪的 LLM 功能測試：測試輸入（prompt、合成文件）在 Z1 經 Gateway 產生，成為 G4 核准的產物，再交給 Z3 送到目標；目標的回應回傳 Z1 評分。
+- 多輪策略（例如 iterative、crescendo）需要邊測邊產生下一輪輸入：Z3 經一條**受限的 relay** 呼叫 Z1，由 Z1 經 Gateway 產生下一輪。relay 只允許 ROE 指定的模型，有每輪與總花費上限，並全部寫入 audit。
 
 **儲存**：
 - Postgres：LangGraph checkpoint（PostgresSaver [V][E:orchestration-05]）、blackboard、audit、gate 紀錄。
@@ -115,7 +122,7 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 
 | 節點 | 時機 | Commander 決定 | Policy Engine 檢查 |
 |---|---|---|---|
-| CMD-1 | W0.5（G1）之後 | 白箱計畫：切片 × 面向 × 指派 agent × 預算 | 覆蓋下限、資料等級與模型相容、預算 |
+| CMD-1 | W1 之後、Slicer 產出切片時 | 白箱計畫：切片 × 面向 × 指派 agent × 預算 | 覆蓋下限、資料等級與模型相容、預算 |
 | CMD-2 | W3 之後 | 對 DISPUTED 或票數不足的叢集加派審查者；補覆蓋不足的切片 | 加派的模型家族規則、預算 |
 | CMD-3 | B1 之後 | 套用哪些威脅分類（STRIDE 一律；有個資加 LINDDUN；有 LLM／Agent 加 LLM Top 10、ASI、MAESTRO） | 確定性特徵觸發的分類不可移除 |
 | CMD-4 | G3 之後 | 測試設計計畫與 `tool_binding` 選擇 | 目標只能是 ROE 目標 ID；安全等級由程式碼重算 |
@@ -133,7 +140,7 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 
 **為什麼這樣設計**：
 - AIxCC 的計分有準確度乘數 AM＝1−(1−r)^4（準確率 50% 時為 0.9375、40% 時為 0.8704），錯誤的關聯會讓獎勵變成懲罰 [單源：SoK][E:reference_systems-05]。AIxCC SoK 的關鍵發現是「穩定性與準確度決定勝負」「技術先進與工程良好是兩個不同的挑戰」[V][E:reference_systems-08]。
-- 冠軍 Atlantis 是 ensemble-first，亞軍 Buttercup 是確定性流程＋只在工具不足處用 LLM [V][E:reference_systems-02]。本設計兩者兼取：流程確定、審查端多家族集成。
+- 冠軍 Atlantis 是 ensemble-first，亞軍 Buttercup 是確定性流程＋只在工具不足處用 LLM [V][E:reference_systems-02]。本設計兩者兼取：流程確定、審查端多家族整合（ensemble）。
 - OWASP LLM06:2025 Excessive Agency（2026 版為 LLM03 [P][S-01]）的緩解建議：最小化 agent 可用的擴充、避免開放式工具、最小權限、高影響動作需人核准 [V][E:blackbox-32]。
 - 裁決若交給 LLM，會有自我偏好問題 [V][E:multi_llm_bias-05]。
 
@@ -184,24 +191,27 @@ class RunState(BaseModel):
 
 ```mermaid
 stateDiagram-v2
-  [*] --> W0_inventory
+  [*] --> G0a_engagement_check
+  G0a_engagement_check --> W0_inventory
   W0_inventory --> W05_draft_invariants
   W05_draft_invariants --> G1_gate
-  G1_gate --> CMD1_plan
-  CMD1_plan --> W1_static
-  W1_static --> W2_fanout
+  G1_gate --> W1_static
+  W1_static --> W2_slice
+  W2_slice --> CMD1_plan
+  CMD1_plan --> W2_fanout
   W2_fanout --> W2_review: Send × (slice, facet, agent)
   W2_review --> W2_fanin
   W2_fanin --> W3_cluster
   W3_cluster --> W3_verify_fanout
   W3_verify_fanout --> W3_adjudicate
   W3_adjudicate --> CMD2_redispatch
-  CMD2_redispatch --> W3_verify_fanout: 有加派
+  CMD2_redispatch --> W2_fanout: 加派審查者
+  CMD2_redispatch --> W3_verify_fanout: 加派驗證者
   CMD2_redispatch --> G2_gate: 無加派
   G2_gate --> W4_testgen
   W4_testgen --> W5_report
-  W5_report --> B0_roe_check
-  B0_roe_check --> B1_model
+  W5_report --> G0b_roe_check
+  G0b_roe_check --> B1_model
   B1_model --> CMD3_taxonomy
   CMD3_taxonomy --> B2_threat_fanout
   B2_threat_fanout --> B2_merge_critic
@@ -216,12 +226,17 @@ stateDiagram-v2
   G5_gate --> B4_s2_snapshot
   B4_s2_snapshot --> B4_s2_exec
   B4_s2_exec --> B4_s2_restore
-  B4_s2_restore --> B5_verify
-  B4_s2_queue --> B5_verify: 無 S2
-  B5_verify --> CMD5_followup
+  B4_s2_restore --> B4_s2_queue: 下一個 S2 job
+  B4_s2_queue --> B5_verify: 沒有待執行的 S2
+  B5_verify --> B5_readjudicate
+  B5_readjudicate --> CMD5_followup
   CMD5_followup --> B6_report
   B6_report --> [*]
 ```
+
+- `G0a_engagement_check` 與 `G0b_roe_check` 是**離線簽章的驗證**（委任設定、ROE），不是等待人的 interrupt；驗證失敗就停止。
+- `B5_readjudicate`：測試結果寫回叢集，由 Aggregator 重新裁決（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。W4 的測試結果也以同樣方式回寫。
+- 回饋（新需求回寫 G1、黑箱確認項的回歸測試）由 CMD-5 建立**後續執行**（同一個 engagement 的新 run），不在同一張圖內回圈。
 
 **節點邊界規則**：
 - LangGraph 的 `interrupt()` 會在 resume 時**從該節點開頭重新執行**，所以 interrupt 之前的副作用必須是冪等的 [V][E:orchestration-04]。本設計讓每個 `G*_gate` 節點**只做 interrupt**，前面沒有任何副作用。
@@ -233,7 +248,7 @@ stateDiagram-v2
 ### 5.3 fan-out／fan-in、重試、缺票
 - 每個節點設重試上限（例如 schema 驗證失敗最多修復 2 次、429 依 Retry-After 最多 3 次）。
 - 重試用盡就寫入 `missing_votes`，**不無限重試**。
-- fan-in 採 quorum：例如 3 家族中至少 2 家族有結果才進入裁決。少於 quorum 時，裁決上限降為 `LIKELY` 並標記 `diversity_degraded`（[05 §3](05-bias-calibration.md#3-設計規則)）。
+- fan-in 採 quorum：例如 3 家族中至少 2 家族有結果。少於 quorum 時**仍照常裁決**，但只靠投票得到的確認上限為 `LIKELY`，並標記 `diversity_degraded`；可執行證明與工具佐證不受此限（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) R8）。
 
 ## 6. 人工關卡服務
 
@@ -243,12 +258,13 @@ stateDiagram-v2
   - `vibecheck gate approve <gate-id> --decisions decisions.yaml --sign`
 - **可部分核准**：逐項 `accept`／`reject`／`needs_info`。被拒絕的項目不進入下游，但保留紀錄。
 - **核准紀錄（GateRecord）**，依 [schemas/gate-record.schema.json](schemas/gate-record.schema.json)：
-  - 核准者身分、角色、時間
+  - 核准者（可多人）的身分、角色、時間；每個關卡要求的角色見 [02 §1.3](02-methodology.md#13-人工關卡一覽)
   - 被核准產物的 sha256
   - 逐項決定
-  - 以已登錄金鑰簽章
+  - 每位核准者各自簽章
+- **金鑰的信任根**：核准者的公鑰登錄在組織的**金鑰登錄**中（out-of-band，由資安團隊管理，含登錄、輪替、撤銷流程）。ROE 與委任設定只引用登錄中的指紋，不能自己宣告新的可信金鑰；驗章時同時檢查金鑰未被撤銷。
 - **驗證**：Policy Engine 驗的是**簽章紀錄**，不是 checkpoint 內容。只要能寫 checkpoint DB 就能偽造 resume 值，所以 checkpoint 不能當作授權依據。OpenAI Agents SDK 的文件也提醒，只能從可信儲存反序列化快照 [V][E:orchestration-18]。產物有任何變動，核准就失效。
-- **職責分離**：G5（S2 執行）的核准者不能是發起者。
+- **職責分離**：G5（S2 執行）的核准者不能是發起者。發起者是啟動該次執行或核准 G4 的**人**，不能記成自動化帳號（例如 `run-controller`），否則職責分離形同虛設。
 - 核准後以 `Command(resume=<gate_record_id>)` 繼續圖的執行 [V][E:orchestration-04]。
 
 ## 7. 黑箱執行安全
@@ -275,6 +291,7 @@ stateDiagram-v2
 ### 7.2 產物驗證（G4 之前）
 - 產生的測試計畫與工具設定中，目標**只能寫 ROE 目標 ID**，由 Policy Engine 解析成主機。
 - 執行前，以確定性方法抽出每個產物（ZAP YAML、Schemathesis 設定、Playwright 腳本、promptfoo 設定、Nuclei 模板、CLI 旗標）中的所有 host、URL、HTTP 方法、旗標，與 ROE 及安全等級比對，**不符就拒絕**。
+- 對任意程式碼（例如產生的 pytest／Playwright 腳本）做靜態抽取**無法保證完整**，所以這只是第一道檢查；真正的強制在 Scope Proxy 的每個 job 請求白名單（§2）。
 - 人在 G4 核准時綁定產物 hash。
 - Playwright Test Agents 的 healer 會自動修復失敗的測試 [V][E:blackbox-23]；任何自動修復產生的新版本都要重新走 G4。
 
@@ -314,7 +331,7 @@ stateDiagram-v2
   - 在出站層封鎖 `api.promptfoo.app` 等 promptfoo 雲端網域；上述環境變數**不會**停用帳號或授權檢查、分享、Cloud 同步 [V][S-08]。
   - 已有使用者 issue 回報 iterative／crescendo 策略會繞過設定 [單源][S-09] → 上線前以出站紀錄實測確認。
 - **受測應用的上游 LLM**：ROE 要列出受測應用呼叫的 LLM 供應商，使用者要確認自己與該供應商的條款允許這類測試；S1 LLM 測試要設花費與請求上限（OWASP：Unbounded Consumption）。
-- **判定規則**：見 [05 §4.2](05-bias-calibration.md#42-裁決狀態)，採機率規則。
+- **判定規則**：見 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)，採機率規則。
 
 ## 8. Model Gateway
 
@@ -323,7 +340,7 @@ stateDiagram-v2
 
 - **不自評**：驗證者的 `family` 與 `lineage` 都必須和報告者不同。
 - **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback（例如 Claude Opus → Claude Sonnet），並寫入 Verdict 紀錄。跨家族 fallback 會讓兩個「獨立」審查者變成同一家族，驗證就等於同家族自評：LLM 評審會偏好自己或同供應商的輸出 [V][E:multi_llm_bias-02][E:multi_llm_bias-05][E:multi_llm_bias-08]。錯誤相關性本來就跨供應商存在 [V][E:multi_llm_bias-01]，同家族是否更高沒有直接證據 [H]，但沒有理由讓它更糟。
-- Reporter、Inventory 等不參與裁決的角色可以跨家族 fallback。
+- 跨家族 fallback 只能在 `agents.yaml` 對**不參與裁決**的角色（目前只有 reporter）設定 `fallback_models`；`models.yaml` 的 `fallback` 一律同家族。兩者都由 `tools/validate_schemas.py` 檢查。
 
 範例見 [examples/models.yaml](examples/models.yaml)。
 
@@ -427,6 +444,8 @@ erDiagram
 | `gate-record.schema.json` | 人工關卡的簽章紀錄 |
 | `roe.schema.json` | 交戰規則 |
 | `commander-plan.schema.json` | 指揮官計畫 |
+| `engagement.schema.json` | 委任設定（G0a）：程式碼所有權、資料等級、每個等級允許的模型 |
+| `testresult.schema.json` | 測試結果（ERROR／SKIPPED／STOPPED 屬執行失敗，列入未能測試清單） |
 | `model-registry.schema.json` | `models.yaml`（family、lineage、資料等級、同家族 fallback） |
 | `agent-registry.schema.json` | `agents.yaml`（角色、模型、工具權限） |
 
@@ -463,7 +482,7 @@ erDiagram
 | 線 | 觸發 | 內容 | 預期時間 |
 |---|---|---|---|
 | Lane A（同步） | 每個 PR | W0、W1、secrets、套件存在性；可選單一家族只審 diff | 分鐘級（待量測） |
-| Lane B（非同步） | 手動、排程或合併到主幹 | 完整多家族白箱＋所有關卡＋黑箱；以 checkpoint 續跑並發通知；結果回貼 PR | 小時到天（受人工關卡影響） |
+| Lane B（非同步） | 手動、排程或合併到主幹 | 完整多家族白箱＋所有關卡＋黑箱；以 checkpoint 續跑，並發送通知；結果回貼 PR | 小時到天（受人工關卡影響） |
 
 - Lane A 只審 diff：RoboDuck 的 delta 模式縮小範圍後，誤報大幅減少 [V][E:reference_systems-12]。
 - CI 中的 GitHub Actions 鎖 commit SHA，binary 用 cosign 驗證；Trivy CVE-2026-33634 的官方建議是鎖 SHA、cosign 驗證、輪替 secrets [V][E:whitebox-13]；本設計再加上「掃描器在沒有 CI secrets 的環境中執行」[H：設計推論]。
@@ -505,7 +524,7 @@ sequenceDiagram
   end
   RC->>RC: Pydantic 驗證、片段比對（UNVERIFIED 標記）
   RC->>AGG: 叢集
-  AGG->>GW: 匿名、隨機順序的反駁請求（verifier family ≠ reporter family）
+  AGG->>GW: 匿名、隨機順序的反駁請求（verifier family 不在叢集的 families 中）
   GW->>VF: 嘗試反駁
   VF-->>AGG: 票
   AGG-->>RC: 裁決（規則式）
@@ -523,7 +542,11 @@ sequenceDiagram
   participant SP as Scope Proxy
   participant T as Staging 目標
   RC->>PE: S2 job（產物 hash、目標 ID）
-  PE->>PE: ROE 驗章、所有權 token、時間窗、安全等級重算
+  PE->>PE: ROE 驗章、時間窗、安全等級重算
+  PE->>EX: 請求所有權驗證
+  EX->>SP: 讀取 DNS TXT／well-known token
+  SP-->>EX: token
+  EX-->>PE: 簽署的驗證結果
   PE-->>RC: 需要 G5
   RC->>GS: interrupt（此節點無副作用）
   GS->>H: 顯示 job、產物、風險
@@ -533,7 +556,7 @@ sequenceDiagram
   RC->>EX: 快照（冪等）
   RC->>EX: 執行（檢查 executed_jobs）
   EX->>SP: 請求
-  SP->>SP: 白名單、每主機預算、redirect 檢查
+  SP->>SP: job 請求白名單、每主機預算、redirect 檢查
   SP->>T: 轉送
   T-->>EX: 回應
   EX-->>RC: 結果／停止條件

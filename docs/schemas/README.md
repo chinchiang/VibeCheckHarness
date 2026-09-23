@@ -13,6 +13,8 @@
 | [gate-record](gate-record.schema.json) | 人工關卡簽章紀錄 | [G3](examples/gate-record.g3.example.json)、[G5](examples/gate-record.g5.example.json) |
 | [roe](roe.schema.json) | 交戰規則 | [../examples/roe.yaml](../examples/roe.yaml) |
 | [commander-plan](commander-plan.schema.json) | 指揮官計畫 | [commander-plan.example.json](examples/commander-plan.example.json) |
+| [engagement](engagement.schema.json) | 委任設定（G0a） | [../examples/engagement.yaml](../examples/engagement.yaml) |
+| [testresult](testresult.schema.json) | 測試結果 | [testresult.example.json](examples/testresult.example.json) |
 | [model-registry](model-registry.schema.json) | 模型登錄 | [../examples/models.yaml](../examples/models.yaml) |
 | [agent-registry](agent-registry.schema.json) | 代理登錄 | [../examples/agents.yaml](../examples/agents.yaml) |
 
@@ -25,13 +27,15 @@ python3 tools/validate_schemas.py
 
 驗證程式除了 schema 驗證，還檢查設計依賴的語意規則：
 - 程式片段 hash 正確
-- fallback 只限同家族
+- 每個 agent 的模型都在委任設定對該資料等級的允許清單中
+- `models.yaml` 的 fallback 只限同家族；跨家族 `fallback_models` 只允許 reporter
 - 雲端 Nemotron（build.nvidia.com）只收 P 級資料、不用於正式用途
-- C 級資料的 reviewer 至少涵蓋 2 個家族，而且每個家族都有來自其他家族與血統的 verifier
-- G5 核准者與發起者不同
-- 測試案例的計算等級不低於提議等級、目標都是 ROE 目標 ID、速率不超過 ROE
-- ROE 有效期間順序正確
-- 已接受的威脅沒有未審的 llm-suggested 對照連結
+- reviewer 至少涵蓋 2 個家族，而且每個家族都有來自其他家族與血統的 verifier
+- 合格驗證票的投票者家族與血統都不在叢集中；`CONFIRMED_EXECUTABLE` 需另一家族確認解讀
+- 核准者已登錄且角色、金鑰相符、每人都有簽章、具備該關卡要求的角色；時間在委任（與 ROE）有效期間內；發起者是已登錄的人；G5 核准者 ≠ 發起者，且在 ROE 時間窗內
+- ROE 由測試負責人、管理層、基礎設施擁有者簽署，且不超過委任期間
+- 測試案例的計算等級不低於提議等級、目標都是 ROE 目標 ID、速率不超過 ROE、DELETE 只作用在 seed manifest、角色都在 ROE 中
+- 已接受的威脅沒有 llm-suggested 對照連結
 - 降級後的 LLM 輸出 schema 只使用共通子集
 
 範例中的簽章、金鑰指紋、網域（example.com／example.net）都是示意值。

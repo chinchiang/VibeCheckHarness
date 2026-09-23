@@ -1,0 +1,25 @@
+{
+  "result_id": "R-TC-012-01-1",
+  "testcase_id": "TC-012-01",
+  "run_id": "run-2026-09-23-001",
+  "executed_at": "2026-10-05T20:30:00+08:00",
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "outcome": "FAIL",
+  "trials": {
+    "n": 1,
+    "k": 1
+  },
+  "replays": 2,
+  "oracle_observations": [
+    "GET 回傳 200 且 body 含 B 的發票欄位（違反 REQ-ASVS-8.2.2、INV-AC-007）"
+  ],
+  "request_count": 9,
+  "stop_reason": null,
+  "artifact_sha256": "sha256:f280ceb93a714bfe2efbb9071ee48c882fb947b84d8ed417dc30f3989f4787bc",
+  "interpreted_by": {
+    "agent_id": "result_analyst",
+    "family": "nvidia"
+  }
+}

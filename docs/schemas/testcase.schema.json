@@ -30,10 +30,11 @@
         }
       ]
     },
-    "source_finding_id": {
+    "source_cluster_id": {
       "anyOf": [
         {
-          "type": "string"
+          "type": "string",
+          "pattern": "^K-[0-9]{3,}$"
         },
         {
           "type": "null"
@@ -193,6 +194,52 @@
         "max_requests"
       ]
     },
+    "request_allowlist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "pattern": "^tgt-[a-z0-9-]+$"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "HEAD",
+              "OPTIONS",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "description": "路徑樣板；DELETE 只能對 seed manifest 中的 ID"
+          }
+        },
+        "required": [
+          "target_id",
+          "method",
+          "path"
+        ]
+      },
+      "minItems": 1,
+      "description": "Scope Proxy 以此逐一放行；不在清單中的請求一律阻擋"
+    },
+    "seed_manifest_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "data_needed": {
       "type": "object",
       "additionalProperties": false,
@@ -262,7 +309,7 @@
     "threat_id",
     "requirement_ids",
     "abuse_case_id",
-    "source_finding_id",
+    "source_cluster_id",
     "target_ids",
     "preconditions",
     "steps",
@@ -271,6 +318,8 @@
     "safety_class_proposed",
     "safety_class_computed",
     "rate_limit",
+    "request_allowlist",
+    "seed_manifest_ref",
     "data_needed",
     "trials",
     "artifact_sha256"

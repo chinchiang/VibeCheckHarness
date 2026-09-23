@@ -105,16 +105,23 @@
       },
       "minItems": 1
     },
-    "source_finding_id": {
+    "source_cluster_id": {
       "anyOf": [
         {
           "type": "string",
-          "pattern": "^(F|K)-[0-9]{3,}$"
+          "pattern": "^K-[0-9]{3,}$"
         },
         {
           "type": "null"
         }
       ]
+    },
+    "source_finding_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^F-[0-9]{3,}$"
+      }
     },
     "modeled_by": {
       "type": "array",
@@ -224,7 +231,8 @@
     "taxonomy",
     "dfd_elements",
     "evidence",
-    "source_finding_id",
+    "source_cluster_id",
+    "source_finding_ids",
     "modeled_by",
     "attack_tree_ref",
     "risk",

@@ -56,6 +56,10 @@
           },
           "order_randomized": {
             "type": "boolean"
+          },
+          "valid": {
+            "type": "boolean",
+            "description": "投票者家族與血統都不在叢集中，且理由引用了通過片段比對的位置或工具證據"
           }
         },
         "required": [
@@ -67,7 +71,8 @@
           "rationale",
           "fallback_used",
           "anonymized",
-          "order_randomized"
+          "order_randomized",
+          "valid"
         ]
       }
     },
@@ -142,12 +147,37 @@
                   "type": "null"
                 }
               ]
+            },
+            "interpretation_confirmed_by": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "agent_id": {
+                      "type": "string"
+                    },
+                    "family": {
+                      "type": "string",
+                      "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
+                    }
+                  },
+                  "required": [
+                    "agent_id",
+                    "family"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
             "testcase_id",
             "result_ref",
-            "trials"
+            "trials",
+            "interpretation_confirmed_by"
           ]
         },
         {
@@ -164,10 +194,11 @@
         "CONFIRMED_EXECUTABLE",
         "CONFIRMED_CORROBORATED",
         "LIKELY",
+        "UNCORROBORATED",
         "DISPUTED",
-        "REJECTED",
-        "UNVERIFIED"
-      ]
+        "REJECTED"
+      ],
+      "description": "依 docs/05 §4.2 的有序規則決定；UNVERIFIED 只是發現項層級的狀態，不是裁決"
     },
     "status_cap": {
       "anyOf": [
@@ -187,6 +218,18 @@
     },
     "rule_version": {
       "type": "string"
+    },
+    "no_eligible_verifier": {
+      "type": "boolean",
+      "description": "沒有任何家族與血統都不在叢集中的驗證者"
+    },
+    "rule_trace": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "description": "依序觸發的裁決規則，例如 R2、R6"
     }
   },
   "required": [
@@ -200,7 +243,9 @@
     "status",
     "status_cap",
     "decided_by",
-    "rule_version"
+    "rule_version",
+    "no_eligible_verifier",
+    "rule_trace"
   ],
   "title": "Verdict（裁決）"
 }

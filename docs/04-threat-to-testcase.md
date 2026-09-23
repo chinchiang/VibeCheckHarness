@@ -94,13 +94,15 @@
 |---|---|
 | `testcase_id` | 例如 `TC-012-01` |
 | `threat_id`、`requirement_ids[]`、`abuse_case_id` | 追溯。abuse case 採 OWASP Abuse Case Cheat Sheet 的 ID 格式，例如 `ABUSE_CASE_001` [V][E:threat_modeling-51] |
-| `source_finding_id` | 若來自白箱種子威脅 |
+| `source_cluster_id` | 若來自白箱種子威脅：叢集 ID（`K-…`）；成員發現項記在威脅的 `source_finding_ids` |
 | `preconditions`、`steps` | 以 ROE 目標 ID 表示，**不寫主機名** |
 | `oracle` | 類型＋條件，**只引用已簽核需求** |
 | `tool_binding` | `BUILTIN_CHECK`／`GENERATED_SCRIPT`／`MANUAL`＋adapter＋參數 |
 | `safety_class_proposed` | LLM 提議的等級，只當下限 |
 | `safety_class_computed` | 由程式碼計算的等級，以此為準 |
 | `rate_limit` | 不可高於 ROE |
+| `request_allowlist` | 目標 ID × HTTP 方法 × 路徑樣板；Scope Proxy 只放行這些請求 |
+| `seed_manifest_ref` | 種子資料清單；DELETE 的路徑必須是 `{seed:…}` 樣板 |
 | `data_needed` | 種子資料、測試帳號角色 |
 | `trials` | 機率型測試的 n 與通過規則 |
 | `artifact_sha256` | 產生的腳本或設定，G4 綁定 |
@@ -151,6 +153,10 @@
 | LLM05@2025：輸出處理不當 | LLM process → UI | — | GENERATED_SCRIPT（Playwright 檢查 DOM 中的標記是否被安全編碼） | S1 | DOM 斷言 |
 | R：否認（缺稽核紀錄） | data store（稽核） | — | GENERATED_SCRIPT（需要 staging 稽核紀錄的讀取權）或 MANUAL | S1 | 稽核紀錄存在 |
 | 商業邏輯 | process | — | GENERATED_SCRIPT（依 G1 不變量）或 MANUAL | S1 | 依不變量 |
+| T／I：GraphQL 輸入驗證 | GraphQL process | — | BUILTIN_CHECK：Schemathesis 以 GraphQL schema 產生測試 [V][E:blackbox-13]；ZAP Automation Framework 可匯入 GraphQL 定義 [V][E:blackbox-04] | S1 | 工具 check |
+| E／I：GraphQL resolver 欄位層級授權（BOPLA） | GraphQL resolver | — | GENERATED_SCRIPT：以不同角色查詢同一物件的敏感欄位 | S1 | 回應不含未授權欄位；需求 ASVS v5.0.0-8.2.3（L2）[V][S-05] |
+| D：GraphQL 查詢深度或複雜度沒有上限 | GraphQL process | — | GENERATED_SCRIPT：送出**單一個**超過 G1 設定上限的查詢 | S1（只送少量請求） | 伺服器拒絕並回傳錯誤，且延遲不超過 ROE 門檻 |
+| I：GraphQL introspection 開放程度 | GraphQL process | — | GENERATED_SCRIPT：單一 introspection 查詢 | S0 | 依 G1 政策（是否允許 introspection 由應用擁有者決定） |
 | LLM03@2025：供應鏈 | — | — | 已在白箱 W1 處理；黑箱 MANUAL | — | — |
 
 - Escape.tech 對公開 vibe-coded 應用的被動掃描發現，主要問題類別是 Supabase RLS 設定錯誤、前端 bundle 內含 token、缺少認證 [P][E:vibe_risks-26]；CVE-2025-48757 也是 RLS 問題 [V][E:vibe_risks-23]。所以表中 RLS 與 bundle 兩列是 vibe-coded 應用的優先項目。
@@ -159,23 +165,30 @@
 ## 5. 安全等級計算規則
 
 ```python
+ORDER = ["S0", "S1", "S2", "S3"]
+TOOLKIT_DENYLIST = {"nuclei_code_protocol", "restler_fuzz_non_disposable"}   # 工具包永遠不跑的模式
+
 def compute_safety_class(tc, roe) -> str:
-    """回傳 S0 / S1 / S2 / S3。LLM 提議只當下限。"""
-    order = ["S0", "S1", "S2", "S3"]
+    """回傳 S0 / S1 / S2 / S3。欄位名稱對應 testcase 與 roe schema；LLM 提議只當下限。"""
+    hi = lambda a, b: max(a, b, key=ORDER.index)
+    mode = tc.tool_binding.adapter
+    if mode in TOOLKIT_DENYLIST or mode in roe.activities.denied_modes:
+        return "S3"
+    if tool_of(mode) not in roe.activities.allowed_tools:      # 未授權的工具
+        return "S3"
+    reqs = tc.request_allowlist
+    if any(path_matches(r.path, roe.exclusions.paths) for r in reqs):
+        return "S3"
+    if any(r.method == "DELETE" and not is_seed_path(r.path, tc.seed_manifest_ref) for r in reqs):
+        return "S3"                                             # DELETE 只能對 seed manifest 中的 ID
     level = "S0"
-    if tc.binding.adapter in DENYLIST_MODES:              # 例：nuclei code-protocol、非拋棄式環境的 RESTler fuzz
-        return "S3"
-    if any(ep.path_matches(roe.exclude_paths) for ep in tc.endpoints):
-        return "S3"
-    if any(m in {"POST", "PUT", "PATCH", "DELETE"} for m in tc.methods):
-        level = max(level, "S1", key=order.index)
-    if tc.binding.adapter in {"zap_active", "fuzz_high_volume"} or tc.expected_requests > roe.s1_request_cap:
-        level = max(level, "S2", key=order.index)
-    if "DELETE" in tc.methods and not tc.only_seeded_ids:
-        return "S3"
-    if tc.binding.adapter == "unknown":
-        level = max(level, "S2", key=order.index)          # 無法分類 → 至少 S2
-    return max(level, tc.safety_class_proposed or "S0", key=order.index)
+    if any(r.method in {"POST", "PUT", "PATCH", "DELETE"} for r in reqs):
+        level = hi(level, "S1")
+    if mode in {"zap_active", "fuzz_high_volume"} or tc.rate_limit.max_requests > roe.rate_limits.s1_request_cap:
+        level = hi(level, "S2")
+    if mode == "unknown":
+        level = hi(level, "S2")                                 # 無法分類 → 至少 S2
+    return hi(level, tc.safety_class_proposed or "S0")
 ```
 
 ## 6. 完整範例
@@ -187,7 +200,7 @@ def compute_safety_class(tc, roe) -> str:
 - **STRIDE**：E／I／T
 - **描述**：「租戶 A 的使用者只要修改 `{id}`，就能讀取或修改租戶 B 的發票」
 - **證據**：
-  - `routes/invoices.ts:42` 的查詢沒有 owner 條件（白箱發現項 F-017，裁決 `LIKELY`，因此成為種子威脅）
+  - `routes/invoices.ts:42` 的查詢沒有 owner 條件（白箱叢集 K-005，成員 F-017、F-021，由 openai 與 anthropic 兩個家族獨立回報，裁決 `LIKELY`，因此成為種子威脅）
   - `invoices` 表沒有 RLS policy（W0 inventory）
 - **Attack tree**：OR{ 猜測連號 ID、從分享連結取得 ID }
 
@@ -206,7 +219,8 @@ def compute_safety_class(tc, roe) -> str:
 - **前置條件**：
   - 以種子資料建立合成租戶 A、B，各有一張發票
   - 準備角色 `tenantA_user`、`tenantB_user` 的 storageState。Playwright 提醒 state 檔含敏感 cookie，應放在 gitignore 的目錄中 [V][E:blackbox-21]；存放在 Z3 secret store
-- **步驟**：以 `tenantA_user` 的 context，對目標 `staging-api`（ROE 目標 ID）上 B 的發票依序送 GET、PUT、DELETE
+- **步驟**：以 `tenantA_user` 的 context，對目標 `tgt-staging-api`（ROE 目標 ID）上 B 的發票依序送 GET、PUT、DELETE
+- **request_allowlist**：GET／PUT／DELETE `/api/invoices/{seed:tenant_b_invoice}`，由 Scope Proxy 強制；DELETE 只能打到 seed manifest 中的發票 ID
 - **oracle**（引用 ASVS 8.2.2 與 INV-AC-007）：
   - 狀態碼 ∈ {403, 404}
   - 回應 body 不含 B 的發票欄位
@@ -220,9 +234,9 @@ def compute_safety_class(tc, roe) -> str:
 **結果處理**
 1. FAIL（例如 A 讀到了 B 的發票）
 2. 重播 2 次，結果相同
-3. 另一個家族的 Result Analyst 確認解讀
+3. 不在叢集家族中的 Result Analyst（例如 nvidia 家族）確認解讀
 4. 裁決 `CONFIRMED_EXECUTABLE`
-5. 追溯矩陣新增一列：`T-012 | ASVS 8.2.2 / INV-AC-007 | TC-012-01 | FAIL | F-017`
+5. 追溯矩陣新增一列：`T-012 | ASVS 8.2.2 / INV-AC-007 | TC-012-01 | FAIL | K-005（F-017、F-021）`
 6. 回饋白箱：定位 `routes/invoices.ts:42` → W4 產生回歸單元測試（X 家族寫、Y 家族審）→ 修正後重跑 TC-012-01 應為 PASS
 
 ### 6.2 範例 B：LLM 功能的間接 prompt injection 與工具濫用
@@ -233,7 +247,7 @@ def compute_safety_class(tc, roe) -> str:
 - **分類**：`owasp-llm@2025:LLM01`（間接注入）＋`LLM06`（Excessive Agency）；`ASI01` Agent Goal Hijack＋`ASI02` Tool Misuse
 - **證據**：
   - W0 inventory 顯示 `refund` 工具可由 agent 直接呼叫，沒有確認步驟
-  - W2 發現項 F-044（`LIKELY`）
+  - W2 叢集 K-011（成員 F-044，`UNCORROBORATED`，因此成為種子威脅）
 
 **需求**
 - `INV-LLM-003`（G1）：`refund` 必須經人工確認，且只能針對目前登入使用者自己的訂單
@@ -267,9 +281,12 @@ def compute_safety_class(tc, roe) -> str:
 | 區塊 | 內容 | Policy Engine 的強制方式 |
 |---|---|---|
 | `engagement` | ID、版本、目的 | 所有產物都帶 engagement ID |
-| `approvers` | 姓名、角色、金鑰指紋（測試負責人＋管理層） | 驗簽章；G5 核准者 ≠ 發起者 |
+| `key_registry_ref` | 組織的金鑰登錄（out-of-band） | 所有指紋必須在登錄中且未撤銷 |
+| `signatories` | 簽署 ROE 的人：測試負責人＋管理層＋**基礎設施擁有者** | 缺任何一個角色即拒絕 |
+| `gate_approvers` | 可核准 G1–G5 的已登錄人員（例如資安審查者、應用擁有者） | GateRecord 的核准者必須在此或 `signatories` 中；G5 核准者 ≠ 發起者 |
 | `validity` | `not_before`、`not_after`、時間窗 | 每個接觸網路的步驟都檢查 |
-| `targets` | 目標 ID、base URL、環境（只能是 staging）、所有權證明方式 | DNS TXT／well-known token 每次執行前重驗；Scope Proxy 白名單 |
+| `targets` | 目標 ID、base URL、環境（`staging`，或我方控制的 `tester_controlled`，例如 canary）、所有權證明方式 | DNS TXT／well-known token 每次執行前由 Z3 經 Scope Proxy 重驗；Scope Proxy 白名單 |
+| `test_roles` | 測試角色與憑證參照（存在 Z3 secret store） | 測試案例只能使用列出的角色 |
 | `exclusions` | 排除路徑、排除主機 | 命中即 S3 |
 | `activities` | 允許的安全等級、允許的工具與模式 | 超出即拒絕 |
 | `rate_limits` | 每主機 req/s、並行數、ZAP 最小 delay、最長掃描時間 | 工具設定由此產生並檢查 |
@@ -278,4 +295,4 @@ def compute_safety_class(tc, roe) -> str:
 | `integrations` | 受測應用的外部整合（email、SMS、金流）及其 sandbox 模式 | 未列出者在出站層封鎖 |
 | `upstream_llm_providers` | 受測應用呼叫的 LLM 供應商、條款確認人、花費上限 | 超過上限即停止 |
 | `secrets_verification` | 是否允許 TruffleHog 驗證、允許的供應商 | 預設關閉 |
-| `signature` | 分離式簽章參照 | 驗章失敗即拒絕 |
+| `signatures` | 每位簽署人一份分離式簽章 | 任一簽章驗證失敗即拒絕 |

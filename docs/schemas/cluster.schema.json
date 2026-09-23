@@ -109,6 +109,14 @@
       },
       "minItems": 1
     },
+    "lineages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "description": "成員發現項的模型血統"
+    },
     "independent_families": {
       "type": "array",
       "items": {
@@ -138,6 +146,7 @@
     "cwes",
     "member_finding_ids",
     "families",
+    "lineages",
     "independent_families",
     "sarif_refs",
     "linked_cluster_ids"

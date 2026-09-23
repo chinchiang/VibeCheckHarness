@@ -7,7 +7,9 @@ engagement:
   version: 1
   purpose: "ACME 發票系統 staging 的安全驗證（先白箱、後黑箱）"
 
-approvers:
+key_registry_ref: "keys://acme-security/approvers"   # 指紋必須在此登錄且未撤銷
+
+signatories:                 # 簽署 ROE 的人：必須含 test_lead、management、infrastructure_owner
   - name: alice
     role: test_lead
     key_fingerprint: "ed25519:SHA256:EXAMPLEONLY1"
@@ -17,6 +19,14 @@ approvers:
   - name: dave
     role: infrastructure_owner
     key_fingerprint: "ed25519:SHA256:EXAMPLEONLY4"
+
+gate_approvers:              # 可核准 G1–G5 的已登錄人員
+  - name: erin
+    role: security_reviewer
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY5"
+  - name: frank
+    role: app_owner
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
 
 validity:
   not_before: "2026-10-01T00:00:00+08:00"
@@ -42,10 +52,21 @@ targets:
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
   - id: tgt-canary
     base_url: "https://canary.example.net"
-    environment: staging
+    environment: tester_controlled   # 我方控制的 canary 伺服器
     ownership_proof:
       method: dns_txt
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+
+test_roles:                  # 測試帳號只存在 Z3 secret store，永不進 LLM context
+  - role: tenantA_user
+    description: "合成租戶 A 的一般使用者"
+    credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/tenantA_user"
+  - role: tenantB_user
+    description: "合成租戶 B 的一般使用者"
+    credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/tenantB_user"
+  - role: U1
+    description: "LLM 客服功能的合成使用者"
+    credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/U1"
 
 exclusions:
   paths: ["/admin/billing/*", "/api/payments/*"]
@@ -89,6 +110,13 @@ secrets_verification:
   trufflehog_verify: false
   providers: []
 
-signature:
-  alg: ed25519
-  detached_signature_ref: "roe.yaml.sig"
+signatures:                  # 每位 signatory 一份分離式簽章
+  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY1"
+    alg: ed25519
+    detached_signature_ref: "roe.yaml.alice.sig"
+  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
+    alg: ed25519
+    detached_signature_ref: "roe.yaml.carol.sig"
+  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY4"
+    alg: ed25519
+    detached_signature_ref: "roe.yaml.dave.sig"

@@ -11,7 +11,8 @@
     "gate": {
       "type": "string",
       "enum": [
-        "G0",
+        "G0a",
+        "G0b",
         "G1",
         "G2",
         "G3",
@@ -32,6 +33,7 @@
         "kind": {
           "type": "string",
           "enum": [
+            "engagement",
             "roe",
             "invariants",
             "disputed_clusters",
@@ -58,27 +60,40 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "description": "發起執行或核准 G4 的人（不得是自動化帳號）"
     },
-    "approver": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string"
+    "approvers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "test_lead",
+              "management",
+              "infrastructure_owner",
+              "app_owner",
+              "security_reviewer"
+            ]
+          },
+          "key_fingerprint": {
+            "type": "string"
+          }
         },
-        "role": {
-          "type": "string"
-        },
-        "key_fingerprint": {
-          "type": "string"
-        }
+        "required": [
+          "name",
+          "role",
+          "key_fingerprint"
+        ]
       },
-      "required": [
-        "name",
-        "role",
-        "key_fingerprint"
-      ]
+      "minItems": 1,
+      "description": "每個關卡要求的角色見 docs/02 §1.3"
     },
     "decisions": {
       "type": "array",
@@ -120,21 +135,29 @@
       "type": "string",
       "format": "date-time"
     },
-    "signature": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "alg": {
-          "type": "string"
+    "signatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key_fingerprint": {
+            "type": "string"
+          },
+          "alg": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
         },
-        "value": {
-          "type": "string"
-        }
+        "required": [
+          "key_fingerprint",
+          "alg",
+          "value"
+        ]
       },
-      "required": [
-        "alg",
-        "value"
-      ]
+      "minItems": 1
     }
   },
   "required": [
@@ -144,11 +167,11 @@
     "run_id",
     "artifact",
     "initiator",
-    "approver",
+    "approvers",
     "decisions",
     "timestamp",
-    "signature"
+    "signatures"
   ],
-  "description": "Policy Engine 驗證的是本紀錄的簽章與 artifact.sha256，而不是 checkpoint 內容。G5 的 approver 不得等於 initiator（由驗證程式檢查）。",
+  "description": "Policy Engine 驗證的是本紀錄的簽章（金鑰須在組織的金鑰登錄中）與 artifact.sha256，而不是 checkpoint 內容。G5 的核准者不得是發起者（由驗證程式檢查）。",
   "title": "GateRecord（人工關卡簽章紀錄）"
 }

@@ -1,0 +1,46 @@
+# engagement.yaml — 委任設定（示意）
+# G0a：在 W0 之前驗章。任何把程式碼送往 LLM、或在 Z2 執行程式碼的步驟，都要先通過這份設定的驗證。
+# 資料等級未填時視為 C（fail-closed）。
+
+engagement_id: eng-acme-invoices-2026q4
+purpose: "ACME 發票系統的白箱＋黑箱安全驗證"
+key_registry_ref: "keys://acme-security/approvers"   # out-of-band 金鑰登錄（登錄、撤銷由資安團隊管理）
+
+code_ownership:
+  repositories:
+    - url: "https://git.example.com/acme/invoices"
+      owner: "ACME Inc."
+  attested_by:
+    name: frank
+    role: app_owner
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
+  attestation: true
+
+data_class: C
+
+allowed_models:            # 每個資料等級允許的模型（對應 models.yaml 的 key）
+  P: [claude_sonnet, claude_haiku, gpt_flagship, gpt_oss_self, nemotron_self, nemotron_cloud]
+  C: [claude_sonnet, claude_haiku, gpt_flagship, gpt_oss_self, nemotron_self]
+
+telemetry_disabled: true
+retention_days: 30
+
+validity:
+  not_before: "2026-09-20T00:00:00+08:00"
+  not_after: "2026-10-31T23:59:59+08:00"
+
+signatories:
+  - name: frank
+    role: app_owner
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
+  - name: carol
+    role: management
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
+
+signatures:
+  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
+    alg: ed25519
+    detached_signature_ref: "engagement.yaml.frank.sig"
+  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
+    alg: ed25519
+    detached_signature_ref: "engagement.yaml.carol.sig"

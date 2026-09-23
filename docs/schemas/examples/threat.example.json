@@ -43,7 +43,11 @@
       "match": "MATCHED"
     }
   ],
-  "source_finding_id": "K-005",
+  "source_cluster_id": "K-005",
+  "source_finding_ids": [
+    "F-017",
+    "F-021"
+  ],
   "modeled_by": [
     {
       "agent_id": "tm_a",

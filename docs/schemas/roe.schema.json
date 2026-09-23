@@ -25,7 +25,11 @@
         "purpose"
       ]
     },
-    "approvers": {
+    "key_registry_ref": {
+      "type": "string",
+      "description": "組織的金鑰登錄（out-of-band），核准者指紋必須在其中且未撤銷"
+    },
+    "signatories": {
       "type": "array",
       "items": {
         "type": "object",
@@ -40,7 +44,8 @@
               "test_lead",
               "management",
               "infrastructure_owner",
-              "app_owner"
+              "app_owner",
+              "security_reviewer"
             ]
           },
           "key_fingerprint": {
@@ -53,7 +58,51 @@
           "key_fingerprint"
         ]
       },
-      "minItems": 2
+      "minItems": 3,
+      "contains": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "const": "infrastructure_owner"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "description": "簽署 ROE 的人：至少含測試負責人、管理層、基礎設施擁有者"
+    },
+    "gate_approvers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "test_lead",
+              "management",
+              "infrastructure_owner",
+              "app_owner",
+              "security_reviewer"
+            ]
+          },
+          "key_fingerprint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "key_fingerprint"
+        ]
+      },
+      "minItems": 1,
+      "description": "可核准 G1–G5 的已登錄人員"
     },
     "validity": {
       "type": "object",
@@ -132,7 +181,12 @@
             "format": "uri"
           },
           "environment": {
-            "const": "staging"
+            "type": "string",
+            "enum": [
+              "staging",
+              "tester_controlled"
+            ],
+            "description": "tester_controlled＝我方控制的設施（例如 canary 伺服器）"
           },
           "ownership_proof": {
             "type": "object",
@@ -160,6 +214,30 @@
           "base_url",
           "environment",
           "ownership_proof"
+        ]
+      },
+      "minItems": 1
+    },
+    "test_roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "credential_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "description",
+          "credential_ref"
         ]
       },
       "minItems": 1
@@ -378,28 +456,39 @@
         "providers"
       ]
     },
-    "signature": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "alg": {
-          "type": "string"
+    "signatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key_fingerprint": {
+            "type": "string"
+          },
+          "alg": {
+            "type": "string"
+          },
+          "detached_signature_ref": {
+            "type": "string"
+          }
         },
-        "detached_signature_ref": {
-          "type": "string"
-        }
+        "required": [
+          "key_fingerprint",
+          "alg",
+          "detached_signature_ref"
+        ]
       },
-      "required": [
-        "alg",
-        "detached_signature_ref"
-      ]
+      "minItems": 1
     }
   },
   "required": [
     "engagement",
-    "approvers",
+    "key_registry_ref",
+    "signatories",
+    "gate_approvers",
     "validity",
     "targets",
+    "test_roles",
     "exclusions",
     "activities",
     "rate_limits",
@@ -408,7 +497,7 @@
     "integrations",
     "upstream_llm_providers",
     "secrets_verification",
-    "signature"
+    "signatures"
   ],
   "title": "ROE（交戰規則）"
 }

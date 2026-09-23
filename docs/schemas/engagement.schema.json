@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "engagement.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "engagement_id": {
+      "type": "string",
+      "pattern": "^eng-[a-z0-9-]+$"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "key_registry_ref": {
+      "type": "string"
+    },
+    "code_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repositories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "owner"
+            ]
+          },
+          "minItems": 1
+        },
+        "attested_by": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string",
+              "enum": [
+                "test_lead",
+                "management",
+                "infrastructure_owner",
+                "app_owner",
+                "security_reviewer"
+              ]
+            },
+            "key_fingerprint": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "role",
+            "key_fingerprint"
+          ]
+        },
+        "attestation": {
+          "const": true
+        }
+      },
+      "required": [
+        "repositories",
+        "attested_by",
+        "attestation"
+      ]
+    },
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "P",
+        "C"
+      ]
+    },
+    "allowed_models": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "P": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "C": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "P",
+        "C"
+      ]
+    },
+    "telemetry_disabled": {
+      "const": true
+    },
+    "retention_days": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "not_before": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "not_after": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "not_before",
+        "not_after"
+      ]
+    },
+    "signatories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "test_lead",
+              "management",
+              "infrastructure_owner",
+              "app_owner",
+              "security_reviewer"
+            ]
+          },
+          "key_fingerprint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "key_fingerprint"
+        ]
+      },
+      "minItems": 1,
+      "contains": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "const": "app_owner"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      }
+    },
+    "signatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key_fingerprint": {
+            "type": "string"
+          },
+          "alg": {
+            "type": "string"
+          },
+          "detached_signature_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key_fingerprint",
+          "alg",
+          "detached_signature_ref"
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "engagement_id",
+    "purpose",
+    "key_registry_ref",
+    "code_ownership",
+    "data_class",
+    "allowed_models",
+    "telemetry_disabled",
+    "retention_days",
+    "validity",
+    "signatories",
+    "signatures"
+  ],
+  "title": "Engagement（委任設定，白箱開始前 G0a 驗章）",
+  "description": "在 W0 之前驗證：程式碼所有權聲明、資料等級（未填即 C）、每個資料等級允許的模型。任何送往 LLM 或在 Z2 執行程式碼的步驟都要先通過。"
+}

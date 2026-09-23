@@ -5,7 +5,7 @@
     "INV-LLM-003"
   ],
   "abuse_case_id": "ABUSE_CASE_031",
-  "source_finding_id": "F-044",
+  "source_cluster_id": "K-011",
   "target_ids": [
     "tgt-staging-app",
     "tgt-canary"
@@ -35,7 +35,8 @@
     "adapter": "promptfoo",
     "params": {
       "env": {
-        "PROMPTFOO_DISABLE_REMOTE_GENERATION": "true", "PROMPTFOO_DISABLE_TELEMETRY": "1"
+        "PROMPTFOO_DISABLE_REMOTE_GENERATION": "true",
+        "PROMPTFOO_DISABLE_TELEMETRY": "1"
       }
     },
     "manual_reason": null
@@ -46,6 +47,19 @@
     "requests_per_second": 0.5,
     "max_requests": 40
   },
+  "request_allowlist": [
+    {
+      "target_id": "tgt-staging-app",
+      "method": "POST",
+      "path": "/api/uploads"
+    },
+    {
+      "target_id": "tgt-staging-app",
+      "method": "POST",
+      "path": "/api/support/chat"
+    }
+  ],
+  "seed_manifest_ref": "seeds/eng-acme-invoices-2026q4.yaml",
   "data_needed": {
     "seed_data": [
       "u1_orders",
@@ -65,5 +79,5 @@
       "temperature"
     ]
   },
-  "artifact_sha256": "sha256:f280ceb93a714bfe2efbb9071ee48c882fb947b84d8ed417dc30f3989f4787bc"
+  "artifact_sha256": "sha256:8a62a5a8261805643e1f2c18f3e6173288bfa9e7054c8e5a2c6c26db4ddc35c3"
 }

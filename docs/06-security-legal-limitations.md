@@ -12,7 +12,7 @@
 |---|---|---|
 | ASI01 Agent Goal Hijack | 受測 repo 的註解、README、PR metadata 內嵌文字，影響 reviewer、Commander、Test Designer 的判斷 | 指揮官只讀確定性 inventory；覆蓋下限不可減；reviewer 系統提示區分指令與資料；發現項必須通過片段比對；跨家族驗證 |
 | ASI02 Tool Misuse | 產生的 ZAP、Playwright、promptfoo 設定被引導去打 ROE 以外的主機，或開啟危險模式 | 目標只能寫 ROE 目標 ID；執行前以確定性方法抽取所有 host、URL、method、旗標並比對；安全等級由程式碼計算；G4 綁定 hash |
-| ASI03 Identity & Privilege Abuse | agent 持有過多憑證 | LLM 金鑰只在 Gateway；測試帳號只在 Z3 secret store、永不進 LLM context；reviewer 無 shell、無網路 |
+| ASI03 Identity & Privilege Abuse | agent 持有過多憑證；工具包在沒有授權的情況下處理程式碼 | LLM 金鑰只在 Gateway；測試帳號只在 Z3 secret store、永不進 LLM context；reviewer 無 shell、無網路；G0a 委任設定驗章前，任何程式碼都不送往 LLM、不在 Z2 執行 |
 | ASI04 Agentic Supply Chain | 工具包依賴的套件或掃描器被植入惡意程式 | 鎖版本＋hash；Actions 鎖 SHA；cosign 驗證；掃描器在沒有 CI secrets 的環境執行（見 §1.5） |
 | ASI05 Unexpected Code Execution | 建置目標應用、安裝其相依、執行 LLM 產生的測試時，執行了不可信程式碼 | 一律在 Z2（gVisor 或 microVM）；沒有金鑰、沒有 LLM 出站、沒有目標出站；預設關閉 lifecycle scripts |
 | ASI06 Memory & Context Poisoning | 被污染的中間產物（例如 LLM 摘要）在後續步驟被當成事實 | Blackboard 只存型別化 artifact，並附來源（哪個 agent、哪個模型、哪個輸入 hash）；LLM 摘要不作為規劃輸入 |
@@ -23,7 +23,7 @@
 
 ### 1.2 受測程式碼造成的注入
 - Anthropic 的 claude-code-security-review README 明言：該工具**未針對 prompt injection 強化**，只應審查可信的 PR [V][E:whitebox-20]。
-- 一篇 2026 預印本：經 LLM 優化的 PR metadata 框架攻擊，讓 Claude Code 與 CodeRabbit 的安全審查管線在 33 個 CVE 中漏判 32 個；範本式攻擊無效 [V：預印本][E:whitebox-29]。
+- 一篇 2026 預印本：經 LLM 最佳化的 PR metadata 框架攻擊，讓 Claude Code 與 CodeRabbit 的安全審查管線在 33 個 CVE 中漏判 32 個；範本式攻擊無效 [V：預印本][E:whitebox-29]。
 - **結論**：無法完全防止，只能隔離與降低（[§3](#3-做不到不承諾的事) 第 11 條）。
 
 ### 1.3 秘密與資料
@@ -37,6 +37,9 @@
 
 ### 1.4 沙箱與網路
 - 信任區 Z1–Z4 與 Scope Proxy：見 [03 §2](03-system-architecture.md#2-部署與信任區)。
+- Z3 沒有 LLM 金鑰；多輪 LLM 測試經 Z1 的受限 relay 產生下一輪輸入（只允許 ROE 指定的模型、有花費上限、全程稽核）。
+- 所有權驗證由 Z3 經 Scope Proxy 發出，Z1 不直接連目標。
+- TruffleHog 驗證使用另一份「第三方接觸」白名單，只含 ROE 列出的供應商，預設為空。
 - **最低隔離要求**：不可信程式碼至少要 gVisor 或 microVM；絕不掛載 Docker socket [V][E:blackbox-38]。
 - gVisor 的限制：相容性降低、每次 syscall 的額外負擔較高，而且不是每個 syscall 或 `/proc`、`/sys` 檔都有實作 [V][E:blackbox-34]。
 - Firecracker 的整體安全仍取決於妥善設定的 Linux 主機 [V][E:blackbox-35]。
@@ -55,7 +58,8 @@
 
 ### 1.6 人工關卡的完整性
 - 核准是**簽章紀錄**，綁定產物 hash；Policy Engine 驗的是紀錄，不是 checkpoint（[03 §6](03-system-architecture.md#6-人工關卡服務)）。
-- G5 的核准者不能是發起者。
+- **金鑰信任根**：核准者公鑰登錄在組織的金鑰登錄中（out-of-band，含登錄、輪替、撤銷）；ROE 與委任設定只能引用登錄中的指紋，不能自行宣告可信金鑰。
+- G5 的核准者不能是發起者；發起者必須記錄為啟動執行或核准 G4 的人，不能是自動化帳號。
 - 限制 checkpoint 與 audit 儲存庫的存取權。Microsoft Agent Framework 也警告不要從不可信來源載入 checkpoint [V][E:orchestration-09]。
 
 ## 2. 法遵與授權
@@ -133,7 +137,7 @@
 | 9 | **LLM 功能的漏洞只能以機率陳述**（n 次中 k 次），無法「重播一次就確認」 | LLM 輸出不確定 [P][E:multi_llm_bias-26]；LLM 評審有明顯隨機性 [V][E:multi_llm_bias-11]；garak 的 detector 表現不穩定 [V][E:reference_systems-22] | n 次試驗＋確定性 oracle＋信賴區間 |
 | 10 | **不做 exploit 開發、不測正式環境或第三方系統、不做 S3 破壞性測試**；staging **不做效能容量評估** | 範圍界線；Grafana：QA 環境不適合評估效能與擴充性 [V][E:blackbox-28] | 只做限流與資源上限的驗證 |
 | 11 | **無法完全防止受測程式碼對 agent 的 prompt injection** | [V][E:whitebox-20][V：預印本][E:whitebox-29] | 隔離、最小權限、證據接地、覆蓋下限、產物驗證 |
-| 12 | **不是全自動**：至少 G0–G5 六種人工關卡，加上對照表審查 | LLM 準確度限制；SoK 人工審 patch 花兩人週 [V][單源：SoK][E:reference_systems-07] | 人力成本在 pilot 中量測；CI 分兩條線 |
+| 12 | **不是全自動**：G0a、G0b 的事先簽署，加上 G1–G5 五種人工關卡與對照表審查 | LLM 準確度限制；SoK 人工審 patch 花兩人週 [V][單源：SoK][E:reference_systems-07] | 人力成本在 pilot 中量測；CI 分兩條線 |
 | 13 | Nemotron 託管端點的結構化輸出**未確認**；NIM 2.x **只有部分查證** | [P][E:providers-18] | 一律用 Pydantic 在用戶端驗證 |
 | 14 | **廠商宣稱的準確率，本研究都沒有找到獨立驗證**（Semgrep AI triage、Claude Security、Codex Security、Copilot Autofix 等） | 研究限制（ledger whitebox 主題） | 以 Calibration Lab 自測；文件中一律標「廠商宣稱」 |
 | 15 | **行動 App 不在本版範圍**；模型 ID 與版本變動快（例如 GPT-6 Sol 2026-09-22 才發布 [P][E:providers-31]）；OWASP LLM Top 10 2026 的官方 PDF 尚未核對 [P][S-01] | — | 實作時重新查證；分類版本寫在每筆威脅裡 |
