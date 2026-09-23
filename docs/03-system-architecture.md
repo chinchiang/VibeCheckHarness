@@ -475,7 +475,7 @@ erDiagram
 2. 由人決定：加預算、降低 V、或移除校準權重最低的家族。
 3. **絕不靜默刪減覆蓋**；所有取捨都寫入報告。
 
-**延遲**：人工關卡（G0–G5）是主要延遲來源；AIxCC 決賽在無人介入下跑了約 143 小時 [單源：SoK；DARPA 只確認名次][E:reference_systems-08]，SoK 的人工審 patch 花了兩人週 [V][E:reference_systems-07]。實際人力需在 pilot 中量測。
+**延遲**：人工關卡（G1–G5）與事先簽署（G0a、G0b）是主要延遲來源；AIxCC 決賽在無人介入下跑了約 143 小時 [單源：SoK；DARPA 只確認名次][E:reference_systems-08]，SoK 的人工審 patch 花了兩人週 [V][E:reference_systems-07]。實際人力需在 pilot 中量測。
 
 ## 12. CI 整合（兩條線）
 
