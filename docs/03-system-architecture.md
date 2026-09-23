@@ -132,7 +132,7 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 - 撰寫最終報告敘事（只寫計畫理由；敘事交給 Reporter）
 
 **為什麼這樣設計**：
-- AIxCC 的計分有準確度乘數 AM＝1−(1−r)^4，錯誤提報會被重罰 [單源][E:reference_systems-05]。AIxCC SoK 的關鍵發現是「穩定性與準確度決定勝負」「技術先進與工程良好是兩個不同的挑戰」[C][E:reference_systems-08]。
+- AIxCC 的計分有準確度乘數 AM＝1−(1−r)^4（準確率 50% 時為 0.9375、40% 時為 0.8704），錯誤的關聯會讓獎勵變成懲罰 [單源：SoK][E:reference_systems-05]。AIxCC SoK 的關鍵發現是「穩定性與準確度決定勝負」「技術先進與工程良好是兩個不同的挑戰」[V][E:reference_systems-08]。
 - 冠軍 Atlantis 是 ensemble-first，亞軍 Buttercup 是確定性流程＋只在工具不足處用 LLM [V][E:reference_systems-02]。本設計兩者兼取：流程確定、審查端多家族集成。
 - OWASP LLM06 Excessive Agency 的緩解建議：最小化 agent 可用的擴充、避免開放式工具、最小權限、高影響動作需人核准 [V][E:blackbox-32]。
 - 裁決若交給 LLM，會有自我偏好問題 [V][E:multi_llm_bias-05]。
@@ -308,7 +308,11 @@ stateDiagram-v2
 - **範圍**：所有憑證都綁定 ROE 的 engagement ID 與到期日；ROE 失效時一併作廢。
 
 ### 7.5 LLM 功能測試的額外控制
-- **promptfoo**：紅隊攻擊預設由 promptfoo 雲端生成 [V][E:reference_systems-23]，而 promptfoo 已被 OpenAI 收購 [V][E:reference_systems-25]。→ 預設設定 `PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION=true` 改用本地生成 [V][S-08]，並在出站層封鎖 promptfoo 雲端。審查代理回報有使用者 issue 指出部分策略仍會使用遠端生成 [單源，未再核對]，→ 上線前實測確認。
+- **promptfoo**：紅隊攻擊預設由 promptfoo 雲端生成 [V][E:reference_systems-23]，而 promptfoo 已被 OpenAI 收購 [V][E:reference_systems-25]。沒有 API key 時，還會把應用的 `purpose`、送給目標的 prompt、目標的回應（評分用）、使用者 email 送到 `api.promptfoo.app` [V][S-08]。所以：
+  - 設定 `PROMPTFOO_DISABLE_REMOTE_GENERATION=true`（範圍比 `PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION` 廣，後者會保留 SimulatedUser 的遠端生成）與 `PROMPTFOO_DISABLE_TELEMETRY=1` [V][S-08]。
+  - 評分用的 grader 指定為 Gateway 上允許的模型。
+  - 在出站層封鎖 `api.promptfoo.app` 等 promptfoo 雲端網域；上述環境變數**不會**停用帳號或授權檢查、分享、Cloud 同步 [V][S-08]。
+  - 已有使用者 issue 回報 iterative／crescendo 策略會繞過設定 [單源][S-09] → 上線前以出站紀錄實測確認。
 - **受測應用的上游 LLM**：ROE 要列出受測應用呼叫的 LLM 供應商，使用者要確認自己與該供應商的條款允許這類測試；S1 LLM 測試要設花費與請求上限（OWASP：Unbounded Consumption）。
 - **判定規則**：見 [05 §4.2](05-bias-calibration.md#42-裁決狀態)，採機率規則。
 
@@ -328,8 +332,8 @@ stateDiagram-v2
 | 模式 | 端點 | 可處理的資料 | 注意事項 |
 |---|---|---|---|
 | 雲端 | build.nvidia.com，OpenAI 相容 `https://integrate.api.nvidia.com/v1`；LiteLLM `nvidia_nim/<model>`、`NVIDIA_NIM_API_KEY` [V][E:providers-09][E:providers-20] | **只用於評估與原型，且只限公開或合成程式碼** | NVIDIA API Trial Terms（2025-09-19 版）[V][E:providers-10]：<br>・僅供有限試用，不得用於正式用途<br>・不得提交機密資訊<br>・NVIDIA 會收集使用者內容與生成內容，以改善其產品與 AI 模型<br>・未經書面授權不得測試其 API 服務本身的安全性<br><br>其他：官方 FAQ 說 API catalog 是試用體驗，只供評估與原型 [V][E:providers-09]；有速率限制但未公布數字；未找到 NVIDIA 託管端點的 ZDR 或 DPA；託管端點是否支援 json_schema **未確認** |
-| 自架 vLLM／SGLang | 開放權重。Nemotron 3 Nano／Super 採 NVIDIA Nemotron Open Model License（可商用、需標示來源）[V][E:providers-06]；Ultra 與 3.5 Lightning 採 OpenMDW-1.1 [V][E:providers-07] | 可處理 C 級 | ・工具呼叫要在**伺服器端**加 `--enable-auto-tool-choice --tool-call-parser qwen3_coder` [V][E:providers-14]<br>・LiteLLM `hosted_vllm/` 會移除 tools 的 `strict` 與 `additionalProperties` [C][E:providers-22]<br>・結構化輸出用 `response_format` json_schema 或 vLLM `structured_outputs`；`guided_*` 已在 vLLM v0.12.0 移除 [C][E:providers-18] |
-| 自架 NIM | NIM 容器（OpenAI 相容） | 可處理 C 級 | ・免費授權限研究、開發、測試，且 ≤16 GPU；「正式用途」依**用途**而非 GPU 數定義，需 NVIDIA AI Enterprise → **需法務確認** [C][E:providers-12]<br>・NIM 不會自己連 MCP server，要由用戶端把工具轉成 OpenAI tools 格式 [P][E:providers-15]<br>・NIM 2.x 的 json_schema 支援只有 release note 可證 [P][E:providers-18] |
+| 自架 vLLM／SGLang | 開放權重。Nemotron 3 Nano／Super 採 NVIDIA Nemotron Open Model License（可商用、需標示來源）[V][E:providers-06]；Ultra 與 3.5 Lightning 採 OpenMDW-1.1 [V][E:providers-07] | 可處理 C 級 | ・工具呼叫要在**伺服器端**加 `--enable-auto-tool-choice --tool-call-parser qwen3_coder` [V][E:providers-14]<br>・LiteLLM `hosted_vllm/` 會移除 tools 的 `strict` 與 `additionalProperties` [C][E:providers-22]<br>・結構化輸出用 `response_format` json_schema 或 vLLM `structured_outputs`；`guided_*` 已在 vLLM v0.12.0 移除 [P][E:providers-18] |
+| 自架 NIM | NIM 容器（OpenAI 相容） | 可處理 C 級 | ・免費授權限研究、開發、測試，且 ≤16 GPU；「正式用途」依**用途**而非 GPU 數定義，需 NVIDIA AI Enterprise → **需法務確認** [P][E:providers-12]<br>・NIM 不會自己連 MCP server，要由用戶端把工具轉成 OpenAI tools 格式 [P][E:providers-15]<br>・NIM 2.x 的 json_schema 支援只有 release note 可證 [P][E:providers-18] |
 
 **硬體**（廠商模型卡）[V][E:providers-13]：
 - Nemotron 3 Nano 30B-A3B（約 3.5B active）：單張 A100／H100 級

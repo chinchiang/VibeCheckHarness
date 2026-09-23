@@ -3,7 +3,7 @@
 > 本檔由 `tools/build_references.py` 依文件中實際引用的證據 ID 自動產生。每條的完整主張、查核意見與所有來源見 [evidence/ledger.md](evidence/ledger.md)。
 > 狀態：V＝已查證、P＝部分查證、C＝原主張被推翻（以更正為準）。
 
-文件共引用 264 條證據。
+文件共引用 266 條證據。
 
 ## 多代理編排框架與模型閘道
 
@@ -272,6 +272,9 @@
 
 ## 白箱測試工具與研究
 
+- **E:whitebox-02** [V] Pearce et al. (IEEE S&P 2022) generated 1,689 Copilot programs across 89 CWE-Top-25 scenarios and found about 40% of them vulnerable.
+  - <https://arxiv.org/abs/2108.09293>
+  - <https://ieeexplore.ieee.org/document/9833571>
 - **E:whitebox-04** [V] Semgrep CE's engine is still LGPL-2.1, but Semgrep-maintained rules moved to the non-open-source Semgrep Rules License v1.0 in December 2024. CE is limited to single-file, singl…
   - <https://docs.semgrep.dev/faq/comparisons/opengrep>
   - <https://socket.dev/blog/opengrep-forks-semgrep>
@@ -709,6 +712,10 @@
   - <https://x.com/amasad/status/1946986468586721478>
   - <https://www.theregister.com/2025/07/22/replit_saastr_response/>
   - <https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure/>
+- **E:vibe_risks-30** [V] Tea, a women's dating-safety app, confirmed on 25 July 2025 unauthorized access to an "archived"/legacy data system on Firebase, exposing about 72,000 images. These included abo…
+  - <https://www.404media.co/women-dating-safety-app-tea-breached-users-ids-posted-to-4chan/>
+  - <https://techcrunch.com/2025/07/26/dating-safety-app-tea-breached-exposing-72000-user-images>
+  - <https://simonwillison.net/2025/Jul/26/official-statement-from-tea/>
 - **E:vibe_risks-31** [V] No primary source shows the Tea breach was caused by vibe coding. Tea attributed it to legacy content not migrated to its newer system, and Simon Willison says he is "confident…
   - <https://simonwillison.net/2025/Jul/26/official-statement-from-tea/>
   - <https://www.404media.co/women-dating-safety-app-tea-breached-users-ids-posted-to-4chan/>

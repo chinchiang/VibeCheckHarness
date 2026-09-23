@@ -35,7 +35,7 @@
     "adapter": "promptfoo",
     "params": {
       "env": {
-        "PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION": "true"
+        "PROMPTFOO_DISABLE_REMOTE_GENERATION": "true", "PROMPTFOO_DISABLE_TELEMETRY": "1"
       }
     },
     "manual_reason": null

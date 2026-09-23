@@ -111,10 +111,11 @@
 | Nemotron 3 Nano／Super | NVIDIA Nemotron Open Model License（可商用、需標示來源；提起專利或著作權訴訟即終止授權）[V][E:providers-06] | 標示來源 | Z4 |
 | Nemotron 3 Ultra、3.5 Lightning | OpenMDW-1.1 [V][E:providers-07] | — | Z4 |
 | Nemotron Nano 2、Llama-Nemotron | 舊版 NVIDIA Open Model License：**繞過或規避安全護欄會自動終止權利**；Llama-Nemotron 另受 Llama 社群授權約束 [V][E:providers-08] | **工具包絕不移除或繞過模型護欄** | 不優先 |
-| NIM 容器 | NVIDIA Software License Agreement＋Product-Specific Terms [P][E:providers-11]；免費授權限研究、開發、測試（≤16 GPU），正式用途需 NVIDIA AI Enterprise [C][E:providers-12] | **需法務確認**本工具包的使用是否屬於「測試」用途 | 選用 |
+| NIM 容器 | NVIDIA Software License Agreement＋Product-Specific Terms [P][E:providers-11]；免費授權限研究、開發、測試（≤16 GPU），正式用途需 NVIDIA AI Enterprise（依用途而非 GPU 數定義）[P][E:providers-12] | **需法務確認**本工具包的使用是否屬於「測試」用途 | 選用 |
 | NVIDIA API（build.nvidia.com） | Trial Terms：僅供試用、禁止機密資訊、禁止正式用途 [V][E:providers-10] | — | 只用於評估與原型 |
 | gpt-oss-120b | Apache-2.0 [V][E:providers-37] | — | Z4（選用） |
-| Hypothesis、fast-check、PyRIT、garak、promptfoo | 待查 | — | 實作前補查 |
+| promptfoo | MIT（已被 OpenAI 收購，宣稱維持開源）[V][E:reference_systems-25] | 預設會把部分資料送到其雲端（[03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)） | B4（LLM 功能測試，關閉遠端生成） |
+| Hypothesis、fast-check、PyRIT、garak | 待查 | — | 實作前補查 |
 
 ## 3. 做不到／不承諾的事
 
@@ -144,9 +145,9 @@
 | AGPL 元件（TruffleHog、k6）以服務形式提供時的義務 | 未分析 | 法務確認 |
 | Semgrep 官方規則授權、CodeQL 授權 | 已查得條款 | 依使用情境決定是否採用 |
 | E2B 授權不一致 | 未解決 | 詢問上游或不採用 |
-| 可用於正式環境的 Nemotron 雲端路徑（DPA／ZDR、第三方託管） | 未研究 | 補做研究 |
+| 可用於正式環境的 Nemotron 雲端路徑 | 查過但沒有找到 NVIDIA 託管端點的 ZDR 或 DPA；第三方託管的條款未審 | 補做研究 |
 | Nemotron 託管端點的 json_schema 支援 | 未確認 | 實測 |
 | OWASP LLM Top 10 2026 官方 PDF | 未直接讀取 | 下載核對後切換預設版本 |
-| promptfoo 部分策略會繞過本地生成的使用者回報 | 單源，未再核對 | 上線前實測 |
-| Hypothesis、fast-check、PyRIT、garak、promptfoo 的授權 | 未查 | 實作前補查 |
+| promptfoo 部分策略會繞過本地生成的使用者回報 | 單源：issue 存在且內容相符 [S-09] | 上線前以出站紀錄實測 |
+| Hypothesis、fast-check、PyRIT、garak 的授權 | 未查 | 實作前補查 |
 | GPT-6 系列在 ZDR 下是否有模型特定限制 | 未確認 [E:providers-31] | 洽 OpenAI |

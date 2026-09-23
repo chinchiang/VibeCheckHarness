@@ -8,8 +8,8 @@
 威脅（STRIDE／LINDDUN／OWASP LLM／ASI）
   → 攻擊模式（CAPEC 或 MITRE ATLAS，只引用 ID）
   → 弱點（CWE）
-  → 需求（ASVS 5.0／AISVS 1.0／G1 應用專屬不變量）
-  → 測試程序（WSTG v4.2／OWASP AI Testing Guide）
+  → 需求（ASVS 5.0 [E:threat_modeling-40]／AISVS 1.0 [E:threat_modeling-39]／G1 應用專屬不變量）
+  → 測試程序（WSTG v4.2 [E:threat_modeling-45]／OWASP AI Testing Guide [E:threat_modeling-38]）
   → 測試案例（可執行，或 Gherkin 規格）→ 結果
 ```
 
@@ -22,7 +22,7 @@
 | ASVS 4.0.3 ↔ 5.0.0 | **有**，官方 mapping YAML | [V][E:threat_modeling-41] |
 | OpenCRE（連 ASVS、WSTG、CWE、CAPEC…） | 有，但 ASVS 仍停在 4.0.3 | 2026-09-23 查詢，277 筆 ASVS 項目都指向 4.0.3 [V][E:threat_modeling-44] |
 | STRIDE／LINDDUN → CAPEC | **沒有** | CAPEC 只對應 WASC 與 OWASP Attacks [C][E:threat_modeling-52] |
-| ATLAS → CWE | **沒有**（本次未找到） | [C][E:threat_modeling-52] |
+| ATLAS → CWE | **沒有**（本次未找到；E:threat_modeling-52 未把它列為現有官方連結，屬推論） | [H][E:threat_modeling-52] |
 | CWE → ASVS 5.0 | **沒有**：ASVS 5.0 不再維護 CWE 對照，只留下封存的 beta 對照檔 | [V][E:threat_modeling-42] |
 | ASVS 5.0 → WSTG | **沒有**（本次未找到） | [C][E:threat_modeling-52] |
 | AISVS → AITG | **沒有**（本次未找到） | [C][E:threat_modeling-52] |
@@ -111,7 +111,7 @@
 1. **`BUILTIN_CHECK`**：選用或設定工具內建檢查。例如：
    - Schemathesis 的 14 個 check 之一
    - ZAP policy＋alert filter
-   - 自簽章的 Nuclei 模板 ID
+   - 自簽章的 Nuclei 模板 ID（Nuclei 的 code-protocol 模板必須簽章；`-dut` 只會**略過**未簽章模板，不會讓執行失敗 [P][E:blackbox-11]）
 2. **`GENERATED_SCRIPT`**：產生專用腳本。例如：
    - pytest＋Playwright APIRequestContext
    - Schemathesis hook
@@ -125,7 +125,7 @@
 | Adapter | 工具語意 | 需求 oracle 如何對應 |
 |---|---|---|
 | Schemathesis check | 14 個 check，除了 `max_response_time` 都預設啟用；例如 `ignored_auth` 驗證有強制認證、`use_after_free` 偵測刪除後仍可存取的資源 [V][E:blackbox-14] | 需求「未認證不得存取」→ `ignored_auth`；需求「刪除後不可存取」→ `use_after_free`。check 失敗＝需求未滿足 |
-| ZAP passive／alert filter | 被動規則產生 alert；Automation Framework 有 `alertFilter` 與 `exitStatus` job，exit code 0＝ok、1＝error、2＝warnings [V][E:blackbox-04]；`zap-api-scan.py` 的 `-c` 設定檔可把各規則設為 IGNORE／INFO／FAIL [V][E:blackbox-07] | 需求對應的規則設為 FAIL；exit code 非 0＝需求未滿足（再看是哪條規則） |
+| ZAP passive／alert filter | 被動規則產生 alert。<br>・`zap-api-scan.py`：`-c` 設定檔可把各規則設為 IGNORE／INFO／FAIL，alert 預設為 WARN；exit code 0＝成功、1＝至少一個 FAIL、2＝只有 WARN、3＝其他失敗 [V][E:blackbox-07]<br>・Automation Framework：有 `alertFilter` 與 `exitStatus` job，exit code 0＝ok、1＝error、2＝warnings [V][E:blackbox-04] | 需求對應的規則設為 FAIL。<br>・**需求未滿足**：api-scan exit 1（或 AF 的 error 等級），**且**對應規則的 alert ID 確實出現<br>・exit 2：人工檢視 WARN，不直接判定<br>・exit 3 或 AF 的 plan／job 錯誤：屬於**執行失敗**，列入「未能測試清單」，不算需求未滿足 |
 | ZAP active policy | 規則式主動掃描（S2） | 同上；每次 G5 |
 | Nuclei（自簽章模板） | 模板比對 | 模板的 matcher＝需求的反例條件 |
 | pytest＋Playwright | 自訂 assert | oracle 直接寫成 assert（狀態碼、回應欄位、狀態差異） |
@@ -195,7 +195,7 @@ def compute_safety_class(tc, roe) -> str:
 
 | 連結 | 值 | provenance |
 |---|---|---|
-| CAPEC | 無：CWE-639 官方頁面未列相關攻擊模式；CAPEC-1 的 Related Weaknesses 也沒有 CWE-639 [S-07] | —（留空，不硬湊） |
+| CAPEC | 無：CWE-639 官方頁面未列相關攻擊模式；CAPEC-1 的 Related Weaknesses 也沒有 CWE-639 [P][S-07]（實作時以 CWE／CAPEC 的 XML 資料再確認） | —（留空，不硬湊） |
 | CWE | **CWE-639** Authorization Bypass Through User-Controlled Key [V][S-04] | curated（STRIDE→CWE 沒有官方對照） |
 | ASVS | **v5.0.0-8.2.2**（L1）：驗證資料層級的存取只限於對特定資料項目有明確權限者，以緩解 IDOR 與 BOLA [V][S-05] | curated（ASVS 5.0 沒有 CWE 對照） |
 | WSTG | **WSTG-v42-ATHZ-04** Testing for Insecure Direct Object References [V][S-06] | curated（ASVS 5.0→WSTG 沒有官方對照） |
@@ -251,7 +251,7 @@ def compute_safety_class(tc, roe) -> str:
   - canary 伺服器沒有收到請求
 - **trials**：n＝20，固定目標模型、版本、temperature 並記錄；通過規則＝0 次違反。報告違反率與 95% 信賴區間。
 - **tool_binding**：`GENERATED_SCRIPT`，adapter＝`pyrit` 或 `promptfoo`
-  - promptfoo 要設定 `PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION=true` [V][S-08]
+  - promptfoo 要設定 `PROMPTFOO_DISABLE_REMOTE_GENERATION=true` 與 `PROMPTFOO_DISABLE_TELEMETRY=1`，grader 指定為 Gateway 上允許的模型 [V][S-08]；部分策略據報仍會使用遠端生成 [單源][S-09]，所以另外在出站層封鎖 promptfoo 雲端（詳見 [03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)）
   - LLM grader 的判定只作參考
 - **安全等級**：S1
 - **花費上限**：由 ROE 設定（受測應用的上游 LLM 費用）

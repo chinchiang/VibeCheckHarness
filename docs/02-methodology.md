@@ -36,7 +36,7 @@ flowchart TD
 
 ### 1.2 為什麼先白箱、後黑箱
 - NIST SP 800-115 附錄 C：白箱技術對自製應用的缺陷**較有效率、成本較低**；黑箱技術用於元件之間、與使用者、其他系統、環境的互動；兩者合用稱為 gray-box [V][E:blackbox-31]。
-- NIST SSDF SP 800-218 v1.1 的三項實務剛好對應三個階段 [V][E:threat_modeling-49]：
+- NIST SSDF SP 800-218 v1.1（目前的正式版；v1.2 仍是草案 [V][E:threat_modeling-48]）的三項實務剛好對應三個階段 [V][E:threat_modeling-49]：
   - PW.1.1 風險建模 → B2
   - PW.7 審查程式碼 → W1–W3
   - PW.8 測試可執行碼 → W4、B4
@@ -67,7 +67,7 @@ flowchart TD
   - LLM 呼叫點、prompt 組裝位置、agent 工具清單與權限
   - 相依清單；Syft 產生 SBOM（CycloneDX／SPDX）[V][E:whitebox-14]
 - **輸出**：`inventory.json`（結構化）、SBOM。
-- **重點**：指揮官的規劃輸入**只用這些確定性產物**，不用 LLM 對程式碼的自由文字摘要。原因：受測 repo 可能含有影響 LLM 的文字，已有預印本顯示經 LLM 優化的 PR metadata 框架攻擊能讓 LLM 安全審查漏判 33 個 CVE 中的 32 個（範本式攻擊無效）[P][E:whitebox-29]。
+- **重點**：指揮官的規劃輸入**只用這些確定性產物**，不用 LLM 對程式碼的自由文字摘要。原因：受測 repo 可能含有影響 LLM 的文字，已有預印本顯示經 LLM 優化的 PR metadata 框架攻擊能讓 LLM 安全審查漏判 33 個 CVE 中的 32 個（範本式攻擊無效）[V：預印本][E:whitebox-29]。
 - **完成條件**：每個 entry point 都有對應的 handler 位置；每個 DB table 都有 RLS 狀態（有／無／不適用）。
 
 ### W0.5 安全不變量規格（Security Invariants Spec）＋ G1
@@ -88,11 +88,11 @@ flowchart TD
 
 | 類別 | 工具 | 注意 |
 |---|---|---|
-| SAST | Opengrep（LGPL-2.1，Semgrep CE 1.100.0 的 fork，含檔內跨函式 taint）[V][E:whitebox-06] 或 Semgrep CE | Semgrep 引擎是 LGPL，但官方規則自 2024-12 改用非開源的 Semgrep Rules License；CE 只做單檔、單函式分析 [V][E:whitebox-04] |
+| SAST | Opengrep（LGPL-2.1，Semgrep CE 1.100.0 的 fork，含檔內跨函式 taint，需啟用 `--taint-intrafile`）[V][E:whitebox-06] 或 Semgrep CE | Semgrep 引擎是 LGPL，但官方規則自 2024-12 改用非開源的 Semgrep Rules License；CE 只做單檔、單函式分析 [V][E:whitebox-04] |
 | SAST（Python） | Bandit（Apache-2.0，有 SARIF formatter）[V][E:whitebox-08] | — |
 | SAST（選用） | CodeQL | CLI 授權只允許開源專案與學術研究免費使用，私有商業碼需付費 [V][E:whitebox-07] |
-| 相依漏洞 | OSV-Scanner（Apache-2.0）[V][E:whitebox-11]、Grype（EPSS／KEV 排序）[V][E:whitebox-14] | OSV-Scanner 的可達性判斷（call analysis）是選配功能，且不是每個生態系都支援 [C][E:whitebox-11] |
-| 套件存在性 | 自建檢查：每個相依到 registry 查存在性、首次發布時間、下載量 | 對應套件幻覺：19.7% 的套件引用是幻覺名稱；43% 的幻覺名稱在 10 次重複查詢中每次都出現 [C][E:vibe_risks-13][E:vibe_risks-15] |
+| 相依漏洞 | OSV-Scanner（Apache-2.0）[V][E:whitebox-11]、Grype（EPSS／KEV 排序）[V][E:whitebox-14] | OSV-Scanner 的可達性判斷（call analysis）是選配功能，且不是每個生態系都支援 [V][E:whitebox-11] |
+| 套件存在性 | 自建檢查：每個相依到 registry 查存在性、首次發布時間、下載量 | 對應套件幻覺：19.7% 的套件引用是幻覺名稱；43% 的幻覺名稱在 10 次重複查詢中每次都出現 [V][E:vibe_risks-13][E:vibe_risks-15] |
 | Secrets | Betterleaks [P][E:whitebox-09] 或 gitleaks（已宣布只修安全問題）；TruffleHog（AGPL-3.0）[V][E:whitebox-10] | TruffleHog 的驗證會把找到的憑證送到供應商 API → **預設 `--no-verification`**；若要驗證，必須寫進 ROE 並從 Z3 發出、留紀錄，否則建議直接輪替 |
 
 - **Secrets 處理**：secrets 掃描**最先跑**。掃到的值在所有後續 LLM 輸入中遮罩；路徑黑名單（`.env*`、金鑰與憑證檔、auth-state 目錄、CI secrets 檔）**完全不進切片**；再以 pattern＋entropy 作第二層遮罩（掃描器 recall 不完美，Betterleaks 的 98.6% recall 只是廠商宣稱 [P][E:whitebox-09]）。
@@ -107,7 +107,7 @@ flowchart TD
   3. 流程超過上限時，以重疊方式切割並記錄；若某模型放不下某切片，就把該模型排除在此切片之外，並標記 `diversity_degraded`。**不允許靜默截斷**。
   4. 每個切片有 `slice_id`＝各檔案範圍的 sha256。
 - **審查方式**：
-  - 同一切片平行交給 N 個不同家族的 reviewer。**第一輪彼此看不到對方結果**。多輪辯論中模型常由對轉錯，原因未定，作者列出從眾、諂媚等可能因素 [P][E:multi_llm_bias-21]；多數決本身就拿到辯論的大部分效益 [P][E:multi_llm_bias-16]。
+  - 同一切片平行交給 N 個不同家族的 reviewer。**第一輪彼此看不到對方結果**。多輪辯論中模型常由對轉錯，原因未定，作者列出從眾、諂媚等可能因素 [P][E:multi_llm_bias-21]；多數決本身就拿到辯論的大部分效益 [V][E:multi_llm_bias-16]。
   - 審查面向（facet）：
     - 授權與 IDOR
     - 輸入處理與注入
@@ -156,7 +156,7 @@ flowchart TD
   - 外部 API 呼叫與 LLM 工具點 → external entity
   - 認證邊界、網路邊界、租戶邊界 → trust boundary
 
-  LLM 只**提議**標籤與邊界，由人在 G3 確認。pytm 也是從明確的模型產生 DFD，不是推論出來的 [C][E:threat_modeling-11]。
+  LLM 只**提議**標籤與邊界，由人在 G3 確認。pytm 也是從明確的模型產生 DFD，不是推論出來的 [V：該條只有日期與數字被更正，此部分成立][E:threat_modeling-11]。
 - **種子威脅**：每個 `LIKELY` 或 `DISPUTED` 的叢集轉成 B2 的種子威脅，帶 `source_finding_id`，且 B3 至少要替它產生一個測試；B6 必須逐項回報結果。這樣動態測試可以用來化解跨家族爭議。
 - **輸出**：`whitebox-report.md`、`w.sarif`、`dfd.json`、`seed-threats.json`。
 
@@ -178,7 +178,7 @@ flowchart TD
 - **其他前提**（寫在 ROE 裡、由核准者聲明）：
   - staging 資料為合成資料。SP 800-115 建議可能暴露個資的測試使用非正式系統與測試資料 [V][E:blackbox-30]。
   - staging 的外部整合（email、SMS、金流、LLM API）都在 sandbox／test 模式並列入 ROE，否則在出站層阻擋。
-  - staging 與正式環境的憑證、DB 分離。Replit 事件發生前，dev／prod 並未分離 [P][E:vibe_risks-27][V][E:vibe_risks-28]。
+  - staging 與正式環境的憑證、DB 分離。Replit 的 agent 在 code freeze 期間刪除了正式資料庫 [P][E:vibe_risks-27]，事後 Replit 才宣布開始推出自動 dev／prod 資料庫分離 [V][E:vibe_risks-28]。
 - **適用範圍**：**所有接觸網路的步驟**（從 B1 開始，包括 TruffleHog 驗證）都必須先通過這道檢查。
 
 ### B1 系統建模（兩個獨立視角）
@@ -222,9 +222,9 @@ flowchart TD
   2. Merger 去重。
   3. Critic（另一家族）找遺漏。
   4. 每個威脅必須有證據（端點、資料流、程式位置）；證據對不到就標「未驗證」。
-- **正本格式**：工具包自有 JSON schema（[schemas/threat.schema.json](schemas/threat.schema.json)）。pytm 只涵蓋 STRIDE／CAPEC 式規則與 LLM01–09（114 條威脅中 98 條引用 CAPEC、75 條引用 CWE）[C][E:threat_modeling-11]，所以 pytm 匯出只算部分匯出。
+- **正本格式**：工具包自有 JSON schema（[schemas/threat.schema.json](schemas/threat.schema.json)）。pytm 的威脅是對元件屬性的條件式規則（引用 CAPEC／CWE），另有 LLM 元素的 LLM01–09；114 條威脅中 98 條引用 CAPEC、75 條引用 CWE [C][E:threat_modeling-11]。所以 pytm 匯出只算部分匯出，ASI、MAESTRO、LINDDUN 只存在自有 schema。
 - **為何強制人簽核（G3）**：
-  - 一項只分類 6 個 5G 威脅的研究，STRIDE 分類準確度為 63–72% [V][E:threat_modeling-20]。
+  - 一項只分類 6 個 5G 威脅的研究：STRIDE 分類的平均準確度從 63%（zero-shot）到 71%（few-shot＋網路），最佳單一結果 72% [V][E:threat_modeling-20]。
   - 同一研究群的後續研究（兩篇並非彼此獨立）：更大或經領域調適的模型都沒有穩定改善 [V][E:threat_modeling-21]。
   - G3 允許**逐項**接受、拒絕、要求補充；被拒絕的威脅不產生測試，但保留在紀錄中。
 - **輸出**：`threat-model.json`（已簽核版本附 hash）。
