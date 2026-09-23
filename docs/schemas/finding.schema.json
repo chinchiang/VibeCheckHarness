@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finding.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "finding_id": {
+      "type": "string",
+      "pattern": "^F-[0-9]{3,}$"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "slice_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "facet": {
+      "type": "string",
+      "enum": [
+        "authz",
+        "injection",
+        "data_access",
+        "secrets_config",
+        "business_logic",
+        "llm_integration"
+      ]
+    },
+    "reporter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "type": "string"
+        },
+        "model_key": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string",
+          "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
+        },
+        "lineage": {
+          "type": "string"
+        },
+        "round": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "agent_id",
+        "model_key",
+        "family",
+        "lineage",
+        "round"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "cwe": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^CWE-[0-9]+$"
+      },
+      "minItems": 1
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      },
+      "minItems": 1
+    },
+    "reasoning": {
+      "type": "string"
+    },
+    "invariant_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "VERIFIED_SNIPPET",
+        "UNVERIFIED"
+      ],
+      "description": "片段比對結果；UNVERIFIED 不刪除"
+    }
+  },
+  "required": [
+    "finding_id",
+    "run_id",
+    "slice_id",
+    "facet",
+    "reporter",
+    "title",
+    "cwe",
+    "severity",
+    "confidence",
+    "evidence",
+    "reasoning",
+    "invariant_refs",
+    "status"
+  ],
+  "title": "Finding（發現項）",
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "line_start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "line_end": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "snippet": {
+          "type": "string",
+          "description": "逐字程式片段；secrets 已遮罩"
+        },
+        "snippet_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "match": {
+          "type": "string",
+          "enum": [
+            "MATCHED",
+            "NOT_FOUND",
+            "NOT_CHECKED"
+          ],
+          "description": "Harness 以程式碼比對片段是否在該位置"
+        }
+      },
+      "required": [
+        "file",
+        "line_start",
+        "line_end",
+        "snippet",
+        "snippet_sha256",
+        "match"
+      ],
+      "description": "發現項的程式證據"
+    }
+  }
+}

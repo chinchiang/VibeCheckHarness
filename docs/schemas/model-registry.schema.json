@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "model-registry.schema.json",
+  "title": "Model Registry（models.yaml）",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "litellm": {
+        "type": "string"
+      },
+      "api_base": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "family": {
+        "type": "string",
+        "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
+      },
+      "lineage": {
+        "type": "string"
+      },
+      "usable_ctx": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "structured": {
+        "type": "string",
+        "enum": [
+          "claude_subset",
+          "openai_strict",
+          "vllm_json_schema",
+          "unconfirmed"
+        ]
+      },
+      "data_classes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "P",
+            "C"
+          ]
+        },
+        "minItems": 1
+      },
+      "purpose": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "production",
+            "evaluation",
+            "prototyping"
+          ]
+        },
+        "minItems": 1
+      },
+      "fallback": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "api": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "messages",
+              "chat_completions",
+              "responses"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "store": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "notes": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "litellm",
+      "family",
+      "lineage",
+      "usable_ctx",
+      "structured",
+      "data_classes",
+      "purpose",
+      "fallback"
+    ]
+  }
+}

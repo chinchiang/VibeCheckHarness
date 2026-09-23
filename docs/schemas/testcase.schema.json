@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "testcase.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "testcase_id": {
+      "type": "string",
+      "pattern": "^TC-[0-9]{3,}-[0-9]{2}$"
+    },
+    "threat_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$"
+    },
+    "requirement_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "abuse_case_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^ABUSE_CASE_[0-9]{3}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_finding_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "target_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^tgt-[a-z0-9-]+$"
+      },
+      "minItems": 1,
+      "description": "只能是 ROE 目標 ID；主機由 Policy Engine 解析"
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "STATUS_AND_BODY",
+            "STATE_DIFF",
+            "TOOL_CHECK",
+            "TOOL_CALL_LOG",
+            "CANARY",
+            "THRESHOLD",
+            "DOM_ASSERTION",
+            "HUMAN"
+          ]
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "requirement_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "type",
+        "conditions",
+        "requirement_refs"
+      ]
+    },
+    "tool_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "BUILTIN_CHECK",
+            "GENERATED_SCRIPT",
+            "MANUAL"
+          ]
+        },
+        "adapter": {
+          "type": "string",
+          "enum": [
+            "schemathesis_check",
+            "zap_passive",
+            "zap_active",
+            "nuclei_signed",
+            "pytest_playwright_api",
+            "playwright_ui",
+            "schemathesis_hook",
+            "pyrit",
+            "promptfoo",
+            "k6_threshold",
+            "manual"
+          ]
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "manual_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "adapter",
+        "params",
+        "manual_reason"
+      ]
+    },
+    "safety_class_proposed": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "S0",
+            "S1",
+            "S2",
+            "S3"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "safety_class_computed": {
+      "type": "string",
+      "enum": [
+        "S0",
+        "S1",
+        "S2",
+        "S3"
+      ]
+    },
+    "rate_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests_per_second": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_requests": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "requests_per_second",
+        "max_requests"
+      ]
+    },
+    "data_needed": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed_data": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "seed_data",
+        "roles"
+      ]
+    },
+    "trials": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pass_rule": {
+          "type": "string"
+        },
+        "record": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "target_model",
+              "target_model_version",
+              "temperature",
+              "seed"
+            ]
+          }
+        }
+      },
+      "required": [
+        "n",
+        "pass_rule",
+        "record"
+      ]
+    },
+    "artifact_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "testcase_id",
+    "threat_id",
+    "requirement_ids",
+    "abuse_case_id",
+    "source_finding_id",
+    "target_ids",
+    "preconditions",
+    "steps",
+    "oracle",
+    "tool_binding",
+    "safety_class_proposed",
+    "safety_class_computed",
+    "rate_limit",
+    "data_needed",
+    "trials",
+    "artifact_sha256"
+  ],
+  "title": "TestCase（測試案例）"
+}

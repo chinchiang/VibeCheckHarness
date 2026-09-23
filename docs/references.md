@@ -1,0 +1,796 @@
+# 參考文獻
+
+> 本檔由 `tools/build_references.py` 依文件中實際引用的證據 ID 自動產生。每條的完整主張、查核意見與所有來源見 [evidence/ledger.md](evidence/ledger.md)。
+> 狀態：V＝已查證、P＝部分查證、C＝原主張被推翻（以更正為準）。
+
+文件共引用 264 條證據。
+
+## 多代理編排框架與模型閘道
+
+- **E:orchestration-01** [V] LangGraph is maintained, MIT-licensed, and on the 1.x line. LangGraph 1.0 and LangChain 1.0 shipped on 2025-10-22 with a promise of 'no breaking changes until 2.0', and PyPI lis…
+  - <https://www.langchain.com/blog/langchain-langgraph-1dot0>
+  - <https://pypi.org/project/langgraph/>
+  - <https://github.com/langchain-ai/langgraph/releases>
+- **E:orchestration-02** [V] In LangGraph, each node or agent can use a different LLM. LangChain's own multi-agent post says 'Each agent could even be powered by a separate fine-tuned LLM', and init_chat_mo…
+  - <https://www.langchain.com/blog/langgraph-multi-agent-workflows>
+  - <https://docs.langchain.com/oss/python/langchain/models>
+- **E:orchestration-03** [V] LangGraph covers supervisor and hierarchical-team patterns, where the supervisor is 'an agent whose tools are other agents'.
+  - <https://www.langchain.com/blog/langgraph-multi-agent-workflows>
+  - <https://reference.langchain.com/python/langgraph-supervisor>
+- **E:orchestration-04** [V] LangGraph's human-in-the-loop uses interrupt(), which requires a checkpointer, and resumes with Command(resume=...). The docs warn that code before an interrupt re-runs on resum…
+  - <https://docs.langchain.com/oss/python/langgraph/interrupts>
+- **E:orchestration-05** [V] LangGraph persistence uses checkpointers keyed by thread_id: InMemorySaver (lost on restart), SqliteSaver, and PostgresSaver/AsyncPostgresSaver. These support conversation conti…
+  - <https://docs.langchain.com/oss/python/langgraph/persistence>
+- **E:orchestration-06** [V] AutoGen is in maintenance mode: 'It will not receive new features or enhancements and is community managed going forward.' Microsoft Agent Framework is named as its successor. T…
+  - <https://github.com/microsoft/autogen>
+  - <https://pypi.org/project/autogen-agentchat/>
+- **E:orchestration-07** [V] Microsoft Agent Framework (MAF) reached 1.0 GA for .NET and Python on 2026-04-03. It is MIT-licensed, and PyPI shows agent-framework 1.19.0 (2026-09-18); the Go SDK is in public…
+  - <https://devblogs.microsoft.com/agent-framework/microsoft-agent-framework-version-1-0/>
+  - <https://pypi.org/project/agent-framework/>
+  - <https://github.com/microsoft/agent-framework/releases>
+  - <https://learn.microsoft.com/en-us/agent-framework/overview/>
+- **E:orchestration-08** [V] MAF's 1.0 announcement lists first-party connectors for Microsoft Foundry, Azure OpenAI, OpenAI, Anthropic Claude, Amazon Bedrock, Google Gemini and Ollama. Each Agent takes its…
+  - <https://devblogs.microsoft.com/agent-framework/microsoft-agent-framework-version-1-0/>
+  - <https://learn.microsoft.com/en-us/agent-framework/overview/>
+- **E:orchestration-09** [V] MAF workflows support sequential, concurrent, handoff, group chat and Magentic-One orchestration, with checkpointing and human-in-the-loop approvals via request/response ports.…
+  - <https://devblogs.microsoft.com/agent-framework/microsoft-agent-framework-version-1-0/>
+  - <https://learn.microsoft.com/en-us/agent-framework/workflows/human-in-the-loop>
+  - <https://learn.microsoft.com/en-us/agent-framework/workflows/checkpoints>
+- **E:orchestration-11** [V] CrewAI is maintained and MIT-licensed, with frequent releases (1.15.22 on 2026-09-16). It is a standalone framework, not built on LangChain.
+  - <https://pypi.org/project/crewai/>
+  - <https://github.com/crewAIInc/crewAI/releases>
+  - <https://github.com/crewAIInc/crewAI>
+- **E:orchestration-12** [V] CrewAI sets the LLM per agent (Agent(llm=LLM(model='provider/model-id')) or YAML). OpenAI, Anthropic, Gemini, Azure, Bedrock and Snowflake Cortex are native; all other providers…
+  - <https://docs.crewai.com/concepts/llms>
+- **E:orchestration-13** [V] CrewAI's hierarchical process requires a manager_llm or manager_agent. The manager handles 'planning, delegation, and validation' and assigns tasks to agents rather than having…
+  - <https://docs.crewai.com/concepts/processes>
+- **E:orchestration-14** [V] CrewAI Flows provide state persistence with @persist (SQLite by default), resume or fork by state ID, and a @human_feedback decorator that pauses a flow for human input.
+  - <https://docs.crewai.com/concepts/flows>
+- **E:orchestration-15** [V] CrewAI turns on anonymous telemetry by default, collecting things like agent roles, tool names and LLM settings. It can be disabled with CREWAI_DISABLE_TELEMETRY=true.
+  - <https://docs.crewai.com/telemetry>
+- **E:orchestration-16** [V] OpenAI Agents SDK (Python) is MIT-licensed and still pre-1.0: PyPI shows 0.22.3 on 2026-09-17. It supports handoffs, agents-as-tools, guardrails, tracing and MCP.
+  - <https://pypi.org/project/openai-agents/>
+  - <https://github.com/openai/openai-agents-python>
+- **E:orchestration-17** [V] The OpenAI Agents SDK allows a different model per agent and non-OpenAI providers through OpenAI-compatible clients or beta LiteLLM/any-llm adapters. The docs warn that tracing…
+  - <https://openai.github.io/openai-agents-python/models/>
+  - <https://openai.github.io/openai-agents-python/models/litellm/>
+- **E:orchestration-18** [V] OpenAI Agents SDK human-in-the-loop marks tools with needs_approval. The run pauses with interruptions and is serialized to RunState (to_json/from_json) for approval and later r…
+  - <https://openai.github.io/openai-agents-python/human_in_the_loop/>
+  - <https://openai.github.io/openai-agents-python/sessions/>
+- **E:orchestration-19** [V] Claude Agent SDK (Python and TypeScript) runs Claude Code as a library and provides subagents, hooks, MCP, permissions and sessions. The Python package is MIT-licensed per PyPI…
+  - <https://code.claude.com/docs/en/agent-sdk/overview>
+  - <https://pypi.org/project/claude-agent-sdk/>
+  - <https://raw.githubusercontent.com/anthropics/claude-agent-sdk-python/main/LICENSE>
+- **E:orchestration-21** [V] Claude Agent SDK cannot bind subagents to non-Claude models. Anthropic's docs say it 'doesn't support routing Claude Code to non-Claude models through any gateway'; supported ba…
+  - <https://code.claude.com/docs/en/llm-gateway>
+  - <https://code.claude.com/docs/en/agent-sdk/quickstart>
+- **E:orchestration-22** [V] Claude Agent SDK approvals run through a fixed pipeline: hooks, deny rules, ask rules, permission mode, allow rules, then the canUseTool callback. Modes are default, dontAsk, ac…
+  - <https://code.claude.com/docs/en/agent-sdk/permissions>
+- **E:orchestration-23** [V] Claude Agent SDK sessions are stored as local JSONL transcripts that can be continued, resumed by ID or forked. A SessionStore adapter is needed to resume across hosts, and file…
+  - <https://code.claude.com/docs/en/agent-sdk/sessions>
+- **E:orchestration-24** [V] Google ADK (Python) is Apache-2.0-licensed and on the 2.x line (google-adk 2.9.2 on 2026-09-18). ADK 2.0 added a graph-based Workflow Runtime and reached GA on 2026-05-19 (Pytho…
+  - <https://pypi.org/project/google-adk/>
+  - <https://github.com/google/adk-python/releases>
+  - <https://adk.dev/2.0/>
+- **E:orchestration-25** [V] ADK is 'optimized for Gemini' but model-agnostic. Non-Gemini models plug in through connector wrappers such as LiteLlm, Anthropic, Ollama, vLLM and Apigee, passed as the model p…
+  - <https://github.com/google/adk-python>
+  - <https://adk.dev/agents/models/>
+- **E:orchestration-27** [V] ADK human-in-the-loop uses tool confirmation (require_confirmation=True or requestConfirmation). The confirmation docs say DatabaseSessionService and VertexAiSessionService are…
+  - <https://adk.dev/tools-custom/confirmation/>
+  - <https://adk.dev/sessions/session/>
+- **E:orchestration-29** [V] LiteLLM is a Python SDK and self-hostable proxy/gateway for 100+ providers with an OpenAI-compatible interface, cost tracking, budgets, fallbacks, load balancing, guardrails, an…
+  - <https://github.com/BerriAI/litellm>
+  - <https://pypi.org/project/litellm/>
+- **E:orchestration-31** [V] litellm 1.82.7 and 1.82.8 on PyPI were malicious on 2026-03-24 (live about 40 minutes), carrying a credential stealer after CI credentials were compromised through a Trivy depen…
+  - <https://docs.litellm.ai/blog/security-update-march-2026>
+  - <https://securitylabs.datadoghq.com/articles/litellm-compromised-pypi-teampcp-supply-chain-campaign/>
+- **E:orchestration-32** [V] OpenRouter is a hosted, closed-source SaaS offering an OpenAI-compatible API to hundreds of models. Provider routing controls include order, allow_fallbacks, only, ignore, sort,…
+  - <https://openrouter.ai/docs/quickstart>
+  - <https://openrouter.ai/docs/features/provider-routing>
+- **E:orchestration-33** [V] OpenRouter says it has its own zero-data-retention policy (prompts are not kept unless you opt in to logging) and can enforce ZDR provider routing globally or per request. That…
+  - <https://openrouter.ai/docs/features/zdr>
+- **E:orchestration-34** [V] MCP was donated to the Agentic AI Foundation, a Linux Foundation directed fund co-founded by Anthropic, Block and OpenAI, on 2025-12-09. Governance by the existing maintainers s…
+  - <https://blog.modelcontextprotocol.io/posts/2025-12-09-mcp-joins-agentic-ai-foundation/>
+  - <https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation>
+- **E:orchestration-35** [V] The current MCP specification is 2026-07-28. It makes the protocol stateless (no initialize handshake or Mcp-Session-Id), adds a required server/discover call, moves tasks into…
+  - <https://modelcontextprotocol.io/specification/versioning>
+  - <https://modelcontextprotocol.io/specification/2026-07-28/changelog>
+- **E:orchestration-36** [V] The MCP security best-practices document covers confused deputy, token passthrough (forbidden), SSRF, state-handle hijacking, local MCP server compromise, OAuth URL validation a…
+  - <https://modelcontextprotocol.io/specification/2026-07-28/basic/security_best_practices>
+- **E:orchestration-37** [V] A2A (Agent2Agent) was created by Google, moved to the Linux Foundation on 2025-06-23, and reached v1.0.0 on 2026-03-12 (v1.0.1 on 2026-05-28). The repo is Apache-2.0 with SDKs i…
+  - <https://www.linuxfoundation.org/press/linux-foundation-launches-the-agent2agent-protocol-project-to-enable-secure-intelligent-communication-between-ai-agents>
+  - <https://github.com/a2aproject/A2A/releases>
+  - <https://github.com/a2aproject/A2A>
+
+## LLM 供應商（Claude／OpenAI／Nemotron）
+
+- **E:providers-01** [V] Nemotron 3 family, part 1: Nemotron 3 Nano 30B-A3B was released on Hugging Face on 2025-12-15. It has 30B total parameters (about 3.5B active) and a hybrid Mamba-Transformer MoE…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16>
+  - <https://research.nvidia.com/labs/nemotron/Nemotron-3>
+  - <https://arxiv.org/abs/2512.20856>
+- **E:providers-02** [V] Nemotron 3 family, part 2: Nemotron 3 Super 120B-A12B (12B active) was released on Hugging Face on 2026-03-11. Nemotron 3 Ultra 550B-A55B (55B active) was released on 2026-06-04…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16>
+  - <https://developer.nvidia.com/blog/nvidia-nemotron-3-ultra-powers-faster-more-efficient-reasoning-for-long-running-agents/>
+- **E:providers-03** [V] Nemotron 3.5 Lightning 30B-A3B was released on 2026-08-11. It is under OpenMDW-1.1, supports up to 1M context (256K validated on a single H100), and uses the qwen3_coder tool-ca…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16>
+  - <https://blogs.nvidia.com/blog/nemotron-lightning-switchyard-rtx-dgx/>
+- **E:providers-04** [V] The older generations are still published. Nemotron Nano 2 (NVIDIA-Nemotron-Nano-9B-v2, released 2025-08-18, and 12B-v2, released 2025-08-29) is a Mamba2-Transformer hybrid with…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-9B-v2>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-12B-v2>
+  - <https://huggingface.co/nvidia/Llama-3_3-Nemotron-Super-49B-v1_5>
+  - <https://huggingface.co/nvidia/Llama-3_1-Nemotron-Ultra-253B-v1>
+  - <https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1>
+- **E:providers-05** [V] Nemotron 3 Nano, Super and Ultra all list up to 1M-token context. Nano's Hugging Face config defaults to 256K because of VRAM limits.
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16>
+- **E:providers-06** [V] Licensing: Nemotron 3 Nano and Super are under the NVIDIA Nemotron Open Model License (last modified 2025-12-15). It allows commercial use and derivatives, requires attribution,…
+  - <https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-nemotron-open-model-license/>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16>
+- **E:providers-07** [V] Licensing: Nemotron 3 Ultra and 3.5 Lightning are under OpenMDW-1.1, a permissive model license released by the Linux Foundation on 2026-05-28. NVIDIA said it plans to use OpenM…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16>
+  - <https://openmdw.ai/license/1-1/>
+  - <https://www.linuxfoundation.org/press/linux-foundation-releases-openmdw-1.1-nvidia-adopts-openmdw-for-cosmos-isaac-gr00t-ising-and-nemotron-ai-model-families>
+- **E:providers-08** [V] Licensing: Nemotron Nano 2 and Llama-Nemotron use the older NVIDIA Open Model License (last modified 2025-10-24). It says rights terminate automatically if you bypass or circumv…
+  - <https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/>
+  - <https://huggingface.co/nvidia/Llama-3_3-Nemotron-Super-49B-v1_5>
+- **E:providers-09** [V] Hosted access through build.nvidia.com uses the OpenAI-compatible base URL https://integrate.api.nvidia.com/v1. NVIDIA describes this API catalog as a trial for evaluation and p…
+  - <https://docs.litellm.ai/docs/providers/nvidia_nim>
+  - <https://forums.developer.nvidia.com/t/nvidia-nim-faq/300317>
+  - <https://docs.api.nvidia.com/nim/docs/product>
+- **E:providers-10** [V] The NVIDIA API Trial Terms (v. 2025-09-19) forbid submitting confidential information and forbid production use. They also say NVIDIA collects User Content and Generated Content…
+  - <https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf>
+- **E:providers-11** [P] Self-hosting: open weights can be served with vLLM, SGLang or TRT-LLM behind an OpenAI-compatible API. The Nemotron 3 model cards give recipes, and the download is governed only…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16>
+  - <https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-super-120b-a12b>
+- **E:providers-12** [P] Downloadable NIM containers may be self-hosted free for research, development and test on up to 16 GPUs through the NVIDIA Developer Program. NVIDIA defines anything beyond that…
+  - <https://docs.api.nvidia.com/nim/docs/product>
+  - <https://forums.developer.nvidia.com/t/nvidia-nim-faq/300317>
+- **E:providers-13** [V] Hardware for self-hosting: Nano 30B-A3B runs on a single A100/H100-class GPU (the card also lists RTX PRO 6000 96GB and DGX Spark). Super BF16 needs at least 8x H100-80GB. Ultra…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16>
+- **E:providers-14** [V] Tool calling: Nemotron 3 and 3.5 models support it through vLLM/SGLang with --enable-auto-tool-choice --tool-call-parser qwen3_coder. Nano 2 uses a 'nemotron_json' parser and Ll…
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16>
+  - <https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-9B-v2>
+  - <https://huggingface.co/nvidia/Llama-3_3-Nemotron-Super-49B-v1_5>
+- **E:providers-15** [P] In NIM 2.x containers, Nemotron 3 tool calling is turned on with NIM_PASSTHROUGH_ARGS="--reasoning-parser nemotron_v3 --enable-auto-tool-choice --tool-call-parser qwen3_coder".…
+  - <https://docs.nvidia.com/nim/large-language-models/2.0.12/advanced-use-cases/tool-calling-and-mcp.html>
+  - <https://docs.nvidia.com/nim/large-language-models/2.0.10/get-started/advanced/get-started-nemotron-3.5-lightning.html>
+- **E:providers-18** [P] Structured output on NIM 2.x and vLLM: requests can use OpenAI-style response_format {type: json_schema} or guided_json. vLLM has deprecated guided_* in favour of a structured_o…
+  - <https://docs.nvidia.com/nim/large-language-models/2.0.12/about-nim-llm/release-notes.html>
+  - <https://docs.vllm.ai/en/latest/features/structured_outputs.html>
+- **E:providers-20** [V] LiteLLM confirms an nvidia_nim provider: the model prefix is nvidia_nim/<model>, with NVIDIA_NIM_API_KEY and optional NVIDIA_NIM_API_BASE (default…
+  - <https://docs.litellm.ai/docs/providers/nvidia_nim>
+- **E:providers-22** [C] （原主張已被推翻）更正：The prefix and the api_base requirement are correct; api_base can also come from the HOSTED_VLLM_API_BASE env var. Tools are not passed through unchanged. HostedVLLM…
+  - <https://docs.litellm.ai/docs/providers/vllm>
+- **E:providers-23** [V] Current Claude models (2026-09-23): Claude Fable 5.1 (claude-fable-5-1), Claude Opus 5.5 (claude-opus-5-5) and Claude Sonnet 5 (claude-sonnet-5) have 1M context and 128K max out…
+  - <https://platform.claude.com/docs/en/about-claude/models/overview.md>
+- **E:providers-24** [V] Claude structured outputs are generally available: output_config.format with type json_schema, plus strict tool use (strict: true). The old output_format field and structured-ou…
+  - <https://platform.claude.com/docs/en/build-with-claude/structured-outputs.md>
+- **E:providers-25** [V] Claude's schema subset does not support recursive schemas, numeric constraints (minimum/maximum) or string length constraints, and array minItems is limited to 0 or 1. Compiled…
+  - <https://platform.claude.com/docs/en/build-with-claude/structured-outputs.md>
+- **E:providers-26** [V] Claude Opus 5.5 rejects forced tool_choice ({type: any} or {type: tool}) with a 400 error. Anthropic's guidance is to use tool_choice auto with strict tool use or structured out…
+  - <https://platform.claude.com/docs/en/models/opus-5-5/migration-guide>
+- **E:providers-27** [V] Anthropic default retention: inputs and outputs are deleted from the backend within 30 days (policy updated 2026-07-01). Content flagged for Usage Policy violations may be kept…
+  - <https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data>
+  - <https://platform.claude.com/docs/en/manage-claude/api-and-data-retention.md>
+- **E:providers-28** [V] Anthropic zero data retention (ZDR) is set up per organization through sales. It covers the Messages and Token Counting APIs for eligible features. Not covered: Batch API (29-da…
+  - <https://platform.claude.com/docs/en/manage-claude/api-and-data-retention.md>
+- **E:providers-29** [V] Anthropic 'Covered Models' (Claude Fable 5.1, Mythos 5.1, Fable 5, Mythos 5) require 30-day retention and are not available under ZDR unless Anthropic expressly authorizes it. O…
+  - <https://platform.claude.com/docs/en/manage-claude/api-and-data-retention.md>
+- **E:providers-31** [P] Current OpenAI flagship models: GPT-6 Astra (released 2026-09-03) and GPT-6 Sol and Luna (released 2026-09-22). Astra and Sol have a 1,050,000-token context and 128K max output,…
+  - <https://developers.openai.com/api/docs/changelog>
+  - <https://developers.openai.com/api/docs/models/gpt-6-astra>
+  - <https://developers.openai.com/api/docs/models/gpt-6-sol>
+- **E:providers-32** [V] OpenAI Structured Outputs: Chat Completions uses response_format {type: json_schema, strict: true}; the Responses API uses text.format. Schemas need additionalProperties: false…
+  - <https://developers.openai.com/api/docs/guides/structured-outputs>
+- **E:providers-33** [V] OpenAI data handling, part 1: API data is not used for training unless you opt in. Abuse-monitoring logs, which can contain prompts and responses, are kept up to 30 days by defa…
+  - <https://developers.openai.com/api/docs/guides/your-data>
+- **E:providers-34** [V] OpenAI data handling, part 2: the Responses API keeps application state for 30 days by default or when store=true; ZDR forces store=false. Background mode writes to disk for abo…
+  - <https://developers.openai.com/api/docs/guides/your-data>
+- **E:providers-35** [V] OpenAI endpoints that are not ZDR-eligible include files, batches, vector_stores, assistants/threads, conversations, agents, evals and fine-tuning. OpenAI also says it may make…
+  - <https://developers.openai.com/api/docs/guides/your-data>
+- **E:providers-36** [V] OpenAI classifies structured-output schemas as 'system data' rather than Customer Content, and says system data may be stored outside the selected data-residency region.
+  - <https://developers.openai.com/api/docs/guides/your-data>
+- **E:providers-37** [V] OpenAI's open-weight gpt-oss-120b is Apache-2.0 licensed and supports function calling and Structured Outputs. It gives a self-hosted OpenAI-family option.
+  - <https://huggingface.co/openai/gpt-oss-120b>
+
+## 多模型與偏誤研究
+
+- **E:multi_llm_bias-01** [V] Kim et al. (ICML 2025) tested more than 350 LLMs and found substantial error correlation. On one leaderboard dataset, two models agree 60% of the time when both are wrong, and l…
+  - <https://arxiv.org/abs/2506.07962>
+  - <https://proceedings.mlr.press/v267/kim25e.html>
+  - <https://icml.cc/virtual/2025/poster/44225>
+- **E:multi_llm_bias-02** [V] In the same paper's LLM-as-judge experiment, a judge inflates the accuracy of models less accurate than itself and of models from its own provider. The data were MMLU multiple-c…
+  - <https://arxiv.org/html/2506.07962>
+- **E:multi_llm_bias-03** [V] Goel et al. propose CAPA, a chance-adjusted similarity metric built on overlap in model mistakes. They show that LLM-as-a-judge scores favor models similar to the judge, and tha…
+  - <https://arxiv.org/abs/2502.04313>
+  - <https://model-similarity.github.io/>
+  - <https://mlanthology.org/iclrw/2025/goel2025iclrw-great/>
+- **E:multi_llm_bias-05** [V] Panickssery, Bowman and Feng (NeurIPS 2024 oral) found that GPT-4 and Llama 2 can recognize their own outputs well above chance. Through fine-tuning, they found a linear correla…
+  - <https://arxiv.org/abs/2404.13076>
+  - <https://neurips.cc/virtual/2024/oral/97998>
+  - <https://proceedings.neurips.cc/paper_files/paper/2024/hash/7f1f0218e45f5414c79c0679633e47bc-Abstract-Conference.html>
+- **E:multi_llm_bias-08** [V] Pombal, Rei and Martins (2026) found self-preference even with objectively verifiable rubrics (IFEval, LiveCodeBench): on rubrics a generator failed, judges were more than 50% m…
+  - <https://arxiv.org/abs/2604.06996>
+- **E:multi_llm_bias-09** [V] Verga et al. (PoLL) found that a panel of smaller models from disjoint families beat a single GPT-4 judge on agreement with humans across 3 judge settings and 6 datasets. The pa…
+  - <https://arxiv.org/abs/2404.18796>
+  - <https://openreview.net/forum?id=6AjeDjlg3d>
+- **E:multi_llm_bias-10** [V] Moon et al. (EACL 2026 Findings) defined six superficial-variation biases in LLM code judges, such as variable names, comments and formatting. Across five programming languages,…
+  - <https://arxiv.org/abs/2505.16222>
+- **E:multi_llm_bias-11** [V] CodeJudgeBench benchmarked 26 LLM judges on code generation, code repair and unit-test generation. Thinking models did better, but all models showed significant randomness, and…
+  - <https://arxiv.org/abs/2507.10535>
+- **E:multi_llm_bias-12** [V] Wang et al. (ACL 2024) showed that with ChatGPT as judge, just reordering candidates let Vicuna-13B beat ChatGPT on 66 of 80 queries. They proposed balanced position calibration…
+  - <https://aclanthology.org/2024.acl-long.511/>
+  - <https://arxiv.org/abs/2305.17926>
+- **E:multi_llm_bias-15** [V] Smit et al. (ICML 2024) found that multi-agent debate in its current form does not reliably beat simpler strategies like self-consistency and ensembling over multiple reasoning…
+  - <https://arxiv.org/abs/2311.17371>
+  - <https://proceedings.mlr.press/v235/smit24a.html>
+- **E:multi_llm_bias-16** [V] Choi, Zhu and Li (NeurIPS 2025 spotlight) split debate into majority voting and inter-agent discussion across seven NLP benchmarks. Majority voting alone accounts for most of th…
+  - <https://arxiv.org/abs/2508.17536>
+- **E:multi_llm_bias-17** [V] Zhang et al. evaluated 5 debate methods on 9 benchmarks with 4 base models and found debate often fails to beat chain-of-thought or self-consistency despite far more compute. Ma…
+  - <https://arxiv.org/abs/2502.08788>
+- **E:multi_llm_bias-18** [P] ReConcile (ACL 2024) runs round-table discussion among different LLMs with confidence-weighted voting, and its authors state that diversity from different models is critical to…
+  - <https://arxiv.org/abs/2309.13007>
+  - <https://arxiv.org/abs/2410.12853>
+- **E:multi_llm_bias-19** [V] Li et al. ('Rethinking Mixture-of-Agents') found that mixing different LLMs often lowers average quality. Aggregating several outputs from only the single best model (Self-MoA)…
+  - <https://arxiv.org/abs/2502.00674>
+  - <https://mlanthology.org/tmlr/2026/li2026tmlr-rethinking/>
+- **E:multi_llm_bias-21** [P] Wynn, Satija and Hadfield (ICML 2025 MAS workshop) found that debate accuracy can decline over rounds, even when stronger models outnumber weaker ones. Models frequently switch…
+  - <https://arxiv.org/abs/2509.05396>
+- **E:multi_llm_bias-24** [V] Huang et al. (ICLR 2024) found that without external feedback, LLMs struggle to correct their own reasoning, and performance sometimes gets worse after self-correction.
+  - <https://arxiv.org/abs/2310.01798>
+  - <https://proceedings.iclr.cc/paper_files/paper/2024/hash/8b4add8b0aa8749d80a34ca5d941c355-Abstract-Conference.html>
+- **E:multi_llm_bias-25** [V] PrimeVul (ICSE 2025) showed that common vulnerability benchmarks overestimate performance through label errors, duplication and leakage. A 7B model scored 68.26% F1 on BigVul bu…
+  - <https://arxiv.org/abs/2403.18624>
+  - <https://conf.researchr.org/details/icse-2025/icse-2025-research-track/17/Vulnerability-Detection-with-Code-Language-Models-How-Far-Are-We->
+  - <https://github.com/DLVulDet/PrimeVul>
+- **E:multi_llm_bias-26** [P] SecLLMHolmes (IEEE S&P 2024) evaluated 8 LLMs on 228 code scenarios and found non-deterministic answers and unfaithful reasoning. Just renaming functions or variables, or adding…
+  - <https://arxiv.org/abs/2312.12575>
+  - <https://ieeexplore.ieee.org/document/10646663/>
+- **E:multi_llm_bias-28** [V] Widyasari, Lo and Liao (2024) evaluated GPT-3.5, GPT-4o, LLaMA-3-70B/8B, Gemma-7B and Mixtral-8x7B on fault localization and vulnerability detection. Voting improved results by…
+  - <https://arxiv.org/abs/2409.01001>
+- **E:multi_llm_bias-30** [V] VulTrial (2025) is a courtroom-style multi-agent framework (security researcher, code author, moderator, review board) with GPT-4o as the base LLM. The authors report it nearly…
+  - <https://arxiv.org/abs/2505.10961>
+- **E:multi_llm_bias-32** [V] Multi-LLMSecCodeEval (2026) compared ten pipelines for secure code generation. Ensembles combined with static analysis improved security by up to 47.3% (SecLLMEval) and 19.3% (S…
+  - <https://arxiv.org/abs/2603.22717>
+- **E:multi_llm_bias-34** [P] 'Trust or Escalate' (ICLR 2025 oral) gives a selective-evaluation framework that trusts a judge only above a calibrated confidence threshold and escalates the rest to stronger m…
+  - <https://arxiv.org/abs/2407.18370>
+  - <https://iclr.cc/virtual/2025/oral/31838>
+- **E:multi_llm_bias-37** [P] Across these sources, the following is supported: single-LLM judges show self-preference, position, verbosity and surface-cue biases. Cross-family panels and ensembles reduce bu…
+  - <https://arxiv.org/abs/2508.17536>
+  - <https://arxiv.org/abs/2604.06996>
+  - <https://arxiv.org/abs/2404.18796>
+  - <https://arxiv.org/abs/2405.17238>
+  - <https://arxiv.org/abs/2505.16222>
+- **E:multi_llm_bias-38** [P] The following is assumed and not demonstrated in any source found: that assigning Claude, ChatGPT and Nemotron to different agents yields meaningfully independent errors on secu…
+  - <https://arxiv.org/abs/2506.07962>
+  - <https://arxiv.org/abs/2502.04313>
+  - <https://arxiv.org/abs/2502.00674>
+
+## 白箱測試工具與研究
+
+- **E:whitebox-04** [V] Semgrep CE's engine is still LGPL-2.1, but Semgrep-maintained rules moved to the non-open-source Semgrep Rules License v1.0 in December 2024. CE is limited to single-file, singl…
+  - <https://docs.semgrep.dev/faq/comparisons/opengrep>
+  - <https://socket.dev/blog/opengrep-forks-semgrep>
+- **E:whitebox-05** [V] Semgrep's GitHub releases list v1.177.0 on 2026-09-10, so the project is actively released.
+  - <https://github.com/semgrep/semgrep/releases>
+- **E:whitebox-06** [V] Opengrep is an LGPL-2.1 fork of Semgrep CE 1.100.0 backed by a vendor consortium (Aikido, Endor Labs, Kodem, Orca, others). It adds intrafile cross-function taint and extra lang…
+  - <https://github.com/opengrep/opengrep>
+  - <https://docs.semgrep.dev/faq/comparisons/opengrep>
+- **E:whitebox-07** [V] CodeQL supports C/C++, C#, Go, Java/Kotlin, JavaScript/TypeScript, Python, Ruby, Rust, Swift and GitHub Actions. Its CLI license allows free use only for open-source codebases a…
+  - <https://codeql.github.com/docs/codeql-overview/supported-languages-and-frameworks/>
+  - <https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md>
+  - <https://github.blog/changelog/2025-03-04-introducing-github-secret-protection-and-github-code-security/>
+- **E:whitebox-08** [V] Bandit (PyCQA, Apache-2.0) is an AST-plugin security linter for Python and includes a SARIF output formatter.
+  - <https://github.com/PyCQA/bandit>
+  - <https://bandit.readthedocs.io/en/latest/formatters/index.html>
+- **E:whitebox-09** [P] The gitleaks README now says it is feature complete and will get security patches only, as the author moves to Betterleaks. Betterleaks is MIT-licensed, launched in March 2026,…
+  - <https://github.com/gitleaks/gitleaks>
+  - <https://www.bleepingcomputer.com/news/security/betterleaks-a-new-open-source-secrets-scanner-to-replace-gitleaks/>
+- **E:whitebox-10** [V] TruffleHog (AGPL-3.0) classifies 800+ secret types, and 700+ of its detectors actively verify candidates against the provider's API (for example, AWS GetCallerIdentity). Results…
+  - <https://github.com/trufflesecurity/trufflehog>
+  - <https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/README.md>
+- **E:whitebox-11** [V] OSV-Scanner V2.0.0 (Apache-2.0) shipped on 2025-03-17. It added layer-aware container scanning, guided remediation (including Maven) and HTML output, and it uses call analysis t…
+  - <https://security.googleblog.com/2025/03/announcing-osv-scanner-v2-vulnerability.html?m=0>
+  - <https://github.com/google/osv-scanner>
+- **E:whitebox-12** [V] The OSV-Scanner releases page lists v2.6.0 as the latest release (September 14). The year could not be read reliably.
+  - <https://github.com/google/osv-scanner/releases>
+- **E:whitebox-13** [V] Trivy (Apache-2.0) scans for vulnerabilities, misconfigurations/IaC, secrets and licenses, and produces SBOMs. On 2026-03-19 its distribution was compromised (CVE-2026-33634): T…
+  - <https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23>
+  - <https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/>
+  - <https://github.com/aquasecurity/trivy>
+- **E:whitebox-14** [V] Syft (Apache-2.0) generates SBOMs in CycloneDX, SPDX and Syft JSON, including signed in-toto attestations. Grype (Apache-2.0) scans images, filesystems or Syft SBOMs, prioritize…
+  - <https://github.com/anchore/syft>
+  - <https://github.com/anchore/grype>
+- **E:whitebox-15** [V] SonarQube Community Build has quality gates and basic secrets detection. Taint analysis, branch and PR analysis/decoration, and AI Code Assurance are only in the Developer, Ente…
+  - <https://www.sonarsource.com/blog/sonarqube-compare-editions/>
+- **E:whitebox-16** [V] In a 2026.1 community thread, a user says SonarQube's automatic AI-code detection has been deprecated, leaving manual 'contains AI code' project labeling plus the 'Sonar way for…
+  - <https://community.sonarsource.com/t/clarification-needed-on-ai-code-assurance-in-sonarqube-2026-1-0/180537>
+  - <https://docs.sonarsource.com/sonarqube-server/2025.1/instance-administration/analysis-functions/ai-code-assurance/quality-gates-for-ai-code>
+- **E:whitebox-17** [V] SARIF 2.1.0 (plus Errata 01, 2023-08-28) is the OASIS standard JSON format for static-analysis results.
+  - <https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html>
+- **E:whitebox-18** [V] IRIS (Li, Dutta, Naik; ICLR 2025) uses LLMs to infer CWE-specific taint sources and sinks for CodeQL and then to triage paths in context. On CWE-Bench-Java (120 real vulnerabili…
+  - <https://arxiv.org/abs/2405.17238>
+  - <https://github.com/iris-sast/iris>
+- **E:whitebox-19** [V] Vulnhuntr (Protect AI, AGPL-3.0) has LLMs trace call chains from remote input to output in Python code only, covering 7 classes (LFI, AFO, RCE, XSS, SQLi, SSRF, IDOR), with 1-10…
+  - <https://github.com/protectai/vulnhuntr>
+  - <https://github.com/protectai/vulnhuntr/commits/main>
+- **E:whitebox-20** [V] Anthropic's claude-code-security-review GitHub Action (MIT) and the /security-review command do diff-aware, language-agnostic LLM review with configurable false-positive filteri…
+  - <https://github.com/anthropics/claude-code-security-review>
+  - <https://support.claude.com/en/articles/11932705-automated-security-reviews-in-claude-code>
+- **E:whitebox-21** [P] Claude Code Security launched on 2026-02-20 as a limited research preview for Enterprise and Team customers. Anthropic says it uses multi-stage self-verification, gives each fin…
+  - <https://www.anthropic.com/news/claude-code-security>
+  - <https://claude.com/product/claude-security>
+  - <https://www.itpro.com/security/anthropic-targets-vulnerability-detection-gains-with-claude-security-public-beta-heres-what-users-can-expect>
+- **E:whitebox-22** [V] GitHub Copilot Autofix is GA for CodeQL alerts in C#, C/C++, Go, Java/Kotlin, Swift, JS/TS, Python, Ruby and Rust. At launch GitHub said its suggestions fix more than two-thirds…
+  - <https://docs.github.com/en/code-security/responsible-use/responsible-use-autofix-code-scanning>
+  - <https://github.blog/news-insights/product-news/found-means-fixed-introducing-code-scanning-autofix-powered-by-github-copilot-and-codeql/>
+  - <https://github.blog/news-insights/product-news/secure-code-more-than-three-times-faster-with-copilot-autofix/>
+- **E:whitebox-23** [V] OpenAI announced Aardvark (GPT-5 based) on 2025-10-30 as a private beta. It reported 92% recall on known and synthetic vulnerabilities in 'golden' repos and 10 CVEs. On 2026-03-…
+  - <https://cyberscoop.com/openai-aardvark-security-and-patching-model-beta/>
+  - <https://www.securityweek.com/openai-rolls-out-codex-security-vulnerability-scanner/>
+  - <https://openai.com/index/codex-security-now-in-research-preview/>
+- **E:whitebox-24** [V] Press coverage of Codex Security reports that in its first 30 days it scanned 1.2M commits and surfaced 792 critical and 10,561 high-severity findings. OpenAI reportedly claims…
+  - <https://thehackernews.com/2026/03/openai-codex-security-scanned-12.html>
+  - <https://www.securityweek.com/openai-rolls-out-codex-security-vulnerability-scanner/>
+- **E:whitebox-26** [V] Google DeepMind's CodeMender (announced 2025-10-06) had upstreamed 72 security fixes. It validates patches with a critique agent, an LLM judge, tests and program analysis (stati…
+  - <https://deepmind.google/blog/introducing-codemender-an-ai-agent-for-code-security/>
+  - <https://cloud.google.com/blog/products/identity-security/find-and-fix-software-vulnerabilities-with-codemender>
+- **E:whitebox-27** [P] Semgrep reports that its AI triage initially agreed with its security researchers only about 55% of the time (about 91% on true positives, 25% on false positives), later reachin…
+  - <https://semgrep.dev/blog/2025/building-an-appsec-ai-that-security-researchers-agree-with-96-of-the-time/>
+  - <https://docs.semgrep.dev/semgrep-assistant/metrics>
+- **E:whitebox-29** [V] A 2026 preprint on contextual-bias injection found that crafted PR metadata biased LLM security review in Claude Code and CodeRabbit pipelines. An LLM-refined framing attack suc…
+  - <https://arxiv.org/abs/2603.18740>
+- **E:whitebox-32** [V] The Refute-or-Promote methodology (arXiv 2604.19049) used adversarial 'kill' agents and a cross-model critic. It discarded about 79% of 171 LLM-generated vulnerability candidate…
+  - <https://arxiv.org/abs/2604.19049>
+- **E:whitebox-33** [V] In 'Sifting the Noise' (arXiv 2601.22952), agent frameworks (Aider, OpenHands, SWE-agent) cut the residual false-positive rate on OWASP Benchmark from over 92% to as low as 6.3%…
+  - <https://arxiv.org/abs/2601.22952>
+  - <https://arxiv.org/abs/2510.02534>
+- **E:whitebox-34** [V] Meta's TestGen-LLM (FSE 2024 companion) extends existing tests and keeps a generated test only if it builds, passes repeatedly and adds coverage. On Instagram, 75% of generated…
+  - <https://arxiv.org/abs/2402.09171>
+  - <https://dl.acm.org/doi/10.1145/3663529.3663839>
+- **E:whitebox-35** [V] Meta's ACH (FSE 2025 industry) generated 9,095 mutants from plain-text concern descriptions and 571 privacy-hardening tests across 10,795 Android Kotlin classes. Engineers accep…
+  - <https://arxiv.org/abs/2501.12862>
+  - <https://engineering.fb.com/2025/09/30/security/llms-are-the-key-to-mutation-testing-and-better-compliance/>
+- **E:whitebox-36** [V] CoverUp (Pizzorno and Berger, FSE 2025) iterates coverage analysis with LLM dialogue. It reached 80% median per-module line+branch coverage versus 47% for CodaMosa, and 89% over…
+  - <https://arxiv.org/abs/2403.16218>
+  - <https://dl.acm.org/doi/10.1145/3729398>
+- **E:whitebox-37** [V] Qodo Cover (formerly cover-agent, AGPL-3.0) was an open-source take on TestGen-LLM that could use 100+ models via LiteLLM. Its README now states 'This repository is no longer ma…
+  - <https://github.com/qodo-ai/qodo-cover>
+- **E:whitebox-38** [V] Pynguin (MIT since v0.30.0, Python 3.10 or newer) does search-based unit test generation for Python. It warns that it executes the module under test and 'can cause serious harm…
+  - <https://github.com/se2p/pynguin>
+  - <https://pynguin.readthedocs.io/latest/>
+- **E:whitebox-39** [C] （原主張已被推翻）更正：V1.2.0 was released on 2021-09-16, not 2024. It did add JUnit 5 output and Java 9 support for DSE. The license is LGPL-3.0. Issue #433 (2022-09-19) says EvoSuite sup…
+  - <https://github.com/EvoSuite/evosuite/releases>
+  - <https://github.com/EvoSuite/evosuite/issues/433>
+- **E:whitebox-40** [V] Hypothesis (Python) and fast-check (JS/TS; works with Jest, Mocha, Vitest) are mature property-based testing libraries that generate inputs and shrink failures to a minimal coun…
+  - <https://github.com/hypothesisworks/hypothesis>
+  - <https://hypothesis.readthedocs.io/>
+  - <https://fast-check.dev/>
+- **E:whitebox-41** [V] Agentic Property-Based Testing (Maaz, DeVoe, Hatfield-Dodds, Carlini; arXiv 2510.09907) ran an LLM agent that infers properties and writes Hypothesis tests across 100 Python pac…
+  - <https://arxiv.org/abs/2510.09907>
+- **E:whitebox-43** [V] arXiv 2410.21136 found that LLM-based test generation tends to produce oracles that capture the program's actual behaviour rather than its expected behaviour.
+  - <https://arxiv.org/abs/2410.21136>
+- **E:whitebox-44** [V] An ISSTA 2026 replicability study (arXiv 2607.22880) found that coverage and mutation scores of LLM-generated suites are useful comparative signals for regression testing. When…
+  - <https://arxiv.org/abs/2607.22880>
+- **E:whitebox-45** [V] The mutation-testing options are mutmut (Python, BSD-3, needs fork() so Windows requires WSL), Stryker (JS/TS, C#, Scala; Apache-2.0) and PIT (JVM; Kotlin via the commercial Arc…
+  - <https://github.com/boxed/mutmut>
+  - <https://stryker-mutator.io/>
+  - <https://pitest.org/>
+
+## 威脅建模方法與標準
+
+- **E:threat_modeling-01** [V] The Threat Modeling Manifesto (November 2020) is built on four questions: What are we working on? What can go wrong? What are we going to do about it? Did we do a good enough jo…
+  - <https://www.threatmodelingmanifesto.org/>
+  - <https://shostack.org/blog/threat-modeling-manifesto/>
+- **E:threat_modeling-02** [V] The OWASP Threat Modeling Cheat Sheet turns the four questions into four phases: system modeling, threat identification, mitigations, and review/validation. Validation asks whet…
+  - <https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html>
+- **E:threat_modeling-03** [V] STRIDE (Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege) first appeared in Kohnfelder and Garg's internal Microsoft paper 'Th…
+  - <https://www.microsoft.com/security/blog/2009/08/27/the-threats-to-our-products/>
+  - <https://shostack.org/blog/20-years-of-stride-looking-back-looking-forward/>
+- **E:threat_modeling-04** [P] The Microsoft Threat Modeling Tool uses 'STRIDE per Element': only some STRIDE categories apply to each DFD element type. Processes get all six, external entities get S and R, d…
+  - <https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool>
+  - <https://learn.microsoft.com/en-us/archive/blogs/larryosterman/threat-modeling-again-stride-per-element>
+- **E:threat_modeling-05** [V] The Microsoft Threat Modeling Tool is a free, Windows-only click-to-download app (Windows 10 Anniversary Update or later, .NET 4.7.1 or later). The latest GA release is 7.3.5111…
+  - <https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-releases>
+- **E:threat_modeling-06** [V] PASTA (UcedaVélez and Morana, 'Risk Centric Threat Modeling', Wiley 2015) has seven stages: Define Objectives, Define Technical Scope, Application Decomposition, Threat Analysis…
+  - <https://versprite.com/cybersecurity-listings/devsecops/pasta-threat-modeling/>
+- **E:threat_modeling-07** [V] LINDDUN, from the DistriNet unit at KU Leuven, is a privacy threat framework with seven categories: Linking, Identifying, Non-repudiation, Detecting, Data Disclosure, Unawarenes…
+  - <https://linddun.org/>
+- **E:threat_modeling-08** [V] Schneier's attack trees (Dr. Dobb's Journal, December 1999) place the attacker goal at the root and use OR and AND nodes. Attributes roll up the tree: an OR node takes its cheap…
+  - <https://www.schneier.com/academic/archives/1999/12/attack_trees.html>
+- **E:threat_modeling-09** [V] OWASP Threat Dragon is an OWASP Production project under Apache-2.0. It supports STRIDE, LINDDUN, PLOT4ai, CIA, CIA-DIE and Generic threat types, and its rule engine suggests th…
+  - <https://owasp.org/projects/threat-dragon>
+  - <https://www.threatdragon.com/docs/usage/threat-categories.html>
+- **E:threat_modeling-10** [V] Threat Dragon's latest release is 2.6.2 (10 May 2026); 2.6.0 (March 2026) added OWASP Cornucopia EoP game diagrams and templates. Models are saved in a v2 JSON Schema, and the C…
+  - <https://github.com/OWASP/threat-dragon/releases>
+  - <https://www.threatdragon.com/docs/development/schema.html>
+  - <https://github.com/OWASP/threat-dragon/issues/850>
+- **E:threat_modeling-11** [C] （原主張已被推翻）更正：The date is wrong: v1.4.0 was released on 6 July 2026 (PyPI upload 2026-07-06), not July 2025. The previous release was v1.3.1 in April 2024. Everything else holds:…
+  - <https://github.com/OWASP/pytm>
+  - <https://github.com/OWASP/pytm/releases>
+- **E:threat_modeling-12** [V] Threagile takes YAML architecture models, checks them against built-in and custom YAML risk rules, and outputs PDF, Excel, JSON and DFD/data-asset diagrams. It runs from Docker,…
+  - <https://github.com/Threagile/threagile>
+- **E:threat_modeling-13** [V] IriusRisk's Open Threat Model (OTM) is a tool-agnostic, semver-versioned JSON/YAML format for components, trust zones, threats and mitigations. It can be generated from IaC such…
+  - <https://github.com/iriusrisk/OpenThreatModel>
+  - <https://www.iriusrisk.com/the-open-threat-model-standard>
+- **E:threat_modeling-14** [V] STRIDE-GPT (MIT, v0.19) routes calls through LiteLLM to OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek and local LM Studio models. It produces STRIDE threat models, attack t…
+  - <https://raw.githubusercontent.com/mrwadams/stride-gpt/master/README.md>
+  - <https://github.com/mrwadams/stride-gpt>
+- **E:threat_modeling-15** [V] STRIDE-GPT's agentic 'analyze' mode ties each threat to evidence. The model quotes a code snippet, the tool matches it against the file on disk, and records file:line. A snippet…
+  - <https://raw.githubusercontent.com/mrwadams/stride-gpt/master/README.md>
+- **E:threat_modeling-16** [P] STRIDE-GPT fills in MITRE ATT&CK/ATLAS IDs from reference cards regenerated from upstream STIX/YAML rather than model recall, to eliminate ID hallucination. It also maps threats…
+  - <https://raw.githubusercontent.com/mrwadams/stride-gpt/master/README.md>
+- **E:threat_modeling-17** [P] STRIDE-GPT PR #170 tried an opt-in adversarial verifier: an LLM agent that tries to refute each threat by opening the source files. It was closed unmerged on 20 September 2026,…
+  - <https://github.com/mrwadams/stride-gpt/pull/170>
+- **E:threat_modeling-18** [V] mcp-stride-gpt is an MCP server exposing threat-modeling tools, including generate_security_tests and validate_threat_coverage. The MCP client's own LLM does the actual semantic…
+  - <https://github.com/mrwadams/mcp-stride-gpt>
+- **E:threat_modeling-20** [V] AbdulGhaffar and Matrawy (arXiv 2505.04101, 2025) tested five LLMs with four prompting techniques on STRIDE classification of 5G threats. Average accuracy rose from 63% (zero-sh…
+  - <https://arxiv.org/abs/2505.04101>
+  - <https://arxiv.org/html/2505.04101v2>
+- **E:threat_modeling-21** [V] Pourhanifeh et al. (arXiv 2605.10808, May 2026) tested 52 configurations across 8 models. Domain-adapted models did not consistently beat general models, and gains from larger m…
+  - <https://arxiv.org/abs/2605.10808>
+- **E:threat_modeling-22** [P] Zelenskiy and Sadovykh (ICTSS 2025, Springer LNCS 16107) compared single-agent and two-agent STRIDE extraction with o1, o3 and Sonnet on 24 system descriptions with 745 known th…
+  - <https://link.springer.com/chapter/10.1007/978-3-032-05188-2_15>
+  - <https://zenodo.org/records/15607634>
+- **E:threat_modeling-23** [V] ACSE-Eval (arXiv 2505.11565) tested GPT-4.1, Gemini 2.5 Pro and Claude 3.7 Sonnet on 100 AWS scenarios with IaC. Gemini did best zero-shot and GPT-4.1 best few-shot. Claude gave…
+  - <https://arxiv.org/abs/2505.11565>
+- **E:threat_modeling-24** [V] ThreatModeling-LLM (arXiv 2411.17058, banking) built its dataset with the Microsoft Threat Modeling Tool, then used CoT/OPRO prompting and LoRA fine-tuning. Llama-3.1-8B rose fr…
+  - <https://arxiv.org/abs/2411.17058>
+  - <https://arxiv.org/html/2411.17058v2>
+- **E:threat_modeling-25** [V] Auspex (arXiv 2503.09586) encodes expert 'tradecraft' in chained prompts: first decompose the architecture, then identify, classify and mitigate threats. Evaluation was qualitat…
+  - <https://arxiv.org/abs/2503.09586>
+- **E:threat_modeling-26** [P] ThreatCompute (CCSW '25) combines modular LLM prompting with attack graphs for Kubernetes apps, grounded in MITRE ATT&CK and the Microsoft Threat Matrix for Kubernetes. It repor…
+  - <https://dl.acm.org/doi/10.1145/3733812.3765533>
+  - <https://portal.fis.tum.de/en/publications/threatcompute-leveraging-llms-for-automated-threat-modeling-of-cl/>
+- **E:threat_modeling-27** [V] AegisShield (arXiv 2509.10482) grounds STRIDE plus ATT&CK generation in NVD and AlienVault OTX data. Across 243 threats in 15 case studies it reports statistically significant s…
+  - <https://arxiv.org/abs/2509.10482>
+- **E:threat_modeling-28** [V] ThreatLens (IEEE VTS 2025, arXiv 2505.06821) is a multi-agent framework that uses RAG, LLM reasoning and interactive user feedback to generate both threat models and security te…
+  - <https://arxiv.org/abs/2505.06821>
+- **E:threat_modeling-29** [V] ASTRIDE (arXiv 2512.04785, December 2025) adds an 'A' category for AI-agent-specific attacks to STRIDE and uses fine-tuned VLMs plus a reasoning LLM to threat-model from archite…
+  - <https://arxiv.org/abs/2512.04785>
+- **E:threat_modeling-30** [P] Díaz Ferreyra et al. (ESEM 2026, arXiv 2607.28431) applied three threat-modeling methods to an industrial GenAI system and found traditional methods such as STRIDE insufficient…
+  - <https://arxiv.org/abs/2607.28431>
+- **E:threat_modeling-31** [V] The OWASP Top 10 for LLM Applications 2025 (released November 2024) covers: LLM01 Prompt Injection, LLM02 Sensitive Information Disclosure, LLM03 Supply Chain, LLM04 Data and Mo…
+  - <https://genai.owasp.org/llm-top-10/>
+  - <https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/>
+- **E:threat_modeling-32** [V] The OWASP Top 10 for Agentic Applications 2026 (published 9 December 2025) covers: ASI01 Agent Goal Hijack, ASI02 Tool Misuse (& Exploitation), ASI03 Identity & Privilege Abuse,…
+  - <https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/>
+  - <https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/>
+  - <https://goteleport.com/blog/owasp-top-10-agentic-applications/>
+- **E:threat_modeling-33** [V] OWASP 'Agentic AI – Threats and Mitigations' v1.0 (17 February 2025) set out a threat-model-based taxonomy of 15 threats (T1 Memory Poisoning to T15). Secondary sources say v1.1…
+  - <https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/>
+  - <https://fidelissecurity.com/cybersecurity-101/threats-and-vulnerabilities/owasp-agentic-ai-threats/>
+- **E:threat_modeling-34** [V] The OWASP Multi-Agentic System Threat Modeling Guide v1.0 (23 April 2025) applies the Agentic Threats taxonomy to systems where multiple autonomous agents coordinate.
+  - <https://genai.owasp.org/resource/multi-agentic-system-threat-modeling-guide-v1-0/>
+- **E:threat_modeling-35** [V] CSA MAESTRO (Ken Huang, 6 February 2025) has seven layers: 1 Foundation Models, 2 Data Operations, 3 Agent Frameworks, 4 Deployment and Infrastructure, 5 Evaluation and Observab…
+  - <https://cloudsecurityalliance.org/blog/2025/02/06/agentic-ai-threat-modeling-framework-maestro>
+  - <https://github.com/CloudSecurityAlliance/MAESTRO>
+- **E:threat_modeling-36** [P] A CSA blog (February 2026) shows MAESTRO run in CI with a third-party static-analysis tool (TITO). It notes that static analysis covers only MAESTRO layers 1–3, and layers 4–7 n…
+  - <https://cloudsecurityalliance.org/blog/2026/02/11/applying-maestro-to-real-world-agentic-ai-threat-models-from-framework-to-ci-cd-pipeline>
+- **E:threat_modeling-37** [V] MITRE ATLAS data release 2026.09 (14 September 2026) contains 1 matrix, 16 tactics, 120 techniques, 88 sub-techniques, 40 mitigations and 73 case studies. It ships as YAML, with…
+  - <https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/CHANGELOG.md>
+  - <https://github.com/mitre-atlas/atlas-data>
+- **E:threat_modeling-38** [V] OWASP AI Testing Guide v1 (26 November 2025, leads Matteo Meucci and Marco Morana) organizes tests into application, model, infrastructure and data layers, with IDs such as AITG…
+  - <https://owasp.github.io/www-project-ai-testing-guide/>
+- **E:threat_modeling-39** [V] OWASP AISVS 1.0 has 12 chapters and L1–L3 levels, including Chapter 9 'Orchestration & Agentic Security' and Chapter 10 'Model Context Protocol (MCP) Security'. Secondary source…
+  - <https://github.com/OWASP/AISVS>
+  - <https://owasp.org/projects/artificial-intelligence-security-verification-standard-aisvs-docs>
+- **E:threat_modeling-40** [V] OWASP ASVS 5.0.0 was released in May 2025 at Global AppSec EU Barcelona. It has 17 chapters (V1 Encoding and Sanitization through V17 WebRTC, including new V9 Self-contained Tok…
+  - <https://github.com/owasp/asvs>
+  - <https://github.com/OWASP/ASVS/tree/master/5.0/en>
+  - <https://github.com/shenril/owasp-asvs-checklist/pull/17>
+- **E:threat_modeling-41** [V] ASVS 5.0.0 is published as CSV, JSON (standard, flat and legacy), XML, DOCX and CycloneDX. Official 4.0.3↔5.0.0 mapping YAMLs are in 5.0/mappings.
+  - <https://github.com/OWASP/ASVS/tree/master/5.0/docs_en>
+  - <https://github.com/OWASP/ASVS/tree/master/5.0/mappings>
+- **E:threat_modeling-42** [V] ASVS 5.0 no longer maintains direct CWE or NIST mappings, citing category-only CWEs and imprecise mappings. Only an archived beta CWE mapping (v5.0.be_cwe_mapping.json) remains.
+  - <https://github.com/OWASP/ASVS/blob/master/5.0/en/0x05-For-Users-Of-4.0.md>
+  - <https://github.com/OWASP/ASVS/tree/master/5.0/mappings>
+- **E:threat_modeling-43** [V] ASVS 5.0 makes documented security decisions explicit, verifiable requirements. Level 1 shrank to 70 requirements (about 20% of the total) and was prioritized for risk reduction…
+  - <https://github.com/OWASP/ASVS/blob/master/5.0/en/0x05-For-Users-Of-4.0.md>
+- **E:threat_modeling-44** [V] The OpenCRE REST API (opencre.org/rest/v1) links ASVS, WSTG, CWE, CAPEC, NIST SSDF, MITRE ATLAS, OWASP Top 10 for LLM and others. A direct query on 2026-09-23 found that all 277…
+  - <https://opencre.org/rest/v1/standards>
+  - <https://opencre.org/rest/v1/standard/ASVS>
+  - <https://github.com/OWASP/OpenCRE/issues/637>
+- **E:threat_modeling-45** [V] The latest stable OWASP WSTG is v4.2, and v5.0 is in development. Tests use IDs WSTG-<CAT>-<NN>, versioned as WSTG-v42-INFO-02.
+  - <https://github.com/OWASP/wstg/>
+  - <https://owasp.org/projects/web-security-testing-guide>
+- **E:threat_modeling-46** [V] The latest CAPEC is 3.9 (24 January 2023) with 559 attack patterns. Each entry includes Execution Flow, Prerequisites, Mitigations, Related Weaknesses (CWE links) and Taxonomy M…
+  - <https://capec.mitre.org/news/>
+  - <https://capec.mitre.org/data/definitions/66.html>
+- **E:threat_modeling-47** [V] CWE is at version 4.20 (pages dated 30 April 2026) with 944 weaknesses/chains/composites. Entries include Detection Methods, Potential Mitigations and Related Attack Patterns (l…
+  - <https://cwe.mitre.org/data/reports/diff_reports/latest.html>
+  - <https://cwe.mitre.org/data/definitions/89.html>
+- **E:threat_modeling-48** [V] The final NIST SSDF is SP 800-218 v1.1 (February 2022). The initial public draft of SP 800-218r1 (SSDF v1.2) came out on 17 December 2025 with comments due 30 January 2026, and…
+  - <https://csrc.nist.gov/projects/ssdf/news>
+  - <https://www.nist.gov/news-events/news/2025/12/secure-software-development-framework-ssdf-version-12-available-public>
+  - <https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf>
+- **E:threat_modeling-49** [V] SSDF practice PW.1.1 calls for risk modeling (threat modeling, attack modeling or attack surface mapping). PW.7 covers reviewing and analyzing human-readable code, and PW.8 cove…
+  - <https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf>
+  - <https://www.iriusrisk.com/resources-blog/nist-ssdf-and-iriusrisk-threat-modeling>
+- **E:threat_modeling-51** [V] The OWASP Abuse Case Cheat Sheet turns abuse cases into security requirements or agile acceptance criteria and keeps them traceable with IDs such as ABUSE_CASE_001. It checks th…
+  - <https://cheatsheetseries.owasp.org/cheatsheets/Abuse_Case_Cheat_Sheet.html>
+- **E:threat_modeling-52** [C] （原主張已被推翻）更正：The chain makes sense as a concept, but not every link exists in official data files. Official links that do exist: CAPEC<->CWE (both directions in MITRE data), the…
+  - <https://capec.mitre.org/data/definitions/66.html>
+  - <https://cwe.mitre.org/data/definitions/89.html>
+  - <https://github.com/OWASP/ASVS/tree/master/5.0/docs_en>
+  - <https://github.com/OWASP/wstg/>
+  - <https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/CHANGELOG.md>
+  - <https://opencre.org/rest/v1/standards>
+
+## 黑箱驗證工具與安全實務
+
+- **E:blackbox-01** [V] ZAP joined Checkmarx on 2024-09-24 and is now branded 'ZAP by Checkmarx'. The announcement says ZAP 'will stay under the control of the ZAP Core Team, remain open source, and st…
+  - <https://www.zaproxy.org/blog/2024-09-24-zap-has-joined-forces-with-checkmarx/>
+  - <https://checkmarx.com/press-releases/checkmarx-joins-forces-with-zap-to-supercharge-dynamic-application-security-testing-dast-for-the-enterprise-and-enhance-community-growth/>
+  - <https://github.com/zaproxy/zaproxy>
+- **E:blackbox-02** [V] ZAP left OWASP in August 2023 and became a founding project of the Linux Foundation's Software Security Project (SSP).
+  - <https://www.zaproxy.org/blog/2023-08-01-zap-is-joining-the-software-security-project/>
+- **E:blackbox-03** [V] ZAP is actively maintained. The current stable release is 2.17.0 (release blog dated 2025-12-15), and weekly builds continue, the latest being w2026-09-23. Docker images are pub…
+  - <https://www.zaproxy.org/download/>
+  - <https://www.zaproxy.org/blog/2025-12-15-zap-2-17-0/>
+  - <https://github.com/zaproxy/zaproxy/releases.atom>
+- **E:blackbox-04** [V] The ZAP Automation Framework runs a single YAML plan headlessly (e.g. 'zap -cmd -autorun zap.yaml'). The plan's jobs run in order and include openapi, graphql, soap and postman…
+  - <https://www.zaproxy.org/docs/automate/automation-framework/>
+- **E:blackbox-05** [V] The Automation Framework 'environment' section defines contexts. Each context has mandatory top-level urls plus optional includePaths and excludePaths regex lists, authenticatio…
+  - <https://www.zaproxy.org/docs/desktop/addons/automation-framework/environment/>
+- **E:blackbox-06** [V] The ZAP activeScan job exposes delayInMs ('reduce the strain on the target'), threadPerHost, maxRuleDurationInMins, maxScanDurationInMins and policy strength/threshold. The docs…
+  - <https://www.zaproxy.org/docs/desktop/addons/automation-framework/job-ascan/>
+- **E:blackbox-07** [V] zap-api-scan.py imports an OpenAPI, SOAP or GraphQL definition and runs an API-tuned active scan. A -c config file sets each rule to IGNORE, INFO or FAIL, -S (safe mode) runs on…
+  - <https://www.zaproxy.org/docs/docker/api-scan/>
+- **E:blackbox-08** [V] ZAP 2.17.0 added 'Insights', which 'can even stop a scan early if significant problems are identified'. It also adds alert de-duplication with 'Systemic' site-wide alerts, and h…
+  - <https://www.zaproxy.org/docs/desktop/releases/2.17.0/>
+- **E:blackbox-09** [V] Nuclei (ProjectDiscovery) is MIT-licensed, uses a YAML-based template DSL, and is actively maintained. The latest version is v3.11.1, published 2026-08-08 according to the Go mo…
+  - <https://github.com/projectdiscovery/nuclei>
+  - <https://proxy.golang.org/github.com/projectdiscovery/nuclei/v3/@latest>
+  - <https://github.com/projectdiscovery/nuclei/releases>
+- **E:blackbox-10** [V] Nuclei's rate controls are -rl (default 150 requests/second, which takes precedence), -bs (hosts in parallel per template, default 25) and -c (templates in parallel, default 25)…
+  - <https://docs.projectdiscovery.io/opensource/nuclei/running>
+  - <https://docs.projectdiscovery.io/opensource/nuclei/mass-scanning-cli>
+- **E:blackbox-11** [P] Nuclei requires signatures for code-protocol templates, and since v3.11.0 (2026-07-06) also for custom javascript-protocol templates. Templates are signed with 'nuclei -sign' us…
+  - <https://docs.projectdiscovery.io/templates/reference/template-signing>
+  - <https://github.com/projectdiscovery/nuclei/releases/tag/v3.11.0>
+  - <https://proxy.golang.org/github.com/projectdiscovery/nuclei/v3/@v/v3.11.0.info>
+- **E:blackbox-12** [V] The community nuclei-templates repository is MIT-licensed and includes large sets of CVE and KEV-tagged templates. The Nuclei README says the tool is primarily a standalone CLI…
+  - <https://github.com/projectdiscovery/nuclei-templates>
+  - <https://github.com/projectdiscovery/nuclei>
+- **E:blackbox-13** [V] Schemathesis is MIT-licensed and actively maintained, with 4.28.0 published to PyPI on 2026-09-22. It generates property-based tests (built on Hypothesis) from OpenAPI 2.0/3.0/3…
+  - <https://pypi.org/project/schemathesis/>
+  - <https://schemathesis.readthedocs.io/en/stable/>
+  - <https://github.com/schemathesis/schemathesis>
+- **E:blackbox-14** [V] Schemathesis has 14 checks. They include ignored_auth ('Verifies authentication is properly enforced'), use_after_free ('Detects when deleted resources remain accessible'), ensu…
+  - <https://schemathesis.readthedocs.io/en/stable/reference/checks/>
+- **E:blackbox-15** [V] Schemathesis CLI safety and scoping options: --rate-limit '<n>/<s|m|h>' or 'auto' (honours Retry-After on 429); include/exclude filters by path, method, tag, name or operation-i…
+  - <https://schemathesis.readthedocs.io/en/stable/reference/cli/>
+- **E:blackbox-16** [V] RESTler (Microsoft Research) is an MIT-licensed stateful REST API fuzzer that compiles an OpenAPI spec into a grammar and runs in compile, test (smoke), fuzz-lean and fuzz modes…
+  - <https://github.com/microsoft/restler-fuzzer>
+  - <https://github.com/microsoft/restler-fuzzer/blob/main/docs/user-guide/Fuzzing.md>
+- **E:blackbox-17** [V] RESTler activity is low. There are no GitHub Releases (only tags), the last tag is v9.3.1 (2025-01-30), and the latest commit on main is dated 2026-02-13. It is built from sourc…
+  - <https://github.com/microsoft/restler-fuzzer/tags>
+  - <https://github.com/microsoft/restler-fuzzer/commits/main.atom>
+  - <https://github.com/microsoft/restler-fuzzer/releases>
+- **E:blackbox-18** [V] EvoMaster is LGPL-3.0 licensed and actively maintained, with 6.2.0 on PyPI dated 2026-09-15. It generates system-level test suites for REST, GraphQL and RPC (gRPC, Thrift) APIs.…
+  - <https://github.com/WebFuzzing/EvoMaster>
+  - <https://pypi.org/project/evomaster/>
+  - <https://dl.acm.org/doi/10.1007/s10515-024-00478-1>
+- **E:blackbox-19** [V] EvoMaster black-box mode is the default since 6.0.0 ('--blackBox true --schema <url>'). It supports --ratePerMinute to 'avoid doing a DoS attack by bombarding the remote service…
+  - <https://github.com/WebFuzzing/EvoMaster/blob/master/docs/blackbox.md>
+- **E:blackbox-20** [P] Two peer-reviewed comparisons exist. Kim et al. (ISSTA 2022) evaluated 10 REST API testing tools on 20 real-world services. Zhang and Arcuri (TOSEM 2023) compared 7 fuzzers on 1…
+  - <https://arxiv.org/abs/2204.08348>
+  - <https://dlnext.acm.org/doi/10.1145/3533767.3534401>
+  - <https://arxiv.org/abs/2205.05325>
+  - <https://dl.acm.org/doi/full/10.1145/3597205>
+- **E:blackbox-21** [V] Playwright is Apache-2.0 licensed and actively maintained; playwright and @playwright/test 1.63.0 were published to npm on 2026-09-04. Its auth guide supports storageState, setu…
+  - <https://www.npmjs.com/package/playwright>
+  - <https://playwright.dev/docs/auth>
+- **E:blackbox-22** [V] Playwright API testing uses the request fixture (APIRequestContext) with baseURL and extraHTTPHeaders. It can share storageState between API and browser contexts, so a test can…
+  - <https://playwright.dev/docs/api-testing>
+- **E:blackbox-23** [V] Playwright Test Agents (planner, generator, healer) arrived with 1.56 (npm publish 2025-10-06) and are installed with 'npx playwright init-agents --loop=<client>' for VS Code, C…
+  - <https://playwright.dev/docs/test-agents>
+  - <https://www.npmjs.com/package/playwright>
+- **E:blackbox-24** [V] Playwright MCP (@playwright/mcp, Apache-2.0, 0.0.82 on 2026-09-18) gives LLMs browser control through accessibility snapshots. Its allowed-origins and blocked-origins options ex…
+  - <https://github.com/microsoft/playwright-mcp>
+  - <https://www.npmjs.com/package/@playwright/mcp>
+- **E:blackbox-25** [V] k6 is AGPL-3.0 licensed. k6 2.0 was tagged 2026-05-11 (blog dated 2026-05-12), and the latest release is v2.3.0 (2026-09-21). The v1 line still receives patches (v1.8.1 on 2026-…
+  - <https://github.com/grafana/k6>
+  - <https://proxy.golang.org/go.k6.io/k6/v2/@v/v2.0.0.info>
+  - <https://proxy.golang.org/go.k6.io/k6/v2/@latest>
+  - <https://proxy.golang.org/go.k6.io/k6/@latest>
+  - <https://github.com/grafana/k6/releases>
+- **E:blackbox-26** [P] k6 2.0 added AI-oriented subcommands: 'k6 x agent', 'k6 x mcp' (MCP server), 'k6 x docs' and 'k6 x explore'. It also added an expect() Assertions API.
+  - <https://grafana.com/blog/k6-2-0-release/>
+- **E:blackbox-27** [V] k6 thresholds are pass/fail criteria (e.g. http_req_failed rate<0.01, http_req_duration p(95)<200), and k6 exits non-zero when any threshold fails. abortOnFail (with delayAbortE…
+  - <https://grafana.com/docs/k6/latest/using-k6/thresholds/>
+- **E:blackbox-28** [V] Grafana's k6 guidance says a QA environment is 'unsuitable for assessing the performance and scalability of the application', and that pre-release environments make reliability…
+  - <https://grafana.com/docs/k6/latest/testing-guides/automated-performance-testing/>
+- **E:blackbox-29** [V] NIST SP 800-115 (final, September 2008, supersedes SP 800-42; the NIST page shows no revision notice) gives a Rules of Engagement template in Appendix B. It covers scope, risks…
+  - <https://csrc.nist.gov/pubs/sp/800/115/final>
+  - <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf>
+- **E:blackbox-30** [V] SP 800-115 says deviations from the ROE need permission 'normally in writing' from the original signatory. A technique 'likely to cause a denial of service... should probably be…
+  - <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf>
+- **E:blackbox-31** [V] SP 800-115 Appendix C says white-box techniques 'tend to be more efficient and cost-effective for finding security defects in custom applications'. It says black-box techniques…
+  - <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf>
+- **E:blackbox-32** [V] OWASP LLM06:2025 'Excessive Agency' lists mitigations: minimize the extensions agents may call, avoid open-ended tools such as shell commands, grant least-privilege permissions,…
+  - <https://genai.owasp.org/llmrisk/llm062025-excessive-agency/>
+- **E:blackbox-34** [V] gVisor (Apache-2.0) is a user-space 'application kernel' that intercepts syscalls; its OCI runtime runsc plugs into Docker ('sudo runsc install', then 'docker run --runtime=runs…
+  - <https://gvisor.dev/docs/>
+  - <https://gvisor.dev/docs/user_guide/quick_start/docker/>
+  - <https://github.com/google/gvisor>
+  - <https://proxy.golang.org/gvisor.dev/gvisor/@latest>
+- **E:blackbox-35** [V] Firecracker (Apache-2.0) is a KVM-based VMM for lightweight microVMs. Its jailer 'applies a cgroup/namespace isolation barrier and then drops privileges', and overall security '…
+  - <https://github.com/firecracker-microvm/firecracker>
+  - <https://github.com/firecracker-microvm/firecracker/releases.atom>
+- **E:blackbox-36** [V] E2B is open-source sandbox infrastructure for running AI-generated code. Its runtime (e2b-dev/infra) uses 'one Firecracker microVM per sandbox, in its own cgroup and network nam…
+  - <https://github.com/e2b-dev/E2B>
+  - <https://github.com/e2b-dev/E2B/blob/main/LICENSE>
+  - <https://github.com/e2b-dev/infra>
+  - <https://pypi.org/project/e2b/>
+- **E:blackbox-37** [V] E2B's infra repo describes its self-hostable 'E2B Embed' package (Terraform for GCP plus a Kubernetes manifest) as 'an evaluation package, not a production deployment pattern'.…
+  - <https://github.com/e2b-dev/infra>
+- **E:blackbox-38** [V] Docker's security docs rely on namespaces, cgroups, a capability allowlist, optional seccomp/AppArmor/SELinux and user-namespace remapping. They warn that 'only trusted users sh…
+  - <https://docs.docker.com/engine/security/>
+- **E:blackbox-39** [V] Docker Sandboxes runs coding agents (e.g. Claude Code, Codex, Gemini) in microVMs, each with its own Docker daemon, filesystem and network. The sbx CLI is free for commercial us…
+  - <https://docs.docker.com/ai/sandboxes/>
+  - <https://www.docker.com/blog/why-microvms-the-architecture-behind-docker-sandboxes/>
+- **E:blackbox-40** [V] Anthropic's sandbox-runtime (srt, Apache-2.0) restricts processes at the OS level without containers: bubblewrap with network namespaces on Linux, Seatbelt profiles on macOS, an…
+  - <https://github.com/anthropic-experimental/sandbox-runtime>
+
+## Vibe coding 風險與事件
+
+- **E:vibe_risks-01** [V] Andrej Karpathy coined "vibe coding" in an X post on 2 February 2025: "fully give in to the vibes, embrace exponentials, and forget that the code even exists." In the same post…
+  - <https://x.com/karpathy/status/1886192184808149383>
+  - <https://www.merriam-webster.com/slang/vibe-coding>
+  - <https://en.wikipedia.org/wiki/Vibe_coding>
+- **E:vibe_risks-02** [V] Collins Dictionary named "vibe coding" its Word of the Year 2025 on 6 November 2025 and credited the term to Karpathy. Merriam-Webster had listed it as "slang & trending" in Mar…
+  - <https://blog.collinsdictionary.com/language-lovers/collins-word-of-the-year-2025-ai-meets-authenticity-as-society-shifts/>
+  - <https://www.cnn.com/2025/11/06/tech/vibe-coding-collins-word-year-scli-intl>
+  - <https://www.merriam-webster.com/slang/vibe-coding>
+- **E:vibe_risks-04** [P] Pearce et al. (IEEE S&P 2022) built 89 scenarios based on MITRE's 2021 CWE Top 25 and got 1,689 programs from GitHub Copilot, of which about 40% were vulnerable. They covered 18…
+  - <https://arxiv.org/abs/2108.09293>
+  - <https://ar5iv.labs.arxiv.org/html/2108.09293>
+  - <https://ieeexplore.ieee.org/document/9833571>
+- **E:vibe_risks-06** [V] Perry et al. (ACM CCS 2023) found in a user study that participants given a Codex-based assistant wrote significantly less secure code than the control group. They were also mor…
+  - <https://arxiv.org/abs/2211.03622>
+- **E:vibe_risks-07** [V] Veracode's 2025 GenAI Code Security Report (30 July 2025) tested over 100 LLMs on 80 coding tasks in Java, JavaScript, Python and C#. 45% of samples failed security tests and in…
+  - <https://www.veracode.com/blog/genai-code-security-report/>
+  - <https://www.helpnetsecurity.com/2025/08/07/create-ai-code-security-risks/>
+- **E:vibe_risks-11** [P] Veracode's 2026 GenAI Code Security Report (blog dated 28 July 2026) gives an average security pass rate of 56% across models. The best listed model, GPT-5.5, reached 68%.
+  - <https://www.veracode.com/blog/2026-genai-code-security-report-ai-risk/>
+  - <https://www.veracode.com/blog/spring-2026-genai-code-security/>
+- **E:vibe_risks-12** [V] The widely repeated "AI code has 2.74x more vulnerabilities" figure is not in Veracode's report. It comes from CodeRabbit's December 2025 analysis of 470 open-source PRs (320 AI…
+  - <https://www.coderabbit.ai/blog/state-of-ai-vs-human-code-generation-report>
+  - <https://www.veracode.com/blog/2026-genai-code-security-report-ai-risk/>
+- **E:vibe_risks-13** [V] Spracklen et al. (USENIX Security 2025, Distinguished Paper) generated 576,000 code samples from 16 LLMs in Python and JavaScript. Of 2.23 million package references, 440,445 (1…
+  - <https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen>
+  - <https://arxiv.org/html/2406.10279v3>
+  - <https://github.com/Spracks/PackageHallucination>
+- **E:vibe_risks-14** [V] The paper reports average hallucination rates of at least 5.2% for commercial models and 21.7% for open-source models, with GPT-4 Turbo lowest at 3.59%. Python averaged 15.8% an…
+  - <https://arxiv.org/abs/2406.10279>
+  - <https://arxiv.org/html/2406.10279v3>
+- **E:vibe_risks-15** [V] Hallucinated package names repeat: 43% came back in all 10 repeated queries, 58% came back more than once, and 39% never repeated. The USENIX ;login: summary rounds these to abo…
+  - <https://arxiv.org/html/2406.10279v3>
+  - <https://www.usenix.org/publications/loginonline/we-have-package-you-comprehensive-analysis-package-hallucinations-code>
+- **E:vibe_risks-16** [V] The term "slopsquatting" for registering LLM-hallucinated package names was coined by PSF Developer-in-Residence Seth Larson and popularized by Andrew Nesbitt in April 2025.
+  - <https://socket.dev/blog/slopsquatting-how-ai-hallucinations-are-fueling-a-new-class-of-supply-chain-attacks>
+  - <https://fosstodon.org/@sethmlarson/114328275927451797>
+  - <https://en.wikipedia.org/wiki/Slopsquatting>
+- **E:vibe_risks-18** [V] Meta's CyberSecEval (arXiv 2312.04724) covers 8 languages and 50 CWE insecure practices. Across its test cases, LLMs suggested vulnerable code 30% of the time.
+  - <https://arxiv.org/abs/2312.04724>
+  - <https://arxiv.org/html/2312.04724>
+- **E:vibe_risks-20** [V] BaxBench (ICML 2025, PMLR vol. 267) has 392 backend tasks: 28 scenarios × 14 frameworks in 6 languages. The best model, OpenAI o1, reached only 62% code correctness, and securit…
+  - <https://arxiv.org/abs/2502.11844>
+  - <https://baxbench.com/>
+  - <https://proceedings.mlr.press/v267/vero25a.html>
+- **E:vibe_risks-21** [V] BaxBench's security checks include black-box tests against the running app, such as injection or path traversal probes, and white-box checks, such as plaintext passwords or unen…
+  - <https://baxbench.com/>
+- **E:vibe_risks-22** [V] SecCodePLT has been renamed SeCodePLT in its v2 arXiv version (Sept 2025), which says it was accepted to the NeurIPS 2025 Datasets & Benchmarks track. It has more than 5.9k samp…
+  - <https://arxiv.org/abs/2410.11096>
+  - <https://huggingface.co/datasets/Virtue-AI-HUB/SecCodePLT>
+- **E:vibe_risks-23** [V] CVE-2025-48757, published 30 May 2025 with MITRE as CNA, says an insufficient Row-Level Security policy in Lovable through 2025-04-15 lets remote unauthenticated attackers read…
+  - <https://nvd.nist.gov/vuln/detail/CVE-2025-48757>
+  - <https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2025-48757>
+  - <https://cveawg.mitre.org/api/cve/CVE-2025-48757>
+- **E:vibe_risks-24** [V] Researcher Matt Palmer reports scanning 1,645 Lovable-showcased projects and finding 170 (about 10.3%) with 303 vulnerable endpoints that exposed data such as names, emails, pho…
+  - <https://mattpalmer.io/posts/2025/05/statement-on-CVE-2025-48757/>
+- **E:vibe_risks-25** [P] On 9 July 2025, Wiz Research reported an authentication bypass in the vibe-coding platform Base44 (owned by Wix): unauthenticated registration and verification endpoints accepte…
+  - <https://www.wiz.io/blog/critical-vulnerability-base44>
+  - <https://thehackernews.com/2025/07/wiz-uncovers-critical-access-bypass.html>
+- **E:vibe_risks-26** [P] Escape.tech (29 October 2025) passively scanned about 5,600 publicly listed vibe-coded apps, mostly from Lovable, and reported more than 2,000 vulnerabilities, over 400 exposed…
+  - <https://escape.tech/blog/methodology-how-we-discovered-vulnerabilities-apps-built-with-vibe-coding/>
+  - <https://escape.tech/state-of-security-of-vibe-coded-apps>
+- **E:vibe_risks-27** [P] In July 2025, SaaStr founder Jason Lemkin reported that Replit's AI agent deleted his production database during an explicit code and action freeze, fabricated data, and wrongly…
+  - <https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure/>
+  - <https://incidentdatabase.ai/cite/1152/>
+  - <https://www.theregister.com/2025/07/22/replit_saastr_response/>
+- **E:vibe_risks-28** [V] Replit CEO Amjad Masad called the incident "Unacceptable and should never be possible." He announced automatic dev/prod database separation, staging environments in progress, a…
+  - <https://x.com/amasad/status/1946986468586721478>
+  - <https://www.theregister.com/2025/07/22/replit_saastr_response/>
+  - <https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure/>
+- **E:vibe_risks-31** [V] No primary source shows the Tea breach was caused by vibe coding. Tea attributed it to legacy content not migrated to its newer system, and Simon Willison says he is "confident…
+  - <https://simonwillison.net/2025/Jul/26/official-statement-from-tea/>
+  - <https://www.404media.co/women-dating-safety-app-tea-breached-users-ids-posted-to-4chan/>
+
+## 參考系統架構
+
+- **E:reference_systems-02** [V] The finalists orchestrated in different ways. Atlantis (1st) is 'ensemble-first': several independent bug-finding modules share seeds, and eight patch agents of different design…
+  - <https://arxiv.org/html/2602.07666v2>
+  - <https://arxiv.org/abs/2509.14589>
+- **E:reference_systems-03** [V] Buttercup splits patching into specialized agents for root-cause analysis, patch writing, context retrieval and reflection. The reflection agent analyzes each failed attempt and…
+  - <https://arxiv.org/html/2602.07666v2>
+  - <https://blog.trailofbits.com/2025/08/09/trail-of-bits-buttercup-wins-2nd-place-in-aixcc-challenge/>
+- **E:reference_systems-04** [V] Most finalists routed to multiple LLM providers through LiteLLM. Lacrosse used DSPy to run diverse LLMs in parallel or as fallbacks. Buttercup's README says it works best with b…
+  - <https://arxiv.org/html/2602.07666v2>
+  - <https://github.com/trailofbits/buttercup>
+- **E:reference_systems-05** [V] AIxCC scoring multiplied each challenge score by an accuracy multiplier AM = 1-(1-r)^4, where r is the share of accurate submissions (about 50% accuracy cost 6%, 40% cost 13%).…
+  - <https://arxiv.org/html/2602.07666v2>
+- **E:reference_systems-07** [V] In the SoK's baselines (Claude Code and a multi-retrieval agent, both on Claude 3.7), 37.7% and 45.6% of patches that passed build, PoV and test checks were semantically incorre…
+  - <https://arxiv.org/html/2602.07666v2>
+- **E:reference_systems-08** [V] The AIxCC finals ran about 143 hours with no human intervention. The SoK's key findings were that stability and accuracy decided performance and that engineering robustness matt…
+  - <https://arxiv.org/html/2602.07666v2>
+  - <https://www.darpa.mil/news/2025/aixcc-results>
+- **E:reference_systems-10** [V] Theori reports that Infer had about a 99.9% false-positive rate in its workflow. RoboDuck filters in two phases: an LLM 'likely/unlikely' classification scored from log-probabil…
+  - <https://theori.io/blog/aixcc-and-roboduck-63447>
+  - <https://github.com/theori-io/aixcc-afc-archive/blob/main/docs/crs-architecture.md>
+- **E:reference_systems-12** [V] In delta (diff-only) mode, RoboDuck runs two agents in parallel on the diff, one of them pruned to relevant code, and reports far fewer false positives because the scope is smal…
+  - <https://theori.io/blog/aixcc-and-roboduck-63447>
+- **E:reference_systems-13** [V] OSS-CRS (Georgia Tech and Microsoft) runs AIxCC systems in three phases: prepare, build-target and run. Each system gets Docker cgroup CPU and memory limits and a per-system LLM…
+  - <https://arxiv.org/html/2603.08566v2>
+- **E:reference_systems-14** [V] OSS-CRS validates each patch by applying it and rebuilding, re-running the PoV and running the regression tests, then manually reviews every patch before sending it upstream. It…
+  - <https://arxiv.org/html/2603.08566v2>
+- **E:reference_systems-15** [P] Team Atlanta's 2026 study tested 10 setups (4 agent frameworks x 5 frontier models) on 63 AIxCC crashes. Model choice mattered more than framework, and even the best setup had a…
+  - <https://team-atlanta.github.io/blog/post-patch-2026-ensemble/>
+- **E:reference_systems-16** [V] OSS-Fuzz-gen stacks agents in a pipeline where each uses the previous one's results: FunctionAnalyzer, Prototyper, ExecutionStage, CrashAnalyzer, ContextAnalyzer and a Coverage…
+  - <https://github.com/google/oss-fuzz-gen/blob/main/agent_tests/readme.md>
+  - <https://github.com/google/oss-fuzz-gen>
+- **E:reference_systems-19** [V] PyRIT's paper describes six components: Memory, Targets, Converters, Datasets, Scorers and Orchestrators. Scorers can be rule-based, classical ML or generative AI, and output tr…
+  - <https://arxiv.org/abs/2410.02828>
+- **E:reference_systems-20** [V] PyRIT 1.1.0 documentation shows attack executors (e.g., pyrit.executor.attack.PromptSendingAttack), a Scenario framework, a pyrit_scan CLI and CoPyRIT, a GUI for human-led red t…
+  - <https://microsoft.github.io/PyRIT/1.1.0/>
+  - <https://github.com/microsoft/PyRIT>
+- **E:reference_systems-21** [V] garak is built from generators, probes, detectors and buffs. A harness wires probes to detectors, an evaluator handles results, and each run writes a JSONL report plus a hit log.
+  - <https://arxiv.org/abs/2406.11036>
+  - <https://github.com/NVIDIA/garak>
+- **E:reference_systems-22** [V] The garak paper says it cannot give comprehensive answers and is designed to be used as part of human assessment. Its detector performance is fragile and may need per-model anno…
+  - <https://arxiv.org/abs/2406.11036>
+- **E:reference_systems-23** [V] promptfoo's red-team architecture combines plugins (vulnerability types), strategies (ways of delivering inputs) and 30+ target types, and grades responses with LLM-as-a-judge.…
+  - <https://www.promptfoo.dev/docs/red-team/architecture/>
+- **E:reference_systems-24** [V] promptfoo's false-positive guidance: grading accuracy depends on how thoroughly the application's behavior is defined, graders can be calibrated with plugin-specific examples, a…
+  - <https://www.promptfoo.dev/docs/red-team/troubleshooting/false-positives/>
+- **E:reference_systems-25** [V] OpenAI announced on March 9, 2026 that it would acquire Promptfoo. Promptfoo states it will remain open source and continue to support a diverse range of providers and models.
+  - <https://www.promptfoo.dev/blog/promptfoo-joining-openai/>
+  - <https://www.cnbc.com/2026/03/09/open-ai-cybersecurity-promptfoo-ai-agents.html>
+  - <https://openai.com/index/openai-to-acquire-promptfoo/>
+- **E:reference_systems-26** [V] OpenAI's Aardvark (October 2025) first builds a threat model of the repository, then scans commit history and new changes, tries to trigger candidate issues in an isolated sandb…
+  - <https://thehackernews.com/2025/10/openai-unveils-aardvark-gpt-5-agent.html>
+  - <https://learn.chatgpt.com/docs/security>
+  - <https://www.securityweek.com/openai-rolls-out-codex-security-vulnerability-scanner/>
+  - <https://openai.com/index/introducing-aardvark/>
+- **E:reference_systems-27** [V] Anthropic's Claude Code Security (limited research preview, February 20, 2026) puts every finding through multi-stage verification in which Claude tries to prove or disprove its…
+  - <https://www.anthropic.com/news/claude-code-security>
+- **E:reference_systems-28** [V] Anthropic's claude-code-security-review GitHub Action analyzes PR diffs, then runs a separate false-positive filtering step (findings_filter.py) that by default excludes classes…
+  - <https://github.com/anthropics/claude-code-security-review>
+- **E:reference_systems-29** [V] Google DeepMind's CodeMender (October 6, 2025) is multi-agent. An LLM-based critique tool compares original and modified code to catch regressions, alongside static and dynamic…
+  - <https://deepmind.google/blog/introducing-codemender-an-ai-agent-for-code-security/>
+- **E:reference_systems-30** [V] Google Project Zero's Naptime gives the agent a Code Browser, a sandboxed Python tool, a Debugger and a Reporter. A separate Controller checks whether the success condition was…
+  - <https://googleprojectzero.blogspot.com/2024/06/project-naptime.html>
+- **E:reference_systems-31** [V] Karpathy's llm-council has three stages: independent answers from several models via OpenRouter, anonymized peer review and ranking, and a 'Chairman' model that synthesizes a fi…
+  - <https://github.com/karpathy/llm-council>
+- **E:reference_systems-32** [V] PAL MCP Server (formerly Zen MCP) connects Claude Code, Codex CLI or Gemini CLI to multiple providers, with a consensus tool ('expert opinions from multiple AI models with stanc…
+  - <https://github.com/BeehiveInnovations/pal-mcp-server>
+- **E:reference_systems-33** [V] CodeAgent (EMNLP 2024) is a multi-agent code-review system with a supervisory QA-Checker agent that keeps all agents' contributions on the original review question. It was evalu…
+  - <https://aclanthology.org/2024.emnlp-main.632/>
+- **E:reference_systems-37** [C] （原主張已被推翻）更正：Too broad. Claude Code Security's announcement documents only LLM self-verification plus human approval, with no execution evidence, and claude-code-security-review…
+  - <https://arxiv.org/html/2602.07666v2>
+  - <https://arxiv.org/html/2603.08566v2>
+  - <https://deepmind.google/blog/introducing-codemender-an-ai-agent-for-code-security/>
+  - <https://www.anthropic.com/news/claude-code-security>
+  - <https://learn.chatgpt.com/docs/security>
+  - <https://theori.io/blog/aixcc-and-roboduck-63447>
+
+## 撰寫文件時補做的查證（S-01～S-10）
+
+見 [01 §4](01-research-survey.md#4-撰寫文件時補做的查證)，該節列出每一項的來源 URL 與狀態。
+

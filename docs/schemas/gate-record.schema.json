@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gate-record.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gate_record_id": {
+      "type": "string",
+      "pattern": "^GR-[0-9A-Za-z-]+$"
+    },
+    "gate": {
+      "type": "string",
+      "enum": [
+        "G0",
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5"
+      ]
+    },
+    "engagement_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "roe",
+            "invariants",
+            "disputed_clusters",
+            "threat_model",
+            "test_plan",
+            "s2_job"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "kind",
+        "sha256"
+      ]
+    },
+    "initiator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approver": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "key_fingerprint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "role",
+        "key_fingerprint"
+      ]
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "reject",
+              "needs_info"
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "item_id",
+          "decision",
+          "note"
+        ]
+      },
+      "minItems": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "alg": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "alg",
+        "value"
+      ]
+    }
+  },
+  "required": [
+    "gate_record_id",
+    "gate",
+    "engagement_id",
+    "run_id",
+    "artifact",
+    "initiator",
+    "approver",
+    "decisions",
+    "timestamp",
+    "signature"
+  ],
+  "description": "Policy Engine 驗證的是本紀錄的簽章與 artifact.sha256，而不是 checkpoint 內容。G5 的 approver 不得等於 initiator（由驗證程式檢查）。",
+  "title": "GateRecord（人工關卡簽章紀錄）"
+}

@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "roe.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "engagement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^eng-[a-z0-9-]+$"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "purpose": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "purpose"
+      ]
+    },
+    "approvers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "test_lead",
+              "management",
+              "infrastructure_owner",
+              "app_owner"
+            ]
+          },
+          "key_fingerprint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "key_fingerprint"
+        ]
+      },
+      "minItems": 2
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "not_before": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "not_after": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "days": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "mon",
+                    "tue",
+                    "wed",
+                    "thu",
+                    "fri",
+                    "sat",
+                    "sun"
+                  ]
+                },
+                "minItems": 1
+              },
+              "start": {
+                "type": "string",
+                "pattern": "^[0-2][0-9]:[0-5][0-9]$"
+              },
+              "end": {
+                "type": "string",
+                "pattern": "^[0-2][0-9]:[0-5][0-9]$"
+              },
+              "tz": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "days",
+              "start",
+              "end",
+              "tz"
+            ]
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "not_before",
+        "not_after",
+        "windows"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^tgt-[a-z0-9-]+$"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "environment": {
+            "const": "staging"
+          },
+          "ownership_proof": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": [
+                  "dns_txt",
+                  "well_known_path"
+                ]
+              },
+              "token_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "method",
+              "token_ref"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "base_url",
+          "environment",
+          "ownership_proof"
+        ]
+      },
+      "minItems": 1
+    },
+    "exclusions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "paths",
+        "hosts"
+      ]
+    },
+    "activities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed_safety_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S0",
+              "S1",
+              "S2"
+            ]
+          },
+          "minItems": 1
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "denied_modes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "allowed_safety_classes",
+        "allowed_tools",
+        "denied_modes"
+      ]
+    },
+    "rate_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "per_host_rps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_concurrency": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "s1_request_cap": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "zap_delay_ms_min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "zap_max_scan_minutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "per_host_rps",
+        "max_concurrency",
+        "s1_request_cap",
+        "zap_delay_ms_min",
+        "zap_max_scan_minutes"
+      ]
+    },
+    "stop_conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_5xx_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_p95_latency_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "max_5xx_ratio",
+        "max_p95_latency_ms",
+        "contacts"
+      ]
+    },
+    "data_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "data_class": {
+          "type": "string",
+          "enum": [
+            "P",
+            "C"
+          ]
+        },
+        "synthetic_data_attested": {
+          "const": true
+        },
+        "pii_scan_before_b4": {
+          "type": "boolean"
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "data_class",
+        "synthetic_data_attested",
+        "pii_scan_before_b4",
+        "retention_days"
+      ]
+    },
+    "integrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sandbox",
+              "test",
+              "disabled"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "mode"
+        ]
+      }
+    },
+    "upstream_llm_providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "terms_confirmed_by": {
+            "type": "string"
+          },
+          "spend_cap_usd": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "provider",
+          "terms_confirmed_by",
+          "spend_cap_usd"
+        ]
+      }
+    },
+    "secrets_verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trufflehog_verify": {
+          "type": "boolean"
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "trufflehog_verify",
+        "providers"
+      ]
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "alg": {
+          "type": "string"
+        },
+        "detached_signature_ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "alg",
+        "detached_signature_ref"
+      ]
+    }
+  },
+  "required": [
+    "engagement",
+    "approvers",
+    "validity",
+    "targets",
+    "exclusions",
+    "activities",
+    "rate_limits",
+    "stop_conditions",
+    "data_handling",
+    "integrations",
+    "upstream_llm_providers",
+    "secrets_verification",
+    "signature"
+  ],
+  "title": "ROE（交戰規則）"
+}

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "commander-plan.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "plan_id": {
+      "type": "string"
+    },
+    "decision_node": {
+      "type": "string",
+      "enum": [
+        "CMD-1",
+        "CMD-2",
+        "CMD-3",
+        "CMD-4",
+        "CMD-5"
+      ]
+    },
+    "slices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "slice_id": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "authz",
+                "injection",
+                "data_access",
+                "secrets_config",
+                "business_logic",
+                "llm_integration"
+              ]
+            },
+            "minItems": 1
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "slice_id",
+          "facets",
+          "agents"
+        ]
+      }
+    },
+    "extra_dispatch": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "agents",
+          "reason"
+        ]
+      }
+    },
+    "taxonomies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "stride",
+          "linddun",
+          "owasp-llm@2025",
+          "owasp-llm@2026",
+          "owasp-asi@2026",
+          "maestro"
+        ]
+      }
+    },
+    "testcase_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "target_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^tgt-[a-z0-9-]+$"
+      }
+    },
+    "budget_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rationale": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "plan_id",
+    "decision_node",
+    "slices",
+    "extra_dispatch",
+    "taxonomies",
+    "testcase_ids",
+    "target_ids",
+    "budget_tokens",
+    "rationale"
+  ],
+  "description": "Commander 只能在程式碼產生的覆蓋下限上增加項目；Policy Engine 驗證後才執行。",
+  "title": "CommanderPlan（指揮官計畫）"
+}

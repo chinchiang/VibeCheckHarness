@@ -1,0 +1,69 @@
+{
+  "testcase_id": "TC-012-01",
+  "threat_id": "T-012",
+  "requirement_ids": [
+    "REQ-ASVS-8.2.2",
+    "INV-AC-007"
+  ],
+  "abuse_case_id": "ABUSE_CASE_012",
+  "source_finding_id": "K-005",
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "preconditions": [
+    "種子資料：合成租戶 A、B 各一張發票",
+    "角色 tenantA_user、tenantB_user 的 storageState 由 Session Provider 提供"
+  ],
+  "steps": [
+    "以 tenantA_user 對 B 的發票送 GET",
+    "以 tenantA_user 對 B 的發票送 PUT（種子資料）",
+    "以 tenantA_user 對 B 的發票送 DELETE（僅種子 id）"
+  ],
+  "oracle": {
+    "type": "STATE_DIFF",
+    "conditions": [
+      "status in {403, 404}",
+      "response body 不含 B 的發票欄位",
+      "B 的發票資料列前後快照相同"
+    ],
+    "requirement_refs": [
+      "REQ-ASVS-8.2.2",
+      "INV-AC-007"
+    ]
+  },
+  "tool_binding": {
+    "kind": "GENERATED_SCRIPT",
+    "adapter": "pytest_playwright_api",
+    "params": {
+      "contexts": [
+        "tenantA_user",
+        "tenantB_user"
+      ]
+    },
+    "manual_reason": null
+  },
+  "safety_class_proposed": "S1",
+  "safety_class_computed": "S1",
+  "rate_limit": {
+    "requests_per_second": 2,
+    "max_requests": 30
+  },
+  "data_needed": {
+    "seed_data": [
+      "tenant_a_invoice",
+      "tenant_b_invoice"
+    ],
+    "roles": [
+      "tenantA_user",
+      "tenantB_user"
+    ]
+  },
+  "trials": {
+    "n": 1,
+    "pass_rule": "確定性測試；失敗時重播 2 次",
+    "record": [
+      "seed"
+    ]
+  },
+  "artifact_sha256": "sha256:f280ceb93a714bfe2efbb9071ee48c882fb947b84d8ed417dc30f3989f4787bc"
+}

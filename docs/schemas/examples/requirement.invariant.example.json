@@ -1,0 +1,15 @@
+{
+  "requirement_id": "INV-AC-007",
+  "source": "invariant",
+  "ref": "INV-AC-007",
+  "level": null,
+  "text": "發票的讀取、修改、刪除只限發票所屬租戶的使用者。",
+  "applies_to_features": [
+    "invoices"
+  ],
+  "signoff": {
+    "gate": "G1",
+    "gate_record_id": "GR-G1-0001",
+    "status": "ACCEPTED"
+  }
+}

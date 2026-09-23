@@ -1,0 +1,98 @@
+{
+  "threat_id": "T-012",
+  "title": "跨租戶讀取或修改發票（IDOR／BOLA）",
+  "description": "租戶 A 的使用者修改 /api/invoices/{id} 的 id，即可讀取或修改租戶 B 的發票。",
+  "taxonomy": [
+    {
+      "scheme": "stride",
+      "id": "E"
+    },
+    {
+      "scheme": "stride",
+      "id": "I"
+    },
+    {
+      "scheme": "stride",
+      "id": "T"
+    }
+  ],
+  "dfd_elements": [
+    {
+      "element_id": "proc-invoices-api",
+      "type": "process"
+    },
+    {
+      "element_id": "store-invoices",
+      "type": "data_store"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "code_location",
+      "ref": "routes/invoices.ts:42",
+      "match": "MATCHED"
+    },
+    {
+      "kind": "finding",
+      "ref": "K-005",
+      "match": "MATCHED"
+    },
+    {
+      "kind": "inventory",
+      "ref": "rls:invoices=none",
+      "match": "MATCHED"
+    }
+  ],
+  "source_finding_id": "K-005",
+  "modeled_by": [
+    {
+      "agent_id": "tm_a",
+      "family": "anthropic",
+      "viewpoint": "merged"
+    },
+    {
+      "agent_id": "tm_c",
+      "family": "nvidia",
+      "viewpoint": "external"
+    }
+  ],
+  "attack_tree_ref": "attack-trees/T-012.json",
+  "risk": {
+    "likelihood": "high",
+    "impact": "high"
+  },
+  "review": {
+    "status": "ACCEPTED",
+    "gate_record_id": "GR-G3-0001"
+  },
+  "crosswalk": [
+    {
+      "target_scheme": "cwe",
+      "target_id": "CWE-639",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "security_reviewer_1"
+    },
+    {
+      "target_scheme": "asvs-5.0.0",
+      "target_id": "v5.0.0-8.2.2",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "security_reviewer_1"
+    },
+    {
+      "target_scheme": "wstg-4.2",
+      "target_id": "WSTG-v42-ATHZ-04",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "security_reviewer_1"
+    },
+    {
+      "target_scheme": "invariant",
+      "target_id": "INV-AC-007",
+      "provenance": "curated",
+      "source_ref": "invariants.yaml",
+      "reviewed_by": "app_owner_1"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "requirement_id": "REQ-ASVS-8.2.2",
+  "source": "asvs-5.0.0",
+  "ref": "v5.0.0-8.2.2",
+  "level": "L1",
+  "text": "Verify that the application ensures that data-specific access is restricted to consumers with explicit permissions to specific data items to mitigate insecure direct object reference (IDOR) and broken object level authorization (BOLA).",
+  "applies_to_features": [
+    "object_ids_in_api"
+  ],
+  "signoff": {
+    "gate": "G1",
+    "gate_record_id": "GR-G1-0001",
+    "status": "ACCEPTED"
+  }
+}

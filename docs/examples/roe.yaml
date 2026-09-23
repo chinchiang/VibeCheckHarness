@@ -1,0 +1,94 @@
+# roe.yaml — 交戰規則（示意）
+# 本檔必須附上分離式簽章，並由已登錄金鑰的核准者簽署；Policy Engine 在每個接觸網路的步驟驗章。
+# 內容對應 NIST SP 800-115 附錄 B（E:blackbox-29）。範例網域使用保留網域 example.com / example.net。
+
+engagement:
+  id: eng-acme-invoices-2026q4
+  version: 1
+  purpose: "ACME 發票系統 staging 的安全驗證（先白箱、後黑箱）"
+
+approvers:
+  - name: alice
+    role: test_lead
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY1"
+  - name: carol
+    role: management
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
+  - name: dave
+    role: infrastructure_owner
+    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY4"
+
+validity:
+  not_before: "2026-10-01T00:00:00+08:00"
+  not_after: "2026-10-31T23:59:59+08:00"
+  windows:
+    - days: [mon, tue, wed, thu, fri]
+      start: "20:00"
+      end: "23:00"
+      tz: "Asia/Taipei"
+
+targets:
+  - id: tgt-staging-api
+    base_url: "https://api.staging.example.com"
+    environment: staging
+    ownership_proof:
+      method: dns_txt
+      token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+  - id: tgt-staging-app
+    base_url: "https://app.staging.example.com"
+    environment: staging
+    ownership_proof:
+      method: well_known_path
+      token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+  - id: tgt-canary
+    base_url: "https://canary.example.net"
+    environment: staging
+    ownership_proof:
+      method: dns_txt
+      token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+
+exclusions:
+  paths: ["/admin/billing/*", "/api/payments/*"]
+  hosts: []
+
+activities:
+  allowed_safety_classes: [S0, S1, S2]     # S2 仍需每次 G5；S3 永遠拒絕
+  allowed_tools: [zap, schemathesis, playwright, nuclei_signed, promptfoo, pyrit, k6]
+  denied_modes: [nuclei_code_protocol, restler_fuzz]
+
+rate_limits:
+  per_host_rps: 5
+  max_concurrency: 2
+  s1_request_cap: 500
+  zap_delay_ms_min: 200          # ZAP 預設 delayInMs=0（E:blackbox-06）
+  zap_max_scan_minutes: 60       # ZAP 預設不限時
+
+stop_conditions:
+  max_5xx_ratio: 0.05
+  max_p95_latency_ms: 3000
+  contacts: ["oncall-staging@example.com"]
+
+data_handling:
+  data_class: C
+  synthetic_data_attested: true
+  pii_scan_before_b4: true
+  retention_days: 30
+
+integrations:
+  - name: email
+    mode: sandbox
+  - name: payments
+    mode: disabled
+
+upstream_llm_providers:
+  - provider: "受測應用使用的 LLM 供應商"
+    terms_confirmed_by: "app_owner_1"
+    spend_cap_usd: 20
+
+secrets_verification:
+  trufflehog_verify: false
+  providers: []
+
+signature:
+  alg: ed25519
+  detached_signature_ref: "roe.yaml.sig"

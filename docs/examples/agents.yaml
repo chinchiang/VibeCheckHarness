@@ -1,0 +1,101 @@
+# agents.yaml — 代理登錄（示意）：C 級私有碼的三家族組合
+# 驗證程式會檢查：
+#   - 每個 agent 的 model 都存在於 models.yaml
+#   - reviewer 至少涵蓋 2 個家族（建議 3 個）
+#   - 至少有一個 verifier 能處理 C 級資料，且其家族不同於至少一個 reviewer
+
+commander:
+  model: claude_sonnet
+  role: commander
+  tools: [read_blackboard]
+
+invariant_drafter:
+  model: gpt_flagship
+  role: invariant_drafter
+  tools: [read_slice, write_blackboard]
+
+rev_a:
+  model: claude_sonnet
+  role: reviewer
+  facets: [authz, injection, data_access, secrets_config, business_logic, llm_integration]
+  tools: [read_slice]
+
+rev_b:
+  model: gpt_flagship
+  role: reviewer
+  facets: [authz, injection, data_access, secrets_config, business_logic, llm_integration]
+  tools: [read_slice]
+
+rev_c:
+  model: nemotron_self
+  role: reviewer
+  facets: [authz, injection, data_access, secrets_config, business_logic, llm_integration]
+  tools: [read_slice]
+
+ver_1:
+  model: nemotron_self
+  role: verifier
+  tools: [read_slice]
+
+ver_2:
+  model: claude_sonnet
+  role: verifier
+  tools: [read_slice]
+
+ver_3:
+  model: gpt_oss_self
+  role: verifier
+  tools: [read_slice]
+
+test_gen:
+  model: gpt_flagship
+  role: test_generator
+  tools: [read_slice, write_blackboard]
+
+test_critic:
+  model: claude_sonnet
+  role: test_critic
+  tools: [read_blackboard]
+
+tm_a:
+  model: claude_sonnet
+  role: threat_modeler
+  viewpoint: merged
+  tools: [read_blackboard]
+
+tm_b:
+  model: gpt_flagship
+  role: threat_modeler
+  viewpoint: merged
+  tools: [read_blackboard]
+
+tm_c:
+  model: nemotron_self
+  role: threat_modeler
+  viewpoint: external          # 只看外部視角，保留純黑箱觀點
+  tools: [read_blackboard]
+
+tm_merger:
+  model: claude_sonnet
+  role: threat_merger
+  tools: [read_blackboard, write_blackboard]
+
+tm_critic:
+  model: gpt_flagship
+  role: threat_critic
+  tools: [read_blackboard]
+
+test_designer:
+  model: claude_sonnet
+  role: test_designer
+  tools: [read_blackboard, write_blackboard]
+
+result_analyst:
+  model: nemotron_self         # 自架：偵測到 PII 時仍可使用
+  role: result_analyst
+  tools: [read_blackboard]
+
+reporter:
+  model: claude_haiku
+  role: reporter
+  tools: [read_blackboard]

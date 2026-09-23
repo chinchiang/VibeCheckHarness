@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verdict.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verdict_id": {
+      "type": "string"
+    },
+    "cluster_id": {
+      "type": "string",
+      "pattern": "^K-[0-9]{3,}$"
+    },
+    "votes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "voter_agent_id": {
+            "type": "string"
+          },
+          "voter_model_key": {
+            "type": "string"
+          },
+          "voter_family": {
+            "type": "string",
+            "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
+          },
+          "voter_lineage": {
+            "type": "string"
+          },
+          "stance": {
+            "type": "string",
+            "enum": [
+              "SUPPORT",
+              "REFUTE",
+              "ABSTAIN"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "fallback_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "anonymized": {
+            "type": "boolean"
+          },
+          "order_randomized": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "voter_agent_id",
+          "voter_model_key",
+          "voter_family",
+          "voter_lineage",
+          "stance",
+          "rationale",
+          "fallback_used",
+          "anonymized",
+          "order_randomized"
+        ]
+      }
+    },
+    "missing_votes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "timeout",
+              "rate_limited",
+              "schema_invalid",
+              "provider_error",
+              "context_exceeded",
+              "policy_denied",
+              "budget_exhausted"
+            ]
+          }
+        },
+        "required": [
+          "agent_id",
+          "reason"
+        ]
+      }
+    },
+    "tool_corroboration": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "executable_proof": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "testcase_id": {
+              "type": "string"
+            },
+            "result_ref": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "trials": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "n": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "k": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "n",
+                    "k"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "testcase_id",
+            "result_ref",
+            "trials"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "diversity_degraded": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "CONFIRMED_EXECUTABLE",
+        "CONFIRMED_CORROBORATED",
+        "LIKELY",
+        "DISPUTED",
+        "REJECTED",
+        "UNVERIFIED"
+      ]
+    },
+    "status_cap": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "LIKELY"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decided_by": {
+      "const": "aggregator"
+    },
+    "rule_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "verdict_id",
+    "cluster_id",
+    "votes",
+    "missing_votes",
+    "tool_corroboration",
+    "executable_proof",
+    "diversity_degraded",
+    "status",
+    "status_cap",
+    "decided_by",
+    "rule_version"
+  ],
+  "title": "Verdict（裁決）"
+}

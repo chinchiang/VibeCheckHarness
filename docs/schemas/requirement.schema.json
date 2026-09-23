@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "requirement.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "requirement_id": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "asvs-5.0.0",
+        "aisvs-1.0",
+        "invariant"
+      ]
+    },
+    "ref": {
+      "type": "string",
+      "description": "例如 v5.0.0-8.2.2 或 INV-AC-007"
+    },
+    "level": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "L1",
+            "L2",
+            "L3"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "applies_to_features": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "signoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "const": "G1"
+        },
+        "gate_record_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "ACCEPTED",
+            "REJECTED"
+          ]
+        }
+      },
+      "required": [
+        "gate",
+        "gate_record_id",
+        "status"
+      ]
+    }
+  },
+  "required": [
+    "requirement_id",
+    "source",
+    "ref",
+    "level",
+    "text",
+    "applies_to_features",
+    "signoff"
+  ],
+  "title": "Requirement（需求／安全不變量）"
+}

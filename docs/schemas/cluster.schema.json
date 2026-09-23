@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cluster.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "cluster_id": {
+      "type": "string",
+      "pattern": "^K-[0-9]{3,}$"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "canonical_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string",
+          "description": "sink 所在函式或 AST 節點的完整限定名"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "file",
+                "line"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sink": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "line": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "file",
+            "line"
+          ]
+        }
+      },
+      "required": [
+        "file",
+        "symbol",
+        "source",
+        "sink"
+      ]
+    },
+    "cwe_bucket": {
+      "type": "string",
+      "enum": [
+        "injection",
+        "authz",
+        "authn",
+        "crypto",
+        "secrets",
+        "config",
+        "deserialization",
+        "ssrf",
+        "path_traversal",
+        "llm_specific",
+        "other"
+      ]
+    },
+    "cwes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^CWE-[0-9]+$"
+      },
+      "minItems": 1
+    },
+    "member_finding_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^F-[0-9]{3,}$"
+      },
+      "minItems": 1
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
+      },
+      "minItems": 1
+    },
+    "independent_families": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
+      },
+      "description": "第一輪中各自貢獻成員的家族"
+    },
+    "sarif_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "linked_cluster_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "cluster_id",
+    "run_id",
+    "canonical_location",
+    "cwe_bucket",
+    "cwes",
+    "member_finding_ids",
+    "families",
+    "independent_families",
+    "sarif_refs",
+    "linked_cluster_ids"
+  ],
+  "title": "Cluster（叢集）"
+}

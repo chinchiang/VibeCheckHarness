@@ -1,0 +1,28 @@
+{
+  "gate_record_id": "GR-G5-0001",
+  "gate": "G5",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "artifact": {
+    "kind": "s2_job",
+    "sha256": "sha256:02e8a119e8f1e1b040be14d9de702410e99b6dfe7e4489bde99cb811b719d9ee"
+  },
+  "initiator": "alice",
+  "approver": {
+    "name": "bob",
+    "role": "test_lead",
+    "key_fingerprint": "ed25519:SHA256:EXAMPLEONLY2"
+  },
+  "decisions": [
+    {
+      "item_id": "job-zap-active-001",
+      "decision": "accept",
+      "note": "限 22:00–23:00 時段"
+    }
+  ],
+  "timestamp": "2026-09-23T21:50:00+08:00",
+  "signature": {
+    "alg": "ed25519",
+    "value": "EXAMPLE-SIGNATURE-NOT-REAL"
+  }
+}

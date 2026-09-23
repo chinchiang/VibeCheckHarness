@@ -1,0 +1,24 @@
+{
+  "plan_id": "plan-2026-09-23-001",
+  "decision_node": "CMD-1",
+  "slices": [
+    {
+      "slice_id": "sha256:e282b9539b73974f71ea3956e0d47c6bccb03843f9dd80be214f73ee61210af1",
+      "facets": [
+        "authz",
+        "data_access"
+      ],
+      "agents": [
+        "rev_a",
+        "rev_b",
+        "rev_c"
+      ]
+    }
+  ],
+  "extra_dispatch": [],
+  "taxonomies": [],
+  "testcase_ids": [],
+  "target_ids": [],
+  "budget_tokens": 2000000,
+  "rationale": "路由 /api/invoices/* 的查詢沒有 owner 條件，加重 authz 與 data_access 面向"
+}

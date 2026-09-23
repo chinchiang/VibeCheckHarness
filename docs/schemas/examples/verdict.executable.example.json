@@ -1,0 +1,40 @@
+{
+  "verdict_id": "V-005-2",
+  "cluster_id": "K-005",
+  "votes": [
+    {
+      "voter_agent_id": "ver_2",
+      "voter_model_key": "claude_sonnet",
+      "voter_family": "anthropic",
+      "voter_lineage": "claude",
+      "stance": "ABSTAIN",
+      "rationale": "切片未含 repository 層的租戶過濾實作，無法判定；建議動態驗證。",
+      "fallback_used": null,
+      "anonymized": true,
+      "order_randomized": true
+    },
+    {
+      "voter_agent_id": "ver_1",
+      "voter_model_key": "nemotron_self",
+      "voter_family": "nvidia",
+      "voter_lineage": "nemotron3",
+      "stance": "SUPPORT",
+      "rationale": "TC-012-01 重播 2 次皆以 tenantA_user 讀到 B 的發票欄位。",
+      "fallback_used": null,
+      "anonymized": true,
+      "order_randomized": true
+    }
+  ],
+  "missing_votes": [],
+  "tool_corroboration": [],
+  "executable_proof": {
+    "testcase_id": "TC-012-01",
+    "result_ref": "sha256:954e76455b63775f064f9d2d5863c37535cd40eb2d625525ac37d75801f56302",
+    "trials": null
+  },
+  "diversity_degraded": false,
+  "status": "CONFIRMED_EXECUTABLE",
+  "status_cap": null,
+  "decided_by": "aggregator",
+  "rule_version": "0.1.0"
+}

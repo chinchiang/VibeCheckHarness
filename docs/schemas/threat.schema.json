@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "threat.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "threat_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "taxonomy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "enum": [
+              "stride",
+              "linddun",
+              "owasp-llm@2025",
+              "owasp-llm@2026",
+              "owasp-asi@2026",
+              "maestro"
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheme",
+          "id"
+        ]
+      },
+      "minItems": 1
+    },
+    "dfd_elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "element_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "process",
+              "external_entity",
+              "data_flow",
+              "data_store",
+              "trust_boundary"
+            ]
+          }
+        },
+        "required": [
+          "element_id",
+          "type"
+        ]
+      },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "endpoint",
+              "data_flow",
+              "code_location",
+              "finding",
+              "inventory"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "MATCHED",
+              "NOT_FOUND",
+              "NOT_CHECKED"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "ref",
+          "match"
+        ]
+      },
+      "minItems": 1
+    },
+    "source_finding_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^(F|K)-[0-9]{3,}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "modeled_by": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string",
+            "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
+          },
+          "viewpoint": {
+            "type": "string",
+            "enum": [
+              "external",
+              "merged"
+            ]
+          }
+        },
+        "required": [
+          "agent_id",
+          "family",
+          "viewpoint"
+        ]
+      },
+      "minItems": 1
+    },
+    "attack_tree_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "likelihood": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "impact": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        }
+      },
+      "required": [
+        "likelihood",
+        "impact"
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "ACCEPTED",
+            "REJECTED",
+            "NEEDS_INFO"
+          ]
+        },
+        "gate_record_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "gate_record_id"
+      ]
+    },
+    "crosswalk": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/link"
+      }
+    }
+  },
+  "required": [
+    "threat_id",
+    "title",
+    "description",
+    "taxonomy",
+    "dfd_elements",
+    "evidence",
+    "source_finding_id",
+    "modeled_by",
+    "attack_tree_ref",
+    "risk",
+    "review",
+    "crosswalk"
+  ],
+  "title": "Threat（威脅）",
+  "$defs": {
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target_scheme": {
+          "type": "string",
+          "enum": [
+            "capec",
+            "atlas",
+            "cwe",
+            "asvs-5.0.0",
+            "aisvs-1.0",
+            "wstg-4.2",
+            "aitg-1",
+            "invariant"
+          ]
+        },
+        "target_id": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "string",
+          "enum": [
+            "official",
+            "curated",
+            "llm-suggested"
+          ]
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "official 時填官方資料檔與版本"
+        },
+        "reviewed_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "target_scheme",
+        "target_id",
+        "provenance",
+        "source_ref",
+        "reviewed_by"
+      ],
+      "description": "對照表連結；llm-suggested 必須經人審才能用於推導"
+    }
+  }
+}

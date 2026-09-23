@@ -1,0 +1,34 @@
+{
+  "finding_id": "F-017",
+  "run_id": "run-2026-09-23-001",
+  "slice_id": "sha256:e282b9539b73974f71ea3956e0d47c6bccb03843f9dd80be214f73ee61210af1",
+  "facet": "authz",
+  "reporter": {
+    "agent_id": "rev_b",
+    "model_key": "gpt_flagship",
+    "family": "openai",
+    "lineage": "gpt",
+    "round": 1
+  },
+  "title": "發票查詢沒有租戶／擁有者條件",
+  "cwe": [
+    "CWE-639"
+  ],
+  "severity": "high",
+  "confidence": "medium",
+  "evidence": [
+    {
+      "file": "routes/invoices.ts",
+      "line_start": 42,
+      "line_end": 42,
+      "snippet": "const invoice = await db.invoice.findUnique({ where: { id: req.params.id } });",
+      "snippet_sha256": "sha256:b1fe5aa5b0e98d22b0042d64476b2d52eb0b6b02bb1f7035bcce9decefd01f9a",
+      "match": "MATCHED"
+    }
+  ],
+  "reasoning": "查詢只以路徑參數 id 取資料，未加入目前使用者的 tenant_id；且 invoices 表在 W0 inventory 中沒有 RLS policy。對照 INV-AC-007。",
+  "invariant_refs": [
+    "INV-AC-007"
+  ],
+  "status": "VERIFIED_SNIPPET"
+}

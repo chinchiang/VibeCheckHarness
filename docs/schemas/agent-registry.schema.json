@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-registry.schema.json",
+  "title": "Agent Registry（agents.yaml）",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "model": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string",
+        "enum": [
+          "commander",
+          "invariant_drafter",
+          "reviewer",
+          "verifier",
+          "test_generator",
+          "test_critic",
+          "threat_modeler",
+          "threat_merger",
+          "threat_critic",
+          "test_designer",
+          "test_implementer",
+          "result_analyst",
+          "reporter"
+        ]
+      },
+      "facets": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "viewpoint": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "external",
+              "merged"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "tools": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "read_slice",
+            "read_blackboard",
+            "write_blackboard"
+          ]
+        }
+      }
+    },
+    "required": [
+      "model",
+      "role"
+    ]
+  }
+}

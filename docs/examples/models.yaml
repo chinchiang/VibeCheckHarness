@@ -1,0 +1,76 @@
+# models.yaml — 模型登錄（示意）
+# 模型 ID 與版本變動很快：實作時一律重新查證（見 docs/06 §3 第 15 條）。
+# 規則：
+#   - family / lineage 用來強制「驗證者與報告者不同家族、不同血統」。
+#   - fallback 只能列同家族模型（tools/validate_schemas.py 會檢查）。
+#   - data_classes 不含 C 的模型，不得收到機密程式碼（fail-closed）。
+
+claude_sonnet:
+  litellm: "anthropic/claude-sonnet-5"
+  family: anthropic
+  lineage: claude
+  usable_ctx: 1000000          # docs/03 §8，E:providers-23
+  structured: claude_subset    # 無數值/長度限制、minItems 只能 0/1（E:providers-25）
+  data_classes: [P, C]         # C 級前提：組織層級保留/ZDR 設定已宣告並比對
+  purpose: [production, evaluation]
+  fallback: [claude_haiku]
+  api: messages
+
+claude_haiku:
+  litellm: "anthropic/claude-haiku-4-5-20251001"
+  family: anthropic
+  lineage: claude
+  usable_ctx: 200000
+  structured: claude_subset
+  data_classes: [P, C]
+  purpose: [production, evaluation]
+  fallback: []
+  api: messages
+
+gpt_flagship:
+  litellm: "openai/<GPT-6 系列模型 ID，實作時確認>"
+  family: openai
+  lineage: gpt
+  usable_ctx: 1050000          # E:providers-31（部分查證）
+  structured: openai_strict    # additionalProperties:false、全部欄位 required（E:providers-32）
+  data_classes: [P, C]
+  purpose: [production, evaluation]
+  fallback: []
+  api: responses               # 部分 GPT-6 模型的工具呼叫需用 Responses API（E:providers-31）
+  store: false                 # C 級強制 store=false（E:providers-34）
+
+gpt_oss_self:
+  litellm: "hosted_vllm/openai/gpt-oss-120b"
+  api_base: "http://z4-gpt-oss:8000/v1"
+  family: openai
+  lineage: gpt-oss             # 與 gpt 不同血統，但同家族：不能驗證 gpt_flagship 的發現項
+  usable_ctx: 128000           # 假設值，實作時依模型卡確認
+  structured: vllm_json_schema
+  data_classes: [P, C]
+  purpose: [production, evaluation]
+  fallback: []
+  api: chat_completions
+
+nemotron_self:
+  litellm: "hosted_vllm/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"   # S-10
+  api_base: "http://z4-nemotron:8000/v1"
+  family: nvidia
+  lineage: nemotron3
+  usable_ctx: 256000           # HF 設定預設 256K（E:providers-05）
+  structured: vllm_json_schema # 注意：LiteLLM hosted_vllm 會移除 tools 的 strict（E:providers-22）→ 用戶端 Pydantic 再驗證
+  data_classes: [P, C]
+  purpose: [production, evaluation]
+  fallback: []
+  api: chat_completions
+
+nemotron_cloud:
+  litellm: "nvidia_nim/<nemotron-3-super 模型名，實作時確認>"
+  family: nvidia
+  lineage: nemotron3
+  usable_ctx: 256000           # 保守值；以同等性單位為準
+  structured: unconfirmed      # 託管端點的 json_schema 支援未確認
+  data_classes: [P]            # NVIDIA API Trial Terms：禁止機密資訊（E:providers-10）
+  purpose: [evaluation, prototyping]   # 禁止正式用途；不當成常駐預設驗證者
+  fallback: []
+  api: chat_completions
+  notes: "只用於評估與原型，且只限公開或合成程式碼"
