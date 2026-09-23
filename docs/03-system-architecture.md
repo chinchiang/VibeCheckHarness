@@ -80,7 +80,7 @@ flowchart TB
 **隔離要求**：
 - 不可信程式碼至少要用 gVisor [V][E:blackbox-34]，或 Firecracker microVM [V][E:blackbox-35]、Docker Sandboxes [V][E:blackbox-39]。**不能只用一般 Docker**。
 - **絕不掛載 Docker socket**。Docker 官方文件：只有可信使用者能控制 daemon，因為容器可以掛載主機目錄 [V][E:blackbox-38]。
-- gVisor、Firecracker、E2B 的逃逸抵抗力都只有廠商自述，沒有獨立評估 [V：研究限制]。
+- gVisor、Firecracker、E2B 的逃逸抵抗力，本研究只找到廠商自述，未找到獨立評估（搜尋未窮盡）[研究限制]。
 - 出站白名單在 proxy／namespace 層強制，例如 Anthropic sandbox-runtime 的 `allowedDomains`（research preview）[V][E:blackbox-40] 或 nftables。工具自己的 origin 選項不是安全邊界 [V][E:blackbox-24]。
 
 **Scope Proxy（Z3 唯一出口）**：
@@ -99,7 +99,7 @@ flowchart TB
 | 需求 | 選擇 | 理由 | 未採用的選項 |
 |---|---|---|---|
 | 流程與指揮 | **LangGraph 1.x**（MIT）[V][E:orchestration-01] | 1.0 起承諾 2.0 前無破壞性變更；每個 node 可用不同模型 [V][E:orchestration-02]；`Send` 可動態 fan-out，reducer 合併平行寫入 [V][S-03]；`interrupt()`＋checkpointer 提供人工關卡與中斷續跑 [V][E:orchestration-04][E:orchestration-05] | **Claude Agent SDK**：官方文件明言不支援把 Claude Code 路由到非 Claude 模型，不符多廠商需求 [V][E:orchestration-21]<br>**AutoGen**：維護模式 [V][E:orchestration-06]<br>**CrewAI**：hierarchical 模式由 manager LLM 派工 [V][E:orchestration-13]，且預設開匿名 telemetry [V][E:orchestration-15]<br>**OpenAI Agents SDK**：仍是 0.x [V][E:orchestration-16]<br>**Microsoft Agent Framework 1.0**：可行的備案 [V][E:orchestration-07][E:orchestration-09] |
-| 多模型閘道 | **LiteLLM**（MIT core）[V][E:orchestration-29] | 提供 `anthropic/`、`openai/`、`nvidia_nim/` [V][E:providers-20]、`hosted_vllm/` [C][E:providers-22]；有預算、fallback、負載平衡 | **OpenRouter**：封閉原始碼的 SaaS，多一個資料接收者 [V][E:orchestration-32] |
+| 多模型閘道 | **LiteLLM**（MIT core）[V][E:orchestration-29] | 提供 `anthropic/`、`openai/`、`nvidia_nim/` [V][E:providers-20]、`hosted_vllm/` [C][E:providers-22]；有預算、fallback、負載平衡 | **OpenRouter**：SaaS（查核者推定為封閉原始碼：未找到路由平台本身的原始碼），多一個資料接收者 [V][E:orchestration-32] |
 | 工具互通 | 內部 Python adapter 為主，MCP 選配 | MCP 最新規格 2026-07-28（stateless）[V][E:orchestration-35]；遵循 MCP security best practices（禁止 token passthrough、最小權限、沙箱化本地 server）[V][E:orchestration-36] | — |
 
 **LiteLLM 的供應鏈風險**：1.82.7 與 1.82.8 曾在 PyPI 被植入竊密程式（2026-03-24，約 40 分鐘）[V][E:orchestration-31]。→ 鎖版本＋hash、不在 Gateway 以外的地方持有金鑰。另外，fallback **只允許同家族**（§8.1）。
@@ -134,7 +134,7 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 **為什麼這樣設計**：
 - AIxCC 的計分有準確度乘數 AM＝1−(1−r)^4（準確率 50% 時為 0.9375、40% 時為 0.8704），錯誤的關聯會讓獎勵變成懲罰 [單源：SoK][E:reference_systems-05]。AIxCC SoK 的關鍵發現是「穩定性與準確度決定勝負」「技術先進與工程良好是兩個不同的挑戰」[V][E:reference_systems-08]。
 - 冠軍 Atlantis 是 ensemble-first，亞軍 Buttercup 是確定性流程＋只在工具不足處用 LLM [V][E:reference_systems-02]。本設計兩者兼取：流程確定、審查端多家族集成。
-- OWASP LLM06 Excessive Agency 的緩解建議：最小化 agent 可用的擴充、避免開放式工具、最小權限、高影響動作需人核准 [V][E:blackbox-32]。
+- OWASP LLM06:2025 Excessive Agency（2026 版為 LLM03 [P][S-01]）的緩解建議：最小化 agent 可用的擴充、避免開放式工具、最小權限、高影響動作需人核准 [V][E:blackbox-32]。
 - 裁決若交給 LLM，會有自我偏好問題 [V][E:multi_llm_bias-05]。
 
 **加派機制**：用 LangGraph `Send` 從條件邊動態 fan-out 到多個平行分支 [V][S-03]；fan-in 節點採 **quorum**（容許晚到或失敗的分支，記為缺票）。
@@ -300,7 +300,7 @@ stateDiagram-v2
 |---|---|
 | Playwright | storageState 檔，放在 gitignore 路徑（Playwright 提醒 state 檔含敏感 cookie）[V][E:blackbox-21] |
 | Playwright API 測試 | 與瀏覽器 context 共用 storageState [V][E:blackbox-22] |
-| ZAP Automation Framework | context 的 `authentication`、`sessionManagement`、`users`（支援 TOTP）[V][E:blackbox-05] |
+| ZAP Automation Framework | context 的 `authentication`、`sessionManagement`、`users`（TOTP 由 Browser Based Authentication 支援）[V][E:blackbox-05] |
 | Schemathesis | auth header 或 hook |
 | promptfoo／PyRIT | target 設定中的 header |
 
@@ -322,7 +322,7 @@ stateDiagram-v2
 `models.yaml` 每個模型都要有 `family`（廠商或主要訓練者）與 `lineage`（基礎模型血統）。例如 Llama-Nemotron 是 Llama 衍生模型 [V][E:providers-04]，`family: nvidia`、`lineage: llama`；Nemotron 3 則是 `lineage: nemotron3`。
 
 - **不自評**：驗證者的 `family` 與 `lineage` 都必須和報告者不同。
-- **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback（例如 Claude Opus → Claude Sonnet），並寫入 Verdict 紀錄。跨家族 fallback 會讓兩個「獨立」審查者變成同一家族，而錯誤相關性在同家族更高 [V][E:multi_llm_bias-01][E:multi_llm_bias-02]。
+- **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback（例如 Claude Opus → Claude Sonnet），並寫入 Verdict 紀錄。跨家族 fallback 會讓兩個「獨立」審查者變成同一家族，驗證就等於同家族自評：LLM 評審會偏好自己或同供應商的輸出 [V][E:multi_llm_bias-02][E:multi_llm_bias-05][E:multi_llm_bias-08]。錯誤相關性本來就跨供應商存在 [V][E:multi_llm_bias-01]，同家族是否更高沒有直接證據 [H]，但沒有理由讓它更糟。
 - Reporter、Inventory 等不參與裁決的角色可以跨家族 fallback。
 
 範例見 [examples/models.yaml](examples/models.yaml)。
@@ -332,11 +332,11 @@ stateDiagram-v2
 | 模式 | 端點 | 可處理的資料 | 注意事項 |
 |---|---|---|---|
 | 雲端 | build.nvidia.com，OpenAI 相容 `https://integrate.api.nvidia.com/v1`；LiteLLM `nvidia_nim/<model>`、`NVIDIA_NIM_API_KEY` [V][E:providers-09][E:providers-20] | **只用於評估與原型，且只限公開或合成程式碼** | NVIDIA API Trial Terms（2025-09-19 版）[V][E:providers-10]：<br>・僅供有限試用，不得用於正式用途<br>・不得提交機密資訊<br>・NVIDIA 會收集使用者內容與生成內容，以改善其產品與 AI 模型<br>・未經書面授權不得測試其 API 服務本身的安全性<br><br>其他：官方 FAQ 說 API catalog 是試用體驗，只供評估與原型 [V][E:providers-09]；有速率限制但未公布數字；未找到 NVIDIA 託管端點的 ZDR 或 DPA；託管端點是否支援 json_schema **未確認** |
-| 自架 vLLM／SGLang | 開放權重。Nemotron 3 Nano／Super 採 NVIDIA Nemotron Open Model License（可商用、需標示來源）[V][E:providers-06]；Ultra 與 3.5 Lightning 採 OpenMDW-1.1 [V][E:providers-07] | 可處理 C 級 | ・工具呼叫要在**伺服器端**加 `--enable-auto-tool-choice --tool-call-parser qwen3_coder` [V][E:providers-14]<br>・LiteLLM `hosted_vllm/` 會移除 tools 的 `strict` 與 `additionalProperties` [C][E:providers-22]<br>・結構化輸出用 `response_format` json_schema 或 vLLM `structured_outputs`；`guided_*` 已在 vLLM v0.12.0 移除 [P][E:providers-18] |
+| 自架 vLLM／SGLang | 開放權重。Nemotron 3 Nano／Super 採 NVIDIA Nemotron Open Model License（可商用、需標示來源）[V][E:providers-06]；Ultra 與 3.5 Lightning 採 OpenMDW-1.1 [V][E:providers-07] | 可處理 C 級 | ・工具呼叫要在**伺服器端**設定：vLLM 用 `--enable-auto-tool-choice --tool-call-parser qwen3_coder`（reasoning parser `nemotron_v3`）；SGLang 只用 `--tool-call-parser qwen3_coder`（reasoning parser `nemotron_3`）[V][E:providers-14]<br>・LiteLLM `hosted_vllm/` 會移除 tools 的 `strict` 與 `additionalProperties` [C][E:providers-22]<br>・結構化輸出用 `response_format` json_schema 或 vLLM `structured_outputs`；`guided_*` 已在 vLLM v0.12.0 移除 [P][E:providers-18] |
 | 自架 NIM | NIM 容器（OpenAI 相容） | 可處理 C 級 | ・免費授權限研究、開發、測試，且 ≤16 GPU；「正式用途」依**用途**而非 GPU 數定義，需 NVIDIA AI Enterprise → **需法務確認** [P][E:providers-12]<br>・NIM 不會自己連 MCP server，要由用戶端把工具轉成 OpenAI tools 格式 [P][E:providers-15]<br>・NIM 2.x 的 json_schema 支援只有 release note 可證 [P][E:providers-18] |
 
 **硬體**（廠商模型卡）[V][E:providers-13]：
-- Nemotron 3 Nano 30B-A3B（約 3.5B active）：單張 A100／H100 級
+- Nemotron 3 Nano 30B-A3B（約 30B total／3.2–3.5B active [V][E:providers-01]）：單張 A100／H100 級
 - Nemotron 3 Super 120B-A12B（BF16）：至少 8×H100-80GB
 - Nemotron 3 Ultra 550B-A55B：8×B200／H200 或 16×H100
 
@@ -362,11 +362,14 @@ stateDiagram-v2
 - **C 級的端點與參數白名單**：
   - 只允許一般對話端點。
   - 不用 Batch、Files、background mode。Anthropic ZDR 不涵蓋 Batch（29 天保留）與 Files [V][E:providers-28]；OpenAI 的 files、batches 等端點不適用 ZDR [V][E:providers-35]。
-  - OpenAI Responses API 強制 `store=false`，否則應用狀態預設保留 30 天 [V][E:providers-34]。
+  - OpenAI Responses API 與 Chat Completions 都強制 `store=false`；否則 Responses 的回應資料**至少**保留 30 天 [V][E:providers-34]。
 - **JSON schema 不放程式碼或 secrets**：OpenAI 把 schema 視為 system data，可能存放在所選資料駐留區以外 [V][E:providers-36]；Anthropic 的 schema 會快取最多 24 小時，所以結構化輸出在 ZDR 下只算「有條件適用」[V][E:providers-28]。
 - **各家保留政策**：
-  - Anthropic：預設 30 天內刪除（政策 2026-07-01 更新；信任與安全分類分數另保留最多 7 年）[V][E:providers-27]；ZDR 以組織為單位洽業務；Covered Models（例如 Claude Fable 5.1）需保留 30 天，不適用 ZDR [V][E:providers-29]。
-  - OpenAI：API 資料預設不用於訓練；濫用監控紀錄預設保留最多 30 天；ZDR 需事前核准 [V][E:providers-33]。
+  - Anthropic：
+    - 預設 30 天內從後端刪除輸入與輸出（政策 2026-07-01 更新）；被標記違反使用政策的內容最多保留 2 年；信任與安全分類分數最多保留 7 年 [V][E:providers-27]。Anthropic 的兩份文件對「預設保留」的說法不一致（一份說 30 天內刪除，另一份說除 Covered Models 外預設不保留），研究時無法確認如何對應 [P：研究限制]。
+    - ZDR 以組織為單位洽業務；在 ZDR 下使用不適用的功能不會被擋，而是讓該部分資料落到 ZDR 之外 [V][E:providers-28]。
+    - Covered Models（例如 Claude Fable 5.1）需保留 30 天；除非 Anthropic 明確授權，ZDR 組織呼叫時會收到 400 錯誤 [V][E:providers-29]。
+  - OpenAI：API 資料預設不用於訓練；濫用監控紀錄預設保留最多 30 天（法律要求或為保護服務而合理必要時可更久）；ZDR 需事前核准 [V][E:providers-33]。
 - **能力限制**：工具包只能比對「組織層級設定的**宣告值**」，**無法從 API 證實 ZDR 真的生效**。宣告不符或無法確認時，拒絕送出 C 級資料。
 - **非閘道的資料流**（promptfoo 雲端、工具 telemetry）也納入同一政策：預設關閉並在出站層封鎖。CrewAI 預設開 telemetry 就是一個例子 [V][E:orchestration-15]。
 
@@ -463,7 +466,7 @@ erDiagram
 | Lane B（非同步） | 手動、排程或合併到主幹 | 完整多家族白箱＋所有關卡＋黑箱；以 checkpoint 續跑並發通知；結果回貼 PR | 小時到天（受人工關卡影響） |
 
 - Lane A 只審 diff：RoboDuck 的 delta 模式縮小範圍後，誤報大幅減少 [V][E:reference_systems-12]。
-- CI 中的 GitHub Actions 鎖 commit SHA，binary 用 cosign 驗證；掃描器在沒有 CI secrets 的環境中執行（Trivy CVE-2026-33634 的教訓）[V][E:whitebox-13]。
+- CI 中的 GitHub Actions 鎖 commit SHA，binary 用 cosign 驗證；Trivy CVE-2026-33634 的官方建議是鎖 SHA、cosign 驗證、輪替 secrets [V][E:whitebox-13]；本設計再加上「掃描器在沒有 CI secrets 的環境中執行」[H：設計推論]。
 
 ## 13. 可觀測性與稽核
 - 每次 LLM 呼叫記錄：模型、family、lineage、prompt hash、回應、token、費用、延遲、fallback、重試、schema 修復次數。

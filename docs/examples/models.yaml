@@ -9,8 +9,8 @@ claude_sonnet:
   litellm: "anthropic/claude-sonnet-5"
   family: anthropic
   lineage: claude
-  usable_ctx: 1000000          # docs/03 §8，E:providers-23
-  structured: claude_subset    # 無數值/長度限制、minItems 只能 0/1（E:providers-25）
+  usable_ctx: 1000000          # [V] E:providers-23
+  structured: claude_subset    # 無數值/長度限制、minItems 只能 0/1（[V] E:providers-25）
   data_classes: [P, C]         # C 級前提：組織層級保留/ZDR 設定已宣告並比對
   purpose: [production, evaluation]
   fallback: [claude_haiku]
@@ -31,13 +31,13 @@ gpt_flagship:
   litellm: "openai/<GPT-6 系列模型 ID，實作時確認>"
   family: openai
   lineage: gpt
-  usable_ctx: 1050000          # E:providers-31（部分查證）
-  structured: openai_strict    # additionalProperties:false、全部欄位 required（E:providers-32）
+  usable_ctx: 1050000          # [P] E:providers-31
+  structured: openai_strict    # additionalProperties:false、全部欄位 required（[V] E:providers-32）
   data_classes: [P, C]
   purpose: [production, evaluation]
   fallback: []
-  api: responses               # 部分 GPT-6 模型的工具呼叫需用 Responses API（E:providers-31）
-  store: false                 # C 級強制 store=false（E:providers-34）
+  api: responses               # 部分 GPT-6 模型的工具呼叫需用 Responses API（[P] E:providers-31）
+  store: false                 # C 級強制 store=false（[V] E:providers-34）
 
 gpt_oss_self:
   litellm: "hosted_vllm/openai/gpt-oss-120b"
@@ -56,8 +56,8 @@ nemotron_self:
   api_base: "http://z4-nemotron:8000/v1"
   family: nvidia
   lineage: nemotron3
-  usable_ctx: 256000           # HF 設定預設 256K（E:providers-05）
-  structured: vllm_json_schema # 注意：LiteLLM hosted_vllm 會移除 tools 的 strict（E:providers-22）→ 用戶端 Pydantic 再驗證
+  usable_ctx: 256000           # HF 設定預設 256K（[V] E:providers-05）
+  structured: vllm_json_schema # 注意：LiteLLM hosted_vllm 會移除 tools 的 strict（[C] E:providers-22）→ 用戶端 Pydantic 再驗證
   data_classes: [P, C]
   purpose: [production, evaluation]
   fallback: []
@@ -69,7 +69,7 @@ nemotron_cloud:
   lineage: nemotron3
   usable_ctx: 256000           # 保守值；以同等性單位為準
   structured: unconfirmed      # 託管端點的 json_schema 支援未確認
-  data_classes: [P]            # NVIDIA API Trial Terms：禁止機密資訊（E:providers-10）
+  data_classes: [P]            # NVIDIA API Trial Terms：禁止機密資訊（[V] E:providers-10）
   purpose: [evaluation, prototyping]   # 禁止正式用途；不當成常駐預設驗證者
   fallback: []
   api: chat_completions

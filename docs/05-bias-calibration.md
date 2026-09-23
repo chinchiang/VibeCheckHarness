@@ -17,7 +17,7 @@
 > 注意：下列研究大多使用一般 NLP 或 MMLU 任務、以及較舊的模型。**能否轉移到「AI 生成應用的安全審查」是假設**，要靠 §5 的實驗驗證。
 
 ### 2.1 支持「多家族＋獨立＋驗證」的證據
-- **錯誤相關**：Kim et al.（ICML 2025）測了 350 多個 LLM，發現錯誤高度相關。在某個 leaderboard 資料集上，兩個模型同時答錯時，有 60% 的機率答成同一個錯誤答案；越大、越準的模型錯誤越相關，**即使架構與供應商不同** [V][E:multi_llm_bias-01]。同一篇論文也發現，LLM 評審會高估同供應商模型的準確度 [V][E:multi_llm_bias-02]。
+- **錯誤相關**：Kim et al.（ICML 2025）測了 350 多個 LLM，發現錯誤高度相關。在某個 leaderboard 資料集上，兩個模型同時答錯時，有 60% 的機率答成同一個錯誤答案；越大、越準的模型錯誤越相關，**即使架構與供應商不同** [V][E:multi_llm_bias-01]。同一篇論文也發現（MMLU 資料），LLM 評審會高估**比自己弱**的模型，尤其是同供應商或同家族的模型，並低估比自己強的模型 [V][E:multi_llm_bias-02]。
   - → 多家族可能有幫助，但幫助**有限**。
 - **自我偏好**：
   - GPT-4 與 Llama 2 能辨認自己的輸出；自我辨識能力與自我偏好強度呈線性相關（Panickssery et al.，NeurIPS 2024）[V][E:multi_llm_bias-05]。
@@ -26,22 +26,22 @@
 - **位置偏誤**：以 ChatGPT 當評審時，只要交換候選順序，Vicuna-13B 在 80 題中就有 66 題「勝過」ChatGPT（Wang et al.，ACL 2024）[V][E:multi_llm_bias-12]。→ 隨機順序。
 - **程式表面特徵偏誤**：程式碼評審會受變數名稱、註解、格式等表面變化影響，所有受測評審都出現分數高估與低估（Moon et al.，EACL 2026 Findings）[V][E:multi_llm_bias-10]。另外，SecLLMHolmes 發現，重新命名函式或變數、加入函式庫函式，會讓 LLM 的安全判斷出錯；這類擾動造成最多 26%／17% 的錯誤答案 [P][E:multi_llm_bias-26]。→ 各家族看到一致的輸入。
 - **跨家族評審團**：由不同家族的小模型組成的評審團，在 3 種評審設定、6 個資料集上，比單一 GPT-4 評審更貼近人類判斷，偏誤較少、成本低 7 倍以上（PoLL）[V][E:multi_llm_bias-09]。
-- **異質性有助於辯論**：讓參與辯論的模型異質化，能穩定改善辯論框架（Zhang et al.）[V][E:multi_llm_bias-17]。ReConcile 的作者也說，來自不同模型的多樣性對效能很關鍵 [P][E:multi_llm_bias-18]。
-- **漏洞偵測的互補性**：較弱的 LLM 仍會提供其他模型沒有的正確預測；投票比 GPT-3.5 好 10% 以上（Widyasari et al.，2024）[V][E:multi_llm_bias-28]。
-- **跨模型 critic 可以大量淘汰錯誤候選**：Refute-or-Promote 以對抗式 kill agent＋跨模型 critic，淘汰約 79% 的 LLM 候選漏洞 [V][E:whitebox-32]。
+- **異質性有助於辯論**：Zhang et al. 的立場論文（未獲 NeurIPS 2025 Position Paper Track 接受）表示，讓參與辯論的模型異質化能「穩定」改善辯論框架（作者用語）[V][E:multi_llm_bias-17]。ReConcile 的作者也說，來自不同模型的多樣性對效能很關鍵 [P][E:multi_llm_bias-18]。
+- **漏洞偵測的互補性**：較弱的 LLM 仍會提供其他模型沒有的正確預測；投票比 GPT-3.5 好 10% 以上，但相對最佳單一模型只好約 4%（cross-validation）；未找到發表場所（Widyasari et al.，2024）[V][E:multi_llm_bias-28]。
+- **跨模型 critic 可以大量淘汰錯誤候選**：Refute-or-Promote（預印本）以對抗式 kill agent＋跨模型 critic 合併運作，淘汰 171 個 LLM 候選漏洞中的約 79%；作者也說「沒有任何漏洞是自主發現的」，流程中有人參與 [V][E:whitebox-32]。
 
 ### 2.2 限制或反對「多家族」的證據
 - **混用多家族不一定更好**：「Rethinking Mixture-of-Agents」發現，混用不同 LLM 常會**拉低**平均品質；只用單一最佳模型的多次輸出做彙整（Self-MoA），在 AlpacaEval 2.0 上勝過混合 MoA 6.6%，在 MMLU、CRUX、MATH 平均勝 3.8% [V][E:multi_llm_bias-19]。
   - **這直接挑戰本工具包的前提**，所以 §5 一定要有 Self-MoA 對照組。
-- **辯論的效益大多來自多數決**：Choi et al.（NeurIPS 2025，7 個 NLP benchmark）證明，單純辯論是 martingale，不會提高期望正確率 [P][E:multi_llm_bias-16]。辯論常常打不贏 self-consistency [V][E:multi_llm_bias-15][E:multi_llm_bias-17]。→ 不做多輪辯論。
+- **辯論的效益大多來自多數決**：Choi et al.（NeurIPS 2025，7 個 NLP benchmark）證明，單純辯論是 martingale，不會提高期望正確率 [V][E:multi_llm_bias-16]；但這只是一篇論文、NLP 任務，未在安全審查上驗證 [P][E:multi_llm_bias-37]。辯論常常打不贏 self-consistency [V][E:multi_llm_bias-15][E:multi_llm_bias-17]。→ 不做多輪辯論。
 - **辯論中由對轉錯**：模型常在讀了同儕推理後從對的答案轉成錯的；原因未定（作者列出諂媚、從眾、模型與任務類型等可能因素；ICML 2025 workshop）[P][E:multi_llm_bias-21]。→ 第一輪互不可見。
-- **同家族互審會「回音」**：一篇 2026 單一作者預印本的實驗顯示，Claude 審 Claude 生成的程式碼時，錯誤會互相呼應而非抵銷；作者主張以可執行規格當品質關卡，AI 審查只處理規格之外的殘餘問題 [單源][S-02]。→ 這與本工具包的 W0.5 規格＋可執行測試相符。
+- **同家族互審會「回音」**：一篇 2026 單一作者預印本的兩個實驗中，由 Claude 模型審查 Claude 生成的程式碼，錯誤會互相呼應而非抵銷；另有一個 4 個模型、3 個家族的跨家族實驗；作者主張以可執行規格當品質關卡，AI 審查只處理規格之外的殘餘問題 [單源][S-02]。→ 這與本工具包的 W0.5 規格＋可執行測試相符。
 - **沒有外部回饋時，自我修正常失敗**（Huang et al.，ICLR 2024）[V][E:multi_llm_bias-24]。→ 以工具、測試、跨家族驗證作為外部回饋。
 
 ### 2.3 LLM＋工具／執行
 - **LLM 推 spec，工具追蹤**：IRIS 讓 LLM 推論 taint spec 再交給 CodeQL，找到 55 個漏洞，CodeQL 單獨只找到 27 個；**比較對象是 CodeQL 單獨，不是純 LLM** [P][E:multi_llm_bias-37][V][E:whitebox-18]。
-- **混合管線優於純 LLM**：只有一篇 2026 預印本（Multi-LLMSecCodeEval，研究對象是安全**程式生成**）直接證明 [P][E:multi_llm_bias-32]。
-- **agent 框架大幅降低 SAST 誤報**：在 OWASP Benchmark 上，SAST 誤報率從 92% 以上降到最低 6.3%；但效果很依賴底層模型，較弱的模型效益有限，而且過度壓低誤報可能壓掉真的漏洞 [V][E:whitebox-33]。
+- **混合管線優於純 LLM**：只有一篇 2026 預印本（Multi-LLMSecCodeEval，研究對象是安全**程式生成**）直接證明 [單源：未經同儕審查的預印本][E:multi_llm_bias-32]。
+- **agent 框架大幅降低 SAST 誤報**（預印本，結果只限該 benchmark）：在 OWASP Benchmark 上，SAST 誤報率從 92% 以上降到最低 6.3%；但效果很依賴底層模型，較弱的模型效益有限，而且過度壓低誤報可能壓掉真的漏洞 [V][E:whitebox-33]。
 - **benchmark 高估效能**：常見漏洞 benchmark 因標註錯誤、重複與資料洩漏而高估效能。同一個 7B 模型在 BigVul 上 F1 為 68.26%，在 PrimeVul 上只有 3.09% [V][E:multi_llm_bias-25]。
 
 ### 2.4 沒有找到的證據
