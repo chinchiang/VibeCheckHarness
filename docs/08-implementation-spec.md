@@ -21,6 +21,13 @@
   - M1 前兩週的工單；
   - 待決事項。
 - 里程碑的出口準則寫在 [07](07-roadmap.md)。本文件 §8 與 §9 的測試項目，以 07 的準則編號（例如 `M1-X2`）互相對應。
+- **後續對齊（一致性）** [H]：
+  - 保留期限的優先順序（§5.2、§7.5）：`toolkit.yaml` 是上限與預設值，engagement 是實際值，只能收緊；
+  - ROE 或 `legal_review` 執行中到期 → `SUSPENDED`（§6.1 `OutsideWindow`、N-25），驗章失效才 `ABORTED`；
+  - L-6 過濾後的允許工具清單寫入 G0b GateRecord（§2 `RoeCheck`）；
+  - validator 強制的規則（§5.1、§7.4）：推導 `diversity_degraded` 與工具佐證、JSON 簽署文件拒絕重複鍵、稽核尾端保護、DB 目標對照 ROE 排除清單、`W-MODEL-PLACEHOLDER`。
+  - 與 validator 實作對齊：錨點改為 `{seq, line_sha256}`（§7.4、N-22）；保留期限的錯誤碼 `E-RETENTION`／`E-ROE-RETENTION`（§7.5）；`E-ROE-DB-SCOPE`、`E-JSON-STRICT`、`E-MODEL-PLACEHOLDER`（§5.1）；`tests/test_v02_hardening.py`（§8.1）。
+  - **v0.2 強化第二輪（2026-09-25）**：保留期限錯誤碼更正為 ROE > engagement → `E-ROE-RETENTION`、ROE 或 engagement 超過工具包上限 → `E-RETENTION`（§5.2、§7.5）；錯誤表新增 `StrictJSONError`（`E-JSON-STRICT`：重複鍵、NaN／Infinity、溢位浮點數、|n| > 2^53、整數欄位的浮點數字面值；簽署文件視為簽章無效）（§5.1、§6.1）；關卡逾時在 G0b 之前只受 engagement `not_after` 限制（§5.2、[03 §6.2](03-system-architecture.md#62-關卡逾時預設值)）；`B4_preflight` 全部目標失去所有權 → `abort_handler` → `STOPPED`（§6.1）；`sarif_refs` 必須對應同一 run 的 `tool_invocation_end` 事件（`E-SARIF-REF`）、`sarif_refs`／`tool_corroboration` 不得重複；家族多樣性只計 verifier 的票（§2.3）；佔位模型的啟發式擴大，真實 run（`--real-run`、G0a）中可達的佔位模型 → `E-MODEL-PLACEHOLDER`（§5.1）；DB endpoint 主機正規化、無法解析 → `E-ROE-DB-SCOPE`（§5.1）；`audit_anchors` 與錨點事件一一對應、未錨定尾端只看最後一個錨點事件之後、JSONL 只以 `\n` 分行（§7.4）。
 
 ## 1. 套件配置
 
@@ -202,6 +209,7 @@ class RoeCheck(BaseModel):
     roe_ref: ArtifactRef
     in_window: bool
     legal_review: dict        # L-1–L-6 的結果（06 §2.1.1）
+    allowed_tools_effective: list[str]  # 經 L-6 元件授權過濾後的 allowed_tools；寫入 G0b GateRecord，只供 B 階段使用 [H]
     failures: list[str]
 
 class ResolvedTarget(BaseModel):
@@ -302,11 +310,11 @@ class AdjudicationInputs(BaseModel):   # 欄位與 tools/vchlib/adjudicate.py �
     weighted_support: bool
     weighted_refute: bool
     score: float                       # S = Σ w(m,b)·stance；w=0 的票不計入
-    sarif_corroboration: bool
+    sarif_corroboration: bool          # validator 推導：叢集 sarif_refs ∪ 每個 E_fail_u 測試結果的 result_ref；與裁決的 tool_corroboration 不符 → E-VERDICT-TOOLCORR（05 §4.2）；每個 sarif_refs 項目必須對應同一 run、已登錄且未失敗的白箱／靜態工具之 tool_invocation_end 事件的 payload_refs，否則 → E-SARIF-REF；sarif_refs 與 tool_corroboration 皆不得重複
     theta_confirm: float | None        # None = +∞
     theta_reject: float | None
     independent_families: int
-    diversity_degraded: bool
+    diversity_degraded: bool           # validator 推導：有效票中不同家族 < 2（只計角色為 verifier 的 agent 所投的票，其他 → E-VERDICT-VOTER-ROLE；Lane A 一律 false；家族由 voter_agent_id → agents.yaml → models.yaml）；不符 → E-VERDICT-DIVERSITY（05 §3、§4.2）
     g3_rejected: bool                  # R13：由 G3 GateRecord 計算；G3 之後任何階段的裁決都適用
     phase: str | None                  # 呼叫情境："W3"、"W4"、"B5"…（對應 readjudicated_by）
     prev_status: str | None            # 被取代那一版裁決的狀態；第一版為 None
@@ -502,6 +510,9 @@ class ToolAdapter(ABC):
 - 所有 YAML 一律以 `keys/yamlstrict.py` 載入，**不只是**簽署文件。這樣同一個解析器不會有兩種行為。
 - 一個 run 使用的每個設定檔，都把 hash 寫入 run 紀錄與 `config_loaded` 稽核事件。
 - run 執行中，設定檔改變**不影響**該 run。resume 時如果發現 hash 不同，run 維持原狀態，結束碼 7，並提示需要開新的 run。
+- 以 JSON 格式儲存的文件（例如 GateRecord、稽核事件）同樣嚴格解析：重複鍵、NaN／Infinity、溢位的浮點數（例如 `1e400`）、絕對值超過 2^53 的整數、或需要整數處出現浮點數字面值 → `E-JSON-STRICT`（與 `E-YAML-STRICT` 對應；例外類別 `StrictJSONError`，§6.1）；該文件連同它的簽章與 hash chain 一律拒絕，簽署文件記為 `signature_invalid`（validator 強制）[H]。
+- `models.yaml` 中 `litellm` 仍是未確認模型 ID 的別名以 `placeholder: true` 標記（目前是 `gpt_flagship`，等 §10 U-12；以及 `nemotron_cloud`），佔位的啟發式判斷涵蓋 `<...>`、`{...}`、`TBD`、`TODO`、`FIXME`、`實作時確認`；`litellm` 符合卻沒有標記 → `E-MODEL-PLACEHOLDER` [H]。已標記的佔位模型**只在 repo 範例**得到警告 `W-MODEL-PLACEHOLDER`；**真實 run**（validator `--real-run` 與 G0a）中，任何 agent 可達的佔位模型（主要模型或 fallback）都是 `E-MODEL-PLACEHOLDER` → G0a `VERIFY_FAILED` [H]。目前範例的預期警告有三個：`W-MODEL-RETIREMENT`（`claude_haiku`）與 `W-MODEL-PLACEHOLDER` ×2。
+- DB 目標的主機（`endpoint` 的 host 部分；`endpoint` 必須是 `host:port` 或 `[IPv6]:port`，無法解析 → `E-ROE-DB-SCOPE`）先正規化（去掉結尾的 `.`、大小寫摺疊、IDNA 轉換），再與同樣正規化的 ROE `exclusions.hosts` 精確比對，不能在其中；`db_access.endpoint` 的主機必須是某個 ROE DB 目標的主機且未被排除；違反 → validator 拒絕該 ROE（`E-ROE-DB-SCOPE`；[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）[H]。
 - `models.yaml` 的每個別名要有 `earliest_retirement` 欄位（[model-registry](schemas/model-registry.schema.json)；尚無公告日期時為 `null`）。Gateway 在日期前 30 天內，每次呼叫都寫警告事件；日期已過 → `ModelNotAllowed` [H]。
 
 ### 5.2 優先順序
@@ -510,12 +521,13 @@ class ToolAdapter(ABC):
 
 | 設定 | 規則 |
 |---|---|
-| 關卡逾時 | `toolkit.yaml` 的 `gate_timeouts_hours` → engagement 可以縮短；上限是 `resume_deadline`（[03 §6.2](03-system-architecture.md#62-關卡逾時預設值)） |
+| 關卡逾時 | `toolkit.yaml` 的 `gate_timeouts_hours` → engagement 可以縮短；上限是 `resume_deadline`，G0b 之前的關卡只受 engagement 的 `not_after` 限制，G0b 起也受 ROE 的 `not_after` 限制（[03 §6.2](03-system-architecture.md#62-關卡逾時預設值)） |
 | 預算 | `toolkit.yaml` 的 `budget_defaults` → engagement 可以設定。**沒有預設的費用上限**：engagement 沒寫 → 需要花費的節點 fail-closed（[03 §11](03-system-architecture.md#11-成本與延遲模型)） |
 | 允許的模型 | engagement 的允許清單 ∩ `models.yaml` ∩ `agents.yaml` 的綁定；交集為空的角色 → `run_init` 失敗（`ConfigInvalid`） |
 | 停止條件 | ROE 有寫的鍵用 ROE 的值，沒寫的用 `toolkit.yaml` 的預設值 |
 | 允許的工具與模式 | `tools.yaml` − `TOOLKIT_DENYLIST` − ROE 的 `denied_modes`，再 ∩ ROE 的 `allowed_tools` |
 | 沙箱資源 | 只看 `toolkit.yaml` 的 `sandbox`；run 不能改 |
+| 保留期限 | `toolkit.yaml` 的 `retention` 是組織的上限與預設值 → engagement 的 `retention_days` 是實際值，必須在 1 到工具包上限之間（P 級 `p_days`、C 級 `c_days_after_run_end`；`E-RETENTION`）→ ROE 的 `data_handling.retention_days` 必須 ≤ engagement（`E-ROE-RETENTION`）且 ≤ 工具包上限（`E-RETENTION`）。超過上限 → validator 拒絕（[06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)、§7.5）[H] |
 | CLI 旗標、環境變數 | 不能改上面任何一項 |
 
 ### 5.3 環境變數與 secrets
@@ -553,10 +565,11 @@ class ToolAdapter(ABC):
 | `ConfigInvalid` | `run_init`、行程啟動 | 否 | `FAILED` | `config_loaded`（失敗） | 3 |
 | `SchemaInvalid` | Blackboard、設定檔 | 否 | 看節點：LLM 輸出 → 修復 ≤2 次；其他 → `FAILED` | `schema_repair`／`artifact_validation` | 3 |
 | `StrictYAMLError` | 簽署文件、設定檔 | 否 | **簽署文件**（engagement、ROE、`key-registry.yaml`、GateRecord）→ 由 `SignatureVerifier` 轉為 `SignatureInvalid`，後果同下一列；**未簽署設定檔** → 同 `ConfigInvalid` | 簽署文件：`signature_invalid`；設定檔：`config_loaded`（失敗） | 簽署文件 4；設定檔 3 |
-| `SignatureInvalid`、`RegistryRollback` | G0a、G0b、resume、gate、Z3 | 否 | G0a／G0b → `ABORTED`；resume 或 gate → 維持原狀態 | `signature_invalid`、`engagement_verify_failed`／`roe_verify_failed` | 4 |
+| `StrictJSONError`（`E-JSON-STRICT`） | JSON 格式的文件（GateRecord、稽核事件、JSON 範例實例） | 否 | 觸發條件：重複鍵、NaN／Infinity、溢位的浮點數（例如 `1e400`）、絕對值超過 2^53 的整數、需要整數處卻是浮點數字面值。**簽署文件**（GateRecord 等）→ 視為簽章無效，後果同下一列（與 §5.1 一致）；**未簽署文件** → 同 `ConfigInvalid` | 簽署文件：`signature_invalid`；其他：`config_loaded`（失敗）或 `artifact_validation` | 簽署文件 4；其他 3 |
+| `SignatureInvalid`、`RegistryRollback` | G0a、G0b、resume、gate、Z3 | 否 | G0a／G0b → `ABORTED`；B 階段執行中（`B4_preflight`、Z3）驗章失效（金鑰撤銷、簽章無效、文件被改）→ `abort_handler` → `ABORTED`；resume 或 gate → 維持原狀態。**到期不屬於這一列**，見 `OutsideWindow` | `signature_invalid`、`engagement_verify_failed`／`roe_verify_failed` | 4 |
 | `PolicyDenied` | Policy Engine | 否 | 看動作：CMD 計畫 → 該計畫作廢；工具呼叫 → 該 job `SKIPPED`；resume → 維持原狀態 | `policy_decision`（deny） | 5 |
 | `LegalReviewPending` | G0b 的 L-5 | 否 | `SUSPENDED`（`suspended_wait`） | `roe_verify_failed` | 5 |
-| `OutsideWindow` | G0b、`B4_preflight` | 否 | `SUSPENDED` | `run_status_changed` | 5 |
+| `OutsideWindow` | G0b、`B4_preflight`、resume | 否 | `SUSPENDED`；包含執行中 ROE 的 `not_after` 或 `legal_review.expires_at` 已過：保留 checkpoint，resume 需要一份新的有效 ROE（重跑 G0b），`B4_preflight` 再檢查一次（[03 §5.6](03-system-architecture.md#56-中止補償與-resume)）[H] | `run_status_changed` | 5 |
 | `RedactionMissing` | Gateway | 否 | 該節點失敗 → `FAILED`（這是程式錯誤，正常流程不會發生） | `llm_refused_policy` | 5 |
 | `ModelNotAllowed`、`DataClassDenied`、`EndpointDenied` | Gateway | 否 | 該票記為缺票（`missing_votes.reason = policy`）；另寫 `policy_violation` | `llm_refused_policy`、`policy_violation` | 5 |
 | `BudgetExceeded` | Gateway、BudgetTracker | 否 | 進 `GB_budget_gate`（`WAITING_GATE`） | `budget_exhausted` | — |
@@ -568,7 +581,7 @@ class ToolAdapter(ABC):
 | `SandboxLimitExceeded` | timeout、OOM、輸出超過上限 | 否 | 缺口（`killed_reason`） | `sandbox_job_end` | — |
 | `EgressBlocked` | Z2 或 Z3 的網路政策 | 否 | 該 job 的結果丟棄並列為可疑；ST-1／ST-7 計數 | `egress_blocked` | — |
 | `ScopeViolation` | Scope Proxy | 否 | 依 03 §7.3：job 停止；指向 ROE 以外主機 → 另寫 `policy_violation` | `egress_blocked`、`policy_violation` | 5 |
-| `OwnershipFailed` | B0、`B4_preflight` | 否 | 該目標 `SKIPPED`；全部目標失敗 → `B6_report`（M1 是 `m1_finish`） | `ownership_check` | — |
+| `OwnershipFailed` | B0、`B4_preflight` | 否 | 該目標 `SKIPPED`；全部目標失敗：B0 → `B6_report`（M1 是 `m1_finish`），`B4_preflight` → `abort_handler` → `STOPPED`（[03 §5.5](03-system-architecture.md#55-b4-執行迴圈)） | `ownership_check` | — |
 | `Z3Unavailable` | Executor 用戶端 | 是（§6.2） | 用盡 → `SUSPENDED` | `run_status_changed` | 9 |
 | `StopConditionTriggered` | Executor | 否 | `abort_handler` → `STOPPED` | `stop_condition` | — |
 | `RestoreFailed` | Snapshot | 是（2 次） | `abort_handler` → `FAILED`，並通知聯絡人 | `restore_failed` | — |
@@ -637,7 +650,7 @@ class ToolAdapter(ABC):
 | 資料表 | 內容 |
 |---|---|
 | `runs` | run 紀錄：狀態、run_kind、發起者、各設定檔的 hash、`redaction_map_ref`、`key_registry_ref`、`resume_deadline` |
-| `run_audit_anchors` | `run_id`、`seq`、行 hash、時間 |
+| `run_audit_anchors` | `run_id`、`seq`、`line_sha256`（錨點事件自己那一行的 sha256）、時間 |
 | `gate_records` | GateRecord 本體（JCS）、分離式簽章、`approval_hash`、驗章結果 |
 | `gate_spot_checks` | ASI09 抽查：抽中的關卡、複核者、期限、結果 |
 | `blackboard_index` | `run_id`、`kind`、`ref`、schema `$id`、provenance、建立時間 |
@@ -672,11 +685,15 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 - 欄位、hash chain、每 500 個事件錨定：見 [03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)。
 - 事件類型的 enum 以 03 §13.2 為準，程式中放在 `models` 的產生碼中（`audit-event.schema.json`）。
 - 一個 run 的檔案不輪替。run 結束時寫最後一個錨點。
+- **分行**：`AuditWriter` 與所有讀取端（`audit verify`、validator）都只以 `\n` 分行，不使用 `str.splitlines()` 之類會把 `\r`、U+2028 等也當成行界的函式 [H]。
+- **錨點格式**：`run.audit_anchors` 的每一項是 `{seq, line_sha256}`，`line_sha256` ＝ 該 `audit_anchor` 事件自己那一行原始位元組的 sha256（取代舊版的「錨點的 prev_hash」）。
+- **尾端保護（validator 強制）** [H]：錨點的 `seq` 超出稽核檔 → `E-AUDIT-TRUNCATED`；行 hash 不符 → `E-AUDIT-ANCHOR-MISMATCH`；指名的不是錨點行，或 `audit_anchors` 與稽核檔中的 `audit_anchor` 事件不是一一對應（遺漏、重複或多列）→ `E-AUDIT-ANCHOR`；非終態 run（含 `SUSPENDED`、`STOPPED`）在稽核檔中最後一個 `audit_anchor` 事件之後的行 → `W-AUDIT-UNANCHORED-TAIL`（警告；只看這一段）；終態 run（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）必須有稽核檔並以 `run_end` 錨點結尾，否則 → `E-AUDIT-TAIL`。hash chain 只能**偵測**竄改，不能防止；截斷只能偵測到最後一個錨點為止（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16）。
 - 可選擇另外寫到 WORM 儲存或外部系統；是否需要，由 engagement 決定（§10）。
 
 ### 7.5 保留與刪除
 
-- 保留期限設定在 `toolkit.yaml` 的 `retention` 區塊（[toolkit-config](schemas/toolkit-config.schema.json)），寫入 CAS 物件時記在 meta。預設值 [H] 如下，**實際值需要法務決定（§10）**：
+- 優先順序 [H]：`toolkit.yaml` 的 `retention` 是組織的**上限與預設值**；engagement 的 `retention_days` 是實際值，必須在 1 到工具包上限之間（P 級 `p_days`、C 級 `c_days_after_run_end`），否則 `E-RETENTION`；ROE 的 `data_handling.retention_days` 必須 ≤ engagement，否則 `E-ROE-RETENTION`；也必須 ≤ 工具包上限，否則 `E-RETENTION`（§5.2、[06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)）。這些都是錯誤；舊的警告 `W-ENG-RETENTION` 已移除。寫入 CAS 物件時，meta 記的是生效值。
+- 保留期限設定在 `toolkit.yaml` 的 `retention` 區塊（[toolkit-config](schemas/toolkit-config.schema.json)）。工具包的預設值 [H] 如下，**實際值需要法務決定（§10）**：
   - `p_days: 365`（P 級）；
   - `c_days_after_run_end: 90`（C 級）；
   - `audit_days: 1095`（稽核檔與 GateRecord；必須 ≥ 兩個內容期限）；
@@ -691,7 +708,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 
 | 層級 | 目錄 | 內容 | CI 線（§8.4） |
 |---|---|---|---|
-| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R13 決定表與註記（`annotations`） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
+| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/test_v02_hardening.py`、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R13 決定表與註記（`annotations`）；`test_v02_hardening.py`：v0.2 強化規則（推導 `diversity_degraded`／工具佐證、稽核錨點與尾端、保留期限、DB 範圍、佔位模型 ID、嚴格 JSON） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
 | 單元 | `tests/unit/` | 每個模組各自測試；外部相依以 Protocol 的假物件取代 | `fast` |
 | 性質 | `tests/property/` | Hypothesis：JCS 的穩定性、嚴格 YAML、稽核竄改偵測、Clusterer 與順序無關、Aggregator 的規則性質（例如 Lane A 的結果永遠不會是 `CONFIRMED_*`；R1 一定勝過投票） | `fast` |
 | 契約 | `tests/contract/` | schema 往返（§3）、adapter 註冊（§2.3）、`vchlib` 與 `vibecheck` 同一組測試向量的結果相同、RFC 8785 附錄的測試向量 | `fast` |
@@ -704,7 +721,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
   - 正式環境：`LiteLLMTransport`；
   - 測試：`RecordedTransport`，以 §6.3 的 LLM 快取鍵讀取錄好的回應，並**計數**收到的請求數（用來證明 fail-closed 時送出 0 個請求）。
 - CI 只用 `RecordedTransport`。對真實供應商的冒煙測試放在 `manual` 線，需要金鑰（§10）。
-- `tests/` 目前只有上表「既有」一列的測試（`test_validator.py`、`test_adjudicate.py`）。上表其他目錄是 M1 起新增的；既有測試留在原位。
+- `tests/` 目前只有上表「既有」一列的測試（`test_validator.py`、`test_adjudicate.py`、`test_v02_hardening.py`）。上表其他目錄是 M1 起新增的；既有測試留在原位。
 - 正式程式使用 Python 3.12（§1.1），`fast` 線另跑 3.11 與 3.13，與 `validate.yml` 的矩陣一致。
 
 ### 8.2 M1 必須拒絕清單（負面安全測試）
@@ -720,7 +737,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | N-05 | repo 含 canary secret（放在程式、註解、設定檔、git 歷史中） | 任何 LLM 請求本體中都沒有 canary（對 CAS 全文搜尋）；`secret_detected` 只含位置與 hash | M1-X3（ST-3） |
 | N-06 | 路徑黑名單中的檔案（`.env*`、金鑰檔、auth-state） | W0 之後的任何產物、SARIF、切片中都沒有這些檔案的內容 | M1-X2 |
 | N-07 | ROE 有兩個 `targets:` 鍵 | `StrictYAMLError` → `signature_invalid`；結束碼 4 | M1-X2 |
-| N-08 | anchor／alias、自訂 tag、NaN、超過 2^53 的整數、未加引號的 `yes`／時間 | 同 N-07 | M1-X2 |
+| N-08 | anchor／alias、自訂 tag、NaN、超過 2^53 的整數、未加引號的 `yes`／時間；JSON 文件的重複鍵或 NaN／Infinity（`E-JSON-STRICT`） | 同 N-07 | M1-X2 |
 | N-09 | 用未登錄的金鑰簽署；或簽署人不在 ROE 的 `signatories` 中 | 驗章失敗；結束碼 4 | M1-X2 |
 | N-10 | 金鑰以 `compromised` 撤銷：撤銷前後的簽章各一份 | 兩份都無效；若撤銷原因是 `role_change`，撤銷前的有效、之後的無效 | M1-X2 |
 | N-11 | `key-registry` 的版本比上次接受的小；或根簽章不是 `toolkit.yaml` 釘選的根金鑰 | `RegistryRollback`／`SignatureInvalid` | M1-X2 |
@@ -734,10 +751,10 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | N-19 | Z2 job 內嘗試：DNS 查詢、HTTP 連外、raw socket、讀 host 路徑、連 metadata 端點、掛載 Docker socket | 全部失敗，且有 `egress_blocked` 紀錄 | M1-X3（ST-7） |
 | N-20 | Z2 job 的輸出超過 200 MiB、執行逾時、記憶體不足 | `killed_reason` 依序為 `output_too_large`／`timeout`／`oom`；列為缺口 | M1-X2 |
 | N-21 | 從 Z1 映像直接連目標 | 網路層拒絕（整合測試線） | M1-X3（ST-1） |
-| N-22 | 稽核檔被修改一行、刪除一行、插入、交換順序、截斷尾端；錨點被改 | `audit verify` 結束碼 8。性質測試 ≥1,000 個隨機竄改，偵測率 100% | M1-X5 |
+| N-22 | 稽核檔被修改一行、刪除一行、插入、交換順序；錨點被改；檔案被截到錨點之前（`E-AUDIT-TRUNCATED`）；錨點行 hash 不符（`E-AUDIT-ANCHOR-MISMATCH`）；錨點指向非錨點行或跳過錨點（`E-AUDIT-ANCHOR`）；終態 run 沒有以 `run_end` 錨點結尾（`E-AUDIT-TAIL`） | `audit verify` 結束碼 8。性質測試 ≥1,000 個隨機竄改（錨定範圍內），偵測率 100%。最後一個錨點之後的截斷**只能偵測到錨點為止**：非終態 run 的未錨定尾端 → `W-AUDIT-UNANCHORED-TAIL`（§7.4）| M1-X5 |
 | N-23 | 改動 CAS 物件的一個位元組 | `IntegrityError` | M1-X5 |
 | N-24 | 非 `lane_a` 的 `run start` 沒有簽章，或簽署人是自動化帳號 | 拒絕（D7）；結束碼 5 | M1-X2 |
-| N-25 | ROE 的 `allowed_tools` 含 `TOOLKIT_DENYLIST` 的模式；ROE 在時間窗外；ROE 已過期 | 依序：`roe verify` 拒絕；`SUSPENDED`；跳過 B 階段並記為缺口 | M1-X2 |
+| N-25 | ROE 的 `allowed_tools` 含 `TOOLKIT_DENYLIST` 的模式；ROE 在時間窗外；進入 B 階段時 ROE 已過期；B 階段執行中 ROE 或 `legal_review` 到期；以已過期的 ROE resume | 依序：`roe verify` 拒絕；`SUSPENDED`；跳過 B 階段並記為缺口（`COMPLETED_WITH_GAPS`）；`SUSPENDED`（checkpoint 保留）；resume 被拒、維持 `SUSPENDED` | M1-X2 |
 | N-26 | ROE 的 `legal_review` 不符 L-1–L-4；L-5（聲明者就是 `test_lead`） | `roe_verify_failed`；L-5 → `SUSPENDED` | M1-X2 |
 | N-27 | engagement 允許的模型不在 `models.yaml` 中；fallback 跨家族 | `ConfigInvalid` | M1-X2 |
 | N-28 | `toolkit.yaml` 的根金鑰指紋與登錄不符 | 行程拒絕啟動 | M1-X2 |

@@ -10,7 +10,8 @@
 - **沙箱**（§1.4）：以 CVE 與獨立學術研究取代「只找到廠商自述」；補上側通道與主機端元件的限制。
 - **簽章與稽核鏈**（§1.6、§1.7）：補上 D11、D12 的外部事實、`signatures[]` 格式、指紋格式、金鑰登錄與撤銷語意，並說明 YAML 解析的陷阱。
 - **資料分級**：改為 P（公開或合成）與 C（機密）兩級，與 schema 一致。
-- **法遵**（§2.1）：ROE 新增 `legal_review` 聲明，由 G0b 檢查（L-1～L-6；`management` 代理時為警告 `W-L2-MANAGEMENT`）。
+- **法遵**（§2.1）：ROE 新增 `legal_review` 聲明，由 G0b 檢查（L-1～L-6；`management` 代理時為警告 `W-L2-MANAGEMENT`）。G0b 之前的節點（含 W0）不讀 `legal_review`；ROE 或聲明在執行中到期 → `SUSPENDED`（§2.1.1）。
+- **保留期限**（§2.2.1）：`toolkit.yaml` 是上限與預設值，engagement 的 `retention_days` 是實際值，只能收緊。
 - **授權登錄表**（§2.3）：
   - 涵蓋 docs 02–05 與 examples 中的每個工具、模型、資料集與標準，每列都有授權、義務與狀態
   - 需要法務判斷的項目有負責角色與里程碑閘門
@@ -112,8 +113,8 @@
 - **雙層遮罩**：先用 W0 掃描結果遮罩，再以 pattern＋entropy 遮罩。
 - **TruffleHog 驗證**：
   - 有 700 多個 detector 會拿找到的憑證去供應商 API 驗證（數量只見於廠商 README）[V][單源][E:whitebox-10]，等於和使用者不擁有的系統互動。
-  - 所以預設關閉；要開就寫進 ROE，列出供應商，從 Z3 發出並記錄。建議直接輪替外洩的憑證。
-  - W0 的預設 secrets 掃描器用 MIT 授權的 Betterleaks 或 gitleaks（§2.3）。
+  - 所以預設關閉；要開就寫進 ROE，列出供應商，在 G0b 與所有權驗證之後從 Z3 發出並記錄（W0 一律不驗證）。建議直接輪替外洩的憑證。
+  - W0 的預設 secrets 掃描器用 MIT 授權的 Betterleaks 或 gitleaks（§2.3）。W0 在 G0b 之前執行，所以要不要用 TruffleHog 只看工具包層級的法務閘門（§2.3），不看 ROE 的 `legal_review`。
 - **資料等級採 fail-closed**，送往 LLM 的端點與參數受白名單限制（[03 §8.4](03-system-architecture.md#84-資料治理)）。
 - **PII**：B4 前抽樣檢查 staging 回應；一旦偵測到個資就觸發停止條件，B5 改用自架模型。
 - **Audit Log 與 DB 快照**：加密、與原始碼同等級、設保留期限、限制存取、遮罩 secrets。
@@ -173,7 +174,7 @@
 - **YAML 解析的陷阱**：
   - PyYAML 是 YAML 1.1 parser [V][E:orchestration-53]，而且會默默接受重複鍵（issue #41，至今未關）[P][E:orchestration-54]。
   - 攻擊情境：同一份 ROE 寫兩個 `targets` 鍵。核准者用的檢視工具與驗章程式可能各取不同的值，於是簽的內容和執行的內容不同。
-  - 因此驗章前必須用**嚴格 loader**：拒絕重複鍵、anchor／alias、自訂 tag，關閉隱式型別，整數限 ±2^53。違反一律視為驗章失敗 [H]（已納入 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) 與 [08 §4.1](08-implementation-spec.md#41-共用選項與結束碼)：簽署文件 → `signature_invalid`，結束碼 4）。
+  - 因此驗章前必須用**嚴格 loader**：拒絕重複鍵、anchor／alias、自訂 tag，關閉隱式型別，整數限 ±2^53。違反一律視為驗章失敗 [H]（已納入 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) 與 [08 §4.1](08-implementation-spec.md#41-共用選項與結束碼)：簽署文件 → `signature_invalid`，結束碼 4）。JSON 格式的文件（例如 GateRecord、稽核事件）同樣拒絕重複鍵、NaN／Infinity、溢位的浮點數（例如 `1e400`）、絕對值超過 2^53 的整數與整數欄位的浮點數字面值（`E-JSON-STRICT`，對應 YAML 的 `E-YAML-STRICT`；該文件連同簽章與 hash chain 一律拒絕，validator 強制）[H]。
 - G5 的核准者不能是發起者。自動觸發的 run 在任何 G1 決定或 B 階段節點之前，必須由人以 `initiator_claim` 認領（D7）。
 - 限制 checkpoint 與 audit 儲存庫的存取權。Microsoft Agent Framework 也警告不要從不可信來源載入 checkpoint [V][E:orchestration-09]。
 
@@ -184,6 +185,7 @@
   - 即使是 Merkle tree 的透明化 log，也可能對不同客戶端呈現不一致的視圖，需要外部監看 [V][E:orchestration-50]。
 - **本設計的定位 [H]**：
   - 預設錨點寫在同一個 Postgres 的 run 紀錄中，只能偵測意外損壞與單點竄改。
+  - 尾端保護：run 紀錄的每個錨點是 `{seq, line_sha256}`（錨點事件自己那一行的 sha256），必須對應稽核檔中的錨點行，且與稽核檔中所有 `audit_anchor` 事件一一對應（`E-AUDIT-TRUNCATED`、`E-AUDIT-ANCHOR-MISMATCH`、`E-AUDIT-ANCHOR`）；稽核檔的寫入與讀取都只以 `\n` 分行；終態的 run（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）最後一行必須是 `run_end` 錨點（`E-AUDIT-TAIL`）；非終態的 run（含 `SUSPENDED`、`STOPPED`）在稽核檔中最後一個錨點事件之後的行只有警告 `W-AUDIT-UNANCHORED-TAIL`（這段被截斷無法偵測）。見 §3 #16。
   - 若 engagement 需要防管理者竄改，必須把錨點另外寫到管理者無法修改的系統，例如：
     - 客戶方的 WORM 儲存
     - 以核准者金鑰簽署錨點並寄給客戶
@@ -234,17 +236,34 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | L-1 | `legal_review` 存在，且 `scope` 的每一項都是 `true`，或附 `not_applicable_reason` | `VERIFY_FAILED`（`roe_verify_failed`，理由 `legal_review_missing`） |
 | L-2 | `attested_by` 在金鑰登錄中、未撤銷，且角色含 `legal_reviewer`。沒有法務人員的組織可以用 `management` 角色代理 | 不在登錄、已撤銷或兩種角色都沒有 → `VERIFY_FAILED`；以 `management` 通過時 → 警告 `W-L2-MANAGEMENT`（不是錯誤），報告首頁標示「未經法務人員審查」 |
 | L-3 | `attested_by` 的簽章有效（與其他 ROE 簽章同一套流程，D11） | `VERIFY_FAILED` |
-| L-4 | `attested_at` ≤ ROE 的 `not_before`；`expires_at` ≥ ROE 的 `not_after` | `VERIFY_FAILED`；到期時執行中的 run → `SUSPENDED`（`B4_preflight` 檢查，`suspended_wait`） |
+| L-4 | `attested_at` ≤ ROE 的 `not_before`；`expires_at` ≥ ROE 的 `not_after` | `VERIFY_FAILED`；到期時執行中的 run → `SUSPENDED`（`B4_preflight` 檢查，`suspended_wait`；checkpoint 保留，resume 需要一份新的有效 ROE） |
 | L-5 | `attested_by` 不是 ROE 的 `test_lead`（職責分離） | `VERIFY_FAILED`（理由 `legal_attester_is_test_lead`），但 run 不中止：`SUSPENDED`（`suspended_wait`）等 ROE 修正後重新驗章 |
-| L-6 | 依序對照：ROE 的 `allowed_tools` → `tools.yaml` 各工具的 `license_ref` → `licenses.yaml` 對應列。只要有一列 `status: 法務閘門`，`component_licenses` 就必須為 `true` | 該元件從允許清單移除，並列入 B6 |
+| L-6 | 依序對照：ROE 的 `allowed_tools` → `tools.yaml` 各工具的 `license_ref` → `licenses.yaml` 對應列。只要有一列 `status: 法務閘門`，`component_licenses` 就必須為 `true` | 該元件從允許清單移除，並列入 B6；過濾後的允許清單記入 G0b GateRecord，B 階段只用這份清單 |
 
 - 工具包**只檢查聲明存在且簽章有效**，不判斷法律意見的內容（§3 #24）。
+- **G0b 之前不使用 `legal_review`** [H]：ROE（含 `legal_review`）在 G0b 才驗章，所以 G0b 之前的節點（W0–W5、Lane A）不讀任何 ROE 欄位，只用 G0a 已驗章的委任設定。元件授權有兩層：
+  - **工具包層級**：法務閘門依 [07 §3](07-roadmap.md#3-入口閘門法務與查證) 結案之前，該元件的 adapter 不註冊（[08 §2.3](08-implementation-spec.md#23-擴充介面)）。W0／W1 的工具（例如 `trufflehog:scan`、`semgrep:scan`）只受這一層控制。
+  - **ROE 層級**（L-6）：只在 G0b 檢查，只影響 B 階段的工具。
+- **執行中到期** [H]：ROE 的 `not_after` 或 `legal_review.expires_at` 在 run 執行中到期 → `SUSPENDED`（不是 `ABORTED`）。checkpoint 保留；resume 需要一份新的有效 ROE（新版本、重新簽署），由 resume 時的 G0b 重驗與每批的 `B4_preflight` 強制。只有驗章失效（簽署金鑰撤銷、簽章無效）才 `ABORTED`。狀態圖見 [03 §5.2](03-system-architecture.md#52-主狀態圖)。
 - L-1～L-6 已由 [`roe.schema.json`](schemas/roe.schema.json) 與 validator（`tools/vchlib/checks.py` 的 `E-L1`–`E-L6`）強制執行；G0b 的流程位置見 02／03。
 
 ### 2.2 資料、個資與跨境
 - 把原始碼與測試資料送到境外的 LLM 供應商，可能涉及資料保護與跨境傳輸義務。
 - 使用前，應由法律顧問檢視當地的電腦濫用法規、個資法規、跨境傳輸規定，並以 §2.1.1 的 `legal_review` 聲明記錄。
 - **本工具包不會讓任何使用行為變得合法**。本文件只提供一般性提醒，不是法律意見。
+
+#### 2.2.1 保留期限的優先順序 [H]
+
+| 層級 | 欄位 | 角色 |
+|---|---|---|
+| `toolkit.yaml` | `retention`（`p_days`、`c_days_after_run_end`、`audit_days`、`checkpoint_*`、`legal_hold`） | 組織的**上限與預設值**；由 `toolkit_maintainer` 依法務決定設定 |
+| engagement | `retention_days` | 該委任的**實際值**（CAS 內容）；必須在 1 到工具包對該資料等級的上限之間（P 級 `p_days`、C 級 `c_days_after_run_end`；只能收緊），否則 `E-RETENTION` |
+| ROE | `data_handling.retention_days` | B 階段資料的值；必須 ≤ engagement（否則 `E-ROE-RETENTION`），也 ≤ 工具包上限（否則 `E-RETENTION`） |
+
+- 優先順序：toolkit < engagement < ROE；後者只能更短，不能放寬。超過上限 → validator 拒絕（錯誤，不是警告；舊的警告 `W-ENG-RETENTION` 已移除）。
+- 稽核檔、GateRecord 與 checkpoint 的期限由 `toolkit.yaml` 決定（`audit_days`、`checkpoint_*`）。
+- `legal_hold` 覆蓋的範圍一律不刪；刪除 C 級內容後，稽核檔中的 hash 仍保留。
+- 實際的天數需要法務決定（[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-04）；實作見 [08 §5.2](08-implementation-spec.md#52-優先順序)、[08 §7.5](08-implementation-spec.md#75-保留與刪除)。
 
 ### 2.3 授權登錄表
 
@@ -256,7 +275,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 **狀態欄說明**：
 - **OK**：寬鬆授權，已記錄依據
 - **注意**：有需要遵守的條件，但不需法務判斷
-- **法務閘門**：需要法務判斷，並依格式「M? 前由法務確認，未確認則該元件停用」寫明期限。負責角色為 `legal_reviewer`（在金鑰登錄中；沒有的組織由 `management` 代理），確認結果寫進 §2.1.1 的 `component_licenses`。
+- **法務閘門**：需要法務判斷，並依格式「M? 前由法務確認，未確認則該元件停用」寫明期限。負責角色為 `legal_reviewer`（在金鑰登錄中；沒有的組織由 `management` 代理）。工具包層級的確認結果寫進 `licenses.yaml`（[07 §3](07-roadmap.md#3-入口閘門法務與查證)），決定 adapter 是否註冊；每次委任的確認另寫進 ROE 的 §2.1.1 `component_licenses`，只在 G0b 用於 B 階段的工具。
 - **參考**：只讀文件或設計，不使用程式碼
 - **不採用**
 - **待查**：尚未查證
@@ -399,10 +418,10 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 12 | **不是全自動**：G0a、G0b 的事先簽署，加上 G1–G5 五種人工關卡、GB 預算關卡與對照表審查 | LLM 準確度限制；SoK 人工審 patch 花兩人週 [V][單源：SoK][E:reference_systems-07] | 人力成本在 pilot 中量測；CI 分兩條線 |
 | 13 | Nemotron 託管端點的結構化輸出**未確認**；NIM 2.x **只有部分查證** | [P][E:providers-18] | 一律用 Pydantic 在用戶端驗證 |
 | 14 | **廠商宣稱的準確率，本研究都沒有找到獨立驗證**（Semgrep AI triage、Claude Security、Codex Security、Copilot Autofix、CodeRabbit、Cursor Bugbot 等） | 研究限制（ledger whitebox 主題）；v0.2 新增的產品數字也是自報 [P][E:reference_systems-39][E:reference_systems-45] | 以 Calibration Lab 自測；文件中一律標「廠商宣稱」 |
-| 15 | **行動 App 不在本版範圍**；**沒有儀表板**（M5 只交付靜態 HTML＋SARIF＋JSON，D14）；模型 ID 與版本變動快（例如 GPT-6 Sol、Luna 2026-09-22 才發布 [P][E:providers-31][E:providers-46]） | — | 實作時重新查證；分類版本寫在每筆威脅裡 |
-| 16 | **稽核的 hash chain 只能偵測竄改，不能防止**：同時控制稽核檔與 run 紀錄的人，可以把整條鏈重寫 | tamper-evident log 依靠外部持有的承諾 [V][E:orchestration-51]；透明化 log 也需要外部監看 [V][E:orchestration-50] | 需要防管理者時，把錨點寫到該人無法修改的外部系統（客戶方 WORM、簽章寄送）（§1.7） |
+| 15 | **行動 App 不在本版範圍**；**沒有儀表板**（M5 只交付靜態 HTML＋SARIF＋JSON，D14）；模型 ID 與版本變動快（例如 GPT-6 Sol、Luna 2026-09-22 才發布 [P][E:providers-31][E:providers-46]） | — | 實作時重新查證；分類版本寫在每筆威脅裡；真實 run 中任何 agent 可達的佔位模型 ID（主要模型或 fallback）→ `E-MODEL-PLACEHOLDER`，G0a 不通過（[03 §8.1](03-system-architecture.md#81-模型登錄家族與-fallback)）[H] |
+| 16 | **稽核的 hash chain 只能偵測竄改，不能防止**：同時控制稽核檔與 run 紀錄的人，可以把整條鏈重寫。**尾端截斷只能偵測到最後一個錨點為止**：最後一個錨點之後的行（未錨定的尾端）被刪掉，鏈本身看不出來 | tamper-evident log 依靠外部持有的承諾 [V][E:orchestration-51]；透明化 log 也需要外部監看 [V][E:orchestration-50] | validator 強制尾端保護（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)）：錨點 `{seq, line_sha256}` 必須對應稽核檔中的錨點行，且與所有錨點事件一一對應（`E-AUDIT-TRUNCATED`／`E-AUDIT-ANCHOR-MISMATCH`／`E-AUDIT-ANCHOR`）；非終態 run 的未錨定尾端 → `W-AUDIT-UNANCHORED-TAIL`；終態 run 最後一行不是 `run_end` 錨點 → `E-AUDIT-TAIL`。需要防管理者時，把錨點寫到該人無法修改的外部系統（客戶方 WORM、簽章寄送）（§1.7） |
 | 17 | **DB 快照與還原無法撤銷外部副作用**（email、webhook、第三方 API 呼叫） | 還原只作用在受測 DB（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）[H] | ROE 要求外部整合一律在 sandbox／test 模式，否則在出站層封鎖（§2.1） |
-| 18 | **DB 端點無法用 DNS TXT 或 well-known path 證明所有權** | 這兩種方法只適用 HTTP 主機 [H] | DB 的授權只依基礎設施擁有者在 ROE 上的簽章；報告中標示「所有權未以技術方式驗證」 |
+| 18 | **DB 端點無法用 DNS TXT 或 well-known path 證明所有權** | 這兩種方法只適用 HTTP 主機 [H] | DB 的授權只依基礎設施擁有者在 ROE 上的簽章；DB 目標（`endpoint` 的 host 部分；格式 `host:port` 或 `[IPv6]:port`，無法解析即拒絕）與 `db_access.endpoint` 的主機，正規化（去掉結尾的 `.`、大小寫摺疊、IDNA）後要對照 ROE 的 `exclusions.hosts`，且 `db_access.endpoint` 必須是 ROE 的 DB 目標主機（validator 強制，`E-ROE-DB-SCOPE`；04 §5 第 4 步命中 → S3）；報告中標示「所有權未以技術方式驗證」 |
 | 19 | **工具包無法證明 ZAP 等工具自身的限速與範圍設定真的被遵守** | 工具內部行為不在工具包控制內 [H] | 只信任 Scope Proxy 在網路層的強制（白名單、每 job 請求白名單、每主機預算）；工具設定只視為第二層 |
 | 20 | **沒有找到 gVisor、Firecracker、Kata 的第三方安全稽核**；三者都有逃逸或越界寫入的 CVE | [V][E:blackbox-41]～[E:blackbox-53]（搜尋未窮盡） | 版本鎖定與 CVE 追蹤、最小裝置設定、ST-7 自測（§1.4） |
 | 21 | **microVM 不能防硬體側通道** | Firecracker 對 Spectre／MDS 防護有限 [V][E:blackbox-48] | 不同 engagement 不共用實體主機，或關閉 SMT＋專用主機 |

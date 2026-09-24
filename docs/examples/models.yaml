@@ -4,6 +4,7 @@
 #   - family / lineage 用來強制「驗證者與報告者不同家族、不同血統」。
 #   - fallback 只能列同家族模型（tools/validate_schemas.py 會檢查）。
 #   - data_classes 不含 C 的模型，不得收到機密程式碼（fail-closed）。
+#   - litellm 仍是 <...> 佔位值的模型必須標 placeholder: true（validator 發出 W-MODEL-PLACEHOLDER）。
 
 claude_sonnet:
   litellm: "anthropic/claude-sonnet-5"
@@ -31,6 +32,7 @@ claude_haiku:
 
 gpt_flagship:
   litellm: "openai/<GPT-6 系列模型 ID，實作時確認>"
+  placeholder: true            # 待使用者決定（U-12）；validator 發出 W-MODEL-PLACEHOLDER
   family: openai
   lineage: gpt
   usable_ctx: 1050000          # [P] E:providers-31
@@ -70,6 +72,7 @@ nemotron_self:
 
 nemotron_cloud:
   litellm: "nvidia_nim/<nemotron-3-super 模型名，實作時確認>"
+  placeholder: true            # 模型名待確認；validator 發出 W-MODEL-PLACEHOLDER
   family: nvidia
   lineage: nemotron3
   usable_ctx: 256000           # 保守值；以同等性單位為準

@@ -135,9 +135,11 @@
     },
     "tool_corroboration": {
       "type": "array",
+      "uniqueItems": true,
       "items": {
         "type": "string"
-      }
+      },
+      "description": "推導值（排序）：稽核可查的 cluster.sarif_refs ∪ E_fail_u 測試結果的 result_ref（E-VERDICT-TOOLCORR）"
     },
     "executable_proof": {
       "anyOf": [

@@ -8,7 +8,12 @@
     "additionalProperties": false,
     "properties": {
       "litellm": {
-        "type": "string"
+        "type": "string",
+        "description": "LiteLLM 模型字串。含 <...> 的值是尚未確認的佔位 ID，必須同時標 placeholder: true"
+      },
+      "placeholder": {
+        "type": "boolean",
+        "description": "true＝litellm 是尚未確認的佔位模型 ID（例如 U-12 待確認的 gpt_flagship）。validator 發出 W-MODEL-PLACEHOLDER，真實 run 前必須換成已確認的 ID；litellm 含 <...> 卻沒有標 placeholder: true → E-MODEL-PLACEHOLDER"
       },
       "api_base": {
         "anyOf": [

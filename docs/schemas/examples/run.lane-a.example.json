@@ -128,6 +128,15 @@
     "gb_return_node": null
   },
   "gaps": [],
-  "audit_anchors": [],
+  "audit_anchors": [
+    {
+      "seq": 6,
+      "line_sha256": "sha256:b2454d68ef7533579fc82fbffedbc67a6c9440fea2fc60815587a54fa5517610"
+    },
+    {
+      "seq": 9,
+      "line_sha256": "sha256:6b76da562e85e1be40523b6c82ff1a69712c21631df0443ceb5ea3f4a0da7526"
+    }
+  ],
   "errors": []
 }

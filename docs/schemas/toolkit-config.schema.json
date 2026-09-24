@@ -252,7 +252,7 @@
     "retention": {
       "type": "object",
       "additionalProperties": false,
-      "description": "CAS 物件保留期限（docs/08 §7.5）。預設值都是 [H]，實際值需法務決定。ContentStore.gc 只刪除超過期限且沒有 legal_hold 的物件，每次刪除都寫稽核事件；稽核檔中的 hash 不刪。",
+      "description": "CAS 物件保留期限（docs/08 §7.5）。預設值都是 [H]，實際值需法務決定。ContentStore.gc 只刪除超過期限且沒有 legal_hold 的物件，每次刪除都寫稽核事件；稽核檔中的 hash 不刪。這裡的天數是組織上限，也是預設值：engagement.yaml 的 retention_days 是有效值且不得超過本上限（P：p_days；C：c_days_after_run_end），超過 → E-RETENTION；ROE 的 data_handling.retention_days 只能再縮短。",
       "properties": {
         "p_days": {
           "type": "integer",

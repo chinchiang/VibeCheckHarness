@@ -19,6 +19,8 @@
 - 模型命名統一為 GPT-6 Astra／Sol（[P][E:providers-31]）。
 - **W0 預設 secrets 掃描器**改為 Betterleaks／gitleaks（MIT）；TruffleHog（AGPL-3.0）改為選用，須通過授權登錄的法務閘門。
 - **G0b 加入法務審查聲明檢查**（`legal_review`，規則 L-1～L-6，見 [06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h)）。
+- **G0b 之前不讀 ROE**：W0 只用 G0a 已驗章的委任設定與工具包設定；W0 能不能用 TruffleHog，只看工具包層級的法務閘門是否已結案，不看 ROE 的 `legal_review`。依 `component_licenses` 過濾元件（L-6）在 G0b 進行，結果記入 G0b GateRecord，供 B 階段使用 [H]。
+- **ROE 或 `legal_review` 在執行中到期** → `SUSPENDED`（保留 checkpoint；resume 需要一份新的有效 ROE，由 `B4_preflight` 強制）。只有驗章失效（金鑰撤銷、簽章無效、文件被改）才 `ABORTED` [H]。
 
 ## 1. 總覽
 
@@ -72,8 +74,8 @@ flowchart TD
 
 | 關卡 | 位置 | 核准內容 | 必要核准角色 | 可能結果 | 為何必要 |
 |---|---|---|---|---|---|
-| G0a | W0 之前（每次 run 開始都重驗） | 委任設定（[schemas/engagement.schema.json](schemas/engagement.schema.json)）：程式碼所有權聲明、資料等級、每個等級允許的模型 | 應用擁有者（另可加管理層） | 離線驗章：通過／失敗 | 程式碼要送往 LLM、在 Z2 執行之前，必須先有授權 |
-| G0b | B 階段入口（每次 run 與每次 resume 都重驗） | ROE（範圍、時間窗、停止條件、目標所有權、測試角色、法務審查聲明 `legal_review`） | 測試負責人＋管理層＋**基礎設施擁有者**（NIST SP 800-115 的簽核頁至少要測試負責人與管理層 [V][E:blackbox-29]） | 離線驗章：通過／失敗／未生效／已過期 | 沒有授權就不能碰網路 |
+| G0a | W0 之前（每次 run 開始都重驗） | 委任設定（[schemas/engagement.schema.json](schemas/engagement.schema.json)）：程式碼所有權聲明、資料等級、每個等級允許的模型 | 應用擁有者（另可加管理層） | 離線驗章：`VERIFIED`／`VERIFY_FAILED`／`EXPIRED` | 程式碼要送往 LLM、在 Z2 執行之前，必須先有授權 |
+| G0b | B 階段入口（每次 run 與每次 resume 都重驗） | ROE（範圍、時間窗、停止條件、目標所有權、測試角色、法務審查聲明 `legal_review`） | 測試負責人＋管理層＋**基礎設施擁有者**（NIST SP 800-115 的簽核頁至少要測試負責人與管理層 [V][E:blackbox-29]） | 離線驗章：`VERIFIED`／`VERIFY_FAILED`／`EXPIRED`（未生效或時間窗外時為 `VERIFIED`，另記不在時間窗內，run → `SUSPENDED`） | 沒有授權就不能碰網路 |
 | G1 | W0.5 | 安全不變量規格（ASVS 基準＋存取控制矩陣＋資料分級＋LLM 工具權限） | 應用擁有者 | APPROVED／REJECTED／NEEDS_INFO／EXPIRED | vibe-coded 應用通常沒有安全需求，oracle 必須有人確認的來源 |
 | G2 | W3 | DISPUTED 叢集與高嚴重度 UNCORROBORATED 叢集（逐項） | 資安審查者 | 逐項 accept／reject／needs_info；整體 APPROVED／EXPIRED | 跨家族衝突無法自動判定 |
 | G3 | B2 | 威脅模型（可部分核准） | 資安審查者＋應用擁有者 | APPROVED／PARTIALLY_APPROVED／REJECTED／NEEDS_INFO／EXPIRED | LLM 威脅建模準確度有限 [V][E:threat_modeling-20][E:threat_modeling-21] |
@@ -94,18 +96,18 @@ flowchart TD
 |---|---|---|
 | `RUNNING` | 正在執行節點 | 否 |
 | `WAITING_GATE` | 停在人工關卡或 `claim_run` 的 interrupt | 否 |
-| `SUSPENDED` | 關卡逾時、時間窗外或預算關卡逾時；checkpoint 保留，可在委任／ROE 到期前 resume | 否（可續跑） |
+| `SUSPENDED` | 關卡逾時、時間窗外、預算關卡逾時，或 ROE／`legal_review` 在執行中到期；checkpoint 保留，可在委任設定到期前 resume（B 階段的 resume 另需當時有效的 ROE；ROE 已到期 → 需要一份新簽署的有效 ROE，由 G0b 重驗與 `B4_preflight` 強制） | 否（可續跑） |
 | `STOPPED` | 停止條件或 kill switch 觸發；已執行補償 | 否（需測試負責人簽署 resume） |
-| `ABORTED` | 授權不成立（驗章失敗）、G1 三輪未通過、GB 選擇中止、ROE 在執行中失效 | 是 |
+| `ABORTED` | 授權不成立（驗章失敗）、G1 三輪未通過、GB 選擇中止、ROE 在執行中驗章失效（金鑰撤銷、簽章無效、文件被改；**到期不算**，到期 → `SUSPENDED`） | 是 |
 | `FAILED` | 無法恢復的技術錯誤（例如 W0 失敗、快照還原失敗） | 是 |
 | `COMPLETED` | 全部完成，未能測試清單中只有設計上的 `MANUAL` 項 | 是 |
 | `COMPLETED_WITH_GAPS` | 完成，但有計畫中的覆蓋沒做到（例如 G3 全部駁回、目標所有權失敗、G5 駁回、執行錯誤、GB 停止階段） | 是 |
 
 **各關卡結果的處理**（[H]，依共同設計決定 D2）：
 
-| 關卡 | APPROVED／PARTIALLY_APPROVED | REJECTED | NEEDS_INFO | EXPIRED |
+| 關卡 | APPROVED／PARTIALLY_APPROVED（後者只限 G3、G4） | REJECTED | NEEDS_INFO | EXPIRED |
 |---|---|---|---|---|
-| G0a／G0b | —（離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續） | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0b：ROE 未生效或在時間窗外 → `SUSPENDED`；ROE 已過期或未提供 → 跳到 B6 → `COMPLETED_WITH_GAPS` |
+| G0a／G0b | —（離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續） | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0a：委任設定已過期 → `ABORTED`。G0b：ROE 未生效或在時間窗外 → `SUSPENDED`；**進入 B 階段時** ROE 已過期或未提供 → 跳到 B6 → `COMPLETED_WITH_GAPS`；**B 階段已開始後**（resume 或 `B4_preflight`）ROE／`legal_review` 已到期 → `SUSPENDED`，等新的有效 ROE |
 | G1 | 進入 W1 | 附審查意見回到 W0.5 重擬，最多 3 輪；第 3 輪仍未通過 → `ABORTED` | 同 REJECTED（共用 3 輪上限） | `SUSPENDED` |
 | G2 | 逐項：accept → 維持狀態，成為種子威脅。整關結果只有 `APPROVED` 或 `EXPIRED` | 只能逐項（不接受整關 `REJECTED`）：該叢集 → `REJECTED`（附理由；為最終決定，之後的證據只註記 `post_g2_conflict`，05 R10） | 逐項：維持 `DISPUTED`／`UNCORROBORATED`，成為種子威脅並在報告列出 | 未決項視同 NEEDS_INFO，run 繼續 [H] |
 | G3 | 已接受的威脅進入 B3；被駁回的種子威脅在 B6 列為「未做黑箱驗證（G3 駁回：理由）」 | 全部駁回 → 跳到 B6（只含白箱結果）→ `COMPLETED_WITH_GAPS` | 回到 `B2_merge_critic` 補充，最多 3 輪；之後仍 NEEDS_INFO 的項目視同駁回 [H] | `SUSPENDED` |
@@ -139,9 +141,10 @@ flowchart TD
 
 ### W0 盤點與 secrets 遮罩（確定性，無 LLM）
 - **前提**：G0a 委任設定已驗章（[03 §6](03-system-architecture.md#6-人工關卡服務)）；未標記資料等級的 repo 視為 C。
+- **W0 不讀 ROE** [H]：W0 在 G0b 之前執行，此時 ROE 的簽章還沒驗過，所以 W0（以及 G0b 之前的任何節點）**不使用 ROE 的任何欄位**，只用 G0a 已驗章的委任設定（資料等級、允許模型等）與工具包設定（`toolkit.yaml`、`tools.yaml`、`licenses.yaml`）。
 - **輸入**：repo（唯讀，固定 commit SHA）、`toolkit.yaml` 的路徑黑名單。執行位置：Z2。
 - **做法**（全部是確定性工具與解析器，**不用 LLM**）：
-  1. **Secrets 掃描最先跑**：**預設**用 Betterleaks [P][E:whitebox-09] 或 gitleaks（已宣布只修安全問題），兩者都是 MIT 授權。TruffleHog（AGPL-3.0）[V][E:whitebox-10] 是**選用**：[06 §2.3](06-security-legal-limitations.md#23-授權登錄表) 把它列為法務閘門，ROE 的 `legal_review.scope.component_licenses` 為 `true` 才能啟用 [H]。TruffleHog 的驗證會把找到的憑證送到供應商 API → 啟用時**預設 `--no-verification`**；若要驗證，必須寫進 ROE 並從 Z3 發出、留紀錄，否則建議直接輪替。
+  1. **Secrets 掃描最先跑**：**預設**用 Betterleaks [P][E:whitebox-09] 或 gitleaks（已宣布只修安全問題），兩者都是 MIT 授權。TruffleHog（AGPL-3.0）[V][E:whitebox-10] 是**選用**：[06 §2.3](06-security-legal-limitations.md#23-授權登錄表) 把它列為法務閘門；只有在工具包層級的法務閘門已結案（[07 §3](07-roadmap.md#3-入口閘門法務與查證) 確認、`trufflehog:scan` 已註冊，見 [08 §2.3](08-implementation-spec.md#23-擴充介面)）時，W0 才能使用它 [H]。這個判斷不讀 ROE 的 `legal_review`（ROE 此時尚未驗章）；ROE 的 `component_licenses` 只在 G0b 用來過濾 B 階段的元件（06 L-6）。TruffleHog 的驗證會把找到的憑證送到供應商 API → W0 一律 `--no-verification`；若要驗證，那是 B 階段的另一個步驟：必須寫進 ROE（`secrets_verification`），通過 G0b 與所有權驗證後從 Z3 發出、留紀錄，否則建議直接輪替。
   2. **路徑黑名單**（`.env*`、金鑰與憑證檔、auth-state 目錄、CI secrets 檔）**完全不進任何後續產物**。
   3. **遮罩對照表 `secrets-redaction-map`**（`redaction-map.schema.json`，run 以 `redaction_map_ref` 參照）：`hash_alg`、`hmac_key_ref` 與 `entries[]`；每筆只存位置、類型、值的 **HMAC** 與遮罩代號，**不存值**；再以 pattern＋entropy 作第二層遮罩規則（掃描器 recall 不完美，Betterleaks 的 98.6% recall 只是廠商宣稱 [P][E:whitebox-09]）。
   4. 以遮罩後的檔案建立下列清單：
@@ -190,7 +193,7 @@ flowchart TD
 - **切片器（Slicer，確定性）**：
   1. 以每個 entry point 為錨，依靜態呼叫圖納入 handler、被呼叫函式、相關 model／schema／RLS policy、auth middleware，直到 token 預算上限。
   2. **共同輸入上限（同等性單位）**：取所有參與模型中**最小的可用 context**。例如自架 Nemotron 3 Nano 的 Hugging Face 設定預設 256K [V][E:providers-05]，Claude 約 1M [V][E:providers-23]、OpenAI GPT-6 Astra／Sol 為 1,050,000 tokens [P][E:providers-31]。這樣可以確保各家族看到**相同輸入**。重新命名函式或變數就可能改變 LLM 的安全判斷 [P][E:multi_llm_bias-26]，所以輸入必須一致，比較才有意義。
-  3. 流程超過上限時，以重疊方式切割並記錄；若某模型放不下某切片，就把該模型排除在此切片之外，並標記 `diversity_degraded`。**不允許靜默截斷**。
+  3. 流程超過上限時，以重疊方式切割並記錄；若某模型放不下某切片，就把該模型排除在此切片之外，並標記 `diversity_degraded`。**不允許靜默截斷**。這只是提早標記；最終值由 validator 從有效票推導（有效票中不同家族少於 2 → true，[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)），兩者必須一致 [H]。
   4. 每個切片有 `slice_id`＝各檔案範圍的 sha256（依 `slice.schema.json`）。
 - **審查方式**：
   - 同一切片平行交給 N 個不同家族的 reviewer。**第一輪彼此看不到對方結果**。多輪辯論中模型常由對轉錯，原因未定，作者列出從眾、諂媚等可能因素 [P][E:multi_llm_bias-21]；多數決本身就拿到辯論的大部分效益 [V][E:multi_llm_bias-16]。
@@ -275,7 +278,9 @@ flowchart TD
   - 簽核頁
 - **程式碼強制**（詳見 [04 §7](04-threat-to-testcase.md#7-roe-樣板) 與 [schemas/roe.schema.json](schemas/roe.schema.json)）：
   1. ROE 是 YAML，驗章前先轉為標準形式（canonical form）；每位簽署人（至少測試負責人、管理層、基礎設施擁有者）在 `signatures[]` 中各有一筆**數位簽章**（`signer`、`key_fingerprint`、`alg`、`value`；簽署對象是移除 `signatures` 後的文件），金鑰必須在金鑰登錄中、角色相符且未撤銷；ROE 有 `not_before`／`not_after` 與時間窗，且不得超過委任設定的有效期間。標準形式與簽章演算法見 [03 §6](03-system-architecture.md#6-人工關卡服務)（方案是 [H] 提案；所依據的外部事實見 [01 §7](01-research-survey.md#7-v02-補充研究2026-09-24)，已經獨立查核 [V][E:orchestration-43][E:orchestration-44]）。簽署的 YAML 必須通過嚴格載入（拒絕重複鍵等），違反就視為簽章無效。
-  1a. **法務審查聲明**（`legal_review`，[06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h)）[H]：G0b 同時檢查 L-1～L-6：聲明存在且每個 `scope` 項目為 `true` 或附 `not_applicable_reason`；`attested_by` 在金鑰登錄中、未撤銷、角色含 `legal_reviewer`（沒有法務人員時可用 `management`，報告首頁標示「未經法務人員審查」）；簽章有效；`attested_at` ≤ ROE `not_before` 且 `expires_at` ≥ ROE `not_after`；`attested_by` 不是 `test_lead`（否則 NEEDS_INFO）；法務閘門元件在 `component_licenses` 不為 `true` 時從允許清單移除並列入 B6。L-1～L-4 失敗 → G0b 不通過（稽核 `roe_verify_failed`，理由如 `legal_review_missing`）；run 執行中聲明到期 → `SUSPENDED`。
+  1a. **法務審查聲明**（`legal_review`，[06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h)）[H]：G0b 同時檢查 L-1～L-6：聲明存在且每個 `scope` 項目為 `true` 或附 `not_applicable_reason`；`attested_by` 在金鑰登錄中、未撤銷、角色含 `legal_reviewer`（沒有法務人員時可用 `management`，報告首頁標示「未經法務人員審查」）；簽章有效；`attested_at` ≤ ROE `not_before` 且 `expires_at` ≥ ROE `not_after`；`attested_by` 不是 `test_lead`（否則 `VERIFY_FAILED`，理由 `legal_attester_is_test_lead`，但 run 不中止，而是 `SUSPENDED` 等 ROE 修正）；法務閘門元件在 `component_licenses` 不為 `true` 時從允許清單移除並列入 B6。L-1～L-4 失敗 → G0b 不通過（稽核 `roe_verify_failed`，理由如 `legal_review_missing`）。
+     - **元件授權過濾只在這裡做**（L-6）：過濾後的允許工具清單寫入 G0b GateRecord 的驗證結果，B 階段（B3 的工具選擇、B4 的 adapter）只用這份清單；G0b 之前的 W 階段不讀 `legal_review`。
+     - **執行中到期**：ROE 的 `not_after` 或 `legal_review.expires_at` 在 run 執行中到期 → `SUSPENDED`（保留 checkpoint）。resume 需要一份新的有效 ROE（新版本、重新簽署），resume 時由 G0b 重驗，`B4_preflight` 在每批開始時也檢查；舊 ROE 不能續用。
   2. **目標所有權驗證**（`B0_ownership_verify`）：每個目標主機要在 DNS TXT 或 well-known path 放置本次委任的 token。檢查**由 Z3 經 Scope Proxy 執行**（Z1 不能連目標），結果由 Z3 Executor 簽署後回傳給 Policy Engine。我方控制的設施（例如 canary 伺服器）標為 `tester_controlled`。**每個 B4 批次開始時（`B4_preflight`）重新檢查**。
      - 某個目標驗證失敗 → 該目標從出站白名單移除，其測試不執行並列入 B6；全部目標失敗 → 跳到 B6 → `COMPLETED_WITH_GAPS`。
   3. **預設拒絕**：出站白名單只由通過所有權驗證的 ROE 目標 ID 產生。
@@ -361,7 +366,7 @@ flowchart TD
 ### B4 執行
 - **輸入**：G4 核准的測試計畫與產物、G5 核准紀錄（S2）、Session Provider 的角色憑證、seed manifest。**輸出**：測試結果（[schemas/testresult.schema.json](schemas/testresult.schema.json)）、請求紀錄、停止事件。
 - 執行位置：Z3，經 Scope Proxy 出站；Scope Proxy 依每個測試案例的 `request_allowlist` 逐一放行，DELETE 只允許 seed manifest 中的 ID。
-- **每個批次開始前 `B4_preflight`**：ROE 仍有效且在時間窗內、金鑰未撤銷、所有權重驗、kill switch 未觸發、預算足夠、（每個 S2 job 前）`toolkit.restore_drill_interval_days`（預設 7）天內有成功的 `restore_drill` 稽核事件。時間窗外 → `SUSPENDED`；其他失敗 → `abort_handler`。
+- **每個批次開始前 `B4_preflight`**：ROE 仍有效且在時間窗內、金鑰未撤銷、所有權重驗、kill switch 未觸發、預算足夠、（每個 S2 job 前）`toolkit.restore_drill_interval_days`（預設 7）天內有成功的 `restore_drill` 稽核事件。失敗時的處理 [H]（與 [03 §5.5](03-system-architecture.md#55-b4-執行迴圈) 一致）：時間窗外或 ROE／`legal_review` 過期 → `SUSPENDED`；簽章失效（含金鑰撤銷）→ `abort_handler` → `ABORTED`；kill switch 觸發或全部目標失去所有權 → `abort_handler` → `STOPPED`；單一目標失去所有權 → 只有該目標的 job `SKIPPED`（`ownership_failed`），其他目標繼續；預算不足 → `GB_budget_gate`；還原演練失敗 → 該 run 的 S2 job 全部略過。
 - 安全等級：
   - S0（被動）與 S1（良性主動）：ROE 允許就自動執行。
   - S2（侵入）：每次都要 **G5**；沒有成功的快照就不執行。
@@ -401,6 +406,7 @@ flowchart TD
 | W0 | 所有 LLM 節點 | `secrets-redaction-map` | 沒有遮罩對照表，Gateway 拒絕該 run 的所有請求 |
 | W0.5（G1） | W4、B3 | `invariants.yaml` | oracle 只能引用已簽核條目 |
 | W5 | B1、B2 | `dfd.json`、`seed-threats.json` | 除 `REJECTED` 外的叢集都成為種子威脅；每個都要在 B2 模型中，且有 ≥1 個 B3 測試或 G3 駁回紀錄 |
+| G0b | B0–B4 | G0b GateRecord 的驗證結果（含 L-6 元件授權過濾後的允許工具清單） | B 階段只用這份清單；G0b 之前的節點不讀任何 ROE 欄位 [H] |
 | B1 | B2 | `b1_diff` | B2 critic 逐項處置（納入或駁回附理由） |
 | B2（G3 之後） | W0.5 | 威脅衍生的新需求 | 由 CMD-5 建立 **`followup` run** 草稿 → W0.5 帶入草稿 → 重新走 G1 → 重跑 W4 |
 | B5 | W4 | 已確認的黑箱問題 | 由 CMD-5 建立 **`regression` run** 草稿 → 定位到 file:line → 產生回歸測試（X 家族寫、Y 家族審） |
@@ -416,7 +422,7 @@ flowchart TD
 | 步驟 | 輸入 | 輸出 | 區 | LLM | 失敗處理 | 完成條件 | schema | 里程碑 |
 |---|---|---|---|---|---|---|---|---|
 | G0a | `engagement.yaml`（含 `signatures[]`）、`key-registry.yaml`、`toolkit.yaml`（根金鑰指紋） | G0a GateRecord（`signatures: []`＋`verification` 區塊）、run 紀錄 | Z1 | 否 | 驗章失敗、金鑰撤銷、過期、模型不在允許清單 → `ABORTED` | 簽章有效、角色相符、在有效期間內、每個 agent 的模型都在該資料等級的允許清單中 | engagement、key-registry、toolkit-config、gate-record、run | M1 |
-| W0 | repo（commit SHA）、路徑黑名單 | `inventory.json`、SBOM、`secrets-redaction-map`、secrets 發現（位置＋hash；預設 Betterleaks／gitleaks） | Z2 | 否 | 任何子步驟失敗 → `FAILED` | entry point 都有 handler；table 都有 RLS 狀態；遮罩對照表已登錄 | run（`inventory_ref`、`redaction_map_ref`）、inventory、redaction-map | M1 |
+| W0 | repo（commit SHA）、路徑黑名單、G0a 已驗章的委任設定（不讀 ROE） | `inventory.json`、SBOM、`secrets-redaction-map`、secrets 發現（位置＋hash；預設 Betterleaks／gitleaks） | Z2 | 否 | 任何子步驟失敗 → `FAILED` | entry point 都有 handler；table 都有 RLS 狀態；遮罩對照表已登錄 | run（`inventory_ref`、`redaction_map_ref`）、inventory、redaction-map | M1 |
 | W0.5 | 遮罩後 inventory、ASVS 5.0 L1、（followup）威脅衍生需求 | `invariants.yaml` 草稿 | Z1 | 是（Invariant Drafter） | schema 修復 ≤2 次；仍失敗 → 只交 ASVS 基準＋空白矩陣給 G1，由人補齊 | 草稿通過 schema | invariants、requirement | M2 |
 | G1 | 不變量草稿＋與上一版的差異 | GateRecord（G1）、已簽核 `invariants.yaml` | Z1 | 否 | REJECTED／NEEDS_INFO → W0.5，≤3 輪 → `ABORTED`；EXPIRED → `SUSPENDED` | APPROVED 且簽章、hash 綁定有效 | gate-record、invariants | M2 |
 | W1 | repo、SBOM、遮罩對照表 | `w1.sarif`、`deps-check.json` | Z2 | 否 | 單一工具失敗 → 列為缺口、其他繼續；全部失敗 → `FAILED` | 全部工具以鎖定版本跑完；失敗已列出 | tool-registry（工具版本）；SARIF 2.1.0 | M1 |
@@ -432,14 +438,14 @@ flowchart TD
 
 | 步驟 | 輸入 | 輸出 | 區 | LLM | 失敗處理 | 完成條件 | schema | 里程碑 |
 |---|---|---|---|---|---|---|---|---|
-| G0b | `roe.yaml`（含 `signatures[]`）、`key-registry.yaml`、委任設定 | G0b GateRecord（`signatures: []`＋`verification` 區塊）、出站白名單草稿 | Z1 | 否 | 驗章失敗 → `ABORTED`；未生效／時間窗外 → `SUSPENDED`；已過期或未提供 → B6 → `COMPLETED_WITH_GAPS` | 簽章有效、三個必要角色齊全、在委任期間內；`legal_review` 通過 L-1～L-6 | roe、key-registry、engagement、gate-record | M1 |
+| G0b | `roe.yaml`（含 `signatures[]`）、`key-registry.yaml`、委任設定 | G0b GateRecord（`signatures: []`＋`verification` 區塊，含 L-6 過濾後的允許工具清單）、出站白名單草稿 | Z1 | 否 | 驗章失敗 → `ABORTED`；未生效／時間窗外 → `SUSPENDED`；進入 B 階段時已過期或未提供 → B6 → `COMPLETED_WITH_GAPS`；resume 時 ROE／`legal_review` 已到期 → 維持 `SUSPENDED`，等新的有效 ROE | 簽章有效、三個必要角色齊全、在委任期間內；`legal_review` 通過 L-1～L-6 | roe、key-registry、engagement、gate-record | M1 |
 | B0 | ROE 目標與 token 參照 | 每個目標的簽署驗證結果、最終出站白名單 | Z3（經 Scope Proxy） | 否 | 單一目標失敗 → 排除並列為缺口；全部失敗 → B6 → `COMPLETED_WITH_GAPS`；Z3 無法連線，重試 3 次後 → `SUSPENDED` | 每個目標都有簽署結果 | run（`ownership_results`）、audit-event | M1（最小 Z3 出站執行器） |
 | B1 | OpenAPI／GraphQL schema、DFD、種子威脅、ROE 測試角色 | 外部視角模型、合併視角模型、`b1_diff` | Z3（爬行）＋Z1（建模） | 部分（System Modeler 標籤） | 爬行觸發停止條件 → 外部視角只用 schema，列為缺口 | 兩個模型與差異清單都已產出 | dfd（含 viewpoint 與差異清單） | M3 |
 | B2 | 兩個模型、`b1_diff`、種子威脅、CMD-3 分類計畫 | 威脅模型草稿、`b1_diff` 處置、高風險威脅的 attack tree | Z1 | 是（Threat Modeler ×N、Merger、Critic；Commander） | modeler 低於 quorum → 標記多樣性降低；critic 失敗 → 重試後在 G3 標示「未經 critic」 | 每個種子威脅都在模型中；每個差異項已處置；每個高風險威脅有 attack tree | threat、seed-threats、commander-plan | M3 |
 | G3 | 威脅模型草稿 | GateRecord（G3）、已簽核威脅模型 | Z1 | 否 | 見 [§1.4](#14-關卡結果與-run-狀態) | 每個威脅有決定；駁回種子威脅都有理由 | gate-record、threat | M3 |
 | B3 | 已接受的威脅、不變量、crosswalk、ROE、工具登錄、seed manifest、CMD-4 計畫 | 測試案例、產物（附 hash）、測試計畫 | Z1 | 是（Test Designer；Commander）；安全等級與產物驗證為程式碼 | 產物驗證失敗 → 修復 ≤2 次 → `MANUAL` | 每個已接受威脅有測試或 `MANUAL`；每個非 REJECTED 種子威脅有測試或 G3 駁回 | testcase、requirement、crosswalk、tool-registry、seed-manifest | M4 |
 | G4 | 測試計畫、產物 hash、計算後的安全等級 | GateRecord（G4），逐測試案例決定 | Z1 | 否 | 見 [§1.4](#14-關卡結果與-run-狀態) | 每個測試案例有決定；hash 綁定有效 | gate-record、testcase | M4 |
-| B4 | 已核准測試案例與產物、G5 紀錄、角色 session、seed manifest、快照設定 | 測試結果、請求紀錄、停止事件、快照／還原紀錄 | Z3 | 否（多輪 LLM 測試經 Z1 relay 呼叫） | 停止條件／kill switch → `abort_handler` → `STOPPED`；還原失敗 → `FAILED`；時間窗外 → `SUSPENDED` | 所有核准的測試已執行或記錄原因；所有快照都已還原 | testresult、seed-manifest、audit-event | M4（S0／S1／S2）、M5（LLM 多輪） |
+| B4 | 已核准測試案例與產物、G5 紀錄、角色 session、seed manifest、快照設定 | 測試結果、請求紀錄、停止事件、快照／還原紀錄 | Z3 | 否（多輪 LLM 測試經 Z1 relay 呼叫） | 停止條件／kill switch／全部目標失去所有權（`B4_preflight`）→ `abort_handler` → `STOPPED`；還原失敗 → `FAILED`；時間窗外、ROE 或 `legal_review` 到期（`B4_preflight`）→ `SUSPENDED`；金鑰撤銷或 ROE 驗章失效 → `abort_handler` → `ABORTED` | 所有核准的測試已執行或記錄原因；所有快照都已還原 | testresult、seed-manifest、audit-event | M4（S0／S1／S2）、M5（LLM 多輪） |
 | G5 | 單一 S2 job（產物 hash、目標、快照計畫） | GateRecord（G5） | Z1 | 否 | REJECTED／NEEDS_INFO／EXPIRED → 該 job 略過並記錄 | 核准者 ≠ 發起者、在 ROE 時間窗內 | gate-record | M4 |
 | B5 | 測試結果、需求 oracle、相關叢集 | 判定、新版裁決 | Z1 | 是（Result Analyst，跨家族；PII 時只用自架） | 無合格 Result Analyst → 不升級並註記；重播需新 job | 每個結果有判定；機率類有 n、k、信賴區間 | verdict、testresult | M4（確定性）、M5（機率類） |
 | B6 | 以上全部 | SARIF、JSON、追溯矩陣、報告清單、（M5）靜態 HTML、後續 run 草稿 | Z1 | 是（Reporter 敘事） | Reporter 失敗 → 只出確定性部分 | 追溯矩陣完整；每個種子威脅都有結果或駁回理由；最終狀態已判定 | report-manifest、run | M4（JSON／SARIF／矩陣）、M5（HTML） |

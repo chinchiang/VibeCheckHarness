@@ -26,7 +26,7 @@ def fp_of(keys, name):
 def test_examples_pass(b):
     R = run_all(b)
     assert not R.errors, [f"{i.code} {i.where} {i.msg}" for i in R.errors]
-    assert {w.code for w in R.warnings} == {"W-MODEL-RETIREMENT"}
+    assert {w.code for w in R.warnings} == {"W-MODEL-RETIREMENT", "W-MODEL-PLACEHOLDER"}
 
 
 # ---------------------------------------------------------------- parsing

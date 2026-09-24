@@ -598,9 +598,25 @@
     "audit_anchors": {
       "type": "array",
       "items": {
-        "$ref": "common.schema.json#/$defs/sha256"
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "被錨定的 audit_anchor 事件的 seq（稽核日誌中的行號，從 1 起算）"
+          },
+          "line_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256",
+            "description": "該 audit_anchor 事件那一行原始位元組（不含換行）的 sha256，因此錨點涵蓋到它自己那一行為止"
+          }
+        },
+        "required": [
+          "seq",
+          "line_sha256"
+        ]
       },
-      "description": "稽核錨點：audit_anchor 事件寫入時最後一行的 sha256（＝該錨點事件的 prev_hash）"
+      "description": "稽核錨點：日誌中每個 audit_anchor 事件依序一筆，seq 嚴格遞增。validator 檢查：每筆的 line_sha256 等於該 seq 那一行的 sha256（E-AUDIT-ANCHOR-MISMATCH）；日誌行數不少於錨定的 seq（E-AUDIT-TRUNCATED）；清單與日誌中的 audit_anchor 事件一一對應（E-AUDIT-ANCHOR）；最後錨點之後的行為未錨定尾段（W-AUDIT-UNANCHORED-TAIL）；終止狀態（COMPLETED、COMPLETED_WITH_GAPS、ABORTED、FAILED）的 run 必須有涵蓋最後一行的最終錨點（E-AUDIT-TAIL）"
     },
     "errors": {
       "type": "array",

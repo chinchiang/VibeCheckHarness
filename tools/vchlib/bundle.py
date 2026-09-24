@@ -6,8 +6,9 @@ Layout:
   docs/schemas/examples/<schema>.<name>.example.jsonl  one instance per line (audit log)
   docs/examples/*.yaml                            configuration examples (kind from YAML_KINDS)
 
-All YAML is read with the strict JSON-compatible loader (yamlstrict): signed documents must
-be, and the other configuration files have no reason not to be.
+All YAML is read with the strict JSON-compatible loader (yamlstrict) and all JSON / JSONL with
+the strict JSON loader (jsonstrict: duplicate keys and NaN/Infinity rejected): signed and
+hash-chained documents must be, and the other files have no reason not to be.
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import yamlstrict
+from . import jsonstrict, yamlstrict
 
 YAML_KINDS = {
     "toolkit.yaml": "toolkit-config",
@@ -93,26 +94,41 @@ def read_jsonl_lines(text: str) -> list[str]:
     return [ln.rstrip("\r") for ln in text.split("\n") if ln.strip() != ""]
 
 
+def _parse_json(text: str, jsonl: bool):
+    if jsonl:
+        return [jsonstrict.loads(ln) for ln in read_jsonl_lines(text)]
+    return jsonstrict.loads(text)
+
+
+def _json_doc(path: str, kind: str, text: str, jsonl: bool = False) -> Doc:
+    """Strict JSON(L) load; a failure keeps the text and records load_error (data None)."""
+    label = "JSONL" if jsonl else "JSON"
+    try:
+        return Doc(path, kind, _parse_json(text, jsonl), text)
+    except jsonstrict.StrictJSONError as exc:
+        return Doc(path, kind, None, text, f"strict {label}: {exc}")
+    except json.JSONDecodeError as exc:
+        return Doc(path, kind, None, text, f"{label}: {exc}")
+
+
 def load_bundle(root: pathlib.Path) -> Bundle:
     root = pathlib.Path(root)
     b = Bundle(root=root)
     sdir = root / "docs" / "schemas"
     for p in sorted(sdir.glob("*.schema.json")):
-        b.schemas[p.name.removesuffix(".schema.json")] = json.loads(p.read_text(encoding="utf-8"))
+        d = _json_doc(_rel(root, p), "schema-file", p.read_text(encoding="utf-8"))
+        if d.load_error:
+            b.docs.append(d)       # reported by g_schemas; the schema itself is unusable
+        else:
+            b.schemas[p.name.removesuffix(".schema.json")] = d.data
     for p in sorted((sdir / "examples").glob("*.example.json")):
         text = p.read_text(encoding="utf-8")
         kind = p.name.split(".")[0]
-        try:
-            b.docs.append(Doc(_rel(root, p), kind, json.loads(text), text))
-        except json.JSONDecodeError as exc:
-            b.docs.append(Doc(_rel(root, p), kind, None, text, f"JSON: {exc}"))
+        b.docs.append(_json_doc(_rel(root, p), kind, text))
     for p in sorted((sdir / "examples").glob("*.example.jsonl")):
         text = p.read_text(encoding="utf-8")
         kind = p.name.split(".")[0]
-        try:
-            b.docs.append(Doc(_rel(root, p), kind, [json.loads(ln) for ln in read_jsonl_lines(text)], text))
-        except json.JSONDecodeError as exc:
-            b.docs.append(Doc(_rel(root, p), kind, None, text, f"JSONL: {exc}"))
+        b.docs.append(_json_doc(_rel(root, p), kind, text, jsonl=True))
     cdir = root / "docs" / "examples"
     for p in sorted(cdir.glob("*.yaml")):
         text = p.read_text(encoding="utf-8")
@@ -139,3 +155,9 @@ def reload_yaml(doc: Doc, text: str) -> None:
     except yamlstrict.StrictYAMLError as exc:
         doc.data = None
         doc.load_error = f"strict YAML: {exc}"
+
+
+def reload_json(doc: Doc, text: str) -> None:
+    """Replace a JSON / JSONL document's text (tests use this to inject e.g. duplicate keys)."""
+    new = _json_doc(doc.path, doc.kind, text, jsonl=doc.path.endswith(".jsonl"))
+    doc.text, doc.data, doc.load_error = new.text, new.data, new.load_error

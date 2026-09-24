@@ -40,6 +40,55 @@ def codes(bundle):
     return run_all(bundle).codes()
 
 
+def rederive(bundle, keys, rounds=20):
+    """In-memory twin of tools/sign_examples.py: apply every writer derivation, re-sign the
+    G1-G5/GB gate records and rebuild (re-chain, re-sign) the audit logs until nothing changes.
+    Lets a test make a *consistent* change and then assert the exact error set."""
+    import hashlib
+    import json
+
+    import sign_examples
+    from vchlib import derive, timeutil
+    from vchlib.bundle import reload_json
+    by_fp = {crypto.fingerprint(crypto.raw_public(k)): k for k in keys.values()}
+    registry = doc(bundle, "key-registry.yaml").data
+    for _ in range(rounds):
+        changed = False
+        docs = {d.path: d for d in bundle.docs}
+        for e in derive.expectations(bundle, for_writer=True):
+            d = docs[e.file]
+            if derive.get_path(d.data, e.path) != e.expected:
+                derive.set_path(d.data, e.path, e.expected)
+                changed = True
+        for d in bundle.docs:
+            if d.kind == "gate-record" and isinstance(d.data, dict):
+                rec = d.data
+                sigs = [] if rec.get("gate") in ("G0a", "G0b") else \
+                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in rec["approvers"]]
+                if sigs != rec.get("signatures"):
+                    rec["signatures"] = sigs
+                    changed = True
+            if d.kind == "audit-event" and isinstance(d.data, list) and d.data:
+                prev = hashlib.sha256(d.data[0]["run_id"].encode()).hexdigest()
+                lines = []
+                for ev in d.data:
+                    ev["prev_hash"] = "sha256:" + prev
+                    ev["signature"] = None
+                    if ev["event_type"] in sign_examples.SIGNED_EVENTS and ev["actor"]["kind"] == "human":
+                        key = sign_examples.current_key(registry, ev["actor"]["id"], timeutil.parse_dt(ev["ts"]), by_fp)
+                        ev["signature"] = crypto.sign_event(ev, ev["actor"]["id"], key)
+                    line = json.dumps(ev, ensure_ascii=False, separators=(",", ":"))
+                    prev = hashlib.sha256(line.encode("utf-8")).hexdigest()
+                    lines.append(line)
+                text = "".join(ln + "\n" for ln in lines)
+                if text != d.text:
+                    reload_json(d, text)
+                    changed = True
+        if not changed:
+            return bundle
+    raise AssertionError("rederive: no fixpoint")
+
+
 def resign_gate(bundle, suffix, keys, key_for=None):
     """Re-sign a gate record after mutating it (key_for: person_id -> TEST ONLY key name)."""
     rec = doc(bundle, suffix).data

@@ -127,9 +127,11 @@
     },
     "sarif_refs": {
       "type": "array",
+      "uniqueItems": true,
       "items": {
         "type": "string"
-      }
+      },
+      "description": "同位置、同 bucket 的 SARIF 結果 CAS 參照；每個都必須出現在同一 run 稽核日誌中成功（payload.ok true）的白箱工具（tools.yaml zone Z2、b4_executable false）tool_invocation_end 事件的 payload_refs（E-SARIF-REF）"
     },
     "linked_cluster_ids": {
       "type": "array",

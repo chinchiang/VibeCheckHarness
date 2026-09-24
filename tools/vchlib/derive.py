@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from . import timeutil
-from .bundle import Bundle, Doc
+from .bundle import Bundle, Doc, read_jsonl_lines
 from .canonical import approval_hash, content_hash, jcs, set_digest, sha256_hex, sha256_ref, text_hash
 
 ZERO = "sha256:" + "0" * 64
@@ -184,6 +184,12 @@ def vote_valid(v: dict, cluster: dict) -> bool:
             and bool(v.get("anonymized")) and bool(v.get("order_randomized")))
 
 
+def is_verifier_vote(ix: "Index", v: dict) -> bool:
+    """Only agents.yaml agents with role verifier may vote (docs/05 §3); other votes are ignored."""
+    a = ix.agents.get(v.get("voter_agent_id")) if isinstance(v.get("voter_agent_id"), str) else None
+    return isinstance(a, dict) and a.get("role") == "verifier"
+
+
 # ---------------------------------------------------------------- gate artifacts
 def gate_items(ix: Index, rec: dict) -> dict[str, Any]:
     """item_id -> the object shown at the gate (None if unknown)."""
@@ -248,7 +254,9 @@ def item_hash(ix: Index, rec: dict, item_id: str):
 
 
 # ---------------------------------------------------------------- expectations
-def expectations(b: Bundle) -> list[Expectation]:
+def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
+    """Derived values. for_writer=True adds values that only the writer (sign_examples) fills in
+    and that the reader checks with dedicated rules instead (run.audit_anchors)."""
     ix = Index(b)
     out: list[Expectation] = []
 
@@ -307,8 +315,10 @@ def expectations(b: Bundle) -> list[Expectation]:
             wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version)
             exp(d, ["votes", i, "valid"], valid, "family/lineage not in cluster, anonymized, order randomized")
             exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket)")
-            exp(d, ["votes", i, "weighted_valid"], valid and wgt > 0, "valid and w > 0")
-            if valid and wgt > 0:
+            # a vote by an agent without the verifier role is ignored (E-VERDICT-VOTER-ROLE in checks)
+            counts = valid and wgt > 0 and is_verifier_vote(ix, vote)
+            exp(d, ["votes", i, "weighted_valid"], counts, "valid and w > 0 and voter has the verifier role")
+            if counts:
                 score += wgt * STANCE.get(vote.get("stance"), 0)
         exp(d, ["score"], round(score, 4), "sum(w * stance) over weighted-valid votes")
         if version is not None and ix.calibration.get("calibration_version") == version:
@@ -349,7 +359,7 @@ def expectations(b: Bundle) -> list[Expectation]:
 
     # runs
     for d in ix.docs("run"):
-        _run_expectations(ix, d, exp, slice_by_run)
+        _run_expectations(ix, d, exp, slice_by_run, for_writer)
 
     # report manifest
     for d in ix.docs("report-manifest"):
@@ -392,7 +402,7 @@ def _merge_results(v, ix, results, cluster, classes):
     return merged
 
 
-def _run_expectations(ix: Index, d: Doc, exp, slice_by_run):
+def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     r = d.data
     rid = r.get("run_id")
     b = ix.b
@@ -453,9 +463,14 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run):
     exp(d, ["disputed_after_g2"], sorted(k for k, run_id in w4_became_disputed_clusters(ix).items() if run_id == rid),
         "clusters of this run with a verdict carrying w4_became_disputed")
     audit = ix.audit_for(rid)
-    if audit:
-        exp(d, ["audit_anchors"], [e.get("prev_hash") for e in audit.data if e.get("event_type") == "audit_anchor"],
-            "prev_hash of each audit_anchor event")
+    if audit and for_writer:
+        # writer-only: the reader side checks the anchors against the raw lines in checks.g_audit
+        # (E-AUDIT-ANCHOR / -MISMATCH / -TRUNCATED / -TAIL), so a tampered log is reported as such
+        lines = read_jsonl_lines(audit.text or "")
+        exp(d, ["audit_anchors"],
+            [{"seq": i + 1, "line_sha256": "sha256:" + sha256_hex(lines[i].encode("utf-8"))}
+             for i, e in enumerate(audit.data) if e.get("event_type") == "audit_anchor"],
+            "one {seq, line_sha256} per audit_anchor event (sha256 of the anchor's own raw line)")
 
 
 def _report_expectations(ix: Index, d: Doc, exp):

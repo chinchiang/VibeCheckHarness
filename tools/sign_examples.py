@@ -25,8 +25,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-from vchlib import crypto, derive, timeutil, yamlstrict  # noqa: E402
-from vchlib.bundle import SIGNED_YAML, load_bundle  # noqa: E402
+from vchlib import crypto, derive, jsonstrict, timeutil, yamlstrict  # noqa: E402
+from vchlib.bundle import SIGNED_YAML, load_bundle, read_jsonl_lines  # noqa: E402
 
 KEY_DIR = ROOT / "tests" / "fixtures" / "TEST_ONLY_private_keys"
 EXAMPLES = ROOT / "docs" / "schemas" / "examples"
@@ -102,7 +102,7 @@ def apply_derivations() -> int:
     b = load_bundle(ROOT)
     docs = {d.path: d for d in b.docs}
     touched = set()
-    for e in derive.expectations(b):
+    for e in derive.expectations(b, for_writer=True):
         d = docs[e.file]
         if derive.get_path(d.data, e.path) != e.expected:
             derive.set_path(d.data, e.path, e.expected)
@@ -117,7 +117,7 @@ def apply_derivations() -> int:
 def sign_gate_records(by_fp) -> int:
     n = 0
     for p in sorted(EXAMPLES.glob("gate-record.*.example.json")):
-        rec = json.loads(p.read_text(encoding="utf-8"))
+        rec = jsonstrict.loads(p.read_text(encoding="utf-8"))
         if rec["gate"] in ("G0a", "G0b"):
             rec["signatures"] = []
         else:
@@ -135,11 +135,20 @@ def current_key(registry, person, at, by_fp):
     raise SystemExit(f"no valid registry key for {person} at {at}")
 
 
+def load_events(text: str) -> list:
+    """Audit JSONL -> events, split exactly like bundle.read_jsonl_lines (on "\\n" only).
+
+    str.splitlines() would also split on U+2028 / U+2029 / U+0085 etc., which dump_jsonl writes
+    raw (ensure_ascii=False) inside string values, so the writer and the reader would disagree.
+    """
+    return [jsonstrict.loads(ln) for ln in read_jsonl_lines(text)]
+
+
 def rebuild_audit(by_fp) -> int:
     registry = yamlstrict.load((CONFIG / "key-registry.yaml").read_text(encoding="utf-8"))
     n = 0
     for p in sorted(EXAMPLES.glob("*.example.jsonl")):
-        events = [json.loads(ln) for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        events = load_events(p.read_text(encoding="utf-8"))
         prev = hashlib.sha256(events[0]["run_id"].encode()).hexdigest()
         for ev in events:
             ev["prev_hash"] = "sha256:" + prev

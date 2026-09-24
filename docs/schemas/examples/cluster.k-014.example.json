@@ -1,0 +1,36 @@
+{
+  "cluster_id": "K-014",
+  "run_id": "run-2026-09-23-001",
+  "canonical_location": {
+    "file": "routes/invoices.ts",
+    "symbol": "routes/invoices.ts::updateInvoice",
+    "source": {
+      "file": "routes/invoices.ts",
+      "line": 86
+    },
+    "sink": {
+      "file": "routes/invoices.ts",
+      "line": 88
+    }
+  },
+  "cwe_bucket": "authz",
+  "cwes": [
+    "CWE-862"
+  ],
+  "member_finding_ids": [
+    "F-052"
+  ],
+  "families": [
+    "anthropic"
+  ],
+  "lineages": [
+    "claude"
+  ],
+  "independent_families": [
+    "anthropic"
+  ],
+  "sarif_refs": [
+    "sha256:67761fe063ffed49823942a63650ffa51c73f4610c0597169f0e5428ea3bb97e"
+  ],
+  "linked_cluster_ids": []
+}

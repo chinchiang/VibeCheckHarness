@@ -26,7 +26,7 @@
       }
     ]
   },
-  "diversity_degraded": false,
+  "diversity_degraded": true,
   "no_eligible_verifier": false,
   "calibration_version": 3,
   "theta_confirm": 1.2,

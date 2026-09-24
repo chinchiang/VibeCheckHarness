@@ -3,7 +3,8 @@ logic, plus a trace so the validator can explain its result.
 
 Source: requests/c2-to-b.md (pkg c2). Differences from v0.1: unregistered or malformed
 adapter -> S3; registered mode with base_class null -> >= S2; white-box-only mode
-(b4_executable false) -> S3; excluded host, non-normalised path template, rps above the
+(b4_executable false) -> S3; excluded host (compared after norm_host: trailing dot, case,
+IDNA), unparseable target host, non-normalised path template, rps above the
 ROE, empty allow-list, request target outside tc.target_ids, MANUAL kind/adapter
 mismatch -> S3. `admissible()` is a separate check against allowed_safety_classes.
 """
@@ -86,8 +87,61 @@ def is_seed_path(template: str, manifest_keys: set[str] | None) -> bool:
     return True
 
 
-def host_of(base_url: str | None) -> str:
-    return (urlsplit(base_url or "").hostname or "").lower()
+# roe.schema.json targets[].endpoint / db_access.endpoint: 'host:port' or '[v6]:port'; no bare
+# host, no trailing dot, no empty label
+ENDPOINT_RE = re.compile(r"^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*):[0-9]{1,5}$")
+
+
+def norm_host(host) -> str:
+    """Comparable host name: trailing dot(s) removed, lower-cased, IDNA (punycode) encoded.
+
+    'API.Example.com.' and 'api.example.com' are the same DNS name, so an exclusion must not be
+    bypassable by a trailing dot, case or a Unicode spelling. When IDNA encoding fails (IPv6
+    literal edge cases, empty label, over-long label) the lower-cased form is used.
+    """
+    h = str(host or "").strip().rstrip(".").lower()
+    try:
+        return h.encode("idna").decode("ascii").lower()
+    except UnicodeError:
+        return h
+
+
+def host_of(base_url: str | None) -> str | None:
+    """Normalised host of an http(s) base_url; None when the URL is unparseable or has no host."""
+    try:
+        h = urlsplit(base_url or "").hostname
+    except ValueError:            # e.g. 'http://[::1' (invalid IPv6 literal)
+        return None
+    return (norm_host(h) or None) if h else None
+
+
+def endpoint_host(endpoint: str | None) -> str | None:
+    """Normalised host of a database endpoint 'host:port' or '[v6]:port' (IPv6 without brackets).
+
+    Only the roe.schema.json endpoint forms are accepted: a bare host without port, '[::1'
+    (unclosed bracket), '::1:5432' (unbracketed IPv6) or a trailing dot give None (unparseable),
+    which callers report as E-ROE-DB-SCOPE instead of crashing.
+    """
+    if not isinstance(endpoint, str) or not ENDPOINT_RE.match(endpoint):
+        return None
+    try:
+        h = urlsplit("//" + endpoint).hostname
+    except ValueError:
+        return None
+    return (norm_host(h) or None) if h else None
+
+
+def target_host(target: dict) -> str | None:
+    """Host a ROE target resolves to: base_url host (http) or endpoint host (database); None if unparseable."""
+    if target.get("kind") == "database":
+        return endpoint_host(target.get("endpoint"))
+    return host_of(target.get("base_url"))
+
+
+def host_excluded(host: str | None, excluded_hosts) -> bool:
+    """ROE exclusions.hosts match: exact after norm_host on both sides (an empty host never matches)."""
+    h = norm_host(host) if host else ""
+    return bool(h) and h in {norm_host(x) for x in excluded_hosts or [] if isinstance(x, str) and norm_host(x)}
 
 
 def registry_entry(tools: dict, adapter: str) -> dict | None:
@@ -134,9 +188,11 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest_keys: set[st
     roe_targets = {t["id"]: t for t in roe["targets"]}
     if not tc["target_ids"] or any(t not in roe_targets for t in tc["target_ids"]):
         return "S3", ["target not in ROE"]
-    excluded = {h.lower() for h in roe["exclusions"]["hosts"]}
     for t in tc["target_ids"]:
-        if host_of(roe_targets[t].get("base_url")) in excluded:
+        h = target_host(roe_targets[t])
+        if h is None:
+            return "S3", [f"{t}: unparseable target host"]
+        if host_excluded(h, roe["exclusions"]["hosts"]):
             return "S3", [f"{t}: excluded host"]
 
     # 5. request allow-list

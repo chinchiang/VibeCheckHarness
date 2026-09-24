@@ -13,6 +13,7 @@
 - **預先登記的主要假設**（§5.6）：③ 多家族 vs ② 單一最佳模型重複取樣，含檢定、α、最小效果量、逐步樣本數計算，以及 ③ 未勝出時的預設設定切換。
 - **次要／探索性分析**：驗證者真陰性率分開報告（M-11）；少數否決組 ⑤ 只作探索，不改主要假設。
 - **門檻調整**（§5.7）、**模型版本變更的最小重跑集**（§5.8）、**M2 出場門檻**（§5.3）、**校準設定／結果欄位**（§5.9，schema 見 [schemas/calibration.schema.json](schemas/calibration.schema.json)）。
+- **validator 推導旗標**（§3 第 3 條、§4.2）：`diversity_degraded`＝有效且投票者角色為 `verifier` 的票中不同家族少於 2（家族由 `voter_agent_id` 經 agents／models 登錄解析），`tool_corroboration`＝叢集已解析（對應到稽核檔中白箱工具輸出，否則 `E-SARIF-REF`）的 `sarif_refs` ∪ `E_fail_u` 測試結果的 `result_ref`；都與裁決自己宣告的值比對，不採信自我宣告，規則以推導值重算。
 - **§2 證據補充**：新增 preference leakage、身分驅動的自我偏好、反證（可驗證修訂任務無自我偏好）、同質辯論、異質驗證、評審的「好好先生」偏誤、Cursor Bugbot 的同模型多次審查；§5.1 補上資料集授權。只改證據敘述，不改規則。
 
 ## 1. 「偏誤」指什麼
@@ -73,6 +74,7 @@
 2. **不自評**：一張票只有在投票者的 `family` **不在**叢集的 `families` 中、`lineage` **不在**叢集的 `lineages` 中時才有效（叢集可能由多個家族回報，所以是「不屬於任何回報者的家族」，不只是「不同於某一個報告者」）；驗證時去除來源模型資訊；候選順序隨機化。若沒有任何合格的驗證者（例如 3 個家族都回報了同一叢集），設 `no_eligible_verifier`，改由可執行測試（種子威脅）或 G2 人審確認。karpathy/llm-council 也把互評匿名化，以免模型「偏袒」[V][E:reference_systems-31]。
 3. **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback，且要記錄；失敗就記為缺票。
    - 可用家族少於 2 時照常執行並照常裁決，但**只靠投票**得到的確認最高只到 `LIKELY`；報告標示 `diversity_degraded` 並列出缺少的家族。有可執行證明或工具佐證的確認不受此上限影響（見 §4.2 R8）。
+   - **判定方式（validator 強制）** [H]：`diversity_degraded` ＝ 有效票（`valid`）中不同 `family` 的數目少於 2；Lane A 一律為 false（Lane A 另有 R9 上限）。家族由 `voter_agent_id` → `agents.yaml` 的模型 → `models.yaml` 的 `family` 解析，不看票上自寫的家族。
 4. **輸入一致**：所有家族看同一個切片（共同輸入上限＝所有參與模型中最小的可用 context，見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。
 5. **證據接地**：每個發現項都要通過逐字片段比對；優先以 SARIF 或可執行測試佐證。
 6. **校準加權**：投票權重取自各模型在校準語料上、分 CWE 桶的實測投票正確率（公式見 §4.3），不是等權。
@@ -168,6 +170,12 @@
   - B5：`B5_readjudicate` 產生的 `DISPUTED` 不加 `w4_became_disputed`，列入 B6 的人工複核清單。
 - G2 的 accept 與 NEEDS_INFO／逾時都**不是規則輸入**：狀態照規則計算，G2 紀錄只附在報告中。
 - 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`；v0.2 另有每票的 `votes[].weight`、`votes[].weighted_valid`（＝計權合格票），以及 `status_cap`、`advisory`、`test_evidence{class, results[]}`、`annotations[]{kind, reason}`（kind：`test_not_reproduced`、`test_inconclusive`、`conflicting_test_results`、`g3_rejected`、`post_g2_conflict`、`w4_became_disputed`）、`g2_decision_ref`、`calibration_version`（整數）、`theta_confirm`、`theta_reject`、`readjudicated_by`（產生該版裁決的節點：`W3_adjudicate`、`W4_readjudicate` 或 `B5_readjudicate`）、`supersedes_verdict_id`。
+- **自我宣告的欄位不採信**（validator 強制）[H]：裁決中影響規則的兩個旗標由 validator 自行推導，再與裁決記錄的值比對，不一致就是錯誤；重算規則時用推導值，不用裁決自己寫的值。
+  - `diversity_degraded`：有效票中不同家族少於 2 → true（Lane A 一律 false）。家族依 `voter_agent_id` → `agents.yaml` 的模型 → `models.yaml` 的 `family` 解析（§3 第 3 條）。每張票的 `voter_model_key` 必須是該 agent 的模型；`fallback_used` 時可以是同家族的 fallback 模型；否則 → `E-VERDICT-VOTE`。與宣告值不一致 → `E-VERDICT-DIVERSITY`。
+  - 只有 `agents.yaml` 角色為 `verifier` 的 agent 能投票；其他角色的票 → `E-VERDICT-VOTER-ROLE`，且不計入計權合格票、分數與家族多樣性。
+  - `tool_corroboration`：＝ 叢集**已解析**的 `sarif_refs` ∪ 每個 `E_fail_u` 測試結果的 `result_ref`（不可重複）；與宣告值不一致 → `E-VERDICT-TOOLCORR`。
+  - `sarif_refs` 也不採信叢集自我宣告：每一項都必須出現在同一個 run 稽核檔中某個 `tool_invocation_end` 事件的 `payload_refs`，且該事件在 Z2、`payload.ok` 為 true、`payload.adapter` 是 `tools.yaml` 登錄的白箱工具模式（`b4_executable: false`）；否則 → `E-SARIF-REF`，該項不算佐證。
+  - 這樣裁決無法靠自行宣告「有工具佐證」繞過 R8，或靠漏寫 `diversity_degraded` 避開 `LIKELY` 上限。
 
 #### 決定表
 

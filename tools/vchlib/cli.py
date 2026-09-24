@@ -1,4 +1,4 @@
-"""`python tools/validate_schemas.py [--root DIR] [--quiet]` — validate the design bundle."""
+"""`python tools/validate_schemas.py [--root DIR] [--quiet] [--real-run]` — validate the design bundle."""
 from __future__ import annotations
 
 import argparse
@@ -17,6 +17,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--root", default=str(pathlib.Path(__file__).resolve().parents[2]))
     ap.add_argument("--quiet", action="store_true", help="print only issues and the summary")
+    ap.add_argument("--real-run", action="store_true",
+                    help="pre-flight for a real run: a placeholder model (placeholder: true or a placeholder-looking "
+                         "litellm ID) reachable from any agents.yaml agent is E-MODEL-PLACEHOLDER instead of a warning")
     args = ap.parse_args(argv)
     for s in (sys.stdout, sys.stderr):
         try:
@@ -24,7 +27,7 @@ def main(argv=None) -> int:
         except (AttributeError, ValueError):
             pass
     b = load_bundle(pathlib.Path(args.root))
-    R = run_all(b)
+    R = run_all(b, real_run=args.real_run)
     print(f"bundle: {len(b.schemas)} schemas, {len(b.docs)} documents")
     if not args.quiet:
         for name, n, errs in R.groups:

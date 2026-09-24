@@ -105,7 +105,7 @@
 
 ```bash
 python -m pip install -r requirements.txt
-python tools/validate_schemas.py      # 印出 "all checks passed (...)"
+python tools/validate_schemas.py      # 印出 "all checks passed (..., 3 warning(s))"：W-MODEL-RETIREMENT（claude_haiku）與 W-MODEL-PLACEHOLDER ×2（gpt_flagship、nemotron_cloud），屬預期
 python -m pytest -q tests
 ```
 

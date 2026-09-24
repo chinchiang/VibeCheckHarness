@@ -18,7 +18,7 @@ import traceback
 from dataclasses import dataclass, field
 
 import rfc8785
-from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema import Draft202012Validator, FormatChecker, validators
 from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
 
@@ -42,6 +42,9 @@ SIGNED_EVENTS = {"initiator_claim", "run_resume"}
 REQUIRED_AUTOMATION = {"run-controller", "scheduler", "ci-bot"}
 LEGAL_GATE = "法務閘門"
 M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
+# placeholder model IDs: <...>, {...}, or a TBD / TODO / FIXME / 實作時確認 token (case-insensitive)
+PLACEHOLDER_ID = re.compile(r"<[^<>]*>|\{[^{}]*\}|(?<![A-Za-z0-9])(?:TBD|TODO|FIXME)(?![A-Za-z0-9])|實作時確認", re.IGNORECASE)
+TERMINAL_RUN_STATES = ("COMPLETED", "COMPLETED_WITH_GAPS", "ABORTED", "FAILED")   # D2; SUSPENDED and STOPPED are resumable
 FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED")
 # RFC 8785 §3.2.2.3 / Appendix B number vectors and §3.2.3 key-order vector
 JCS_VECTORS = [
@@ -123,11 +126,25 @@ def format_checker() -> FormatChecker:
     return fc
 
 
+def _strict_integer(checker, instance) -> bool:
+    """JSON Schema "integer" without the 2020-12 leniency: 3.0 / 3e0 (float) and bools are not integers."""
+    return type(instance) is int
+
+
+# Draft 2020-12 accepts 3.0 as an integer; a signed / hash-chained document must not depend on
+# that (3e0 and 3 canonicalise identically but are different literals), so integer = Python int.
+StrictValidator = validators.extend(
+    Draft202012Validator,
+    type_checker=Draft202012Validator.TYPE_CHECKER.redefine("integer", _strict_integer),
+)
+
+
 class Ctx:
     """Shared lookups for the checks."""
 
-    def __init__(self, b: Bundle):
+    def __init__(self, b: Bundle, real_run: bool = False):
         self.b = b
+        self.real_run = real_run      # --real-run: placeholder models reachable from agents are errors
         self.ix = derive.Index(b)
         self.toolkit = b.data("toolkit-config") or {}
         self.registry = b.data("key-registry") or {}
@@ -146,6 +163,14 @@ class Ctx:
         self.persons = {e.get("person_id") for e in self.entries}
         self.automation = set(self.toolkit.get("automation_accounts", [])) | REQUIRED_AUTOMATION
         self.runs = {d.data.get("run_id"): d.data for d in self.ix.docs("run")}
+        # run_id -> audit Doc whose text the strict loader rejected (data None)
+        self.broken_audit = {}
+        for d in b.docs:
+            if d.kind == "audit-event" and d.load_error:
+                m = re.search(r'"run_id"\s*:\s*"([^"]+)"', d.text or "") or re.match(r"audit-event\.(.+?)\.example\.jsonl$", d.name)
+                if m:
+                    self.broken_audit.setdefault(m.group(1), d)
+        self.broken_audit_runs = set(self.broken_audit)
 
     def roles_of(self, person) -> set[str]:
         return {r for e in self.entries if e.get("person_id") == person for r in e.get("roles", [])}
@@ -160,6 +185,12 @@ class Ctx:
     def model(self, key):
         m = self.models.get(key)
         return m if isinstance(m, dict) else None
+
+
+def retention_max(tk: dict, data_class) -> int | None:
+    """Org maximum (= default) content retention in days for a data class (toolkit.yaml retention)."""
+    ret = tk.get("retention") or {}
+    return ret.get("c_days_after_run_end") if data_class == "C" else ret.get("p_days") if data_class == "P" else None
 
 
 def roe_windows(c: Ctx):
@@ -244,14 +275,21 @@ def g_schemas(R: Report, c: Ctx):
     seen = set()
     for d in b.docs:
         if d.load_error:
-            code = "E-YAML-STRICT" if d.load_error.startswith("strict YAML") else ("E-KIND" if d.kind == "unknown" else "E-LOAD")
-            R.error(code, d.path, d.load_error)
+            if d.load_error.startswith("strict YAML"):
+                code, msg = "E-YAML-STRICT", d.load_error
+            elif d.load_error.startswith("strict JSON"):
+                # same semantics as strict YAML: the document and every signature / hash-chain
+                # link over it are rejected (signature_invalid), never "last duplicate wins"
+                code, msg = "E-JSON-STRICT", d.load_error + " (document rejected: its signatures / hash chain are invalid)"
+            else:
+                code, msg = ("E-KIND" if d.kind == "unknown" else "E-LOAD"), d.load_error
+            R.error(code, d.path, msg)
             continue
         if d.kind not in b.schemas:
             R.error("E-KIND", d.path, f"no schema named {d.kind!r}")
             continue
         seen.add(d.kind)
-        v = Draft202012Validator(b.schemas[d.kind], registry=registry, format_checker=fc)
+        v = StrictValidator(b.schemas[d.kind], registry=registry, format_checker=fc)
         items = d.data if isinstance(d.data, list) else [d.data]
         for i, inst in enumerate(items):
             R._checks += 1
@@ -292,10 +330,8 @@ def g_derived(R: Report, c: Ctx):
     for e, actual in derive.compare(c.b):
         R.error("E-DERIVED", e.file, f"{derive.fmt_path(e.path)} = {str(actual)[:90]}, expected {str(e.expected)[:90]} ({e.why})")
     for d in c.ix.audit_docs():
+        # (the anchored line count / truncation is checked against run.audit_anchors in g_audit)
         lines = read_jsonl_lines(d.text or "")
-        if len(lines) != len(d.data):
-            R.error("E-AUDIT-CHAIN", d.path, "line count differs from parsed events")
-            continue
         for i, ev in enumerate(d.data):
             want = ("sha256:" + sha256_hex(str(d.data[0].get("run_id", "")).encode("utf-8"))) if i == 0 \
                 else "sha256:" + sha256_hex(lines[i - 1].encode("utf-8"))
@@ -492,10 +528,14 @@ def g_engagement(R: Report, c: Ctx):
             R.check(val is not None, "E-ENG-BUDGET", w, f"budgets.{ph}.{k} must be set (no default for cost caps)")
             if ph != "run_total" and val is not None and total.get(k) is not None:
                 R.check(val <= total[k], "E-ENG-BUDGET", w, f"budgets.{ph}.{k} exceeds run_total")
-    ret = tk.get("retention") or {}
-    lim = ret.get("c_days_after_run_end") if dc == "C" else ret.get("p_days")
-    if lim is not None and e.get("retention_days", 0) > lim:
-        R.warn("W-ENG-RETENTION", w, f"retention_days {e.get('retention_days')} above the toolkit default {lim} for {dc}")
+    # retention: toolkit.yaml retention = org maximum (and default); engagement retention_days =
+    # effective value, tighten-only (toolkit < engagement < ROE precedence, docs/08 §7.5) [H]
+    lim = retention_max(tk, dc)
+    rd = e.get("retention_days")
+    R.check(lim is not None, "E-RETENTION", w, f"toolkit.yaml has no retention maximum for data class {dc}")
+    if lim is not None:
+        R.check(isinstance(rd, int) and 1 <= rd <= lim, "E-RETENTION", w,
+                f"retention_days {rd} must be 1..{lim} (toolkit.yaml retention maximum for {dc}; engagements may only shorten it)")
     att = (e.get("code_ownership") or {}).get("attested_by") or {}
     R.check(att.get("role") == "app_owner", "E-ENG-OWNERSHIP", w, "code_ownership.attested_by must be the app_owner")
     R.check(any(s.get("person_id") == att.get("person_id") and s.get("key_fingerprint") == att.get("key_fingerprint")
@@ -539,13 +579,38 @@ def g_roe(R: Report, c: Ctx):
             R.check(t.get("base_url") and t.get("endpoint") is None, "E-ROE-TARGETS", w, f"{t.get('id')}: http target needs base_url only")
         elif t.get("kind") == "database":
             R.check(t.get("endpoint") and t.get("base_url") is None, "E-ROE-TARGETS", w, f"{t.get('id')}: database target needs endpoint only")
+    # a target the ROE itself excludes is contradictory; for database targets the host comes from
+    # the endpoint (base_url is null), so the exclusion list must be checked against it as well
+    excl_hosts = (r.get("exclusions") or {}).get("hosts") or []
+    for t in r.get("targets", []):
+        if t.get("kind") == "database":
+            h = safety.target_host(t)     # None: unparseable (bare host, '[::1', '::1:5432', trailing dot)
+            R.check(h is not None, "E-ROE-DB-SCOPE", w,
+                    f"{t.get('id')}: unparseable endpoint {t.get('endpoint')!r} (need host:port or [IPv6]:port)")
+            R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-DB-SCOPE", w,
+                    f"{t.get('id')}: database host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
+        elif t.get("kind") == "http" and t.get("base_url"):
+            h = safety.host_of(t.get("base_url"))
+            R.check(h is not None, "E-ROE-TARGETS", w, f"{t.get('id')}: unparseable base_url {t.get('base_url')!r} (no host)")
+            R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-TARGETS", w,
+                    f"{t.get('id')}: base_url host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
     for tr in r.get("test_roles", []):
         R.check((tr.get("login") or {}).get("target_id") in targets, "E-ROE-TARGETS", w, f"test role {tr.get('role')}: login target not in ROE")
     db = r.get("db_access")
     if db:
         t = targets.get(db.get("target_id")) or {}
         R.check(t.get("kind") == "database" and t.get("endpoint") == db.get("endpoint"), "E-ROE-DB", w,
-                "db_access must point at a database target with the same endpoint")
+                f"[binding rule] db_access.target_id {db.get('target_id')!r} must be a database target whose endpoint "
+                f"string equals db_access.endpoint {db.get('endpoint')!r}")
+        # scope: the db_access host must be the host of an in-scope ROE database target and not excluded
+        dbh = safety.endpoint_host(db.get("endpoint"))
+        in_scope = {h for x in r.get("targets", []) if x.get("kind") == "database" and (h := safety.target_host(x))}
+        if R.check(dbh is not None, "E-ROE-DB-SCOPE", w,
+                   f"[scope rule] db_access: unparseable endpoint {db.get('endpoint')!r} (need host:port or [IPv6]:port)"):
+            R.check(dbh in in_scope, "E-ROE-DB-SCOPE", w,
+                    f"[scope rule] db_access endpoint host {dbh!r} is not the (normalised) host of any ROE database target (out of scope)")
+            R.check(not safety.host_excluded(dbh, excl_hosts), "E-ROE-DB-SCOPE", w,
+                    f"[exclusion rule] db_access endpoint host {dbh!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
         R.check(db.get("oracle_readonly_attested") is True, "E-ROE-DB", w, "oracle_readonly_attested must be true")
         R.check(db.get("seed_manifest_ref") == c.manifest.get("manifest_ref"), "E-ROE-DB", w, "seed_manifest_ref != seed manifest manifest_ref")
         R.check(c.manifest.get("db_target_id") == db.get("target_id"), "E-ROE-DB", "seed-manifest.yaml", "db_target_id != roe db_access.target_id")
@@ -582,7 +647,12 @@ def g_roe(R: Report, c: Ctx):
             R.check(mk in (e.get("allowed_models") or {}).get(e.get("data_class"), []), "E-ROE-RELAY", w, f"relay model {mk} not allowed for the data class")
     dh = r.get("data_handling") or {}
     R.check(dh.get("data_class") == e.get("data_class"), "E-ROE-DATA-CLASS", w, "data_handling.data_class != engagement data_class")
-    R.check(dh.get("retention_days", 0) <= e.get("retention_days", 0), "E-ROE-RETENTION", w, "ROE retention longer than the engagement")
+    rrd = dh.get("retention_days")
+    R.check(isinstance(rrd, int) and rrd <= e.get("retention_days", 0), "E-ROE-RETENTION", w,
+            f"data_handling.retention_days {rrd} longer than the engagement retention_days {e.get('retention_days')} (ROE may only shorten)")
+    lim = retention_max(tk, e.get("data_class"))
+    R.check(lim is None or (isinstance(rrd, int) and rrd <= lim), "E-RETENTION", w,
+            f"data_handling.retention_days {rrd} above the toolkit.yaml maximum {lim}")
     for u in r.get("upstream_llm_providers") or []:
         R.check(u.get("terms_confirmed_by") in c.persons, "E-PERSON-UNKNOWN", w, "upstream terms_confirmed_by must be a registry person")
     legal(R, c)
@@ -619,7 +689,8 @@ def legal(R: Report, c: Ctx):
     R.check(exp and na and exp >= na, "E-L4", w, "legal_review.expires_at must be on or after ROE not_after")
     # L-5
     leads = {s.get("person_id") for s in r.get("signatories") or [] if s.get("role") == "test_lead"}
-    R.check(att not in leads, "E-L5", w, f"legal_review.attested_by {att} must not be the ROE test_lead")
+    R.check(att not in leads, "E-L5", w, f"legal_review.attested_by {att} must not be the ROE test_lead "
+            "(G0b -> VERIFY_FAILED, reason legal_attester_is_test_lead; the run is SUSPENDED until the ROE is fixed)")
     # L-6
     tools = c.tools.get("tools") or {}
     status = {x.get("component"): x.get("status") for x in c.licenses.get("components", [])}
@@ -630,6 +701,27 @@ def legal(R: Report, c: Ctx):
 
 
 # ============================================================== 9 models / agents
+def reachable_models(c: Ctx) -> dict[str, set[str]]:
+    """model key -> agents that can call it: agent model, agent fallback_models, and the
+    models.yaml `fallback` chain of either (transitively)."""
+    out: dict[str, set[str]] = {}
+    for name, a in (c.agents or {}).items():
+        if not isinstance(a, dict):
+            continue
+        todo = [a.get("model"), *(a.get("fallback_models") or [])]
+        seen: set[str] = set()
+        while todo:
+            k = todo.pop()
+            if not isinstance(k, str) or k in seen:
+                continue
+            seen.add(k)
+            out.setdefault(k, set()).add(name)
+            m = c.model(k)
+            if m:
+                todo.extend(m.get("fallback") or [])
+    return out
+
+
 def g_models(R: Report, c: Ctx):
     e, models, agents = c.engagement, c.models, c.agents
     dc = e.get("data_class")
@@ -658,6 +750,7 @@ def g_models(R: Report, c: Ctx):
                 R.check(fb in models and fb in allowed, "E-AGENT-FALLBACK", where, f"fallback model {fb!r} unknown or not allowed")
     lane = agents.get("lane_a") or {}
     R.check(lane.get("model") == e.get("lane_a_model"), "E-AGENT-LANE-A", "agents.yaml lane_a", "lane_a model must equal engagement lane_a_model")
+    reach = reachable_models(c)
     for k, m in models.items():
         where = f"models.yaml {k}"
         if not isinstance(m, dict):
@@ -666,6 +759,20 @@ def g_models(R: Report, c: Ctx):
         for fb in m.get("fallback", []):
             R.check(fb in models and models[fb].get("family") == m.get("family"), "E-MODEL-FALLBACK", where, f"fallback {fb!r} unknown or cross-family")
         lit = str(m.get("litellm", ""))
+        # placeholder model IDs (e.g. gpt_flagship, U-12 pending): marked, never silent
+        looks_placeholder = PLACEHOLDER_ID.search(lit) is not None
+        if m.get("placeholder") is True or looks_placeholder:
+            users = sorted(reach.get(k, ()))
+            detail = (f"litellm {lit!r} is a placeholder model ID (replace before any real run)"
+                      + (f"; reachable from agents {users}" if users else "") + ("; allowed by the engagement" if k in allowed else ""))
+            if c.real_run and users:
+                # --real-run: a placeholder an agent can actually call (primary, agent fallback or
+                # models.yaml fallback chain) would send traffic to an unknown / wrong model
+                R.error("E-MODEL-PLACEHOLDER", where, detail + " [--real-run]")
+            elif m.get("placeholder") is True:
+                R.warn("W-MODEL-PLACEHOLDER", where, detail)
+        R.check(not looks_placeholder or m.get("placeholder") is True, "E-MODEL-PLACEHOLDER", where,
+                f"litellm {lit!r} looks like a placeholder (<...>, {{...}}, TBD, TODO, FIXME, 實作時確認) but placeholder: true is not set")
         if lit.startswith("nvidia_nim/"):
             R.check("C" not in m.get("data_classes", []) and "production" not in m.get("purpose", []), "E-MODEL-NIM", where,
                     "build.nvidia.com trial endpoint must be P-only and non-production")
@@ -702,7 +809,8 @@ def g_models(R: Report, c: Ctx):
         for i, vt in enumerate(d.data.get("votes", [])):
             a = agents.get(vt.get("voter_agent_id")) or {}
             m = c.model(vt.get("voter_model_key"))
-            R.check(a.get("model") == vt.get("voter_model_key") and a.get("role") == "verifier" and m is not None
+            # (the verifier-role requirement is E-VERDICT-VOTER-ROLE in g_verdicts)
+            R.check(a.get("model") == vt.get("voter_model_key") and m is not None
                     and m.get("family") == vt.get("voter_family") and m.get("lineage") == vt.get("voter_lineage"),
                     "E-VOTE-MODEL", d.path, f"votes[{i}] voter agent/model/family/lineage disagree with the registries")
     for d in c.docs("testresult"):
@@ -843,7 +951,7 @@ def g_runs(R: Report, c: Ctx):
             R.check(p in c.persons and p not in c.automation, "E-RUN-INITIATOR", w, f"initiator {p} must be a registered person")
         status = run.get("status")
         pending = [g for g in run.get("gate_records", []) if g.get("gate_record_id") is None]
-        if status in ("COMPLETED", "ABORTED", "FAILED"):
+        if status in TERMINAL_RUN_STATES:
             R.check(run.get("current_node") is None and not pending, "E-RUN-STATUS", w, f"{status} run has a current node or pending gate")
         if status == "WAITING_GATE":
             R.check(len(pending) == 1 and run.get("current_node") == pending[0].get("gate"), "E-RUN-STATUS", w,
@@ -922,7 +1030,9 @@ def g_runs(R: Report, c: Ctx):
                         "E-RUN-S2", jw, "S2 job needs a snapshot, a verified restore and status RESTORED")
                 start = ts(R, tr.get("executed_at"), jw) if tr else (ts(R, g5.get("timestamp"), jw) if g5 else None)
                 ok = start is not None and any(dd and dd <= start and start - dd <= dt.timedelta(days=drill_days) for dd in drills)
-                R.check(ok, "E-RUN-RESTORE-DRILL", jw, f"no successful restore drill within {drill_days} days before the S2 job")
+                # a log rejected by the strict loader is reported once (E-JSON-STRICT), not re-reported here
+                R.check(ok or rid in c.broken_audit_runs, "E-RUN-RESTORE-DRILL", jw,
+                        f"no successful restore drill within {drill_days} days before the S2 job")
                 R.check(run.get("restore_drill_ref") is not None, "E-RUN-RESTORE-DRILL", jw, "restore_drill_ref missing")
                 if tr and g5:
                     g5_at = ts(R, g5.get("timestamp"), jw)
@@ -1070,12 +1180,95 @@ def g2_latest(c: Ctx, cluster: dict) -> tuple[dict | None, str | None]:
     return rec, dec
 
 
+def vote_model(c: Ctx, vt: dict) -> dict | None:
+    """models.yaml entry that cast a vote, resolved through the registries (never the vote's own
+    voter_family): voter_agent_id -> agents.yaml model; voter_model_key must be that model, or,
+    when fallback_used names it, one of that model's (same-family) models.yaml fallbacks.
+    None when the vote does not resolve consistently."""
+    a = c.agents.get(vt.get("voter_agent_id")) if isinstance(vt.get("voter_agent_id"), str) else None
+    if not isinstance(a, dict) or not a.get("model") or c.model(a.get("model")) is None:
+        return None
+    key = vt.get("voter_model_key")
+    if key == a["model"] and vt.get("fallback_used") in (None, key):
+        return c.model(key)
+    if vt.get("fallback_used") == key and key in (c.model(a["model"]).get("fallback") or []):
+        return c.model(key)
+    return None
+
+
+def derived_diversity_degraded(c: Ctx, v: dict, cluster: dict) -> bool:
+    """docs/05 §3 rule 3 / §4.2 [H]: derived, never taken from the verdict itself.
+
+    The family of every valid vote is looked up in the registries (vote_model: voter_agent_id ->
+    agents.yaml model -> models.yaml family); fewer than 2 distinct families among the valid votes means the
+    verdict rests on degraded diversity. Lane A has no verifier round (R9 caps it anyway): False.
+    """
+    run = c.runs.get(cluster.get("run_id")) or {}
+    if run.get("run_kind") == "lane_a":
+        return False
+    fams = set()
+    for x in v.get("votes", []):
+        m = vote_model(c, x)
+        # only verifier-role votes count (others: E-VERDICT-VOTER-ROLE, ignored)
+        if x.get("valid") and m is not None and derive.is_verifier_vote(c.ix, x):
+            fams.add(m.get("family"))
+    return len(fams) < 2
+
+
+def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
+    """E-SARIF-REF: why a cluster.sarif_refs entry is not backed by the audit log (None = resolved).
+
+    A SARIF ref counts only when the audit log of the cluster's run has a `tool_invocation_end`
+    event that lists the ref in payload_refs, whose payload.adapter is a tools.yaml tool:mode of a
+    white-box tool (tool zone Z2, mode b4_executable false), with event zone Z2 and payload.ok true.
+    """
+    rid = cluster.get("run_id")
+    audit = c.ix.audit_for(rid)
+    if audit is None:
+        return f"run {rid!r} has no (loadable) audit log, so SARIF ref {ref} cannot be resolved"
+    ends = [e for e in audit.data if isinstance(e, dict) and e.get("event_type") == "tool_invocation_end"
+            and ref in (e.get("payload_refs") or [])]
+    if not ends:
+        return f"SARIF ref {ref} is not in payload_refs of any tool_invocation_end event of run {rid}"
+    reasons = []
+    for e in ends:
+        p = e.get("payload") or {}
+        adapter = p.get("adapter")
+        entry = safety.registry_entry(c.tools, adapter)
+        tool_spec = ((c.tools.get("tools") or {}).get(entry["tool"]) or {}) if entry else {}
+        if entry is None:
+            reasons.append(f"seq {e.get('seq')}: adapter {adapter!r} is not a registered tools.yaml tool:mode")
+        elif tool_spec.get("zone") != "Z2" or entry.get("b4_executable") is not False:
+            reasons.append(f"seq {e.get('seq')}: {adapter} is not a white-box/static tool (zone Z2, b4_executable false)")
+        elif e.get("zone") != "Z2":
+            reasons.append(f"seq {e.get('seq')}: event zone {e.get('zone')!r} is not Z2")
+        elif p.get("ok") is not True:
+            reasons.append(f"seq {e.get('seq')}: invocation of {adapter} failed (payload.ok is not true)")
+        else:
+            return None
+    return f"SARIF ref {ref}: " + "; ".join(reasons)
+
+
+def resolved_sarif_refs(c: Ctx, cluster: dict) -> list[str]:
+    return sorted({r for r in cluster.get("sarif_refs") or [] if sarif_ref_problem(c, cluster, r) is None})
+
+
+def derived_tool_corroboration(c: Ctx, v: dict, cluster: dict) -> list[str]:
+    """R2 definition [H]: SARIF results at the same canonical location and bucket (cluster.sarif_refs
+    that resolve to a successful white-box tool_invocation_end in the run's audit log, E-SARIF-REF)
+    plus test results classed E_fail_u. Sorted; compared as a sorted list with the verdict's own list."""
+    refs = set(resolved_sarif_refs(c, cluster))
+    refs |= {x.get("result_ref") for x in (v.get("test_evidence") or {}).get("results", [])
+             if x.get("class") == "E_fail_u" and x.get("result_ref")}
+    return sorted(refs)
+
+
 def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
     run = c.runs.get(cluster.get("run_id")) or {}
     g2_rej = g2_latest(c, cluster)[1] == "reject"
     members = [c.ix.first("finding", finding_id=f) for f in cluster.get("member_finding_ids", [])]
     all_fail = bool(members) and all(m is not None and m.data.get("status") == "UNVERIFIED" for m in members)
-    votes = [x for x in v.get("votes", []) if x.get("weighted_valid")]
+    votes = [x for x in v.get("votes", []) if x.get("weighted_valid") and derive.is_verifier_vote(c.ix, x)]
     g3_rej = g3_rejected(c, v, cluster)
     prev = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"]) if v.get("supersedes_verdict_id") else None
     return adj.Inputs(
@@ -1086,11 +1279,11 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         weighted_support=any(x.get("stance") == "SUPPORT" for x in votes),
         weighted_refute=any(x.get("stance") == "REFUTE" for x in votes),
         score=v.get("score") or 0.0,
-        sarif_corroboration=bool(v.get("tool_corroboration")),
+        sarif_corroboration=bool(resolved_sarif_refs(c, cluster)),   # audit-backed refs only (E-SARIF-REF), not v.tool_corroboration
         theta_confirm=v.get("theta_confirm"),
         theta_reject=v.get("theta_reject"),
         independent_families=len(cluster.get("independent_families", [])),
-        diversity_degraded=bool(v.get("diversity_degraded")),
+        diversity_degraded=derived_diversity_degraded(c, v, cluster),   # derived, not self-declared
         g3_rejected=g3_rej,
         phase={"W3_adjudicate": "W3", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}.get(v.get("readjudicated_by")),
         prev_status=prev.data.get("status") if prev else None,
@@ -1098,11 +1291,22 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
 
 
 def g_verdicts(R: Report, c: Ctx):
+    for d in c.docs("cluster"):
+        for ref in d.data.get("sarif_refs") or []:
+            prob = sarif_ref_problem(c, d.data, ref)
+            R.check(prob is None, "E-SARIF-REF", d.path, f"{d.data.get('cluster_id')}: {prob}")
     for d in c.docs("verdict"):
         v, w = d.data, d.path
         cl = c.ix.first("cluster", cluster_id=v.get("cluster_id"))
         if not R.check(cl is not None, "E-TRACE", w, f"cluster {v.get('cluster_id')} not found"):
             continue
+        # self-declared rule inputs are cross-checked against the derived values (docs/05 §4.2) [H]
+        dd = derived_diversity_degraded(c, v, cl.data)
+        R.check(v.get("diversity_degraded") is dd, "E-VERDICT-DIVERSITY", w,
+                f"diversity_degraded {v.get('diversity_degraded')} but the valid votes' registry families give {dd}")
+        tcx = derived_tool_corroboration(c, v, cl.data)
+        R.check(sorted(v.get("tool_corroboration") or []) == tcx, "E-VERDICT-TOOLCORR", w,
+                f"tool_corroboration {v.get('tool_corroboration')} != derived {tcx} (audit-backed cluster.sarif_refs + E_fail_u results)")
         out = adj.adjudicate(verdict_inputs(c, v, cl.data))
         R.check(v.get("status") == out.status, "E-VERDICT-STATUS", w, f"status {v.get('status')} but the rules give {out.status} (row {out.row})")
         R.check(v.get("status_cap") == out.status_cap, "E-VERDICT-STATUS", w, f"status_cap {v.get('status_cap')} != {out.status_cap}")
@@ -1116,6 +1320,16 @@ def g_verdicts(R: Report, c: Ctx):
             ib = p.get("interpretation_confirmed_by") or {}
             R.check(ib.get("family") not in cl.data.get("families", []), "E-VERDICT-PROOF", w, "executable proof must be interpreted by another family")
         for vt in v.get("votes", []):
+            a = c.agents.get(vt.get("voter_agent_id")) if isinstance(vt.get("voter_agent_id"), str) else None
+            R.check(derive.is_verifier_vote(c.ix, vt), "E-VERDICT-VOTER-ROLE", w,
+                    f"vote by {vt.get('voter_agent_id')!r} (agents.yaml role {(a or {}).get('role')!r}): only verifier-role agents "
+                    "may vote; the vote is ignored for weighted_valid, score, support/refute and diversity")
+            m = vote_model(c, vt)
+            if R.check(m is not None, "E-VERDICT-VOTE", w,
+                       f"vote by {vt.get('voter_agent_id')!r} with model {vt.get('voter_model_key')!r} does not resolve through agents.yaml / models.yaml"):
+                R.check(vt.get("voter_family") == m.get("family") and vt.get("voter_lineage") == m.get("lineage"), "E-VERDICT-VOTE", w,
+                        f"vote by {vt.get('voter_agent_id')}: voter_family/lineage {vt.get('voter_family')}/{vt.get('voter_lineage')} "
+                        f"!= registry {m.get('family')}/{m.get('lineage')}")
             if vt.get("valid"):
                 R.check(vt.get("voter_family") not in cl.data.get("families", []) and vt.get("voter_lineage") not in cl.data.get("lineages", []),
                         "E-VERDICT-VOTE", w, f"self-review vote by {vt.get('voter_agent_id')} counted as valid")
@@ -1248,7 +1462,9 @@ def g_audit(R: Report, c: Ctx):
         prev_t, since = None, 0
         for i, ev in enumerate(evs):
             where = f"{w} seq {ev.get('seq')}"
-            R.check(ev.get("seq") == i + 1, "E-AUDIT-SEQ", where, "seq must be 1, 2, 3, ...")
+            # type(...) is int: a float literal such as 3e0 / 3.0 (or a bool) is not a seq
+            R.check(type(ev.get("seq")) is int and ev.get("seq") == i + 1, "E-AUDIT-SEQ", where,
+                    f"seq must be the integer {i + 1} (1, 2, 3, ...; float literals such as 3e0 are rejected), got {ev.get('seq')!r}")
             R.check(ev.get("run_id") == rid and ev.get("engagement_id") == c.engagement.get("engagement_id"), "E-AUDIT-RUN", where, "run/engagement mismatch")
             R.check(ev.get("data_class") == run.get("data_class"), "E-AUDIT-RUN", where, "data_class differs from the run")
             t = ts(R, ev.get("ts"), where)
@@ -1277,12 +1493,77 @@ def g_audit(R: Report, c: Ctx):
             if et == "report_published":
                 rm = c.ix.first("report-manifest", run_id=rid)
                 R.check(rm is not None and rm.data.get("report_id") == (ev.get("payload") or {}).get("report_id"), "E-AUDIT-REPORT", where, "report id mismatch")
-        R.check(bool(evs) and evs[-1].get("event_type") == "audit_anchor", "E-AUDIT-ANCHOR", w, "the last event must be an audit_anchor")
-        if run.get("status") in ("COMPLETED", "ABORTED", "FAILED"):
-            R.check(bool(evs) and (evs[-1].get("payload") or {}).get("reason") == "run_end", "E-AUDIT-ANCHOR", w, "a finished run ends with a run_end anchor")
+        tail, last_anchor = audit_anchor_tail(R, w, run, d)
+        if run.get("status") in TERMINAL_RUN_STATES:
+            # at most one E-AUDIT-TAIL per run, listing every reason
+            why = []
+            if tail > 0:
+                why.append(f"{tail} line(s) after the last audit_anchor (seq {last_anchor})")
+            if not evs or evs[-1].get("event_type") != "audit_anchor":
+                why.append("the last event is not an audit_anchor")
+            elif (evs[-1].get("payload") or {}).get("reason") != "run_end":
+                why.append("the final anchor is not a run_end anchor")
+            R._checks += 1
+            if why:
+                R.error("E-AUDIT-TAIL", w, f"{run.get('status')} run must end with a run_end audit_anchor covering the last line: "
+                        + "; ".join(why))
+        elif tail > 0:
+            R.warn("W-AUDIT-UNANCHORED-TAIL", w, f"{tail} line(s) after the last audit_anchor (seq {last_anchor}) are not yet anchored")
         logged = {(e.get("payload") or {}).get("gate_record_id") for e in evs if e.get("event_type") == "gate_decision"}
         for g in c.ix.gate_records(rid):
             R.check(g.data.get("gate_record_id") in logged, "E-AUDIT-GATE", w, f"{g.data.get('gate_record_id')} has no gate_decision event")
+
+
+    audited = {d.data[0].get("run_id") for d in c.ix.audit_docs() if d.data}
+    for rid, run in c.runs.items():
+        if rid in audited:
+            continue
+        if rid in c.broken_audit_runs:
+            # the log exists but the strict loader rejected it: the load error (E-JSON-STRICT in
+            # group 1) is the only report for this run's audit group; no cascade
+            continue
+        where = f"run {rid}"
+        R.check(not run.get("audit_anchors"), "E-AUDIT-TRUNCATED", where, "run.audit_anchors names lines of an audit log that is missing")
+        R.check(run.get("status") not in TERMINAL_RUN_STATES, "E-AUDIT-TAIL", where,
+                f"{run.get('status')} run has no audit log, so no final anchor covers its last line")
+
+
+def audit_anchor_tail(R: Report, w: str, run: dict, d: Doc) -> tuple[int, int]:
+    """Tail protection of the hash chain [H]. Returns (tail line count, seq of the last anchor event).
+
+    run.audit_anchors = [{seq, line_sha256}] names audit_anchor lines by seq and by the sha256 of
+    the raw line itself. It must name EVERY audit_anchor event of the log, in order (dropping an
+    anchor from the run record is E-AUDIT-ANCHOR). The chain (prev_hash) protects every line up to
+    the last anchor event; lines after it are the unanchored tail, reported by the caller
+    (W-AUDIT-UNANCHORED-TAIL, or E-AUDIT-TAIL for a run in a terminal state, D2). Named seqs beyond
+    the end of the log are E-AUDIT-TRUNCATED (and not compared again here).
+    """
+    lines = read_jsonl_lines(d.text or "")
+    evs = d.data or []
+    anchors = run.get("audit_anchors") or []
+    prev = 0
+    for j, a in enumerate(anchors):
+        a = a if isinstance(a, dict) else {}
+        s, h = a.get("seq"), a.get("line_sha256")
+        where = f"{w} (run.audit_anchors[{j}])"
+        if not R.check(type(s) is int and s > prev, "E-AUDIT-ANCHOR", where, f"anchor seq {s!r} must be an integer above {prev}"):
+            continue
+        prev = s
+        if not R.check(s <= len(lines), "E-AUDIT-TRUNCATED", where,
+                       f"anchor names seq {s} but the log has only {len(lines)} lines (truncated after the anchor)"):
+            continue
+        want = "sha256:" + sha256_hex(lines[s - 1].encode("utf-8"))
+        R.check(h == want, "E-AUDIT-ANCHOR-MISMATCH", where, f"line_sha256 {h} != sha256 of line {s} ({want})")
+        R.check(s - 1 < len(evs) and evs[s - 1].get("event_type") == "audit_anchor", "E-AUDIT-ANCHOR", where,
+                f"line {s} is not an audit_anchor event")
+    logged = [i + 1 for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"]
+    named = [a.get("seq") for a in anchors if isinstance(a, dict)]
+    named_in_log = [s for s in named if type(s) is int and 0 < s <= len(lines)]
+    R.check(named_in_log == logged, "E-AUDIT-ANCHOR", w,
+            f"run.audit_anchors seqs {named_in_log} must name every audit_anchor event of the log, in order: {logged}"
+            + (f" (missing {sorted(set(logged) - set(named_in_log))})" if set(logged) - set(named_in_log) else ""))
+    last = logged[-1] if logged else 0
+    return len(lines) - last, last
 
 
 # ============================================================== 16 calibration
@@ -1517,9 +1798,11 @@ GROUPS = [
 ]
 
 
-def run_all(b: Bundle) -> Report:
+def run_all(b: Bundle, real_run: bool = False) -> Report:
+    """Run every check group. real_run=True (CLI --real-run): placeholder models reachable from an
+    agent are E-MODEL-PLACEHOLDER errors instead of W-MODEL-PLACEHOLDER warnings."""
     R = Report()
-    c = Ctx(b)
+    c = Ctx(b, real_run=real_run)
     for name, fn in GROUPS:
         before_checks, before_err = R._checks, len(R.errors)
         try:

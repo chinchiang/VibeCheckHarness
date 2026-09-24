@@ -1,0 +1,14 @@
+# Normalise every text file to LF in the repository and in working trees (the audit hash chain,
+# JCS hashes and Ed25519 signatures of the examples are computed over LF bytes).
+* text=auto eol=lf
+
+# Binary formats (none are tracked today; listed so future additions are never converted)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.der binary

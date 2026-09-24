@@ -4,7 +4,7 @@
 
 ## v0.2 變更摘要
 
-- **狀態機完整化**（§5）：拆成主圖＋W 子圖＋B 子圖＋B4 執行迴圈＋中止／補償／resume 圖；每個關卡都有 `APPROVED`／`PARTIALLY_APPROVED`／`REJECTED`／`NEEDS_INFO`／`EXPIRED` 邊；加上終止狀態與可續跑狀態。
+- **狀態機完整化**（§5）：拆成主圖＋W 子圖＋B 子圖＋B4 執行迴圈＋中止／補償／resume 圖；每個關卡都有各自允許結果的邊（`PARTIALLY_APPROVED` 只限 G3／G4；G2 整關只有 `APPROVED`／`EXPIRED`；G0a／G0b 為 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`）；加上終止狀態與可續跑狀態。
 - **新節點**：`run_init`、`claim_run`、`LA_static`、`LA_diff_review`、`W4_exec`、`W4_readjudicate`、`B0_ownership_verify`、`B1_crawl`、`B4_preflight`、`GB_budget_gate`、`abort_handler`、`run_resume`、`suspended_wait`、`stopped_wait`。
 - **完整 RunState**（§5.1）：W 與 B 欄位、關卡紀錄、預算、`run_kind`、`parent_run_id`、狀態 enum。
 - **節點規格表**（§5.7）：每個節點的執行區、是否用 LLM、冪等鍵、副作用、失敗邊；節點邊界規則延伸到新節點。
@@ -16,6 +16,8 @@
 - 儀表板移出範圍：M5 只交付靜態 HTML＋SARIF＋JSON 報告。
 - **v0.2 後續對齊（04／05）**：裁決規則改為 05 的 R0–R13；G2 之後才出現的 `DISPUTED` 不重開 G2（§5.3）；Snapshot Service 新增 `oracle_capture` 與 G4 核准的 `oracle_count`、種子重置失敗規則（§7.6、§15）；§7.1 無法分類工具的等級規則對齊 04 §5。
 - **v0.2 後續對齊（06）**：§6.1 引用 [01 §7](01-research-survey.md#7-v02-補充研究2026-09-24) 的證據（已獨立查核），並加入嚴格 YAML 規則與 `legal_reviewer` 角色；G0b 加入 `legal_review` 檢查（§5.4）；Z2 加入版本鎖定與 CVE 更新要求（§2）；§8 補上 GPT-6 Luna 與模型退役提醒；§13.1 引用稽核鏈文獻；Executor 的 TruffleHog 驗證為選用。
+- **v0.2 後續對齊（一致性）**：G0b 之前的節點不讀任何 ROE 欄位（W0 只用 G0a 已驗章的委任設定；元件授權過濾在 G0b，§5.4）；ROE 或 `legal_review` 在執行中**到期** → `SUSPENDED`，只有**驗章失效**（金鑰撤銷、簽章無效）才 `ABORTED`（§5.2、§5.5、§5.6）；保留期限的優先順序（§2）；稽核鏈尾端保護（§13.1）；簽署 JSON 文件拒絕重複鍵（§6.1）；DB 目標也對照 ROE 排除清單（§7.6）；`models.yaml` 佔位 ID 警告 `W-MODEL-PLACEHOLDER`（§8.1）。
+- **v0.2 強化第二輪（與 validator 對齊）** [H]：保留期限錯誤碼分為 ROE > engagement → `E-ROE-RETENTION`、超過工具包上限 → `E-RETENTION`（§2）；gate 逾時在 G0b 之前只以委任設定的 `not_after` 為上限（§6.2）；嚴格 JSON 擴及溢位浮點數、超過 2^53 的整數與整數欄位的浮點數字面值（§6.1）；家族多樣性只計 verifier 的票（§5.9）；`sarif_refs` 必須對應同一 run 的工具稽核事件（§5.9、`E-SARIF-REF`）；DB endpoint 主機正規化（§7.6）；真實 run 的佔位模型 → `E-MODEL-PLACEHOLDER`（§8.1）；`audit_anchors` 與錨點事件一一對應、JSONL 只以 `\n` 分行（§13.1）。
 - 模型命名統一：OpenAI 旗艦寫作 GPT-6 Astra／Sol（[P][E:providers-31]），設定檔中的代號為 `gpt_flagship`（§8.1）。
 
 ## 1. 元件總覽
@@ -157,6 +159,7 @@ flowchart TB
 - Content-addressed Store：SARIF、切片、報告、產生的測試與工具設定、LLM 請求與回應、請求紀錄，以 sha256 為鍵（介面見 §15）。
 - Audit Log：JSONL 檔（hash chain，§13），大型內容只存 CAS hash。
 - Audit Log、CAS 與 DB 快照：加密、套用與原始碼相同的資料等級、設保留期限、限制存取、secrets 遮罩。
+- **保留期限的優先順序** [H]：`toolkit.yaml` 的 `retention` 是組織的**上限與預設值**；engagement 的 `retention_days` 是該委任的**實際值**，必須在 1 到工具包上限之間（P 級看 `p_days`、C 級看 `c_days_after_run_end`；否則 `E-RETENTION`）；ROE 的 `data_handling.retention_days` 必須 ≤ engagement（否則 `E-ROE-RETENTION`），也 ≤ 工具包上限（否則 `E-RETENTION`）。順序為 toolkit < engagement < ROE，後者只能更短；超過時 validator 拒絕（錯誤，不是警告）。稽核檔與 checkpoint 的期限只看 `toolkit.yaml`。細節見 [08 §5.2](08-implementation-spec.md#52-優先順序)、[08 §7.5](08-implementation-spec.md#75-保留與刪除)。
 
 ## 3. 框架選型
 
@@ -253,6 +256,7 @@ class RunKind(str, Enum):
 GateId = Literal["G0a", "G0b", "G1", "G2", "G3", "G4", "G5", "GB"]
 GateOutcome = Literal["APPROVED", "PARTIALLY_APPROVED", "REJECTED", "NEEDS_INFO", "EXPIRED",
                       "VERIFIED", "VERIFY_FAILED"]          # 後兩者只用於 G0a/G0b（系統驗證，非人工簽核）
+# G0a/G0b：VERIFIED／VERIFY_FAILED／EXPIRED；G2 整關：APPROVED／EXPIRED；PARTIALLY_APPROVED 只限 G3/G4（validator 檢查）
 
 class GateRef(BaseModel):
     gate: GateId
@@ -405,7 +409,7 @@ class RunState(BaseModel):
     gate_records: Annotated[list[GateRef], add] = []  # 驗證一律以簽章紀錄為準
     budgets: Budgets
     gaps: Annotated[list[Gap], add] = []
-    audit_anchors: Annotated[list[str], add] = []     # 每個 audit_anchor 事件的 prev_hash（§13.1）
+    audit_anchors: Annotated[list[dict], add] = []    # 每個 audit_anchor 事件的 {seq, line_sha256}；line_sha256＝該錨點事件自己那一行原始位元組的 sha256（§13.1）
     errors: Annotated[list[ErrorRecord], add] = []
 ```
 
@@ -432,8 +436,8 @@ stateDiagram-v2
   W5_report --> COMPLETED: 委任不含黑箱
   W5_report --> PhaseB: 委任含黑箱
   PhaseB --> ABORTED: ROE 驗章失敗
-  PhaseB --> SUSPENDED: ROE 未生效、時間窗外、G3 或 G4 逾時
-  PhaseB --> abort_handler: 停止條件、kill switch、ROE 失效
+  PhaseB --> SUSPENDED: ROE 未生效、時間窗外、ROE 或 legal_review 到期、G3 或 G4 逾時
+  PhaseB --> abort_handler: 停止條件、kill switch、ROE 驗章失效
   PhaseB --> B6_report
   B6_report --> COMPLETED: 只有 MANUAL 缺口
   B6_report --> COMPLETED_WITH_GAPS: 有其他缺口
@@ -446,8 +450,8 @@ stateDiagram-v2
   GB_budget_gate --> ABORTED: 中止（B4 以外）
   GB_budget_gate --> abort_handler: 中止（B4 中）
   GB_budget_gate --> SUSPENDED: EXPIRED
-  abort_handler --> STOPPED: 停止條件或 kill switch
-  abort_handler --> ABORTED: ROE 失效或 GB 中止
+  abort_handler --> STOPPED: 停止條件、kill switch 或全部目標失去所有權
+  abort_handler --> ABORTED: ROE 驗章失效或 GB 中止
   abort_handler --> FAILED: 還原失敗
   SUSPENDED --> run_resume: 人工 resume
   STOPPED --> run_resume: 測試負責人簽署 resume
@@ -461,7 +465,8 @@ stateDiagram-v2
 ```
 
 - `PhaseW`＝§5.3 的 W1–W4（含 W0.5、G1、G2、`claim_run`）；`PhaseB`＝§5.4 與 §5.5。
-- 「到期未續跑」：委任設定或 ROE 的 `not_after` 過後由 Run Controller 的排程清理，以既有產物產生報告，狀態為 `COMPLETED_WITH_GAPS`（若還沒到 W5，報告只含已完成的部分）[H]。
+- 「到期未續跑」：委任設定的 `not_after` 過後由 Run Controller 的排程清理，以既有產物產生報告，狀態為 `COMPLETED_WITH_GAPS`（若還沒到 W5，報告只含已完成的部分）[H]。ROE 到期**不會**觸發清理：因 ROE 或 `legal_review` 到期而 `SUSPENDED` 的 run，在委任設定到期前都可以用新的有效 ROE 續跑。
+- **「到期」與「驗章失效」的區別** [H]：ROE 的 `not_after` 或 `legal_review.expires_at` 在執行中到期 → `SUSPENDED`（checkpoint 保留；resume 需要一份新的有效 ROE，resume 時 G0b 重驗，`B4_preflight` 每批也檢查）。ROE 的簽章在執行中變成無效（簽署金鑰撤銷、文件被改）→ `abort_handler` → `ABORTED`。
 - 預算觸頂的偵測在進入任何消耗預算的節點之前（條件邊），以及節點執行中 Gateway 回報 `BudgetExceeded` 時；兩者都先 checkpoint 再進 `GB_budget_gate` [H]。
 
 ### 5.3 W 子圖
@@ -516,7 +521,8 @@ stateDiagram-v2
   [*] --> G0b_roe_check
   G0b_roe_check --> ABORTED: 驗章失敗
   G0b_roe_check --> suspended_wait: 未生效或時間窗外
-  G0b_roe_check --> B6_report: ROE 已過期或未提供
+  G0b_roe_check --> B6_report: 進入 B 階段時 ROE 已過期或未提供
+  G0b_roe_check --> suspended_wait: resume 時 ROE 或 legal_review 已到期（等新 ROE）
   G0b_roe_check --> B0_ownership_verify: 通過
   B0_ownership_verify --> B1_crawl: 至少一個目標通過
   B0_ownership_verify --> B6_report: 全部目標失敗
@@ -541,7 +547,8 @@ stateDiagram-v2
 ```
 
 - `G0b_roe_check` 在 B 階段入口、每次 `run_resume` 之後都會執行。
-- `G0b_roe_check` 同時檢查 ROE 的 `legal_review` 聲明（[06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h) 規則 L-1～L-6）[H]：L-1～L-4 失敗 → 「驗章失敗」邊（`roe_verify_failed`，理由如 `legal_review_missing`）；L-5（聲明者就是 `test_lead`）→ G0b 記為 `VERIFY_FAILED`（G0 的結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`），但 run 不走中止邊，而是等待 ROE 修正（`suspended_wait`）；L-6 → 法務閘門元件從允許清單移除並記為缺口。`B4_preflight` 也檢查聲明未到期，到期 → `suspended_wait`。
+- **G0b 之前不讀 ROE** [H]：G0b 之前的節點（`run_init`、`G0a_engagement_check`、`W0_inventory`、Phase W、`LA_*`）不使用 ROE 的任何欄位，只用 G0a 已驗章的委任設定與工具包設定。W0 能不能用 `trufflehog:scan`，只看工具包層級的法務閘門是否已結案（adapter 是否註冊，[08 §2.3](08-implementation-spec.md#23-擴充介面)），不看 `legal_review`。
+- `G0b_roe_check` 同時檢查 ROE 的 `legal_review` 聲明（[06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h) 規則 L-1～L-6）[H]：L-1～L-4 失敗 → 「驗章失敗」邊（`roe_verify_failed`，理由如 `legal_review_missing`）；L-5（聲明者就是 `test_lead`）→ G0b 記為 `VERIFY_FAILED`（G0 的結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`），但 run 不走中止邊，而是等待 ROE 修正（`suspended_wait`）；L-6 → 法務閘門元件從允許清單移除並記為缺口；過濾後的允許工具清單寫入 G0b GateRecord 的 `verification` 區塊，B 階段（`CMD4_testplan`、`B3_derive`、B4 的 adapter）只用這份清單。`B4_preflight` 也檢查 ROE 與聲明都未到期，到期 → `suspended_wait`（不是 `abort_handler`）。
 - `B2_merge_critic` 在交 G3 前檢查兩個條件：每個種子威脅都在模型中；每個 `b1_diff` 項目都已處置。任一不成立就不開 G3（修復 ≤2 次後以程式碼補上 `seed-only` 威脅或「未處置」標記交 G3）[H]。
 
 ### 5.5 B4 執行迴圈
@@ -553,8 +560,8 @@ stateDiagram-v2
   B4_preflight --> B4_s2_queue: S0 與 S1 已完成
   B4_preflight --> B4_s2_snapshot: 已核准的 S2 job
   B4_preflight --> B4_s2_queue: 還原演練失敗（S2 全部略過）
-  B4_preflight --> suspended_wait: 時間窗外
-  B4_preflight --> abort_handler: ROE 失效、金鑰撤銷、全部目標失去所有權、kill switch
+  B4_preflight --> suspended_wait: 時間窗外、ROE 或 legal_review 到期
+  B4_preflight --> abort_handler: ROE 驗章失效、金鑰撤銷、全部目標失去所有權、kill switch
   B4_s0s1_exec --> B4_preflight: 本批完成
   B4_s0s1_exec --> abort_handler: 停止條件或 kill switch
   B4_s2_queue --> G5_gate: 有待執行的 S2
@@ -576,15 +583,15 @@ stateDiagram-v2
 ```
 
 - **批次**：S0／S1 job 依目標分批，每批至多 `toolkit.yaml` 的 `b4_batch.max_jobs`（預設 20）個 job 或 `b4_batch.max_minutes`（預設 60）分鐘 [H]；每批開始都進 `B4_preflight`。每個 S2 job 自成一批。
-- **`B4_preflight` 檢查**：ROE 驗章仍有效且在時間窗內；所有簽署金鑰未撤銷；該批目標的所有權重驗（DNS TXT／well-known token）；`kill_switch` 為 false；預算足夠；該批所需的 Session 可用；每個 S2 job 前，`toolkit.restore_drill_interval_days`（預設 7）天內有成功的 `restore_drill` 稽核事件（§7.6）；量測目標基準延遲（§7.3）。
-- 單一目標失去所有權 → 該目標的 job 標 `SKIPPED`（`ownership_failed`），其他目標繼續；全部失去 → `abort_handler`。
+- **`B4_preflight` 檢查**：ROE 驗章仍有效、ROE 與 `legal_review` 都未到期（到期 → `suspended_wait`），且在時間窗內；所有簽署金鑰未撤銷；該批目標的所有權重驗（DNS TXT／well-known token）；`kill_switch` 為 false；預算足夠；該批所需的 Session 可用；每個 S2 job 前，`toolkit.restore_drill_interval_days`（預設 7）天內有成功的 `restore_drill` 稽核事件（§7.6）；量測目標基準延遲（§7.3）。
+- 單一目標失去所有權 → 該目標的 job 標 `SKIPPED`（`ownership_failed`），其他目標繼續；全部失去 → `abort_handler` → `STOPPED`（與 kill switch 相同；ROE 驗章失效或金鑰撤銷 → `abort_handler` → `ABORTED`；時間窗外或 ROE／`legal_review` 到期 → `suspended_wait`）。
 - 有狀態改變的 S1 job 結束後，由 Snapshot Service 依 seed manifest 重置種子資料 [H]。
 
 ### 5.6 中止、補償與 resume
 
 ```mermaid
 stateDiagram-v2
-  [*] --> abort_handler: 任一 B4 節點、GB 中止、ROE 失效
+  [*] --> abort_handler: 任一 B4 節點、GB 中止、ROE 驗章失效
   abort_handler --> ah_cancel
   ah_cancel --> ah_restore: 關閉 job 白名單、取消 Executor 工作
   ah_restore --> ah_revoke: 每個有快照且未成功還原的 job 都已還原
@@ -608,12 +615,12 @@ stateDiagram-v2
 2. `ah_restore`：對每個 `snapshot_ref` 不為空且 `restore_verified` 為 false 的 job，呼叫 Snapshot Service 還原並驗證（重試 2 次）。
 3. `ah_escalate`：還原失敗時，立即通知 ROE `stop_conditions.contacts`，最終狀態為 `FAILED`（staging 狀態未知，需人工處理）。
 4. `ah_revoke`：Session Provider 作廢本 run 的所有 session。
-5. `ah_report`：寫入稽核事件（`stop_condition`／`kill_switch`、`snapshot_restored`／`restore_failed`、`run_status_changed`），由 Reporter 產生中止報告（確定性部分）；最終狀態：還原失敗 → `FAILED`；ROE 失效、GB 中止、政策違規 → `ABORTED`；其他 → `STOPPED`。
+5. `ah_report`：寫入稽核事件（`stop_condition`／`kill_switch`、`snapshot_restored`／`restore_failed`、`run_status_changed`），由 Reporter 產生中止報告（確定性部分）；最終狀態：還原失敗 → `FAILED`；ROE 驗章失效（金鑰撤銷、簽章無效）、GB 中止、政策違規 → `ABORTED`；其他 → `STOPPED`。
 
 **resume 規則** [H]：
 - `SUSPENDED`：run_owner 或任何發起者以 `vibecheck run resume` 續跑；若停在關卡，重新開啟該關卡（新的 GateRecord，`round` 不增加）。
 - `STOPPED`：需由 ROE 的 `test_lead` 簽署 resume 紀錄（稽核事件 `run_resume`，附簽章與停止原因已處理的說明）。
-- 兩者都只能在委任設定與 ROE 的 `not_after` 之前續跑（停在關卡時，重開的關卡會得到新的 `resume_deadline`＝`opened_at`＋關卡逾時）；續跑一律重驗 G0a，若 `resume_node` 在 B 階段再重驗 G0b 與所有權。
+- 兩者都只能在委任設定的 `not_after` 之前續跑（停在關卡時，重開的關卡會得到新的 `resume_deadline`＝`opened_at`＋關卡逾時）；續跑一律重驗 G0a，若 `resume_node` 在 B 階段再重驗 G0b 與所有權。B 階段的 resume 需要當時有效的 ROE：原 ROE 已到期 → 必須提供新簽署的有效 ROE，否則 resume 被拒、run 維持 `SUSPENDED`。
 - **job 的續跑規則**：`EXECUTED` 不重跑；`INTERRUPTED` 的 S0 可重跑；S1 先重置種子資料再重跑；S2 必須重新走 G5（原 G5 核准失效）。
 
 ### 5.7 節點規格表
@@ -669,6 +676,8 @@ stateDiagram-v2
 - 每個節點設重試上限（例如 schema 驗證失敗最多修復 2 次、429 依 Retry-After 最多 3 次）。
 - 重試用盡就寫入 `missing_votes`，**不無限重試**。
 - fan-in 採 quorum：例如 3 家族中至少 2 家族有結果。少於 quorum 時**仍照常裁決**，但只靠投票得到的確認上限為 `LIKELY`，並標記 `diversity_degraded`；可執行證明與工具佐證不受此限（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) R8）。
+- `diversity_degraded` 的最終值由 validator 從裁決的有效票推導（不同家族少於 2 → true；家族由 `voter_agent_id` → `agents.yaml` → `models.yaml` 解析；**只計入 `agents.yaml` 角色為 `verifier` 的 agent 所投的票**，其他角色的票 → `E-VERDICT-VOTER-ROLE`，且不計入計權合格票與家族多樣性；Lane A 一律 false）。fan-in 可以提早標記，但必須與推導值一致，不一致 → `E-VERDICT-DIVERSITY` [H]。
+- **工具佐證不能自行宣告** [H]：叢集的每個 `sarif_refs` 項目，都必須等於同一 run 中某個 `tool_invocation_end` 稽核事件的 `payload_refs` 項目，而且該事件在 Z2、`payload.ok` 為 true、`payload.adapter` 是 `tools.yaml` 已登錄的白箱工具模式（`b4_executable: false`）；對不上 → `E-SARIF-REF`。因此 R8 的工具佐證（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）不能由叢集或裁決自己宣告。`sarif_refs` 與裁決的 `tool_corroboration` 都不能有重複項目。
 
 ## 6. 人工關卡服務
 
@@ -711,6 +720,7 @@ stateDiagram-v2
   - (c) 整數必須在 ±2^53 以內，更大的數值寫成字串；
   - (d) 不允許 NaN、Infinity、anchor／alias、自訂 tag；
   - (e) 簽署文件（engagement、ROE、`key-registry.yaml`、GateRecord）的任何違反都記為 `signature_invalid`（CLI 結束碼 4），**不是**解析警告；同一載入器也用於未簽署的設定檔（`toolkit.yaml`、`models.yaml`、`agents.yaml` 等），違反時是設定錯誤（結束碼 3），見 [08 §4.1](08-implementation-spec.md#41-共用選項與結束碼)。
+  - (f) **JSON 格式的文件**（例如 GateRecord、稽核事件、JSON 範例實例）同樣嚴格解析：重複鍵或 NaN／Infinity → `E-JSON-STRICT`（與 YAML 的 `E-YAML-STRICT` 對應），理由與 YAML 相同（檢視工具與驗證器可能對同一個鍵取不同的值）；該文件連同它的簽章與 hash chain 一律拒絕，簽署文件記為 `signature_invalid`（validator 強制）[H]。
   - 攻擊範例：ROE 有兩個 `targets:` 鍵；若檢視工具與驗證器對重複鍵取不同的值（例如一個取第一個、一個取最後一個），簽署人核准的範圍就會與實際執行的範圍不同 [H]。
 - **現成簽章工具的備案**：`vibecheck sign` 可以呼叫 OpenSSH `ssh-keygen -Y sign/verify`（8.1 起），它有 namespace（`-n`）、allowed_signers 的 `valid-after`／`valid-before` 與撤銷檔（`-r`）[V][E:orchestration-47]。minisign 沒有撤銷與效期機制 [V][E:orchestration-48]；cosign keyless 需要線上的 Fulcio／Rekor，key 模式則沒有透明紀錄 [V][E:orchestration-49]。選擇哪一種由實作規格決定；無論用哪種，金鑰登錄仍是唯一的信任來源 [H]。
 
@@ -728,7 +738,7 @@ stateDiagram-v2
 
 ### 6.2 關卡逾時預設值
 
-在 `toolkit.yaml` 設定，委任設定可以縮短，但不能超過委任設定與 ROE 的 `not_after`；關卡開啟時 `resume_deadline`＝`opened_at`＋逾時 [H]：
+在 `toolkit.yaml` 設定，委任設定可以縮短。上限依關卡位置而定 [H]：G0b 之前的關卡（`claim_run`、G1、G2，以及 W 階段的 GB）只以委任設定的 `not_after` 為上限，因為 G0b 才是第一個讀取 ROE 的節點；從 G0b 起（G3、G4、G5，以及 B 階段的 GB）同時以委任設定與 ROE 的 `not_after` 為上限（取較早者）。關卡開啟時 `resume_deadline`＝`opened_at`＋逾時 [H]：
 
 | 關卡 | 預設逾時 | 逾時結果 |
 |---|---|---|
@@ -813,7 +823,7 @@ stateDiagram-v2
 | promptfoo／PyRIT | target 設定中的 header |
 
 - **Session 維護**：遇到 401 或 token 過期就自動重新登入。長時間的 ZAP 掃描要有 re-auth 設定。
-- **範圍**：所有憑證都綁定 ROE 的 engagement ID 與到期日；ROE 失效時一併作廢。
+- **範圍**：所有憑證都綁定 ROE 的 engagement ID 與到期日；ROE 到期或驗章失效時一併作廢（resume 時以新 ROE 重新建立）。
 - **介面**（[H]，完整簽名見 §15）：`materialize(role, form, job_id) → SessionHandle`、`refresh(handle)`、`revoke_run(run_id)`。`SessionHandle` 只含 Z3 本機路徑或不透明 ID，**不含憑證值**；Z1 只看到角色名稱與 handle ID。
 - 每次登入寫稽核事件 `session_login`（角色、結果、時間；不含憑證）。
 
@@ -850,6 +860,7 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 | 回傳 Z1 的內容 | 只回傳**比對結果**：每個資料列的 hash 是否改變、改變的欄位名稱與列數；**不回傳欄位值** |
 | 種子資料 | seed manifest（`seed-manifest.schema.json`）列出每個種子物件的 ID、所屬表、建立與重置方式；有狀態改變的 S1 job 結束後、S2 還原後都依 manifest 重置。**重置失敗**：之後所有使用同一份 seed manifest 的 job 標 `SKIPPED`（`skip_reason: seed_reset_failed`），寫稽核事件 `seed_reset_failed`，列入 B6 未能測試清單；其他 job 繼續 [H] |
 | 還原演練 | 「快照 → 修改一筆種子資料 → 還原 → 驗證 checksum」，結果寫成 `restore_drill` 稽核事件並存 `restore_drill_ref`。**每個 S2 job 開始前**，必須有一筆成功的 `restore_drill` 事件，且距今不超過 `toolkit.restore_drill_interval_days`（預設 7 天）；沒有就由 `B4_preflight` 先做一次演練。演練失敗 → 該 run 的所有 S2 job 略過 |
+| ROE 排除清單 | DB 目標的主機 ＝ `endpoint` 的 host 部分；`endpoint` 的格式必須是 `host:port` 或 `[IPv6]:port`，無法解析 → `E-ROE-DB-SCOPE`。比對前主機先正規化（去掉結尾的 `.`、大小寫摺疊、IDNA 轉換），正規化後不能在 `exclusions.hosts`（同樣正規化）中（精確比對）；`db_access.endpoint` 的主機必須是某個 ROE DB 目標的主機，也不能被排除；違反 → validator 拒絕該 ROE（`E-ROE-DB-SCOPE`）。04 §5 的安全等級演算法第 4 步也對 DB 目標套用主機排除（→ S3）[H] |
 | `snapshot_method: none` | 不能執行 S2；需要 DB oracle 的測試改用只看 API 回應的 oracle，或標 `MANUAL` |
 
 **做不到**：快照只能還原 DB；已經送出的 email、webhook、第三方呼叫無法撤回，所以 ROE 必須讓外部整合處於 sandbox 模式（[02 B0](02-methodology.md#b0-roe-與範圍g0b機器可驗證)）。
@@ -861,6 +872,7 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 
 - **命名**：本文件稱 OpenAI 旗艦為 **GPT-6 Astra／Sol**（Astra 2026-09-03、Sol 2026-09-22 發布；兩者都是 1,050,000 tokens context [P][E:providers-31]）；設定檔中的代號是 `gpt_flagship`。API 模型 ID 為 `gpt-6-astra`、`gpt-6-sol`、`gpt-6-luna` [V][E:providers-46]（[examples/models.yaml](examples/models.yaml)）。
 - **退役日期**：`models.yaml` 記錄每個模型最早的退役日期，Gateway 在剩不到 30 天時發出警告並寫稽核事件 [H]。例如 Claude Haiku 4.5（`claude-haiku-4-5-20251001`）最早 2026-10-15 退役 [V][E:providers-49]；本設計只把它用在不參與裁決的 reporter（有跨家族 fallback）、選用的 Lane A diff 審查與 `claude_sonnet` 的 fallback，不作為任何投票或裁決角色；validator 在委任期間內遇到退役日時發出 `W-MODEL-RETIREMENT`，須在退役前換成後繼版本並重新校準。
+- **佔位 ID**：`models.yaml` 中尚未確定的模型 ID（例如 `gpt_flagship` 的 `litellm` 仍是「實作時確認」的佔位文字，等 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 的 U-12 決定；`nemotron_cloud` 的模型名也待確認）以 `placeholder: true` 標記。佔位的判斷（啟發式）涵蓋 `<...>`、`{...}`、`TBD`、`TODO`、`FIXME`、`實作時確認`；`litellm` 符合這些樣式卻沒有標記 → `E-MODEL-PLACEHOLDER`（錯誤）[H]。**只有 repo 的範例**（`docs/examples/`）對已標記的佔位模型發出警告 `W-MODEL-PLACEHOLDER`；**真實 run**（validator `--real-run` 與 G0a）中，任何 agent 可達的佔位模型（主要模型或 fallback）都是 `E-MODEL-PLACEHOLDER` → G0a `VERIFY_FAILED`（不能帶著未確定的模型 ID 開始 run）[H]。
 - **不自評**：驗證者的 `family` 與 `lineage` 都必須和報告者不同。
 - **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback（例如 Claude Opus → Claude Sonnet），並寫入 Verdict 紀錄。跨家族 fallback 會讓兩個「獨立」審查者變成同一家族，驗證就等於同家族自評：LLM 評審會偏好自己或同供應商的輸出 [V][E:multi_llm_bias-02][E:multi_llm_bias-05][E:multi_llm_bias-08]。錯誤相關性本來就跨供應商存在 [V][E:multi_llm_bias-01]，同家族是否更高沒有直接證據 [H]，但沒有理由讓它更糟。
 - 跨家族 fallback 只能在 `agents.yaml` 對**不參與裁決**的角色（目前只有 reporter）設定 `fallback_models`；`models.yaml` 的 `fallback` 一律同家族。兩者都由 `tools/validate_schemas.py` 檢查。
@@ -1046,13 +1058,18 @@ erDiagram
 - Audit Log 加密、分級、有保留期限、secrets 遮罩、限制存取。
 
 ### 13.1 稽核事件格式（`audit-event.schema.json`，[H]）
-- **儲存**：append-only JSONL，每個 run 一個檔（另有一個 engagement 層級的檔記錄跨 run 事件）；大型內容（prompt、回應、請求紀錄）只存 CAS hash，本體加密存在 CAS。
+- **儲存**：append-only JSONL，每個 run 一個檔（另有一個 engagement 層級的檔記錄跨 run 事件）；寫入端與讀取端都**只以 `\n` 分行**（不把 `\r`、U+2028 等其他換行字元當成行界，避免兩邊對「一行」的切法不同而使行 hash 不一致）[H]；大型內容（prompt、回應、請求紀錄）只存 CAS hash，本體加密存在 CAS。
 - **欄位**：`seq`（從 1 起連續）、`ts`、`run_id`、`engagement_id`、`event_type`、`actor`（`{kind: human|agent|system, id}`）、`node`、`zone`、`data_class`、`idempotency_key`、`payload`（小型結構化內容）、`payload_refs[]`（CAS hash）、`prev_hash`、`signature`。全部欄位都必填；只有人為的 `initiator_claim` 與 `run_resume` 事件有簽章（Ed25519，簽署對象是移除 `signature` 後事件的 JCS），其他事件 `signature: null`。
 - **hash chain**：`prev_hash` ＝ 前一行原始位元組（不含換行）的 sha256；第一行的 `prev_hash` ＝ sha256(`run_id`)。只有 Audit Writer 一個寫入者，以檔案鎖序列化。
-- **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件的 `prev_hash`（也就是它之前所有紀錄的 hash）寫入 run 紀錄的 `audit_anchors`（Postgres）；可選擇另外寫到 WORM 儲存或外部系統 [H]。
+- **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件以 `{seq, line_sha256}` 寫入 run 紀錄的 `audit_anchors`（Postgres）：`seq` 是該錨點事件的序號，`line_sha256` 是該錨點事件**自己那一行**原始位元組（不含換行）的 sha256；因為這一行含 `prev_hash`，錨點同時承諾它之前的整條鏈；可選擇另外寫到 WORM 儲存或外部系統 [H]。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。
 - **驗證**：`vibecheck audit verify <run-id>` 重算整條鏈並與錨點比對。
-- **限制（做不到）**：hash chain 只能**偵測**竄改；同時控制稽核檔與 run 紀錄的人可以整條重寫。只有把錨點寫到該人無法修改的外部系統，才能防止這種情況（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 16 條）。
+- **尾端保護**（validator 強制）[H]：
+  - 每個 `audit_anchors` 項目指名的 `seq` 必須在稽核檔範圍內，否則 → `E-AUDIT-TRUNCATED`（檔案被截到錨點之前）；該行的 sha256 必須等於 `line_sha256`，否則 → `E-AUDIT-ANCHOR-MISMATCH`；指名的行必須是 `audit_anchor` 事件；`audit_anchors` 必須與稽核檔中的 `audit_anchor` 事件**一一對應**（每個錨點事件恰好列一次，不能遺漏、重複或多列），否則 → `E-AUDIT-ANCHOR`。
+  - 稽核檔中最後一個 `audit_anchor` 事件之後的行是**未錨定的尾端**（以稽核檔本身的錨點事件為準）：非終態的 run（含 `RUNNING`、`WAITING_GATE`、`SUSPENDED`、`STOPPED`）會有這一段，validator 發出 `W-AUDIT-UNANCHORED-TAIL`（警告）。
+  - **終態的 run**（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）必須有稽核檔，且最後一行必須是 `payload.reason: run_end` 的錨點；不是 → `E-AUDIT-TAIL`（錯誤）。
+  - 因此尾端截斷只能偵測到最後一個錨點為止：未錨定的尾端被刪掉，無法從鏈本身看出來。
+- **限制（做不到）**：hash chain 只能**偵測**竄改，不能防止；同時控制稽核檔與 run 紀錄的人可以整條重寫（包括錨點）。只有把錨點寫到該人無法修改的外部系統，才能防止這種情況（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 16 條）。
 - **與文獻的關係**：防竄改紀錄要靠持有先前承諾（錨點）的稽核者；純 hash chain 的證明長度與紀錄大小成線性 [V][E:orchestration-51]，以每個 run 的規模來說可以接受 [H]。Certificate Transparency v2（RFC 9162，Experimental）改用 Merkle tree 提供包含與一致性證明，並警告紀錄可能對不同用戶端呈現不同視圖 [V][E:orchestration-50]；若日後需要跨 run 的公開驗證，可改用 Merkle 結構 [H]。
 
 ### 13.2 事件類型（enum）

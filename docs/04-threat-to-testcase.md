@@ -383,6 +383,13 @@ def host_of(base_url: str) -> str:
     return (urlsplit(base_url).hostname or "").lower()
 
 
+def target_host(t) -> str:
+    """ROE 目標的主機：kind: http → base_url 的 host；kind: database → endpoint（host:port）的 host 部分。"""
+    if t.kind == "database":
+        return (urlsplit("//" + (t.endpoint or "")).hostname or "").lower()
+    return host_of(t.base_url)
+
+
 def registry_entry(tools, adapter: str):
     """查 tools.yaml：tools[tool].modes[mode]。
     回傳 None 或 {tool, mode, base_class: 'S0'|'S1'|'S2'|None, b4_executable: bool, ...}。"""
@@ -419,12 +426,12 @@ def compute_safety_class(tc, roe, tools, manifest_keys: set[str] | None) -> str:
     if tool not in set(roe.activities.allowed_tools):
         return "S3"
 
-    # 4. 目標：只能是 ROE 目標；不能是排除的主機
+    # 4. 目標：只能是 ROE 目標；不能是排除的主機（HTTP 與 DB 目標都適用；精確比對、不分大小寫）
     roe_targets = {t.id: t for t in roe.targets}
     if not tc.target_ids or any(t not in roe_targets for t in tc.target_ids):
         return "S3"
     excluded_hosts = {h.lower() for h in roe.exclusions.hosts}
-    if any(host_of(roe_targets[t].base_url) in excluded_hosts for t in tc.target_ids):
+    if any(target_host(roe_targets[t]) in excluded_hosts for t in tc.target_ids):
         return "S3"
 
     # 5. 請求白名單
@@ -679,7 +686,7 @@ db_access:
 | `validity` | `not_before`、`not_after`、時間窗 | 每個接觸網路的步驟都檢查 |
 | `targets` | 目標 ID、base URL、環境（`staging`，或我方控制的 `tester_controlled`，例如 canary）、所有權證明方式 | DNS TXT／well-known token 由 `B0_ownership_verify` 經 Scope Proxy 驗證，並在每個 `B4_preflight` 重驗；Scope Proxy 白名單 |
 | `test_roles` | 測試角色與憑證參照（存在 Z3 secret store） | 測試案例只能使用列出的角色 |
-| `exclusions` | 排除路徑、排除主機 | 命中即 S3（§5 `path_may_match`、`host_of`） |
+| `exclusions` | 排除路徑、排除主機 | 命中即 S3（§5 `path_may_match`、`target_host`；DB 目標以 `endpoint` 的 host 部分比對）；DB 目標或 `db_access.endpoint` 的主機在 `exclusions.hosts` 中 → validator 拒絕該 ROE（`E-ROE-DB-SCOPE`） |
 | `activities` | `allowed_safety_classes`；`allowed_tools`（D13 工具 ID）；`denied_modes`（D13 `tool:mode`，只能在工具包拒絕清單之外再加） | §5 計算；超出即拒絕 |
 | `rate_limits` | `per_host_rps`、`max_concurrency`、`s1_request_cap`、`zap_delay_ms_min`、`zap_max_scan_minutes` | 工具設定由此產生並檢查；測試案例速率高於此即 S3；ZAP 的 `delayInMs`、`maxScanDurationInMins`、`threadPerHost` 界限見 §4.2 |
 | `db_access` | `target_id`、DB 端點、快照方式、快照憑證、oracle 唯讀憑證、`oracle_tables`、`seed_manifest_ref`（例如 `docs/examples/seed-manifest.yaml`） | 只有 Z3 Snapshot Service 能用；見 [03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取) |

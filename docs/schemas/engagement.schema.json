@@ -13,7 +13,7 @@
 "lane_a_model":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"Lane A 單一家族 diff 審查用的模型；必須在該資料等級的允許清單中；null＝Lane A 不送 LLM"},
 "owasp_llm_version":{"anyOf":[{"enum":["2025","2026"]},{"type":"null"}],"description":"B2 使用的 OWASP LLM Top 10 版本；null＝沿用 toolkit.yaml owasp_llm_default（預設 2026，docs/04 §2.3）"},
 "telemetry_disabled":{"const":true},
-"retention_days":{"type":"integer","minimum":1},
+"retention_days":{"type":"integer","minimum":1,"description":"本委任的有效內容保存天數（唯一生效值）。只能比 toolkit.yaml retention 的組織上限短或相等（C 級：c_days_after_run_end；P 級：p_days），超過 → E-RETENTION；ROE data_handling.retention_days 只能再縮短"},
 "validity":{"type":"object","additionalProperties":false,"properties":{"not_before":{"$ref":"common.schema.json#/$defs/datetime"},"not_after":{"$ref":"common.schema.json#/$defs/datetime"}},"required":["not_before","not_after"]},
 "budgets":{"type":"object","additionalProperties":false,"properties":{"run_total":{"$ref":"#/$defs/caps"},"W":{"$ref":"#/$defs/caps"},"B":{"$ref":"#/$defs/caps"}},"required":["run_total","W","B"],"description":"docs/03 §11；費用上限必填（工具包沒有預設金額）"},
 "gate_timeouts_hours":{"type":"object","additionalProperties":false,"properties":{"claim_run":{"type":"integer","minimum":1},"G1":{"type":"integer","minimum":1},"G2":{"type":"integer","minimum":1},"G3":{"type":"integer","minimum":1},"G4":{"type":"integer","minimum":1},"G5":{"type":"integer","minimum":1},"GB":{"type":"integer","minimum":1}},"description":"只能比 toolkit.yaml 短（validator 檢查）"},
