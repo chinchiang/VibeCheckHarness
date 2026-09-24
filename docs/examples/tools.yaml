@@ -1,0 +1,155 @@
+# tools.yaml — 工具與模式登錄（示意，tool-registry.schema.json；D13）
+# 工具 ID（tool）與模式 ID（tool:mode）的唯一權威清單 [H]：
+#   - ROE activities.allowed_tools 只列 tool；denied_modes 與 testcase tool_binding.adapter 用 tool:mode
+#   - 安全等級計算（docs/04 §5）讀 base_class 與 b4_executable
+#   - toolkit_denied 必須與 docs/04 §5 的 TOOLKIT_DENYLIST 一致（驗證程式檢查）
+#   - 每個 license_ref 在 licenses.yaml 都要有一列（驗證程式檢查）
+# 白箱工具（zone Z2）一律 b4_executable: false：出現在黑箱測試案例即 S3。
+# M1 adapter 名稱與 docs/08 §2.3 一致。status＝法務閘門 的元件（semgrep 官方規則、codeql、trufflehog、k6）
+# 在法務確認之前只登錄 ID，不得啟用（docs/06 §2.3、docs/08 §2.3）。
+
+registry_version: 2
+
+tools:
+  # ---------- 黑箱（Z3，只經 Scope Proxy）----------
+  zap:
+    zone: Z3
+    description: "OWASP ZAP（B1 被動探索、B4 主動掃描）"
+    license_ref: ZAP
+    modes:
+      baseline: {description: "被動規則", base_class: S0, b4_executable: true, toolkit_denied: false}
+      active: {description: "主動掃描；每個 job 都要 G5", base_class: S2, b4_executable: true, toolkit_denied: false}
+  playwright:
+    zone: Z3
+    description: "Playwright（API 與 UI 測試）"
+    license_ref: Playwright
+    modes:
+      api: {description: "APIRequestContext；等級由 HTTP 方法與量決定", base_class: S0, b4_executable: true, toolkit_denied: false}
+      ui: {description: "瀏覽器 UI 流程", base_class: S0, b4_executable: true, toolkit_denied: false}
+  schemathesis:
+    zone: Z3
+    description: "Schemathesis（OpenAPI 性質測試）"
+    license_ref: Schemathesis
+    modes:
+      check: {description: "內建 checks", base_class: S1, b4_executable: true, toolkit_denied: false}
+      hook: {description: "自訂 hook 的性質測試", base_class: S1, b4_executable: true, toolkit_denied: false}
+  nuclei:
+    zone: Z3
+    description: "Nuclei（只跑自簽章模板）"
+    license_ref: Nuclei
+    modes:
+      signed_templates: {description: "自簽章模板", base_class: S1, b4_executable: true, toolkit_denied: false}
+      code_protocol: {description: "code protocol 模板會在執行端跑任意程式碼", base_class: null, b4_executable: true, toolkit_denied: true}
+  restler:
+    zone: Z3
+    description: "RESTler"
+    license_ref: RESTler
+    modes:
+      fuzz: {description: "fuzz 模式可能造成中斷", base_class: null, b4_executable: true, toolkit_denied: true}
+  k6:
+    zone: Z3
+    description: "k6（只做低量限流驗證）"
+    license_ref: k6
+    modes:
+      threshold: {description: "限流門檻驗證", base_class: S1, b4_executable: true, toolkit_denied: false}
+  promptfoo:
+    zone: Z3
+    description: "promptfoo（LLM 功能測試；關閉遠端生成）"
+    license_ref: promptfoo
+    modes:
+      eval: {description: "固定案例評估", base_class: S1, b4_executable: true, toolkit_denied: false}
+      redteam_local: {description: "本地產生的 red-team 案例", base_class: S1, b4_executable: true, toolkit_denied: false}
+  pyrit:
+    zone: Z3
+    description: "PyRIT（多輪 LLM 測試，M5）"
+    license_ref: PyRIT
+    modes:
+      orchestrator: {description: "多輪 orchestrator；需要 relay", base_class: S1, b4_executable: true, toolkit_denied: false}
+
+  # ---------- 白箱（Z2，無網路）；M1 adapter 見 docs/08 §2.3 ----------
+  betterleaks:
+    zone: Z2
+    description: "W0 預設 secrets 掃描"
+    license_ref: Betterleaks
+    modes:
+      scan: {description: "W0 secrets 掃描", base_class: null, b4_executable: false, toolkit_denied: false}
+  gitleaks:
+    zone: Z2
+    description: "W0 secrets 掃描備援"
+    license_ref: gitleaks
+    modes:
+      scan: {description: "W0 secrets 掃描（備援）", base_class: null, b4_executable: false, toolkit_denied: false}
+  trufflehog:
+    zone: Z2
+    description: "W0 secrets 掃描（選用；法務閘門，未確認前停用）"
+    license_ref: TruffleHog
+    modes:
+      scan: {description: "未修改的 binary 以 CLI 呼叫", base_class: null, b4_executable: false, toolkit_denied: false}
+  syft:
+    zone: Z2
+    description: "SBOM"
+    license_ref: Syft
+    modes:
+      sbom: {description: "W0 SBOM", base_class: null, b4_executable: false, toolkit_denied: false}
+  inventory:
+    zone: Z2
+    description: "確定性 inventory（工具包自有程式碼）"
+    license_ref: vibecheck
+    modes:
+      fastapi: {description: "FastAPI 路由與依賴", base_class: null, b4_executable: false, toolkit_denied: false}
+      express: {description: "Express 路由與中介層", base_class: null, b4_executable: false, toolkit_denied: false}
+      sql_rls: {description: "SQL schema 與 RLS 政策", base_class: null, b4_executable: false, toolkit_denied: false}
+  opengrep:
+    zone: Z2
+    description: "W1 SAST（預設）"
+    license_ref: Opengrep
+    modes:
+      scan: {description: "自寫規則", base_class: null, b4_executable: false, toolkit_denied: false}
+  semgrep:
+    zone: Z2
+    description: "W1 SAST（選用；官方規則為法務閘門）"
+    license_ref: Semgrep CE
+    modes:
+      scan: {description: "Semgrep CE", base_class: null, b4_executable: false, toolkit_denied: false}
+  codeql:
+    zone: Z2
+    description: "W1 SAST（選用；私有碼為法務閘門）"
+    license_ref: CodeQL
+    modes:
+      analyze: {description: "CodeQL database analyze", base_class: null, b4_executable: false, toolkit_denied: false}
+  bandit:
+    zone: Z2
+    description: "W1 Python SAST"
+    license_ref: Bandit
+    modes:
+      scan: {description: "Bandit", base_class: null, b4_executable: false, toolkit_denied: false}
+  osv_scanner:
+    zone: Z2
+    description: "W1 相依弱點"
+    license_ref: OSV-Scanner
+    modes:
+      scan: {description: "OSV-Scanner", base_class: null, b4_executable: false, toolkit_denied: false}
+  grype:
+    zone: Z2
+    description: "W1 相依弱點（讀 Syft SBOM）"
+    license_ref: Grype
+    modes:
+      scan: {description: "Grype", base_class: null, b4_executable: false, toolkit_denied: false}
+  pkgcheck:
+    zone: Z2
+    description: "W1 套件存在性檢查（slopsquatting；工具包自有程式碼）"
+    license_ref: vibecheck
+    modes:
+      exists: {description: "比對 registry 快照", base_class: null, b4_executable: false, toolkit_denied: false}
+  hypothesis:
+    zone: Z2
+    description: "W4 性質測試（Python）"
+    license_ref: Hypothesis
+    modes:
+      property: {description: "Hypothesis 性質測試", base_class: null, b4_executable: false, toolkit_denied: false}
+  fast_check:
+    zone: Z2
+    description: "W4 性質測試（JavaScript）"
+    license_ref: fast-check
+    modes:
+      property: {description: "fast-check 性質測試", base_class: null, b4_executable: false, toolkit_denied: false}

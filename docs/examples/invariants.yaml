@@ -1,0 +1,49 @@
+# invariants.yaml — G1 安全不變量規格（示意，invariants.schema.json；docs/02 W0.5／G1）
+# 規則（驗證程式檢查）[H]：
+#   - G1 GateRecord（GR-G1-0001）的 artifact.sha256＝本檔 approval view 的 hash
+#     （移除頂層 signoff 與每個 invariants[] 項目的 signoff；tools/vchlib/canonical.py approval_hash）
+#   - GR-G1-0001 的 decisions[] 逐項對應 invariants[]，item_sha256＝該項的 approval hash
+#   - invariants[] 的每一項與 docs/schemas/examples/requirement.invariant*.example.json 完全相同
+#   - baseline[] 只列 ID 與層級，不複製標準原文
+# ASVS 5.0.0 1.2.4 的層級與主旨見 [V][E:whitebox-46]。
+
+engagement_id: eng-acme-invoices-2026q4
+run_id: run-2026-09-23-001
+round: 1
+drafted_by:
+  agent_id: invariant_drafter
+  family: openai
+
+baseline:
+  - {requirement_id: REQ-ASVS-8.2.2, source: asvs-5.0.0, ref: v5.0.0-8.2.2, level: L1}
+  - {requirement_id: REQ-ASVS-1.2.4, source: asvs-5.0.0, ref: v5.0.0-1.2.4, level: L1}
+
+access_matrix:
+  - role: tenant_user
+    resource: invoice
+    actions: [read, update, delete]
+    condition: "invoice.tenant_id == user.tenant_id"
+  - role: support_agent
+    resource: refund_tool
+    actions: [invoke]
+    condition: "已經人工確認，且 order.owner == session.user"
+
+invariants:
+  - requirement_id: INV-AC-007
+    source: invariant
+    ref: INV-AC-007
+    level: null
+    text: "發票的讀取、修改、刪除只限發票所屬租戶的使用者。"
+    applies_to_features: [invoices]
+    signoff: {gate: G1, gate_record_id: GR-G1-0001, status: ACCEPTED}
+  - requirement_id: INV-LLM-003
+    source: invariant
+    ref: INV-LLM-003
+    level: null
+    text: "客服 agent 的 refund 工具必須經人工確認，且只能針對目前登入使用者自己的訂單。"
+    applies_to_features: [support_agent, refund_tool]
+    signoff: {gate: G1, gate_record_id: GR-G1-0001, status: ACCEPTED}
+
+signoff:
+  gate_record_id: GR-G1-0001
+  status: ACCEPTED

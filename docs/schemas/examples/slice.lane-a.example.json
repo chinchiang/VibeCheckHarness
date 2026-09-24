@@ -1,0 +1,22 @@
+{
+  "slice_id": "sha256:993c57c087955d4b434dd103ceaac590eed5bf5e0da31f8c7988fc572f82b7d1",
+  "run_id": "run-2026-09-25-pr-118",
+  "files": [
+    {
+      "path": "routes/exports.ts",
+      "sha256": "sha256:169e7d7e67d3f4742d6ad39d91b5bbd2585af463649de47a53563b8b6a9ea236",
+      "line_start": 1,
+      "line_end": 60
+    }
+  ],
+  "entry_points": [
+    "GET /api/exports/{id}"
+  ],
+  "facets": [
+    "authz"
+  ],
+  "token_count": 2100,
+  "tokenizer": "o200k_base（估算）",
+  "redacted": true,
+  "excluded_models": []
+}

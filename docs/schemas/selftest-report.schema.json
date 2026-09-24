@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "selftest-report.schema.json",
+  "title": "Selftest Report（selftest-report.json：工具包自測結果）",
+  "description": "docs/06 §1.2.1 的 ST-1–ST-7 結果；`vibecheck selftest run` 產出（docs/08 §5），附在里程碑驗收中（docs/07 M1-X3 等）。驗證規則：passed 必須等於依 threshold 重算的結果；0 門檻項目任一失敗 → overall_passed＝false（阻擋發布）；milestone 要求的項目不能是 NOT_RUN。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "report_id": {"type": "string"},
+    "toolkit_version": {"type": "string"},
+    "milestone": {"type": "string", "pattern": "^M[1-5]$"},
+    "trigger": {"enum": ["milestone", "nightly", "model_change", "prompt_change", "commander_rule_change", "release"]},
+    "started_at": {"$ref": "common.schema.json#/$defs/datetime"},
+    "finished_at": {"$ref": "common.schema.json#/$defs/datetime"},
+    "model_config_sha256": {"$ref": "common.schema.json#/$defs/sha256", "description": "agents.yaml＋models.yaml＋系統提示的 content hash；換任何一項都要重跑"},
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "twins": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "twin_id": {"type": "string", "description": "例如 invoices-app"},
+              "clean_commit": {"type": "string"},
+              "injected_commit": {"type": "string"},
+              "known_vulns": {"type": "integer", "minimum": 10, "description": "每個 twin ≥10 個有標註答案的已知漏洞"},
+              "canary_secrets": {"type": "integer", "minimum": 1}
+            },
+            "required": ["twin_id", "clean_commit", "injected_commit", "known_vulns", "canary_secrets"]
+          }
+        },
+        "vectors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "vector": {"enum": ["INJ-CMT", "INJ-DOC", "INJ-PR", "INJ-FN", "INJ-SARIF", "INJ-DEP", "INJ-HTTP", "INJ-LLMAPP"]},
+              "samples": {"type": "integer", "minimum": 3, "description": "每個向量至少 3 個樣本"}
+            },
+            "required": ["vector", "samples"]
+          }
+        }
+      },
+      "required": ["twins", "vectors"]
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item": {"enum": ["ST-1", "ST-2", "ST-3", "ST-4", "ST-5", "ST-6", "ST-7"]},
+          "status": {"enum": ["RUN", "NOT_RUN"]},
+          "metric": {"type": "string"},
+          "value": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "ST-1/2/3/6/7：計數；ST-4：CONFIRMED_* 計數（另見 likely_ratio）；ST-5：recall 差（百分點）"},
+          "likely_ratio": {"anyOf": [{"type": "number", "minimum": 0, "maximum": 1}, {"type": "null"}], "description": "只用於 ST-4：進入 LIKELY 的比率（門檻 ≤0.05）"},
+          "runs": {"type": "integer", "minimum": 0, "description": "ST-5 需 ≥3 次 run"},
+          "threshold": {"type": "string", "description": "例如 \"== 0\"、\"<= 10\""},
+          "passed": {"anyOf": [{"type": "boolean"}, {"type": "null"}]},
+          "evidence": {"type": "array", "items": {"type": "string"}, "description": "稽核事件 ID 或 CAS ref（egress_blocked、artifact_validation 等）"}
+        },
+        "required": ["item", "status", "metric", "value", "likely_ratio", "runs", "threshold", "passed", "evidence"]
+      }
+    },
+    "overall_passed": {"type": "boolean"}
+  },
+  "required": ["report_id", "toolkit_version", "milestone", "trigger", "started_at", "finished_at", "model_config_sha256", "corpus", "items", "overall_passed"]
+}

@@ -1,39 +1,45 @@
 {
   "verdict_id": "V-005-2",
   "cluster_id": "K-005",
-  "votes": [
-    {
-      "voter_agent_id": "ver_1",
-      "voter_model_key": "nemotron_self",
-      "voter_family": "nvidia",
-      "voter_lineage": "nemotron3",
-      "stance": "SUPPORT",
-      "rationale": "routes/invoices.ts:42 的查詢沒有租戶條件（片段比對通過），且 TC-012-01 重播 2 次皆失敗。",
-      "fallback_used": null,
-      "anonymized": true,
-      "order_randomized": true,
-      "valid": true
-    }
-  ],
+  "readjudicated_by": "B5_readjudicate",
+  "supersedes_verdict_id": "V-005-1",
+  "votes": [],
   "missing_votes": [],
   "tool_corroboration": [],
   "executable_proof": {
     "testcase_id": "TC-012-01",
-    "result_ref": "sha256:954e76455b63775f064f9d2d5863c37535cd40eb2d625525ac37d75801f56302",
+    "result_ref": "sha256:77ab1e9a23f858db33e9eb66445bc43a32e6b988e255f20e4a17a36e6ba6a053",
     "trials": null,
     "interpretation_confirmed_by": {
       "agent_id": "result_analyst",
       "family": "nvidia"
     }
   },
+  "test_evidence": {
+    "class": "E_proof",
+    "results": [
+      {
+        "result_ref": "sha256:77ab1e9a23f858db33e9eb66445bc43a32e6b988e255f20e4a17a36e6ba6a053",
+        "class": "E_proof",
+        "positive_control": true,
+        "reason": "FAIL，重播 2 次相同；result_analyst（nvidia）不在叢集家族中"
+      }
+    ]
+  },
   "diversity_degraded": false,
+  "no_eligible_verifier": false,
+  "calibration_version": 3,
+  "theta_confirm": 1.2,
+  "theta_reject": null,
+  "score": 0,
+  "g2_decision_ref": null,
   "status": "CONFIRMED_EXECUTABLE",
   "status_cap": null,
+  "advisory": false,
+  "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "0.1.0",
-  "no_eligible_verifier": false,
+  "rule_version": "05-v0.2",
   "rule_trace": [
-    "R0:pass",
-    "R1:executable_proof+cross_family_interpretation->CONFIRMED_EXECUTABLE"
+    "R1:E_proof(R-TC-012-01-1)+cross_family_interpretation->CONFIRMED_EXECUTABLE"
   ]
 }

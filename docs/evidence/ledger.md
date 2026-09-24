@@ -4,7 +4,7 @@
 > 主張（claim）保留研究代理的英文原文；「查核」欄是獨立查核代理的結論與更正。
 > 中文文件中的 `[E:<id>]` 指向本檔的條目。若查核欄有更正，**以更正為準**。
 
-總計 321 條：C 已更正（原主張被推翻） 5、P 部分查證 43、V 已查證 273
+總計 445 條：C 已更正（原主張被推翻） 7、P 部分查證 60、V 已查證 378
 
 ## 目錄
 - [多代理編排框架與模型閘道（orchestration）](#orchestration)
@@ -241,6 +241,138 @@
 - **主張**：A2A (Agent2Agent) was created by Google, moved to the Linux Foundation on 2025-06-23, and reached v1.0.0 on 2026-03-12 (v1.0.1 on 2026-05-28). The repo is Apache-2.0 with SDKs in Python, Go, JavaScript, Java, .NET and Rust, and describes itself as complementary to MCP.
 - **查核**：No correction. Google launched A2A in April 2025. v1.0.0 has breaking changes from v0.3.0, including OAuth flow updates, tasks/list and gRPC multi-tenancy.
 - **來源**：<https://www.linuxfoundation.org/press/linux-foundation-launches-the-agent2agent-protocol-project-to-enable-secure-intelligent-communication-between-ai-agents> ｜ <https://github.com/a2aproject/A2A/releases> ｜ <https://github.com/a2aproject/A2A>
+
+### E:orchestration-38 — V 已查證
+
+- **主張**：Pydantic (pydantic/pydantic) is MIT-licensed according to the GitHub license API.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/pydantic/pydantic/license> ｜ <https://github.com/pydantic/pydantic/blob/main/LICENSE>
+
+### E:orchestration-39 — V 已查證
+
+- **主張**：LiteLLM's LICENSE states that content under the 'enterprise/' directory is licensed under enterprise/LICENSE and that everything else is MIT ('Copyright (c) 2023 Berri AI').
+- **查核**：No correction. (Note: the GitHub license API reports NOASSERTION for BerriAI/litellm because of the dual-part LICENSE.)
+- **來源**：<https://raw.githubusercontent.com/BerriAI/litellm/main/LICENSE>
+
+### E:orchestration-40 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-24): jsonschema 4.26.0 license_expression MIT; PyYAML 6.0.3 license MIT (OSI MIT classifier); tzdata 2026.4 (uploaded 2026-09-12) license Apache-2.0.
+- **查核**：No correction. (Note: jsonschema 4.26.0 was uploaded 2026-01-07. PyYAML has no license_expression, only license 'MIT' plus the OSI MIT classifier. tzdata has license 'Apache-2.0' with no license_expression.)
+- **來源**：<https://pypi.org/pypi/jsonschema/json> ｜ <https://pypi.org/pypi/PyYAML/json> ｜ <https://pypi.org/pypi/tzdata/json>
+
+### E:orchestration-41 — V 已查證
+
+- **主張**：PostgreSQL is released under the PostgreSQL License, described by the project as a liberal open-source license similar to BSD or MIT. It permits use, copying, modification and distribution for any purpose without fee, provided the copyright notice and license paragraphs appear in all copies.
+- **查核**：No correction.
+- **來源**：<https://www.postgresql.org/about/licence/>
+
+### E:orchestration-42 — V 已查證
+
+- **主張**：langgraph-checkpoint-postgres 3.1.2 (MIT, uploaded 2026-08-07) depends on psycopg>=3.2.0 and psycopg-pool>=3.2.0, and psycopg 3.3.6 declares license_expression LGPL-3.0-only.
+- **查核**：No correction.
+- **來源**：<https://pypi.org/pypi/langgraph-checkpoint-postgres/json> ｜ <https://pypi.org/pypi/psycopg/json>
+
+### E:orchestration-43 — V 已查證
+
+- **主張**：RFC 8032 (EdDSA, January 2017) is an Informational document from the IRTF CFRG. Ed25519 public keys and private keys are 32 octets, signatures are 64 octets, and the RFC states that EdDSA signatures are deterministic.
+- **查核**：No correction.
+- **來源**：<https://www.rfc-editor.org/rfc/rfc8032> ｜ <https://www.rfc-editor.org/rfc/rfc8032.txt>
+
+### E:orchestration-44 — V 已查證
+
+- **主張**：RFC 8785, JSON Canonicalization Scheme (JCS, June 2020), is an Informational RFC on the Independent Submission stream, not an IETF standard. It restricts input to the I-JSON subset (no duplicate property names), requires numbers to be IEEE 754 double precision serialized per ECMAScript, sorts property names by UTF-16 code units, and recommends encoding higher-precision numbers or long integers as JSON strings.
+- **查核**：No correction.
+- **來源**：<https://www.rfc-editor.org/rfc/rfc8785> ｜ <https://www.rfc-editor.org/rfc/rfc8785.txt>
+
+### E:orchestration-45 — V 已查證
+
+- **主張**：The Python package 'rfc8785' (Trail of Bits, pure Python, Apache-2.0) is at version 0.1.4 (2024-09-27). The alternative package 'jcs' is at 0.2.1 (2022-04-10, Apache-2.0, classifiers only up to Python 3.10).
+- **查核**：No correction. (rfc8785 declares Apache-2.0 only through the OSI classifier, not through a license_expression field.)
+- **來源**：<https://pypi.org/pypi/rfc8785/json> ｜ <https://pypi.org/pypi/jcs/json>
+
+### E:orchestration-46 — V 已查證
+
+- **主張**：The Python 'cryptography' package latest version is 50.0.1 with license expression 'Apache-2.0 OR BSD-3-Clause'. Its Ed25519 API provides Ed25519PrivateKey.generate()/sign(data) (64-byte signature) and Ed25519PublicKey.verify(signature, data), which raises InvalidSignature on failure. Raw keys are 32 bytes.
+- **查核**：No correction.
+- **來源**：<https://pypi.org/pypi/cryptography/json> ｜ <https://cryptography.io/en/latest/hazmat/primitives/asymmetric/ed25519/>
+
+### E:orchestration-47 — V 已查證
+
+- **主張**：OpenSSH 8.1 (2019-10-09) added experimental signing and verification to ssh-keygen. ssh-keygen -Y sign/verify require a namespace (-n) to prevent signature confusion across domains. -Y verify takes an allowed-signers file (-f) and an optional revocation file (-r), and allowed_signers entries support namespaces, valid-after and valid-before options.
+- **查核**：No correction.
+- **來源**：<https://www.openssh.org/txt/release-8.1> ｜ <https://man.openbsd.org/ssh-keygen> ｜ <https://www.openssh.com/txt/release-8.1> ｜ <https://man.openbsd.org/ssh-keygen.1>
+
+### E:orchestration-48 — V 已查證
+
+- **主張**：minisign uses Ed25519 (by default over a BLAKE2b-512 prehash). Its signatures carry an untrusted comment and a signed 'trusted comment'. No key revocation or expiry mechanism is described on the project page.
+- **查核**：No correction.
+- **來源**：<https://jedisct1.github.io/minisign/>
+
+### E:orchestration-49 — V 已查證
+
+- **主張**：Sigstore cosign sign-blob in keyless mode obtains a certificate from Fulcio and records the signature in the Rekor transparency log. Key-based signing uses --key (key file, KMS URI or Kubernetes secret). cosign verify-blob offers --insecure-ignore-tlog for signatures not uploaded to the transparency log.
+- **查核**：No correction.
+- **來源**：<https://docs.sigstore.dev/cosign/signing/signing_with_blobs/> ｜ <https://raw.githubusercontent.com/sigstore/cosign/main/doc/cosign_sign-blob.md> ｜ <https://raw.githubusercontent.com/sigstore/cosign/main/doc/cosign_verify-blob.md> ｜ <https://docs.sigstore.dev/cosign/signing/overview/>
+
+### E:orchestration-50 — V 已查證
+
+- **主張**：RFC 9162 (Certificate Transparency Version 2.0, December 2021) is Experimental and obsoletes RFC 6962. It uses a Merkle tree with inclusion and consistency proofs against signed tree heads, and warns that a misbehaving log can present different, inconsistent views of itself to different clients.
+- **查核**：No correction.
+- **來源**：<https://www.rfc-editor.org/rfc/rfc9162> ｜ <https://www.rfc-editor.org/rfc/rfc9162.txt>
+
+### E:orchestration-51 — V 已查證
+
+- **主張**：Crosby and Wallach, 'Efficient Data Structures for Tamper-Evident Logging' (USENIX Security 2009), model an untrusted logger kept honest by auditors who hold earlier commitments and check that the log remains consistent with them. They note that a classic hash chain may need a proof linear in log size (e.g. an 800 MB trace for an 80-million-event log) versus about 3 KB with their tree-based structure.
+- **查核**：No correction. (The body text gives the tree proof size as 3100 bytes. The abstract says 3 KB.)
+- **來源**：<https://www.usenix.org/legacy/events/sec09/tech/full_papers/crosby.pdf> ｜ <https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf>
+
+### E:orchestration-52 — P 部分查證
+
+- **主張**：The YAML 1.2.2 specification says YAML 1.2's primary focus was making YAML a strict superset of JSON, defines a JSON schema with only null, bool, int and float scalar tags, and requires mapping keys to be unique.
+- **查核**：Confirmed: the 1.2.2 spec says YAML 1.2's 'primary focus was making YAML a strict superset of JSON', and it requires mapping keys to be unique. Wrong: the JSON schema does not have 'only' null, bool, int and float scalar tags. Section 10.2.1 says the JSON schema uses those tags 'in addition to those defined by the failsafe schema' (map, seq, str). So !!str is also a scalar tag in the JSON schema.
+- **來源**：<https://yaml.org/spec/1.2.2/>
+
+### E:orchestration-53 — V 已查證
+
+- **主張**：PyYAML's PyPI description says it includes 'a complete YAML 1.1 parser'.
+- **查核**：No correction.
+- **來源**：<https://pypi.org/project/PyYAML/> ｜ <https://pypi.org/pypi/PyYAML/json>
+
+### E:orchestration-54 — P 部分查證
+
+- **主張**：PyYAML GitHub issue #41 (open as of 2026-09-24) reports that PyYAML silently accepts duplicate mapping keys, with the last value overwriting earlier ones, and that libyaml behaves the same way.
+- **查核**：Issue #41 ('pyyaml should detect duplicate keys and report an error') is open and was created 2016-11-22, migrated from pyyaml.org ticket #128. Its body says 'currently libyaml silently accepts duplicate keys', and a 2019 comment refers to 'PyYAML silently accepting duplicate mapping keys'. The 'last value overwrites earlier ones' detail was not found in the issue body. The body also frames the problem around libyaml rather than stating 'libyaml behaves the same way'.
+- **來源**：<https://github.com/yaml/pyyaml/issues/41> ｜ <https://api.github.com/repos/yaml/pyyaml/issues/41> ｜ <https://api.github.com/repos/yaml/pyyaml/issues/41/comments?per_page=100>
+
+### E:orchestration-55 — P 部分查證
+
+- **主張**：PyPI metadata (checked 2026-09-24): datamodel-code-generator 0.82.0, license MIT, requires_python >=3.10. Its project description states it generates Python data models (Pydantic v1/v2 BaseModel, dataclasses, TypedDict, msgspec) from inputs including OpenAPI 3 and JSON Schema.
+- **查核**：Version 0.82.0, license_expression MIT, requires_python >=3.10, and OpenAPI 3 / JSON Schema inputs are confirmed. However, the current PyPI description lists outputs as 'Pydantic v2, Pydantic v2 dataclass, dataclasses, TypedDict, or msgspec' and does not mention Pydantic v1; drop 'v1' from the claim (or source it separately). The description also lists more inputs (AsyncAPI, Avro, XML Schema, Protobuf/gRPC, GraphQL, MCP tool schemas, raw JSON/YAML/CSV).
+- **來源**：<https://pypi.org/pypi/datamodel-code-generator/json> ｜ <https://raw.githubusercontent.com/koxudaxi/datamodel-code-generator/main/docs/index.md>
+
+### E:orchestration-56 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-24): hypothesis 6.168.1, summary 'The property-based testing library for Python', license MPL-2.0, requires_python >=3.10.
+- **查核**：No correction.
+- **來源**：<https://pypi.org/pypi/hypothesis/json>
+
+### E:orchestration-57 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-24): httpx 0.28.1, license BSD-3-Clause, requires_python >=3.8, summary 'The next generation HTTP client.'
+- **查核**：No correction.
+- **來源**：<https://pypi.org/pypi/httpx/json>
+
+### E:orchestration-58 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-24): dnspython 2.8.0, license ISC, requires_python >=3.10, summary 'DNS toolkit'.
+- **查核**：No correction.
+- **來源**：<https://pypi.org/pypi/dnspython/json>
+
+### E:orchestration-59 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-24): langgraph-checkpoint-sqlite 3.1.1, license MIT, requires_python >=3.10, summary 'Library with a SQLite implementation of LangGraph checkpoint saver.' Same check: langgraph 1.2.12, MIT, requires_python >=3.10.
+- **查核**：No correction.
+- **來源**：<https://pypi.org/pypi/langgraph-checkpoint-sqlite/json> ｜ <https://pypi.org/pypi/langgraph/json>
 
 **本主題研究限制（研究代理自述）**
 
@@ -487,6 +619,84 @@
 - **查核**：The GitHub repo exists under Apache-2.0 (about 3.2k stars) and routes each LLM call or request. It ships as a NeMo Relay plugin, an embedded library, or a standalone proxy compatible with the OpenAI and Anthropic APIs. It is pre-1.0 (core Beta, other parts Alpha/Demo), so APIs may change. Announced August 11, 2026.
 - **來源**：<https://blogs.nvidia.com/blog/nemotron-lightning-switchyard-rtx-dgx/> ｜ <https://github.com/NVIDIA-NeMo/Switchyard> ｜ <https://developer.nvidia.com/blog/route-ai-agent-workloads-across-models-with-nvidia-nemo-switchyard/>
 
+### E:providers-39 — V 已查證
+
+- **主張**：vLLM (vllm-project/vllm) and SGLang (sgl-project/sglang) are both Apache-2.0-licensed according to the GitHub license API.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/vllm-project/vllm/license> ｜ <https://api.github.com/repos/sgl-project/sglang/license>
+
+### E:providers-40 — V 已查證
+
+- **主張**：NVIDIA's NIM FAQ says NVIDIA Developer Program members may use self-hosted NIM for research, application development and experimentation on up to 16 GPUs. It defines production use as any use of NIM for purposes other than development, testing, research or evaluation, and says production use requires an NVIDIA AI Enterprise license.
+- **查核**：No correction. (The full definition adds 'such as conducting business transactions and any non-testing activity including activity serving real end-users'.)
+- **來源**：<https://docs.api.nvidia.com/nim/docs/product> ｜ <https://developer.nvidia.com/nim> ｜ <https://forums.developer.nvidia.com/t/nvidia-nim-faq/300317>
+
+### E:providers-41 — V 已查證
+
+- **主張**：The NVIDIA API Trial Terms of Service (v. September 19, 2025) limit access to trial purposes without production use (s.1.2), limit use without a paid subscription to internal testing and evaluation (s.1.4), forbid submitting confidential information or controlled or sensitive data (s.2.6(a)), and forbid security testing of the API Service (probe, scan or vulnerability test) unless NVIDIA authorizes it in writing (s.4.10).
+- **查核**：No correction. (s.2.6(a) also lists PHI, personal data, PCI information and sensitive human-subject research data.)
+- **來源**：<https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf>
+
+### E:providers-42 — V 已查證
+
+- **主張**：The NVIDIA API Trial Terms (v. September 19, 2025) say in s.2.3 that NVIDIA will not store or use User Content or Generated Content at the end of each session except as described in s.2.4, while s.3.3 says NVIDIA collects User Content and Generated Content to improve NVIDIA products and services, including AI models, and logs usage for security, fraud or abuse monitoring shared with third-party service providers. The terms offer no zero-data-retention option.
+- **查核**：No correction. (s.3.3 says the collection is done 'without identifying specific users'. s.2.4 lets NVIDIA keep User Content for 30 days and Fine Tuning Generated Content for 90 days on some services. The terms never mention zero data retention.)
+- **來源**：<https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf>
+
+### E:providers-43 — V 已查證
+
+- **主張**：Anthropic's Commercial Terms of Service state that the customer retains all rights to its Inputs and owns its Outputs, incorporate the Usage Policy by reference, and bar using the Services to build a competing product or train competing AI models. No explicit clause on security testing or red teaming was found.
+- **查核**：No correction.
+- **來源**：<https://www.anthropic.com/legal/commercial-terms>
+
+### E:providers-44 — V 已查證
+
+- **主張**：Anthropic's Usage Policy, under 'Do Not Compromise Computer or Network Systems', prohibits using Claude to discover or exploit vulnerabilities in systems, networks or applications without authorization of the system owner, to create malware, or to bypass security controls.
+- **查核**：No correction.
+- **來源**：<https://www.anthropic.com/legal/aup>
+
+### E:providers-45 — V 已查證
+
+- **主張**：The OpenAI Services Agreement (effective 2026-01-01; read via the r.jina.ai proxy because openai.com returned 403) states that the customer owns all Output and incorporates the OpenAI Policies. The OpenAI Usage Policies prohibit compromising or breaching another's system, including malicious or abusive cyber activity. No explicit security-testing permission clause was found.
+- **查核**：No correction. (Confirmed: openai.com returns 403 to direct fetch. The Services Agreement reads 'Effective: January 1, 2026'. Section 4.1 says the customer 'owns all Output', and Section 16.1 incorporates the OpenAI Policies. The Usage Policies prohibit 'compromise, or breach of another's system or property, including malicious or abusive cyber activity'.)
+- **來源**：<https://r.jina.ai/https://openai.com/policies/services-agreement/> ｜ <https://r.jina.ai/https://openai.com/policies/usage-policies/> ｜ <https://openai.com/policies/services-agreement/>
+
+### E:providers-46 — V 已查證
+
+- **主張**：OpenAI's model catalog lists API model IDs gpt-6-astra, gpt-6-sol and gpt-6-luna, each with a 1.05M-token context window and 128K max output. The changelog records GPT-6 Astra on 2026-09-03 and GPT-6 Sol and GPT-6 Luna on 2026-09-22.
+- **查核**：No correction.
+- **來源**：<https://developers.openai.com/api/docs/models> ｜ <https://developers.openai.com/api/docs/changelog> ｜ <https://r.jina.ai/https://platform.openai.com/docs/models> ｜ <https://r.jina.ai/https://platform.openai.com/docs/changelog>
+
+### E:providers-47 — P 部分查證
+
+- **主張**：The gpt-6-sol and gpt-6-luna model pages both list function calling and structured outputs on Chat Completions and Responses, and both state: 'Chat Completions supports function calling only with reasoning_effort set to none.' The gpt-6-sol page lists 1,050,000 context, 922,000 max input and 128,000 max output tokens.
+- **查核**：Confirmed: both pages list Function calling and Structured outputs as Supported, list the Chat Completions and Responses endpoints, and contain the exact sentence 'Chat Completions supports function calling only with reasoning_effort set to none.' The gpt-6-sol page shows '1,050,000 context window' and '128,000 max output tokens'. The '922,000 max input tokens' figure was NOT found on the gpt-6-sol page, either in the rendered text or in the raw HTML. Treat it as unconfirmed.
+- **來源**：<https://developers.openai.com/api/docs/models/gpt-6-sol> ｜ <https://developers.openai.com/api/docs/models/gpt-6-luna> ｜ <https://r.jina.ai/https://platform.openai.com/docs/models/gpt-6-sol> ｜ <https://r.jina.ai/https://platform.openai.com/docs/models/gpt-6-luna> ｜ <https://r.jina.ai/https://developers.openai.com/api/docs/models/gpt-6-sol>
+
+### E:providers-48 — V 已查證
+
+- **主張**：OpenAI's 'your data' guide lists gpt-6-astra, gpt-6-sol and gpt-6-luna in its data-residency tables. Its only GPT-6-specific caveat found was that for GPT-6 Sol and Luna, EU data residency is available only with Standard processing. No statement excluding GPT-6 models from ZDR was found. Endpoints listed as not ZDR-eligible include /v1/conversations, /v1/assistants, /v1/threads, /v1/vector_stores, /v1/files, /v1/batches and /v1/evals.
+- **查核**：No correction. (Note: the guide has a general clause letting OpenAI make models ineligible for ZDR/MAM for specific customers with advance written notice. This clause is not GPT-6-specific.)
+- **來源**：<https://developers.openai.com/api/docs/guides/your-data> ｜ <https://r.jina.ai/https://platform.openai.com/docs/guides/your-data>
+
+### E:providers-49 — V 已查證
+
+- **主張**：As of 2026-09-24, Anthropic's models overview lists the current models Claude Fable 5.1 (claude-fable-5-1), Opus 5.5 (claude-opus-5-5), Sonnet 5 (claude-sonnet-5) and Haiku 4.5 (claude-haiku-4-5-20251001, alias claude-haiku-4-5), with retirement not sooner than 2027-09-01, 2027-09-22, 2027-06-30 and 2026-10-15 respectively.
+- **查核**：No correction.
+- **來源**：<https://platform.claude.com/docs/en/about-claude/models/overview> ｜ <https://docs.claude.com/en/docs/about-claude/models/overview.md>
+
+### E:providers-50 — V 已查證
+
+- **主張**：The model list at integrate.api.nvidia.com/v1/models (2026-09-24) includes nvidia/nemotron-nano-3-30b-a3b, nvidia/nemotron-3-super-120b-a12b, nvidia/nemotron-3-ultra-550b-a55b, nvidia/nemotron-3.5-lightning-30b-a3b, nvidia/nemotron-3-nano-omni-30b-a3b-reasoning, nvidia/nemotron-3.5-content-safety and nvidia/nemotron-3-embed-1b.
+- **查核**：No correction.
+- **來源**：<https://integrate.api.nvidia.com/v1/models>
+
+### E:providers-51 — V 已查證
+
+- **主張**：build.nvidia.com model pages list Nemotron-3-Super-120B-A12B (2026-03-11, NVIDIA Nemotron Open Model License), Nemotron-3-Ultra-550B-A55B (2026-06-04, OpenMDW-1.1) and Nemotron-3.5-Lightning-30B-A3B (2026-08-11, OpenMDW-1.1), with hosted use governed by the NVIDIA API Trial Terms of Service.
+- **查核**：No correction.
+- **來源**：<https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b> ｜ <https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b> ｜ <https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b> ｜ <https://r.jina.ai/https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b/modelcard> ｜ <https://r.jina.ai/https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard> ｜ <https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b/modelcard>
+
 **本主題研究限制（研究代理自述）**
 
 - I found no zero-data-retention or data-processing agreement for NVIDIA-hosted endpoints (build.nvidia.com or partner serverless NIM). Third-party hosts of Nemotron (OpenRouter, Together, Fireworks, etc.) have their own policies, which I did not review.
@@ -731,6 +941,60 @@
 - **主張**：The following is assumed and not demonstrated in any source found: that assigning Claude, ChatGPT and Nemotron to different agents yields meaningfully independent errors on security code review of AI-generated apps. No study was found that measures cross-vendor error correlation on that task, and the strongest correlation evidence (MMLU) shows frontier models increasingly err together.
 - **查核**：The supporting evidence is confirmed: Kim et al. (MMLU) and Goel et al. (CAPA) show correlation rising with capability. I found no study measuring Claude/GPT/Nemotron error correlation on security review of AI-generated apps, but an absence cannot be proven. Two sources give partial counter-evidence of complementarity in vulnerability detection. Widyasari et al. 2024 found 'even the lower-performing LLMs provided unique correct predictions'. Sun et al. 2025 note 'notable discrepancies in detection results... among architecturally distinct LLMs'. Neither measures error correlation directly or covers frontier vendors on AI-generated apps, so the claim holds as an unproven assumption, but with this nuance.
 - **來源**：<https://arxiv.org/abs/2506.07962> ｜ <https://arxiv.org/abs/2502.04313> ｜ <https://arxiv.org/abs/2502.00674> ｜ <https://arxiv.org/abs/2409.01001> ｜ <https://arxiv.org/abs/2509.12629>
+
+### E:multi_llm_bias-39 — P 部分查證
+
+- **主張**：The BIG-bench repository states that all task files (including README.md and task.json) contain a 'canary' string that should not be edited, intended to help detect and prevent benchmark tasks leaking into web-scraped training data.
+- **查核**：README confirms: 'All task files (including README.md and task.json) contain a "canary" string, which should not be edited. This is to prevent benchmark tasks from leaking into web-scraped training data.' The README states only the prevention purpose; it does not say the canary is meant to 'detect' leakage (docs/doc.md says it helps 'avoid training on benchmark data'). Drop or qualify 'detect'.
+- **來源**：<https://github.com/google/BIG-bench/blob/main/README.md> ｜ <https://raw.githubusercontent.com/google/BIG-bench/main/README.md> ｜ <https://raw.githubusercontent.com/google/BIG-bench/main/docs/doc.md>
+
+### E:multi_llm_bias-40 — V 已查證
+
+- **主張**：ReasonVul, 'Three Heads Are Better Than One: A Multi-perspective Reasoning Framework for Enhanced Vulnerability Detection' (arXiv 2605.18153, 2026-05-18, preprint): three reasoning-mode agents analyze independently, then a structured debate resolves conflicts. On PrimeVul it reports 40.00% pair-wise accuracy and 72.52% F1, and says 389 of 542 conflicts were resolved correctly.
+- **查核**：No correction.
+- **來源**：<https://arxiv.org/abs/2605.18153> ｜ <https://export.arxiv.org/api/query?id_list=2605.18153>
+
+### E:multi_llm_bias-41 — P 部分查證
+
+- **主張**：'The Capability Paradox: How Smarter Auditors Make Multi-Agent Systems Less Secure' (arXiv 2605.17480, v3 2026-07-29, preprint) reports that mean attack success rate rose from 18.4% to 63.9% as worker capability increased, with certainty mediating 74% of the effect across 47,807 interactions. It also reports that heterogeneous ensemble verification reduced attack success from 52.8% to 2.0%.
+- **查核**：18.4% -> 63.9% mean ASR (peak 94.4%), 52.8% -> 2.0% with heterogeneous ensemble verification, v3 2026-07-29 are confirmed. Qualification: 47,807 interactions is the total across two datasets used for mediation analysis; the 74% certainty mediation figure is specific to the larger Worker-Only setting (n_W=14), while the Full-MAS setting (n_W=6) only shows a directionally consistent effect.
+- **來源**：<https://arxiv.org/abs/2605.17480> ｜ <https://export.arxiv.org/api/query?id_list=2605.17480>
+
+### E:multi_llm_bias-42 — V 已查證
+
+- **主張**：'The Cost of Consensus: Isolated Self-Correction Prevails Over Unguided Homogeneous Multi-Agent Debate' (arXiv 2605.00914, 2026-04-29) found that debate among 10 identical 7-8B models underperformed isolated self-correction. It reports sycophantic conformity (modal adoption up to 85.5%) and debate using 2.1-3.4x more tokens for equal or lower accuracy.
+- **查核**：No correction. (Teams of N=10 homogeneous agents of Qwen2.5-7B, Llama-3.1-8B or Ministral-3-8B; arXiv comment lists 'ACM Conference on AI and Agentic Systems'.)
+- **來源**：<https://arxiv.org/abs/2605.00914> ｜ <https://export.arxiv.org/api/query?id_list=2605.00914>
+
+### E:multi_llm_bias-43 — P 部分查證
+
+- **主張**：'Beyond Consensus: Mitigating the Agreeableness Bias in LLM Judge Evaluations' (arXiv 2510.11822, preprint) reports that LLM judges had a true-positive rate around 96% but a true-negative rate below 25% on a code-feedback task (366 Python programs, 14 LLMs). A minority-veto ensemble plus regression-based bias correction cut maximum absolute error to 1.2%, about half that of standard ensembles.
+- **查核**：TPR ~96%, TNR <25%, 366 high-school Python programs, 14 LLMs, 1.2% max absolute error and 2x improvement confirmed. Correction: the 1.2% figure is attributed to the regression-based framework (not a combination with minority-veto), and the 2x comparison is against 'the best-performing ensemble of 14 state-of-the-art LLMs', not standard ensembles in general. Minority-veto is presented as a separate, earlier mitigation.
+- **來源**：<https://arxiv.org/abs/2510.11822> ｜ <https://export.arxiv.org/api/query?id_list=2510.11822>
+
+### E:multi_llm_bias-44 — V 已查證
+
+- **主張**：'Bias in the Loop: Auditing LLM-as-a-Judge for Software Engineering' (arXiv 2604.16790, 2026-04-18, preprint) reports that judge decisions on software-engineering tasks are highly sensitive to prompt biases even when the code is unchanged, enough to change model rankings. It recommends reporting bias sensitivity alongside accuracy.
+- **查核**：No correction.
+- **來源**：<https://arxiv.org/abs/2604.16790> ｜ <https://export.arxiv.org/api/query?id_list=2604.16790>
+
+### E:multi_llm_bias-45 — V 已查證
+
+- **主張**：'Preference Leakage: A Contamination Problem in LLM-as-a-judge' (arXiv 2502.01534, Li et al.; listed as accepted at ICLR 2026) shows that judges favor student models related to them (same model, inheritance relationship, or same family), and that this bias is harder to detect than previously identified judge biases.
+- **查核**：No correction. (arXiv comment: 'Accepted by ICLR 2026'; first author Dawei Li.)
+- **來源**：<https://arxiv.org/abs/2502.01534> ｜ <https://export.arxiv.org/api/query?id_list=2502.01534>
+
+### E:multi_llm_bias-46 — V 已查證
+
+- **主張**：'Extreme Self-Preference in Language Models' (arXiv 2509.26464, Lehr, Cipperman and Banaji, preprint) ran 72 experiments with about 41,000 queries across eight LLMs. Models consistently favored their own identity, and preferences followed the assigned identity rather than the true one.
+- **查核**：No correction.
+- **來源**：<https://arxiv.org/abs/2509.26464> ｜ <https://export.arxiv.org/api/query?id_list=2509.26464>
+
+### E:multi_llm_bias-47 — V 已查證
+
+- **主張**：'Self-Preference Is Weak or Absent in Verifiable Instruction-Following Revision' (arXiv 2606.20093, 2026-06-18, 7-page preprint) found no detectable self-preference across 85 author-vs-fresh comparisons on IFEval with four mid-tier model families (gap -5.1 pp, 95% CI [-12.9, +2.7]).
+- **查核**：No correction. (Full title continues ': A Four-Model Test Under Genuine Authorship'; authors Guey and Bougault; '7 pages, 3 tables'.)
+- **來源**：<https://arxiv.org/abs/2606.20093> ｜ <https://export.arxiv.org/api/query?id_list=2606.20093>
 
 **本主題研究限制（研究代理自述）**
 
@@ -1018,6 +1282,66 @@
 - **主張**：The mutation-testing options are mutmut (Python, BSD-3, needs fork() so Windows requires WSL), Stryker (JS/TS, C#, Scala; Apache-2.0) and PIT (JVM; Kotlin via the commercial Arcmutate add-on).
 - **查核**：No correction. The mutmut LICENSE text is the BSD 3-clause text, and the README says Windows needs WSL because mutmut needs fork. pitest.org says Arcmutate adds Kotlin support.
 - **來源**：<https://github.com/boxed/mutmut> ｜ <https://stryker-mutator.io/> ｜ <https://pitest.org/> ｜ <https://raw.githubusercontent.com/boxed/mutmut/main/README.rst> ｜ <https://raw.githubusercontent.com/boxed/mutmut/main/LICENSE>
+
+### E:whitebox-46 — V 已查證
+
+- **主張**：OWASP ASVS 5.0.0 requirement 1.2.4 is Level 1 and reads: "Verify that data selection or database queries (e.g., SQL, HQL, NoSQL, Cypher) use parameterized queries, ORMs, entity frameworks, or are otherwise protected from SQL Injection and other database injection attacks. This is also relevant when writing stored procedures."
+- **查核**：No correction.
+- **來源**：<https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x10-V1-Encoding-and-Sanitization.md> ｜ <https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0_release/5.0/en/0x10-V1-Encoding-and-Sanitization.md>
+
+### E:whitebox-47 — V 已查證
+
+- **主張**：Hypothesis's LICENSE.txt says all code in the repository, except where explicitly noted otherwise, is released under the Mozilla Public License v2.0 (the GitHub license API reports NOASSERTION because of this wording).
+- **查核**：No correction. (The file says 'Mozilla Public License v 2.0'. The API reports spdx_id NOASSERTION, name 'Other'; blaming this on the wording is a reasonable inference.)
+- **來源**：<https://raw.githubusercontent.com/HypothesisWorks/hypothesis/master/LICENSE.txt> ｜ <https://api.github.com/repos/HypothesisWorks/hypothesis/license> ｜ <https://github.com/HypothesisWorks/hypothesis/blob/master/LICENSE.txt>
+
+### E:whitebox-48 — V 已查證
+
+- **主張**：fast-check (dubzzz/fast-check) is MIT-licensed according to the GitHub license API.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/dubzzz/fast-check/license> ｜ <https://github.com/dubzzz/fast-check/blob/main/LICENSE>
+
+### E:whitebox-49 — V 已查證
+
+- **主張**：gitleaks (gitleaks/gitleaks) and Betterleaks (betterleaks/betterleaks) are both MIT-licensed according to the GitHub license API.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/gitleaks/gitleaks/license> ｜ <https://api.github.com/repos/betterleaks/betterleaks/license>
+
+### E:whitebox-50 — V 已查證
+
+- **主張**：OWASP Benchmark for Java (OWASP-Benchmark/BenchmarkJava) is GPL-2.0 according to the GitHub license API.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/OWASP-Benchmark/BenchmarkJava/license> ｜ <https://github.com/OWASP-Benchmark/BenchmarkJava/blob/master/LICENSE>
+
+### E:whitebox-51 — V 已查證
+
+- **主張**：The TruffleHog README states that since v3.0 TruffleHog is released under the AGPL 3 license. The README mentions an enterprise product, but no statement offering an alternative commercial license for the open-source code was found.
+- **查核**：No correction. (The README reads 'Since v3.0, TruffleHog is released under a AGPL 3 license'; pre-v3 work stays under GPL 2.0 and contributions need a CLA. The README has a 'TruffleHog Enterprise' section but no commercial-license offer.)
+- **來源**：<https://github.com/trufflesecurity/trufflehog> ｜ <https://api.github.com/repos/trufflesecurity/trufflehog/license> ｜ <https://github.com/trufflesecurity/trufflehog/blob/main/README.md>
+
+### E:whitebox-52 — V 已查證
+
+- **主張**：The GitHub license API reports LGPL-2.1 for both the Semgrep engine (semgrep/semgrep) and the Opengrep engine (opengrep/opengrep).
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/semgrep/semgrep/license> ｜ <https://api.github.com/repos/opengrep/opengrep/license>
+
+### E:whitebox-53 — P 部分查證
+
+- **主張**：github/codeql (queries and libraries) is MIT, but the CodeQL CLI binaries license (github/codeql-cli-binaries LICENSE.md) permits use for academic research, testing OSI-licensed queries, and analysis of open-source codebases. It prohibits generating databases for or during automated analysis, CI or CD, and use on non-open-source codebases, unless covered by a paid GitHub Advanced Security license.
+- **查核**：github/codeql is MIT, and the CodeQL Terms permit academic research, demonstrating the Software, testing OSI-licensed queries, and analysis of Open Source Codebases. However, the CI/CD prohibition is not absolute. The Terms expressly allow generating CodeQL databases for or during automated analysis, CI or CD for an Open Source Codebase hosted and maintained on GitHub.com. The restriction covers such use only 'otherwise or in any other context'. The paid GitHub Advanced Security exemption is stated correctly.
+- **來源**：<https://api.github.com/repos/github/codeql/license> ｜ <https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md> ｜ <https://raw.githubusercontent.com/github/codeql-cli-binaries/main/LICENSE.md>
+
+### E:whitebox-54 — V 已查證
+
+- **主張**：The GitHub license API reports Apache-2.0 for CoverUp (plasma-umass/coverup) and MIT for pytest (pytest-dev/pytest).
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/plasma-umass/coverup/license> ｜ <https://api.github.com/repos/pytest-dev/pytest/license>
+
+### E:whitebox-55 — V 已查證
+
+- **主張**：The CycloneDX specification repository is Apache-2.0 (GitHub license API). The SPDX specification LICENSE states it is provided under the Community Specification License 1.0, with pre-existing portions from non-contributing copyright holders under CC-BY-3.0.
+- **查核**：No correction. (Note: the GitHub license API reports NOASSERTION for spdx/spdx-spec. The claim relies on the LICENSE text, which matches.)
+- **來源**：<https://api.github.com/repos/CycloneDX/specification/license> ｜ <https://api.github.com/repos/spdx/spdx-spec/license> ｜ <https://raw.githubusercontent.com/spdx/spdx-spec/development/v3.0.1/LICENSE>
 
 **本主題研究限制（研究代理自述）**
 
@@ -1349,6 +1673,162 @@
 - **查核**：The chain makes sense as a concept, but not every link exists in official data files. Official links that do exist: CAPEC<->CWE (both directions in MITRE data), the ATLAS YAML, ASVS 4.0.3<->5.0.0 mapping YAMLs, and OpenCRE links for ASVS 4.0.3 only. Links that are missing: (a) STRIDE/LINDDUN→CAPEC, since CAPEC maps only to WASC and OWASP Attacks; (b) CWE→ASVS 5.0, since ASVS 5.0 dropped CWE mappings and OpenCRE still uses 4.0.3; (c) ASVS 5.0→WSTG and AISVS→AITG, for which I found no official mapping. These links would need a curated crosswalk (for example via the 4.0.3↔5.0.0 YAML plus OpenCRE, or tool libraries such as pytm) and human review. They must not be described as coming from official data.
 - **來源**：<https://capec.mitre.org/data/definitions/66.html> ｜ <https://cwe.mitre.org/data/definitions/89.html> ｜ <https://github.com/OWASP/ASVS/tree/master/5.0/docs_en> ｜ <https://github.com/OWASP/wstg/> ｜ <https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/CHANGELOG.md> ｜ <https://opencre.org/rest/v1/standards> ｜ <https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x05-For-Users-Of-4.0.md> ｜ <https://opencre.org/rest/v1/standard/ASVS>
 
+### E:threat_modeling-53 — V 已查證
+
+- **主張**：In OWASP WSTG v4.2, test 4.7.19 'Testing for Server-Side Request Forgery' has ID WSTG-INPV-19.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/07-Input_Validation_Testing/19-Testing_for_Server-Side_Request_Forgery.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-54 — V 已查證
+
+- **主張**：In OWASP WSTG v4.2, test 4.5.1 'Testing Directory Traversal File Include' has ID WSTG-ATHZ-01.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/01-Testing_Directory_Traversal_File_Include.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/05-Authorization_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-55 — V 已查證
+
+- **主張**：OWASP WSTG v4.2 Session Management Testing (4.6) contains nine tests: 4.6.1 Testing for Session Management Schema (WSTG-SESS-01), 4.6.2 Cookies Attributes, 4.6.3 Session Fixation, 4.6.4 Exposed Session Variables, 4.6.5 Cross Site Request Forgery, 4.6.6 Testing for Logout Functionality (WSTG-SESS-06), 4.6.7 Session Timeout (WSTG-SESS-07), 4.6.8 Session Puzzling, 4.6.9 Session Hijacking (WSTG-SESS-09). Test file numbering matches the WSTG-SESS-NN ID.
+- **查核**：No correction. (Exact v4.2 title of 4.6.7 is 'Testing Session Timeout'; files 01-09 carry WSTG-SESS-01..09.)
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/README.md> ｜ <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/01-Testing_for_Session_Management_Schema.md> ｜ <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/06-Testing_for_Logout_Functionality.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/06-Session_Management_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-56 — V 已查證
+
+- **主張**：The OWASP WSTG v4.2 test index (chapter 4) has no test dedicated to JSON Web Tokens and none dedicated to insecure deserialization: Session Management Testing lists 4.6.1-4.6.9 and Input Validation Testing lists 4.7.1-4.7.19, none of which is titled for JWT or deserialization.
+- **查核**：No correction. (Note: 4.7 also has sub-tests 4.7.5.1-4.7.5.8 and 4.7.11.1-4.7.11.2; none concerns JWT or deserialization. JWT is only mentioned incidentally, e.g. in 4.12.1 Testing GraphQL.)
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/README.md> ｜ <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/README.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/06-Session_Management_Testing/README.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-57 — V 已查證
+
+- **主張**：In OWASP WSTG v4.2, WSTG-ATHN-04 is 'Testing for Bypassing Authentication Schema' and WSTG-ATHZ-02 is 'Testing for Bypassing Authorization Schema'.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/04-Authentication_Testing/04-Testing_for_Bypassing_Authentication_Schema.md> ｜ <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/02-Testing_for_Bypassing_Authorization_Schema.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/04-Authentication_Testing/README.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/05-Authorization_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-58 — V 已查證
+
+- **主張**：In OWASP WSTG v4.2, WSTG-ERRH-01 is 'Testing for Improper Error Handling' and WSTG-ERRH-02 is 'Testing for Stack Traces'.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/08-Testing_for_Error_Handling/README.md> ｜ <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/08-Testing_for_Error_Handling/01-Testing_For_Improper_Error_Handling.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/08-Testing_for_Error_Handling/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-59 — V 已查證
+
+- **主張**：In OWASP WSTG v4.2, the API Testing chapter (4.12) contains one test, 4.12.1 'Testing GraphQL', with ID WSTG-APIT-01.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/12-API_Testing/01-Testing_GraphQL.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/12-API_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-60 — V 已查證
+
+- **主張**：In OWASP WSTG v4.2, WSTG-BUSL-05 is 'Test Number of Times a Function Can Be Used Limits'.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/10-Business_Logic_Testing/05-Test_Number_of_Times_a_Function_Can_Be_Used_Limits.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/10-Business_Logic_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-61 — V 已查證
+
+- **主張**：The OWASP AI Testing Guide repository lists application-layer tests AITG-APP-01 Testing for Prompt Injection, AITG-APP-02 Testing for Indirect Prompt Injection, AITG-APP-03 Testing for Sensitive Data Leak, AITG-APP-05 Testing for Unsafe Outputs, AITG-APP-06 Testing for Agentic Behavior Limits, AITG-APP-07 Testing for Prompt Disclosure, AITG-APP-08 Testing for Embedding Manipulation, AITG-APP-11 Testing for Hallucinations and AITG-APP-13 Testing for Over-Reliance on AI (14 APP tests in total, APP-01 to APP-14).
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-ai-testing-guide/tree/main/Document/content/tests> ｜ <https://api.github.com/repos/OWASP/www-project-ai-testing-guide/git/trees/main?recursive=1>
+
+### E:threat_modeling-62 — V 已查證
+
+- **主張**：The OWASP AI Testing Guide repository lists infrastructure, model and data tests including AITG-INF-01 Testing for Supply Chain Tampering, AITG-INF-02 Testing for Resource Exhaustion, AITG-INF-03 Testing for Plugin Boundary Violations, AITG-INF-04 Testing for Capability Misuse, AITG-INF-05 Testing for Fine-tuning Poisoning, AITG-MOD-02 Testing for Runtime Model Poisoning, AITG-MOD-03 Testing for Poisoned Training Sets, AITG-DAT-02 Testing for Runtime Exfiltration and AITG-DAT-05 Testing for Data Minimization and Consent.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-ai-testing-guide/tree/main/Document/content/tests> ｜ <https://api.github.com/repos/OWASP/www-project-ai-testing-guide/git/trees/main?recursive=1>
+
+### E:threat_modeling-63 — V 已查證
+
+- **主張**：OWASP AISVS 1.0 chapter C9 'Orchestration & Agentic Security' (main branch, file 1.0/en/0x10-C09-Orchestration-and-Agentic-Action.md, read 2026-09-24) contains: 9.2.1 (L1) the agent runtime blocks privileged, high-impact or irreversible actions until explicit human approval is received and verified; 9.2.2 (L2) approval requests display canonicalized, complete action parameters; 9.5.2 (L2) when an agent acts on a user's behalf the runtime propagates an integrity-protected, scope-limited token carrying the user's authorization context, enforced at every downstream call; 9.5.3 (L2) all access control decisions are enforced by application logic or a policy engine, never by the AI model; 9.1.2 (L1) per-execution budgets (recursion depth, token use, spend) are enforced; 9.3.5 (L2) components processing untrusted data are isolated from tool-calling capabilities; 9.3.7 (L2) external resources named in model output are verified against an allow-list before being installed or invoked; 9.6.1 (L1) a manual kill-switch can immediately halt inference and outputs.
+- **查核**：No correction. (Chapter heading is 'C9 Orchestration & Agentic Security'; all eight listed requirement numbers, wording and levels match.)
+- **來源**：<https://github.com/OWASP/AISVS/blob/main/1.0/en/0x10-C09-Orchestration-and-Agentic-Action.md> ｜ <https://raw.githubusercontent.com/OWASP/AISVS/main/1.0/en/0x10-C09-Orchestration-and-Agentic-Action.md>
+
+### E:threat_modeling-64 — V 已查證
+
+- **主張**：CWE-1427 is titled 'Improper Neutralization of Input Used for LLM Prompting'; the page read did not list Related Attack Patterns (CAPEC).
+- **查核**：No correction. (CWE API returns no RelatedAttackPatterns for CWE-1427 in content version 4.20.)
+- **來源**：<https://cwe.mitre.org/data/definitions/1427.html> ｜ <https://cwe-api.mitre.org/api/v1/cwe/weakness/1427>
+
+### E:threat_modeling-65 — V 已查證
+
+- **主張**：CWE-862 is titled 'Missing Authorization' (CWE 4.20 page): the product does not perform an authorization check when an actor attempts to access a resource or perform an action.
+- **查核**：No correction.
+- **來源**：<https://cwe.mitre.org/data/definitions/862.html> ｜ <https://cwe-api.mitre.org/api/v1/cwe/weakness/862> ｜ <https://cwe-api.mitre.org/api/v1/cwe/version>
+
+### E:threat_modeling-66 — V 已查證
+
+- **主張**：In OWASP WSTG v4.2, WSTG-IDNT-04 is 'Testing for Account Enumeration and Guessable User Account'.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/03-Identity_Management_Testing/04-Testing_for_Account_Enumeration_and_Guessable_User_Account.md> ｜ <https://raw.githubusercontent.com/OWASP/wstg/v4.2/document/4-Web_Application_Security_Testing/03-Identity_Management_Testing/README.md> ｜ <https://github.com/OWASP/wstg/archive/refs/tags/v4.2.zip>
+
+### E:threat_modeling-67 — V 已查證
+
+- **主張**：The GitHub license API reports CC-BY-SA-4.0 for the OWASP ASVS repository, the OWASP WSTG repository (OWASP/wstg) and the OWASP AISVS repository.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/OWASP/ASVS/license> ｜ <https://api.github.com/repos/OWASP/wstg/license> ｜ <https://api.github.com/repos/OWASP/AISVS/license>
+
+### E:threat_modeling-68 — P 部分查證
+
+- **主張**：The OWASP Top 10 for LLM Applications repository's LICENSE.md contains the CC BY-SA 4.0 International text, and the genai.owasp.org site footer states that unless otherwise specified all site content is Creative Commons Attribution-ShareAlike v4.0.
+- **查核**：Footer confirmed verbatim: 'Unless otherwise specified, all content on the site is Creative Commons Attribution-ShareAlike v4.0...'. Qualification: LICENSE.md (26 lines) is only the human-readable CC BY-SA 4.0 International deed summary, with a link to the legal code. It is not the full license text, which is why the GitHub license API reports NOASSERTION for the repository.
+- **來源**：<https://raw.githubusercontent.com/OWASP/www-project-top-10-for-large-language-model-applications/main/LICENSE.md> ｜ <https://genai.owasp.org/llm-top-10/> ｜ <https://github.com/OWASP/www-project-top-10-for-large-language-model-applications/blob/main/LICENSE.md> ｜ <https://api.github.com/repos/OWASP/www-project-top-10-for-large-language-model-applications/license> ｜ <https://genai.owasp.org/>
+
+### E:threat_modeling-69 — V 已查證
+
+- **主張**：The CWE Terms of Use grant a non-exclusive, royalty-free license to use CWE for research, development and commercial purposes, provided copies reproduce MITRE's copyright designation and the license.
+- **查核**：No correction.
+- **來源**：<https://cwe.mitre.org/about/termsofuse.html>
+
+### E:threat_modeling-70 — V 已查證
+
+- **主張**：The CAPEC Terms of Use grant a non-exclusive, royalty-free license to use CAPEC for research, development and commercial purposes, provided copies preserve MITRE's copyright designation and the license.
+- **查核**：No correction. (The exact wording is 'reproduce MITRE's copyright designation and this license', not 'preserve'.)
+- **來源**：<https://capec.mitre.org/about/termsofuse.html>
+
+### E:threat_modeling-71 — V 已查證
+
+- **主張**：The MITRE ATLAS data repository (mitre-atlas/atlas-data) LICENSE is the Apache License 2.0, 'Copyright 2021-2026 MITRE'.
+- **查核**：No correction. (The file is the Apache 2.0 short-form notice headed 'Copyright 2021-2026 MITRE'. The GitHub license API reports NOASSERTION for it.)
+- **來源**：<https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/LICENSE> ｜ <https://api.github.com/repos/mitre-atlas/atlas-data/license>
+
+### E:threat_modeling-72 — P 部分查證
+
+- **主張**：The official resource page https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/ is titled 'OWASP Top 10 for LLM Applications 2026' and dated August 3, 2026. It links an official PDF (https://genai.owasp.org/download/56857/?tmstv=1785822482, 122 pages), which was downloaded and read.
+- **查核**：The resource page's title is 'OWASP GenAI LLM Top 10 2026', not 'OWASP Top 10 for LLM Applications 2026'. The latter is the document name used in the page's About text and on the PDF cover. The page shows the date August 3, 2026, but its schema datePublished is 2026-08-04T05:50:36Z. The PDF link is correct and the PDF has 122 pages.
+- **來源**：<https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/> ｜ <https://genai.owasp.org/download/56857/?tmstv=1785822482>
+
+### E:threat_modeling-73 — V 已查證
+
+- **主張**：The official OWASP Top 10 for LLM Applications 2026 PDF lists: LLM01:2026 Prompt Injection, LLM02:2026 Sensitive Information Disclosure, LLM03:2026 Excessive Agency, LLM04:2026 Supply Chain, LLM05:2026 Data and Model Poisoning, LLM06:2026 Unbounded Consumption, LLM07:2026 Misinformation, LLM08:2026 Hidden Context Exposure, LLM09:2026 Vector and Embedding Weaknesses, LLM10:2026 Improper Output Handling.
+- **查核**：No correction.
+- **來源**：<https://genai.owasp.org/download/56857/?tmstv=1785822482>
+
+### E:threat_modeling-74 — V 已查證
+
+- **主張**：The OWASP LLM Top 10 2026 PDF front matter reads 'Version 2026' and '[Publication date to be set] August 4th, 2026', which differs by one day from the resource page's August 3, 2026. OWASP's announcement post URL is dated 2026-09-01.
+- **查核**：No correction.
+- **來源**：<https://genai.owasp.org/download/56857/?tmstv=1785822482> ｜ <https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/> ｜ <https://genai.owasp.org/2026/09/01/owasp-genai-security-project-unveils-2026-top-10-for-llm-applications-new-agent-control-standard-and-sponsors-as-community-tops-30000-members/>
+
+### E:threat_modeling-75 — V 已查證
+
+- **主張**：As of 2026-09-24 the page genai.owasp.org/llm-top-10/ still shows the 2025 list (e.g. LLM07:2025 System Prompt Leakage), and the URL slug /resource/owasp-top-10-for-llm-applications-2026/ returns 404.
+- **查核**：No correction.
+- **來源**：<https://genai.owasp.org/llm-top-10/> ｜ <https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2026/>
+
+### E:threat_modeling-76 — V 已查證
+
+- **主張**：The official OWASP Top 10 for Agentic Applications for 2026 PDF (resource page dated 2025-12-09, https://genai.owasp.org/download/52117/?tmstv=1765059207) lists: ASI01 Agent Goal Hijack, ASI02 Tool Misuse and Exploitation, ASI03 Identity and Privilege Abuse, ASI04 Agentic Supply Chain Vulnerabilities, ASI05 Unexpected Code Execution (RCE), ASI06 Memory & Context Poisoning, ASI07 Insecure Inter-Agent Communication, ASI08 Cascading Failures, ASI09 Human-Agent Trust Exploitation, ASI10 Rogue Agents.
+- **查核**：No correction. (Note: the resource page shows December 9, 2025, but its schema datePublished is 2025-12-10T07:55Z. The PDF cover reads 'Version 2026, December 2025'.)
+- **來源**：<https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/> ｜ <https://genai.owasp.org/download/52117/?tmstv=1765059207>
+
+### E:threat_modeling-77 — V 已查證
+
+- **主張**：The OWASP WSTG project page says the current stable release is v4.2 and that release 5.0 is currently in development. owasp.org/www-project-web-security-testing-guide/v42/ and /stable/ return 404, while stable pages load under https://wstg.owasp.org/v4.2/ (e.g. /v4.2/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05-Testing_for_SQL_Injection).
+- **查核**：No correction. (Wording on the page: 'Latest Version 4.2', 'v4.2 is currently available as a web-hosted release and PDF', and 'We are currently developing release version 5.0'. The /v42/ and /stable/ URLs 308-redirect and then end in 404.)
+- **來源**：<https://owasp.org/www-project-web-security-testing-guide/> ｜ <https://owasp.org/www-project-web-security-testing-guide/v42/> ｜ <https://wstg.owasp.org/v4.2/> ｜ <https://owasp.org/www-project-web-security-testing-guide/stable/> ｜ <https://wstg.owasp.org/v4.2/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05-Testing_for_SQL_Injection/>
+
+### E:threat_modeling-78 — V 已查證
+
+- **主張**：The OWASP AI Testing Guide repository LICENSE.md states it is published under CC BY-SA 4.0, and the OWASP OpenCRE repository is CC0-1.0 according to the GitHub license API.
+- **查核**：No correction. (The GitHub license API reports NOASSERTION for the AI Testing Guide repo, but LICENSE.md states CC BY-SA 4.0.)
+- **來源**：<https://api.github.com/repos/OWASP/www-project-ai-testing-guide/license> ｜ <https://api.github.com/repos/OWASP/OpenCRE/license> ｜ <https://raw.githubusercontent.com/OWASP/www-project-ai-testing-guide/main/LICENSE.md>
+
 **本主題研究限制（研究代理自述）**
 
 - The GitHub REST API and Atom feeds were blocked in this session, so release dates for Threagile, pytm, STRIDE-GPT and Threat Dragon come from WebFetch summaries of GitHub HTML pages. Threagile's latest release year and maintenance status could not be confirmed (the releases page showed v0.9.x tags without years; the README mentioned 1.0.0).
@@ -1608,6 +2088,150 @@
 - **查核**：No correction needed. The exact label is 'Beta Research Preview'. By default all network access is denied, and an empty allowedDomains list means no network access. The npm package @anthropic-ai/sandbox-runtime is at 0.0.77 (2026-09-18) under Apache-2.0. No third-party source beyond GitHub and npm.
 - **來源**：<https://github.com/anthropic-experimental/sandbox-runtime> ｜ <https://raw.githubusercontent.com/anthropic-experimental/sandbox-runtime/main/README.md> ｜ <https://registry.npmjs.org/@anthropic-ai/sandbox-runtime> ｜ <https://raw.githubusercontent.com/anthropic-experimental/sandbox-runtime/HEAD/LICENSE>
 
+### E:blackbox-41 — V 已查證
+
+- **主張**：CVE-2018-19333: in gVisor before 2018-11-01, pkg/sentry/kernel/shm/shm.go mishandled reference counts, letting attackers overwrite memory in processes running as root 'but not escape the sandbox' via IPC_RMID shmctl calls.
+- **查核**：No correction.
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2018-19333> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2018-19333> ｜ <https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2018-19333>
+
+### E:blackbox-42 — P 部分查證
+
+- **主張**：CVE-2025-2713 (published 2025-03-28): a local privilege escalation in gVisor runsc caused by incorrect file-permission handling (processes ran with elevated permissions until their first fork). CWE-266, fixed in release-20250319.0.
+- **查核**：Published 2025-03-28, CWE-266 and the description are confirmed. Qualification: the CVE record only lists release-20250319.0 as 'unaffected' (no affected range); the referenced fix commit 586c38d is dated 2024-03-15, so the fix landed much earlier than release-20250319.0. NVD scores it CVSS 3.1 7.8 High; Google CNA CVSS 4.0 6.8 Medium.
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2025-2713> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2025-2713> ｜ <https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2025-2713> ｜ <https://api.github.com/repos/google/gvisor/commits/586c38d70081b13b2ed494cef48e99b93956843e>
+
+### E:blackbox-43 — V 已查證
+
+- **主張**：The google/gvisor GitHub repository's security advisories page shows no published security advisories, so gVisor vulnerabilities have to be tracked through CVE/NVD records.
+- **查核**：No correction. (The API returns an empty list of published advisories as of 2026-09-24. 'Have to be tracked through CVE/NVD' is an inference, not a documented statement.)
+- **來源**：<https://github.com/google/gvisor/security/advisories> ｜ <https://api.github.com/repos/google/gvisor/security-advisories>
+
+### E:blackbox-44 — V 已查證
+
+- **主張**：Anjali, Caraza-Harter and Swift, 'Blending Containers and Virtual Machines: A Study of Firecracker and gVisor' (VEE '20, DOI 10.1145/3381052.3381315), an independent academic study, found that both Firecracker and gVisor execute substantially more host kernel code than native Linux, and that gVisor and Linux containers execute substantially the same host kernel code, with different frequency.
+- **查核**：No correction. (The abstract says 'kernel code'; it means host kernel code.)
+- **來源**：<https://pages.cs.wisc.edu/~swift/papers/vee20-isolation.pdf> ｜ <https://api.crossref.org/works/10.1145/3381052.3381315>
+
+### E:blackbox-45 — V 已查證
+
+- **主張**：CVE-2019-18960: a buffer overflow in the Firecracker vsock implementation in versions 0.18.0 and 0.19.0 'can result in potentially exploitable crashes' (published 2019-12-11).
+- **查核**：No correction.
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2019-18960> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2019-18960> ｜ <https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2019-18960>
+
+### E:blackbox-46 — P 部分查證
+
+- **主張**：Firecracker advisory GHSA-776c-mpj7-jm3r / CVE-2026-5747 (High, 2026-04-07): a root guest can change virtio-PCI queue registers after device activation, causing DoS or host out-of-bounds writes. It affects 1.13.0-1.14.3 and 1.15.0 only when --enable-pci is used, and is patched in 1.14.4 and 1.15.1.
+- **查核**：Confirmed: High, published 2026-04-07 (NVD 2026-04-08), affected >=1.13.0 <=1.14.3 and 1.15.0, patched in 1.14.4 and 1.15.1, PCI transport opt-in via --enable-pci (MMIO default not affected). Qualification: changing queue_size by itself gives out-of-bounds writes (up to 524,284 bytes) beyond the virtio queues but still inside guest memory. Reaching host process memory needs extra preconditions, such as a custom guest kernel or specific snapshot configurations.
+- **來源**：<https://github.com/firecracker-microvm/firecracker/security/advisories/GHSA-776c-mpj7-jm3r> ｜ <https://api.github.com/repos/firecracker-microvm/firecracker/security-advisories/GHSA-776c-mpj7-jm3r> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2026-5747>
+
+### E:blackbox-47 — V 已查證
+
+- **主張**：Firecracker advisory GHSA-36j2-f825-qvgc / CVE-2026-1386 (Moderate, 2026-01-23): symlink-following in the Jailer lets a local host user with write access to pre-created Jailer directories overwrite arbitrary host files when the Jailer runs as root. Patched in 1.13.2 and 1.14.1.
+- **查核**：No correction. (Affected: v1.13.1 and earlier, and 1.14.0. CNA CVSS 6.0 Medium.)
+- **來源**：<https://github.com/firecracker-microvm/firecracker/security/advisories/GHSA-36j2-f825-qvgc> ｜ <https://api.github.com/repos/firecracker-microvm/firecracker/security-advisories/GHSA-36j2-f825-qvgc> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2026-1386>
+
+### E:blackbox-48 — V 已查證
+
+- **主張**：Weissman, Tiemann, Eisenbarth and Sunar, 'Microarchitectural Security of AWS Firecracker VMM for Serverless Cloud Platforms' (arXiv 2311.15999, 2023-11-27), report that Firecracker 'offers little protection against Spectre or MDS attacks'. They found a Medusa variant not mitigated by AWS-recommended defenses and a Spectre-PHT variant exploitable even with countermeasures and SMT disabled.
+- **查核**：No correction.
+- **來源**：<https://arxiv.org/abs/2311.15999> ｜ <https://export.arxiv.org/abs/2311.15999>
+
+### E:blackbox-49 — V 已查證
+
+- **主張**：CVE-2020-2023: Kata Containers did not stop containers from accessing the guest root filesystem device, letting a malicious container gain code execution in the guest and masquerade as the kata-agent. Affects 1.11 before 1.11.1, 1.10 before 1.10.5, and 1.9 and earlier.
+- **查核**：No correction.
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2020-2023> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2020-2023> ｜ <https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2020-2023>
+
+### E:blackbox-50 — P 部分查證
+
+- **主張**：CVE-2020-2026 (CVSS 3.1 7.8): a malicious Kata guest could make the kata runtime mount untrusted container filesystems on arbitrary host paths through improper link resolution, potentially giving code execution on the host. Same affected versions as CVE-2020-2023.
+- **查核**：Description and affected versions are confirmed. The CVSS 3.1 7.8 score is the CNA (Palo Alto Networks) score; NVD's own CVSS 3.1 score is 8.8 High. NVD describes the guest as 'compromised before a container creation' and lists CWE-59 (link following).
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2020-2026> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2020-2026> ｜ <https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2020-2026>
+
+### E:blackbox-51 — V 已查證
+
+- **主張**：The Kata Containers GitHub security advisories page lists 10 advisories from January to August 2026, five rated Critical, including GHSA-rr59-xxvx-96qr 'VM Escape via virtiofsd Argument Injection through Default-Enabled Pod Annotations' (2026-05-20) and GHSA-mp2j-xm59-qfgw 'Config Path Annotation Arbitrary File Loading' (Critical, 2026-07-20).
+- **查核**：No correction. (2026 advisories: 01-29, 02-19, 04-22, 05-20, 05-21, 07-20, 07-21 x3, 08-20 = 10. Critical: GHSA-5fc8, GHSA-wwj6, GHSA-q49m, GHSA-2gv2, GHSA-mp2j = 5. Note that GHSA-rr59-xxvx-96qr is rated Medium, CVE-2026-44210.)
+- **來源**：<https://github.com/kata-containers/kata-containers/security/advisories> ｜ <https://api.github.com/repos/kata-containers/kata-containers/security-advisories?per_page=100>
+
+### E:blackbox-52 — V 已查證
+
+- **主張**：GHSA-2gv2-cffp-j227 / CVE-2026-47243 (Critical): a guest-root to host-root escape in Kata runtime-rs <= 3.30.0 (patched in 3.31.0). With an unsandboxed host virtiofsd (--sandbox none --seccomp none), raw FUSE_SYMLINK requests with absolute paths can create symlinks at host paths.
+- **查核**：No correction. (Critical; GitHub CVSS 4.0 9.2; published 2026-05-21.)
+- **來源**：<https://github.com/kata-containers/kata-containers/security/advisories/GHSA-2gv2-cffp-j227> ｜ <https://api.github.com/repos/kata-containers/kata-containers/security-advisories/GHSA-2gv2-cffp-j227> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2026-47243>
+
+### E:blackbox-53 — V 已查證
+
+- **主張**：Kata advisory GHSA-fgm4-mv68-h344 (High, 2026-07-21), titled 'Dragonball: missing length validation in virtio-blk allows guest-to-host VM escape', describes process_aio_request() validating only the first byte of guest descriptors, allowing out-of-bounds read/write of host shim memory by a guest kernel. It affects Kata >= 3.0.0 with Dragonball and is patched in 4.0.0. The advisory page shows the CVE ID CVE-2026-93417.
+- **查核**：No correction. (CVE-2026-93417 was not yet in NVD on 2026-09-24; it appears only on the GitHub advisory.)
+- **來源**：<https://github.com/kata-containers/kata-containers/security/advisories/GHSA-fgm4-mv68-h344> ｜ <https://api.github.com/repos/kata-containers/kata-containers/security-advisories/GHSA-fgm4-mv68-h344>
+
+### E:blackbox-54 — V 已查證
+
+- **主張**：CVE-2019-5736: runc through 1.0-rc6 (Docker before 18.09.2) lets attackers overwrite the host runc binary, and so gain host root, through file-descriptor mishandling of /proc/self/exe when running as root in a container.
+- **查核**：No correction.
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2019-5736> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2019-5736> ｜ <https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2019-5736>
+
+### E:blackbox-55 — V 已查證
+
+- **主張**：CVE-2024-21626: a file-descriptor leak in runc v1.0.0-rc93 through v1.1.11 enables host filesystem access and container escape. Fixed in runc v1.1.12, CVSS 3.1 8.6.
+- **查核**：No correction.
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2024-21626> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2024-21626> ｜ <https://github.com/opencontainers/runc/security/advisories/GHSA-xr7r-f8xq-vfvv>
+
+### E:blackbox-56 — V 已查證
+
+- **主張**：CVE-2025-31133 (published 2025-11-06): runc did not verify that the /dev/null bind-mount source used for maskedPaths was a real /dev/null inode, allowing mount races that can lead to host information disclosure, DoS or container escape. Fixed in 1.2.8, 1.3.3 and 1.4.0-rc.3.
+- **查核**：No correction. (GHSA was published 2025-11-05; NVD published 2025-11-06.)
+- **來源**：<https://cveawg.mitre.org/api/cve/CVE-2025-31133> ｜ <https://nvd.nist.gov/vuln/detail/CVE-2025-31133> ｜ <https://github.com/opencontainers/runc/security/advisories/GHSA-9493-h29p-rfm2>
+
+### E:blackbox-57 — V 已查證
+
+- **主張**：As of 2026-09-24, the E2B GitHub repository (e2b-dev/E2B) LICENSE is Apache License 2.0 ('Copyright 2023 FoundryLabs, Inc.'), while the published 'e2b' 2.51.0 packages declare MIT (PyPI license_expression 'MIT'; npm license 'MIT'). The mismatch persists.
+- **查核**：No correction. (On 2026-09-24 the latest PyPI and npm 'e2b' release is 2.51.0: PyPI license_expression 'MIT', npm license 'MIT'. The repo LICENSE is Apache 2.0 with 'Copyright 2023 FoundryLabs, Inc.')
+- **來源**：<https://raw.githubusercontent.com/e2b-dev/E2B/main/LICENSE> ｜ <https://pypi.org/pypi/e2b/json> ｜ <https://registry.npmjs.org/e2b/latest> ｜ <https://github.com/e2b-dev/E2B/blob/main/LICENSE> ｜ <https://api.github.com/repos/e2b-dev/E2B/license> ｜ <https://pypi.org/pypi/e2b/2.51.0/json> ｜ <https://registry.npmjs.org/e2b/2.51.0>
+
+### E:blackbox-58 — V 已查證
+
+- **主張**：github.com/e2b-dev/infra now redirects (HTTP 301) to github.com/e2b-dev/runtime, whose license the GitHub license API reports as Apache-2.0.
+- **查核**：No correction. (The web URL returns 301 to github.com/e2b-dev/runtime, and the API returns 301 to repositories/677083126.)
+- **來源**：<https://github.com/e2b-dev/infra> ｜ <https://api.github.com/repos/e2b-dev/infra/license> ｜ <https://api.github.com/repos/e2b-dev/infra> ｜ <https://api.github.com/repos/e2b-dev/runtime/license>
+
+### E:blackbox-59 — V 已查證
+
+- **主張**：grafana/k6 is AGPL-3.0 (LICENSE.md). Grafana's licensing page and FAQ discuss the AGPL relicensing of Grafana, Loki and Tempo and offer commercial licenses to customers who want to avoid AGPL obligations, but do not mention k6 specifically.
+- **查核**：No correction. (k6 appears on the licensing page only in the site navigation, not in the licensing text. The FAQ answer 'Is there a non-AGPL option?' offers a commercial license to customers who modify and distribute the AGPL version or offer it as a network service.)
+- **來源**：<https://api.github.com/repos/grafana/k6/license> ｜ <https://grafana.com/licensing/> ｜ <https://github.com/grafana/k6/blob/master/LICENSE.md>
+
+### E:blackbox-60 — V 已查證
+
+- **主張**：AGPL-3.0 section 13 (as reproduced in k6's LICENSE.md) requires that 'if you modify the Program', the modified version must prominently offer users interacting with it remotely over a network an opportunity to receive its Corresponding Source. Section 5 says inclusion of a covered work in an 'aggregate' does not cause the license to apply to the other parts of the aggregate.
+- **查核**：No correction.
+- **來源**：<https://raw.githubusercontent.com/grafana/k6/master/LICENSE.md> ｜ <https://github.com/grafana/k6/blob/master/LICENSE.md> ｜ <https://www.gnu.org/licenses/agpl-3.0.html>
+
+### E:blackbox-61 — V 已查證
+
+- **主張**：The GNU GPL FAQ (MereAggregation) says the line between separate programs and one combined program is a legal question that judges ultimately decide. It says pipes, sockets and command-line arguments are communication mechanisms normally used between separate programs, unless the communication is intimate enough to exchange complex internal data structures. Another FAQ entry says running a modified AGPL program on a public website requires releasing the modified source.
+- **查核**：No correction. (The second entry is #UnreleasedModsAGPL, which says 'the company must release the modified source code'.)
+- **來源**：<https://www.gnu.org/licenses/gpl-faq.html> ｜ <https://www.gnu.org/licenses/gpl-faq.html#MereAggregation> ｜ <https://www.gnu.org/licenses/gpl-faq.html#UnreleasedModsAGPL>
+
+### E:blackbox-62 — V 已查證
+
+- **主張**：GitHub license API results: promptfoo MIT, ZAP (zaproxy/zaproxy) Apache-2.0, Nuclei (projectdiscovery/nuclei) MIT, Schemathesis MIT, Playwright Apache-2.0, RESTler (microsoft/restler-fuzzer) MIT.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/promptfoo/promptfoo/license> ｜ <https://api.github.com/repos/zaproxy/zaproxy/license> ｜ <https://api.github.com/repos/projectdiscovery/nuclei/license> ｜ <https://api.github.com/repos/schemathesis/schemathesis/license> ｜ <https://api.github.com/repos/microsoft/playwright/license> ｜ <https://api.github.com/repos/microsoft/restler-fuzzer/license>
+
+### E:blackbox-63 — V 已查證
+
+- **主張**：The Kata Containers repository (kata-containers/kata-containers) states that its code is licensed under the Apache 2.0 license.
+- **查核**：No correction.
+- **來源**：<https://github.com/kata-containers/kata-containers> ｜ <https://raw.githubusercontent.com/kata-containers/kata-containers/main/README.md> ｜ <https://api.github.com/repos/kata-containers/kata-containers/license>
+
+### E:blackbox-64 — V 已查證
+
+- **主張**：The GitHub license API reports Apache-2.0 for sigstore/cosign, OWASP/threat-dragon and moby/moby (Docker Engine).
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/sigstore/cosign/license> ｜ <https://api.github.com/repos/OWASP/threat-dragon/license> ｜ <https://api.github.com/repos/moby/moby/license>
+
 **本主題研究限制（研究代理自述）**
 
 - The GitHub REST API was blocked in this session, so release dates and licenses come from GitHub pages and Atom feeds, PyPI, npm and the Go module proxy. The WebFetch summarizer misreported several years as 2024; I used registry timestamps wherever it disagreed.
@@ -1826,6 +2450,18 @@
 - **查核**：The numbers match the arXiv abstract. It is a non-peer-reviewed preprint (v1 19 May 2025, v2 26 Sept 2025) with no journal reference, so cite it as preliminary. There is no independent replication.
 - **來源**：<https://arxiv.org/abs/2506.11022>
 
+### E:vibe_risks-34 — V 已查證
+
+- **主張**：BaxBench code (logic-star-ai/baxbench) is MIT-licensed ('Copyright (c) 2025 SRI Lab, LogicStar.ai'), and the Hugging Face dataset card LogicStar/BaxBench declares license MIT.
+- **查核**：No correction. (The HF card declares license 'mit'.)
+- **來源**：<https://raw.githubusercontent.com/logic-star-ai/baxbench/main/LICENSE> ｜ <https://huggingface.co/datasets/LogicStar/BaxBench> ｜ <https://github.com/logic-star-ai/baxbench/blob/main/LICENSE> ｜ <https://api.github.com/repos/logic-star-ai/baxbench/license> ｜ <https://huggingface.co/api/datasets/LogicStar/BaxBench>
+
+### E:vibe_risks-35 — P 部分查證
+
+- **主張**：The PrimeVul repository (DLVulDet/PrimeVul) is MIT-licensed according to the GitHub license API. Its README distributes the dataset through Google Drive links and states no separate dataset license. The dataset consists of functions drawn from open-source projects.
+- **查核**：Confirmed: the GitHub license API reports MIT, the README distributes the data through Google Drive folder links, and no separate dataset license was found (the README shows only an MIT badge). The README describes the data as functions 'from real-world C/C++ projects' and does not explicitly say 'open-source'. The open-source provenance is plausible, because the dataset is built from public CVE-fix datasets, but this primary source does not state it.
+- **來源**：<https://api.github.com/repos/DLVulDet/PrimeVul/license> ｜ <https://raw.githubusercontent.com/DLVulDet/PrimeVul/main/README.md> ｜ <https://arxiv.org/abs/2403.18624>
+
 **本主題研究限制（研究代理自述）**
 
 - X/Twitter pages returned HTTP 402, so I could not read Karpathy's, Lemkin's or Masad's posts directly. Tweet text and dates come from Merriam-Webster, Wikipedia, press coverage, and decoding the tweet ID (2025-02-02 23:17 UTC). One fetched summary of Simon Willison's page said 6 February 2025, which conflicts with this; I treated it as a summarization error.
@@ -1864,8 +2500,8 @@
 ### E:reference_systems-04 — V 已查證
 
 - **主張**：Most finalists routed to multiple LLM providers through LiteLLM. Lacrosse used DSPy to run diverse LLMs in parallel or as fallbacks. Buttercup's README says it works best with both OpenAI and Anthropic keys but runs with one provider.
-- **查核**：No correction needed. Five of seven teams used LiteLLM (AT, TI, FB, SP, 42), which both the SoK's Table I and the OSS-CRS paper state ('Five of seven teams deployed LiteLLM'). The Buttercup README says it can run with 'at least one API key from one third-party provider' and can combine OpenAI, Anthropic and Google models.
-- **來源**：<https://arxiv.org/html/2602.07666v2> ｜ <https://github.com/trailofbits/buttercup> ｜ <https://arxiv.org/html/2603.08566v2> ｜ <https://raw.githubusercontent.com/trailofbits/buttercup/main/README.md>
+- **查核**：No correction needed. Five of seven teams used LiteLLM (AT, TI, FB, SP, 42), which both the SoK's CRS Teams table and the OSS-CRS paper state ('Five of seven teams deployed LiteLLM'). The Buttercup README says it can run with 'at least one API key from one third-party provider' and can combine OpenAI, Anthropic and Google models. 2026-09-24 re-check (arXiv 2602.07666 v5): the 5/7 count is confirmed (Atlanta, Theori, Fuzzing Brain, Shellphish, 42-b3yond-6ug carry the LiteLLM footnote marker; Trail of Bits and Lacrosse do not). The CRS Teams table is labeled 'Table 1' in the arXiv HTML render and 'Table 2' in the PDF render; cite it as the CRS Teams table. LiteLLM is a routing layer used alongside each team's main LLM library, not a replacement for it.
+- **來源**：<https://arxiv.org/html/2602.07666v2> ｜ <https://github.com/trailofbits/buttercup> ｜ <https://arxiv.org/html/2603.08566v2> ｜ <https://raw.githubusercontent.com/trailofbits/buttercup/main/README.md> ｜ <https://arxiv.org/abs/2602.07666> ｜ <https://arxiv.org/html/2602.07666> ｜ <https://arxiv.org/pdf/2602.07666>
 
 ### E:reference_systems-05 — V 已查證
 
@@ -2070,6 +2706,114 @@
 - **主張**：Synthesis: where these systems use several models, the documented purposes are ensemble diversity or coverage, latency, and fallback. No finalist documented cross-vendor voting to reduce model bias; the Team Atlanta 2026 study and PoLL are the closest evidence that model diversity helps.
 - **查核**：Add ranking as a purpose. The SoK says Shellphish and Lacrosse 'employ multi-source voting, aggregating weighted scores from multiple tools and LLMs to rank high-potential candidates', although bias reduction is not the stated goal. Atlantis used models from four providers (OpenAI, Anthropic, Google, xAI) under an ensemble-robustness rationale. Outside the finalists, llm-council anonymizes peer review so models 'can't play favorites', a documented bias-mitigation purpose.
 - **來源**：<https://arxiv.org/html/2602.07666v2> ｜ <https://theori.io/blog/aixcc-and-roboduck-63447> ｜ <https://team-atlanta.github.io/blog/post-patch-2026-ensemble/> ｜ <https://arxiv.org/abs/2404.18796>
+
+### E:reference_systems-39 — P 部分查證
+
+- **主張**：CodeRabbit's blog post 'Claude Opus 5.5 for code review: More catches, different misses' (2026-09-22) tested two Opus 5.5 configurations inside CodeRabbit's review pipeline against 'our production model mix'. On its OSS August benchmark (80 patterns), Standard scored 51/80 (63.8% recall) vs baseline 49/80 (61.3%). On its Signal benchmark (13 cases), Max scored 10/13, Standard 8/13, baseline 5/13. Token use rose 49.2% (Standard) and 57.6% (Max). Standard 'caught 11 open-source issues that the baseline missed, but missed nine that the baseline caught.'
+- **查核**：Title, date (09.22.26), 'production model mix', Standard/Max configs, OSS August 80 patterns (baseline 49/80 61.3%, Standard 51/80 63.8%), Signal 13 cases (Max 10/13, Standard 8/13, baseline 5/13) and the '11 ... missed nine' quote are all confirmed. Qualification: the +49.2% (Standard) and +57.6% (Max) token increases are the OSS August figures only; on Signal the reported increases were +40.6% (Standard) and +60.1% (Max). Also Max scored 50/80 (62.5%) on OSS August, below Standard.
+- **來源**：<https://www.coderabbit.ai/blog/opus-5-5-model-review> ｜ <https://www.coderabbit.ai/blog>
+
+### E:reference_systems-40 — P 部分查證
+
+- **主張**：CodeRabbit's architecture documentation lists specialized AI agents working in parallel (Review, Verification, Chat, Pre-Merge Checks). It names no models or vendors and describes no model routing or ensembling.
+- **查核**：No models/vendors/routing/ensembling are named (confirmed). But the list of parallel specialized agents is five, not four: 'Review, Verification, Chat, Pre-Merge Checks, and Finishing Touches' (the last rendered via a hint component).
+- **來源**：<https://docs.coderabbit.ai/overview/architecture.md> ｜ <https://docs.coderabbit.ai/overview/architecture>
+
+### E:reference_systems-41 — V 已查證
+
+- **主張**：PR-Agent is MIT-licensed. Its README calls it 'a community-maintained legacy project of Qodo', distinct from Qodo's primary AI code review offering, and says it is being donated to an open-source foundation (the repository moved to the the-pr-agent GitHub org). It supports OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Mistral and any other model reachable through LiteLLM.
+- **查核**：No correction. (GitHub org is styled 'The-PR-Agent'; qodo-ai/pr-agent redirects there. README also says Qodo 'has donated PR-Agent to the open-source community' and it 'is currently in the process of being donated to an open-source foundation'.)
+- **來源**：<https://github.com/qodo-ai/pr-agent> ｜ <https://raw.githubusercontent.com/The-PR-Agent/pr-agent/main/README.md> ｜ <https://raw.githubusercontent.com/The-PR-Agent/pr-agent/main/LICENSE> ｜ <https://api.github.com/repos/qodo-ai/pr-agent>
+
+### E:reference_systems-42 — V 已查證
+
+- **主張**：PR-Agent's configuration.toml defaults to a single OpenAI model with fallback_models tried in order if the primary is unavailable. It has optional model_reasoning (a dedicated reasoning model for self-reflection) and model_weak (for easier tasks), and a [model_routing] section that is disabled by default and can route by rules such as a maximum hunk count. config.output_run_details reports which model handled a PR.
+- **查核**：No correction. (Current defaults: model="gpt-5.6", fallback_models=["gpt-5.6-terra"]; model_reasoning and model_weak are commented-out optional keys; [model_routing] enable=false with rules using max_hunks/max_files; output_run_details defaults to false and when enabled shows model, tokens, time, AI calls.)
+- **來源**：<https://raw.githubusercontent.com/the-pr-agent/pr-agent/main/pr_agent/settings/configuration.toml> ｜ <https://github.com/the-pr-agent/pr-agent/blob/main/docs/docs/usage-guide/changing_a_model.md> ｜ <https://raw.githubusercontent.com/The-PR-Agent/pr-agent/main/pr_agent/settings/configuration.toml> ｜ <https://raw.githubusercontent.com/The-PR-Agent/pr-agent/main/docs/docs/usage-guide/changing_a_model.md>
+
+### E:reference_systems-43 — V 已查證
+
+- **主張**：Qodo's code-review documentation says specialized agents evaluate a change in parallel (correctness, standards compliance, architecture, risk). A judge agent then merges their findings, removes duplicates and filters out anything low-confidence. No models or vendors are named.
+- **查核**：No correction.
+- **來源**：<https://docs.qodo.ai/code-review>
+
+### E:reference_systems-44 — V 已查證
+
+- **主張**：GitHub's Copilot code review documentation says it uses 'a carefully tuned mix of models, prompts, and system behaviors'. It says model switching is not supported because changing the model is likely to compromise reliability, and that it may use models not enabled on the organization's Models settings page.
+- **查核**：No correction. (Note: the same page now also describes review modes, e.g. 'Balanced' routes PRs to a higher-reasoning model.)
+- **來源**：<https://docs.github.com/en/copilot/concepts/agents/code-review> ｜ <https://docs.github.com/api/article/body?pathname=/en/copilot/concepts/agents/code-review>
+
+### E:reference_systems-45 — P 部分查證
+
+- **主張**：Cursor's 'Building Bugbot' blog (2026-01-15) describes eight parallel review passes with randomized diff order and majority voting that filters out bugs found in only one pass. Similar bugs are bucketed, and a validator model then catches false positives. Cursor reports the resolution rate rose from 52% to over 70%. No model names are given.
+- **查核**：Post is titled 'Building a better Bugbot' (Jon Kaplan, Jan 15, 2026), not 'Building Bugbot'. Eight parallel passes with randomized diff order, bucketing, majority voting filtering bugs found in only one pass, validator model for false positives, and resolution rate 52% -> over 70% are confirmed; no model names given. Qualification: the eight-pass voting flow was the launch-time (v1, July 2025) pipeline; the post says Bugbot later moved to an agentic architecture.
+- **來源**：<https://cursor.com/blog/building-bugbot>
+
+### E:reference_systems-46 — V 已查證
+
+- **主張**：DARPA's AIxCC final results (announced 2025-08-08): 1st Team Atlanta ($4 million), 2nd Trail of Bits ($3 million), 3rd Theori ($1.5 million). Four of the seven finalist CRSs were released as open source that day, and DARPA said all seven would be made available under OSI-approved licenses.
+- **查核**：No correction. (DARPA: four teams released their CRSs that Friday, remaining teams in coming weeks; all seven 'will be made available as open-source software under a license approved by the Open Source Initiative'.)
+- **來源**：<https://www.darpa.mil/news/2025/aixcc-results> ｜ <https://blog.trailofbits.com/2025/08/09/trail-of-bits-buttercup-wins-2nd-place-in-aixcc-challenge/>
+
+### E:reference_systems-47 — V 已查證
+
+- **主張**：The SoK 'DARPA's AI Cyber Challenge (AIxCC): Competition Design, Architectures, and Lessons Learned' (arXiv 2602.07666, v5 2026-08-02) is marked as accepted at USENIX Security 2026. Its final-score table lists Team Atlanta 392.8, Trail of Bits 219.4, Theori 210.7, Fuzzing Brain 153.7, Shellphish 135.9, 42-b3yond-6ug 105.0 and Lacrosse 9.6.
+- **查核**：No correction. (arXiv journal reference: 'USENIX Security 2026'; v5 updated 2026-08-02; Table 6 totals AT 392.8, TB 219.4, TI 210.7, FB 153.7, SP 135.9, 42 105.0, LC 9.6.)
+- **來源**：<https://arxiv.org/abs/2602.07666v5> ｜ <https://arxiv.org/html/2602.07666v5> ｜ <https://export.arxiv.org/api/query?id_list=2602.07666>
+
+### E:reference_systems-48 — V 已查證
+
+- **主張**：The AIxCC SoK reports that finalists' LLM spending concentrated in two providers (about 94% on Anthropic and OpenAI, about 6% on Gemini and xAI) and that LLM spend rank closely tracked final score. Of the two teams that fine-tuned open models, only one deployed them, because prompt-based use of frontier commercial models was more predictable and cost-effective.
+- **查核**：No correction. Minor nuance: the SoK says 'only FB and TI' flip order between spend rank and score, and gives the predictability/cost-effectiveness of prompting frontier commercial models as the reason the competition offered little incentive to invest in open-source models generally.
+- **來源**：<https://arxiv.org/html/2602.07666v5> ｜ <https://arxiv.org/abs/2602.07666v5>
+
+### E:reference_systems-49 — V 已查證
+
+- **主張**：The AIxCC SoK describes Shellphish's CRS as having the most comprehensive technical coverage (53 components on a custom orchestration platform). It uses weighted votes across multiple tools and LLMs to rank bug candidates, and post-patch fuzzing for patch validation.
+- **查核**：No correction. (Weighted voting across multiple tools and LLMs is attributed to both SP and LC; post-patch fuzzing for SP is a 5-minute step.)
+- **來源**：<https://arxiv.org/html/2602.07666v5> ｜ <https://arxiv.org/abs/2602.07666v5>
+
+### E:reference_systems-50 — V 已查證
+
+- **主張**：Shellphish's ARTIPHISHELL repository (github.com/shellphish/artiphishell) is MIT-licensed. Its setup instructions export OPENAI_API_KEY, ANTHROPIC_API_KEY and GEMINI_API_KEY.
+- **查核**：No correction.
+- **來源**：<https://github.com/shellphish/artiphishell> ｜ <https://api.github.com/repos/shellphish/artiphishell> ｜ <https://raw.githubusercontent.com/shellphish/artiphishell/main/README.md> ｜ <https://raw.githubusercontent.com/shellphish/artiphishell/main/LICENSE>
+
+### E:reference_systems-51 — C 已更正（原主張被推翻）
+
+- **主張**：The FuzzingBrain paper (arXiv 2509.07225, Sheng et al., 2025-09-08) reports 4th place, 28 vulnerabilities found (6 zero-days) and 14 patched. It uses Claude, GPT-4o/o3 and Gemini 2.5-pro models through a cascading fallback over a prioritized model list. For patch deduplication, three LLMs judge independently, and patches are treated as redundant when at least two agree. PoVs must trigger sanitizer errors (ASan/MSan/UBSan; Jazzer for Java).
+- **查核**：4th place, 28 vulnerabilities (6 zero-days), 14 patched, date 2025-09-08, Sheng et al., prioritized multi-model fallback (Anthropic, Google, OpenAI; claude-3.7, gpt-4o, claude-opus-4, o3, gemini-2.5-pro) and sanitizer-based PoVs (ASan/MSan/UBSan for C/C++, Jazzer for Java) are confirmed. Wrong: the three-LLM, at-least-two-agree redundancy check is used for POV (crash-report) deduplication, not patch deduplication. Patch dedup is 'more conservative' and rule-based (e.g. Levenshtein distance < 10; same POV signature within 3 seconds; etc.).
+- **來源**：<https://arxiv.org/abs/2509.07225> ｜ <https://arxiv.org/html/2509.07225v1> ｜ <https://export.arxiv.org/api/query?id_list=2509.07225>
+
+### E:reference_systems-52 — V 已查證
+
+- **主張**：The FuzzingBrain CRS repository (github.com/o2lab/afc-crs-all-you-need-is-a-fuzzing-brain) is Apache-2.0. It supports Anthropic, OpenAI and Google Gemini keys and needs at least one LLM API key.
+- **查核**：No correction. (Repository now redirects to github.com/fuzzingbrain/afc-crs-all-you-need-is-a-fuzzing-brain; README: 'One LLM API key \| Anthropic, OpenAI, or Google Gemini' and 'add at least one API key'.)
+- **來源**：<https://github.com/o2lab/afc-crs-all-you-need-is-a-fuzzing-brain> ｜ <https://api.github.com/repos/o2lab/afc-crs-all-you-need-is-a-fuzzing-brain> ｜ <https://raw.githubusercontent.com/fuzzingbrain/afc-crs-all-you-need-is-a-fuzzing-brain/main/README.md>
+
+### E:reference_systems-53 — V 已查證
+
+- **主張**：42-b3yond-6ug's final CRS 'BugBuster' (github.com/42-b3yond-6ug/42-b3yond-6ug-crs) is GPL-3.0. Its README says not all development code is included, and it does not document its LLM vendors.
+- **查核**：No correction. (README: 'Not all development code is included here'; 'open-sourced under the GPLv3 License'; no LLM vendor named in README.)
+- **來源**：<https://github.com/42-b3yond-6ug/42-b3yond-6ug-crs> ｜ <https://api.github.com/repos/42-b3yond-6ug/42-b3yond-6ug-crs> ｜ <https://raw.githubusercontent.com/42-b3yond-6ug/42-b3yond-6ug-crs/main/README.md>
+
+### E:reference_systems-54 — C 已更正（原主張被推翻）
+
+- **主張**：Trail of Bits' Buttercup repository is AGPL-3.0, and Team Atlanta's Atlantis repository (Team-Atlanta/aixcc-afc-atlantis) is MIT.
+- **查核**：Buttercup is AGPL-3.0 (confirmed). Atlantis is not cleanly MIT: its LICENSE file states the repository 'is licensed under the terms of the GNU General Public License, version 3 (GPL-3.0)' (with some third-party parts e.g. SWE library under MIT), GitHub reports NOASSERTION, while the README's License section says MIT. Treat Atlantis as GPL-3.0 per the LICENSE file (README conflicts).
+- **來源**：<https://github.com/trailofbits/buttercup> ｜ <https://github.com/Team-Atlanta/aixcc-afc-atlantis> ｜ <https://api.github.com/repos/trailofbits/buttercup> ｜ <https://raw.githubusercontent.com/trailofbits/buttercup/main/LICENSE> ｜ <https://api.github.com/repos/Team-Atlanta/aixcc-afc-atlantis> ｜ <https://raw.githubusercontent.com/Team-Atlanta/aixcc-afc-atlantis/main/LICENSE> ｜ <https://raw.githubusercontent.com/Team-Atlanta/aixcc-afc-atlantis/main/README.md>
+
+### E:reference_systems-55 — V 已查證
+
+- **主張**：Microsoft PyRIT (Azure/PyRIT) is MIT-licensed according to the GitHub license API.
+- **查核**：No correction. (Both Azure/PyRIT and microsoft/PyRIT exist as separate repositories and both report MIT.)
+- **來源**：<https://api.github.com/repos/Azure/PyRIT/license> ｜ <https://api.github.com/repos/microsoft/PyRIT/license>
+
+### E:reference_systems-56 — V 已查證
+
+- **主張**：NVIDIA garak (NVIDIA/garak) is Apache-2.0-licensed according to the GitHub license API.
+- **查核**：No correction.
+- **來源**：<https://api.github.com/repos/NVIDIA/garak/license> ｜ <https://github.com/NVIDIA/garak/blob/main/LICENSE>
 
 **本主題研究限制（研究代理自述）**
 

@@ -3,7 +3,7 @@
 > 本檔由 `tools/build_references.py` 依文件中實際引用的證據 ID 自動產生。每條的完整主張、查核意見與所有來源見 [evidence/ledger.md](evidence/ledger.md)。
 > 狀態：V＝已查證、P＝部分查證、C＝原主張被推翻（以更正為準）。
 
-文件共引用 266 條證據。
+文件共引用 390 條證據。
 
 ## 多代理編排框架與模型閘道
 
@@ -101,6 +101,59 @@
   - <https://www.linuxfoundation.org/press/linux-foundation-launches-the-agent2agent-protocol-project-to-enable-secure-intelligent-communication-between-ai-agents>
   - <https://github.com/a2aproject/A2A/releases>
   - <https://github.com/a2aproject/A2A>
+- **E:orchestration-38** [V] Pydantic (pydantic/pydantic) is MIT-licensed according to the GitHub license API.
+  - <https://api.github.com/repos/pydantic/pydantic/license>
+- **E:orchestration-39** [V] LiteLLM's LICENSE states that content under the 'enterprise/' directory is licensed under enterprise/LICENSE and that everything else is MIT ('Copyright (c) 2023 Berri AI').
+  - <https://raw.githubusercontent.com/BerriAI/litellm/main/LICENSE>
+- **E:orchestration-40** [V] PyPI metadata (checked 2026-09-24): jsonschema 4.26.0 license_expression MIT; PyYAML 6.0.3 license MIT (OSI MIT classifier); tzdata 2026.4 (uploaded 2026-09-12) license Apache-2.0.
+  - <https://pypi.org/pypi/jsonschema/json>
+  - <https://pypi.org/pypi/PyYAML/json>
+  - <https://pypi.org/pypi/tzdata/json>
+- **E:orchestration-41** [V] PostgreSQL is released under the PostgreSQL License, described by the project as a liberal open-source license similar to BSD or MIT. It permits use, copying, modification and d…
+  - <https://www.postgresql.org/about/licence/>
+- **E:orchestration-42** [V] langgraph-checkpoint-postgres 3.1.2 (MIT, uploaded 2026-08-07) depends on psycopg>=3.2.0 and psycopg-pool>=3.2.0, and psycopg 3.3.6 declares license_expression LGPL-3.0-only.
+  - <https://pypi.org/pypi/langgraph-checkpoint-postgres/json>
+  - <https://pypi.org/pypi/psycopg/json>
+- **E:orchestration-43** [V] RFC 8032 (EdDSA, January 2017) is an Informational document from the IRTF CFRG. Ed25519 public keys and private keys are 32 octets, signatures are 64 octets, and the RFC states…
+  - <https://www.rfc-editor.org/rfc/rfc8032>
+- **E:orchestration-44** [V] RFC 8785, JSON Canonicalization Scheme (JCS, June 2020), is an Informational RFC on the Independent Submission stream, not an IETF standard. It restricts input to the I-JSON sub…
+  - <https://www.rfc-editor.org/rfc/rfc8785>
+- **E:orchestration-45** [V] The Python package 'rfc8785' (Trail of Bits, pure Python, Apache-2.0) is at version 0.1.4 (2024-09-27). The alternative package 'jcs' is at 0.2.1 (2022-04-10, Apache-2.0, classi…
+  - <https://pypi.org/pypi/rfc8785/json>
+  - <https://pypi.org/pypi/jcs/json>
+- **E:orchestration-46** [V] The Python 'cryptography' package latest version is 50.0.1 with license expression 'Apache-2.0 OR BSD-3-Clause'. Its Ed25519 API provides Ed25519PrivateKey.generate()/sign(data)…
+  - <https://pypi.org/pypi/cryptography/json>
+  - <https://cryptography.io/en/latest/hazmat/primitives/asymmetric/ed25519/>
+- **E:orchestration-47** [V] OpenSSH 8.1 (2019-10-09) added experimental signing and verification to ssh-keygen. ssh-keygen -Y sign/verify require a namespace (-n) to prevent signature confusion across doma…
+  - <https://www.openssh.org/txt/release-8.1>
+  - <https://man.openbsd.org/ssh-keygen>
+- **E:orchestration-48** [V] minisign uses Ed25519 (by default over a BLAKE2b-512 prehash). Its signatures carry an untrusted comment and a signed 'trusted comment'. No key revocation or expiry mechanism is…
+  - <https://jedisct1.github.io/minisign/>
+- **E:orchestration-49** [V] Sigstore cosign sign-blob in keyless mode obtains a certificate from Fulcio and records the signature in the Rekor transparency log. Key-based signing uses --key (key file, KMS…
+  - <https://docs.sigstore.dev/cosign/signing/signing_with_blobs/>
+  - <https://raw.githubusercontent.com/sigstore/cosign/main/doc/cosign_sign-blob.md>
+  - <https://raw.githubusercontent.com/sigstore/cosign/main/doc/cosign_verify-blob.md>
+- **E:orchestration-50** [V] RFC 9162 (Certificate Transparency Version 2.0, December 2021) is Experimental and obsoletes RFC 6962. It uses a Merkle tree with inclusion and consistency proofs against signed…
+  - <https://www.rfc-editor.org/rfc/rfc9162>
+- **E:orchestration-51** [V] Crosby and Wallach, 'Efficient Data Structures for Tamper-Evident Logging' (USENIX Security 2009), model an untrusted logger kept honest by auditors who hold earlier commitments…
+  - <https://www.usenix.org/legacy/events/sec09/tech/full_papers/crosby.pdf>
+- **E:orchestration-52** [P] The YAML 1.2.2 specification says YAML 1.2's primary focus was making YAML a strict superset of JSON, defines a JSON schema with only null, bool, int and float scalar tags, and…
+  - <https://yaml.org/spec/1.2.2/>
+- **E:orchestration-53** [V] PyYAML's PyPI description says it includes 'a complete YAML 1.1 parser'.
+  - <https://pypi.org/project/PyYAML/>
+- **E:orchestration-54** [P] PyYAML GitHub issue #41 (open as of 2026-09-24) reports that PyYAML silently accepts duplicate mapping keys, with the last value overwriting earlier ones, and that libyaml behav…
+  - <https://github.com/yaml/pyyaml/issues/41>
+- **E:orchestration-55** [P] PyPI metadata (checked 2026-09-24): datamodel-code-generator 0.82.0, license MIT, requires_python >=3.10. Its project description states it generates Python data models (Pydanti…
+  - <https://pypi.org/pypi/datamodel-code-generator/json>
+- **E:orchestration-56** [V] PyPI metadata (checked 2026-09-24): hypothesis 6.168.1, summary 'The property-based testing library for Python', license MPL-2.0, requires_python >=3.10.
+  - <https://pypi.org/pypi/hypothesis/json>
+- **E:orchestration-57** [V] PyPI metadata (checked 2026-09-24): httpx 0.28.1, license BSD-3-Clause, requires_python >=3.8, summary 'The next generation HTTP client.'
+  - <https://pypi.org/pypi/httpx/json>
+- **E:orchestration-58** [V] PyPI metadata (checked 2026-09-24): dnspython 2.8.0, license ISC, requires_python >=3.10, summary 'DNS toolkit'.
+  - <https://pypi.org/pypi/dnspython/json>
+- **E:orchestration-59** [V] PyPI metadata (checked 2026-09-24): langgraph-checkpoint-sqlite 3.1.1, license MIT, requires_python >=3.10, summary 'Library with a SQLite implementation of LangGraph checkpoint…
+  - <https://pypi.org/pypi/langgraph-checkpoint-sqlite/json>
+  - <https://pypi.org/pypi/langgraph/json>
 
 ## LLM 供應商（Claude／OpenAI／Nemotron）
 
@@ -196,6 +249,39 @@
   - <https://developers.openai.com/api/docs/guides/your-data>
 - **E:providers-37** [V] OpenAI's open-weight gpt-oss-120b is Apache-2.0 licensed and supports function calling and Structured Outputs. It gives a self-hosted OpenAI-family option.
   - <https://huggingface.co/openai/gpt-oss-120b>
+- **E:providers-39** [V] vLLM (vllm-project/vllm) and SGLang (sgl-project/sglang) are both Apache-2.0-licensed according to the GitHub license API.
+  - <https://api.github.com/repos/vllm-project/vllm/license>
+  - <https://api.github.com/repos/sgl-project/sglang/license>
+- **E:providers-40** [V] NVIDIA's NIM FAQ says NVIDIA Developer Program members may use self-hosted NIM for research, application development and experimentation on up to 16 GPUs. It defines production…
+  - <https://docs.api.nvidia.com/nim/docs/product>
+  - <https://developer.nvidia.com/nim>
+- **E:providers-41** [V] The NVIDIA API Trial Terms of Service (v. September 19, 2025) limit access to trial purposes without production use (s.1.2), limit use without a paid subscription to internal te…
+  - <https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf>
+- **E:providers-42** [V] The NVIDIA API Trial Terms (v. September 19, 2025) say in s.2.3 that NVIDIA will not store or use User Content or Generated Content at the end of each session except as describe…
+  - <https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf>
+- **E:providers-43** [V] Anthropic's Commercial Terms of Service state that the customer retains all rights to its Inputs and owns its Outputs, incorporate the Usage Policy by reference, and bar using t…
+  - <https://www.anthropic.com/legal/commercial-terms>
+- **E:providers-44** [V] Anthropic's Usage Policy, under 'Do Not Compromise Computer or Network Systems', prohibits using Claude to discover or exploit vulnerabilities in systems, networks or applicatio…
+  - <https://www.anthropic.com/legal/aup>
+- **E:providers-45** [V] The OpenAI Services Agreement (effective 2026-01-01; read via the r.jina.ai proxy because openai.com returned 403) states that the customer owns all Output and incorporates the…
+  - <https://r.jina.ai/https://openai.com/policies/services-agreement/>
+  - <https://r.jina.ai/https://openai.com/policies/usage-policies/>
+- **E:providers-46** [V] OpenAI's model catalog lists API model IDs gpt-6-astra, gpt-6-sol and gpt-6-luna, each with a 1.05M-token context window and 128K max output. The changelog records GPT-6 Astra o…
+  - <https://developers.openai.com/api/docs/models>
+  - <https://developers.openai.com/api/docs/changelog>
+- **E:providers-47** [P] The gpt-6-sol and gpt-6-luna model pages both list function calling and structured outputs on Chat Completions and Responses, and both state: 'Chat Completions supports function…
+  - <https://developers.openai.com/api/docs/models/gpt-6-sol>
+  - <https://developers.openai.com/api/docs/models/gpt-6-luna>
+- **E:providers-48** [V] OpenAI's 'your data' guide lists gpt-6-astra, gpt-6-sol and gpt-6-luna in its data-residency tables. Its only GPT-6-specific caveat found was that for GPT-6 Sol and Luna, EU dat…
+  - <https://developers.openai.com/api/docs/guides/your-data>
+- **E:providers-49** [V] As of 2026-09-24, Anthropic's models overview lists the current models Claude Fable 5.1 (claude-fable-5-1), Opus 5.5 (claude-opus-5-5), Sonnet 5 (claude-sonnet-5) and Haiku 4.5…
+  - <https://platform.claude.com/docs/en/about-claude/models/overview>
+- **E:providers-50** [V] The model list at integrate.api.nvidia.com/v1/models (2026-09-24) includes nvidia/nemotron-nano-3-30b-a3b, nvidia/nemotron-3-super-120b-a12b, nvidia/nemotron-3-ultra-550b-a55b,…
+  - <https://integrate.api.nvidia.com/v1/models>
+- **E:providers-51** [V] build.nvidia.com model pages list Nemotron-3-Super-120B-A12B (2026-03-11, NVIDIA Nemotron Open Model License), Nemotron-3-Ultra-550B-A55B (2026-06-04, OpenMDW-1.1) and Nemotron-…
+  - <https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b>
+  - <https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b>
+  - <https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b>
 
 ## 多模型與偏誤研究
 
@@ -269,6 +355,24 @@
   - <https://arxiv.org/abs/2506.07962>
   - <https://arxiv.org/abs/2502.04313>
   - <https://arxiv.org/abs/2502.00674>
+- **E:multi_llm_bias-39** [P] The BIG-bench repository states that all task files (including README.md and task.json) contain a 'canary' string that should not be edited, intended to help detect and prevent…
+  - <https://github.com/google/BIG-bench/blob/main/README.md>
+- **E:multi_llm_bias-40** [V] ReasonVul, 'Three Heads Are Better Than One: A Multi-perspective Reasoning Framework for Enhanced Vulnerability Detection' (arXiv 2605.18153, 2026-05-18, preprint): three reason…
+  - <https://arxiv.org/abs/2605.18153>
+- **E:multi_llm_bias-41** [P] 'The Capability Paradox: How Smarter Auditors Make Multi-Agent Systems Less Secure' (arXiv 2605.17480, v3 2026-07-29, preprint) reports that mean attack success rate rose from 1…
+  - <https://arxiv.org/abs/2605.17480>
+- **E:multi_llm_bias-42** [V] 'The Cost of Consensus: Isolated Self-Correction Prevails Over Unguided Homogeneous Multi-Agent Debate' (arXiv 2605.00914, 2026-04-29) found that debate among 10 identical 7-8B…
+  - <https://arxiv.org/abs/2605.00914>
+- **E:multi_llm_bias-43** [P] 'Beyond Consensus: Mitigating the Agreeableness Bias in LLM Judge Evaluations' (arXiv 2510.11822, preprint) reports that LLM judges had a true-positive rate around 96% but a tru…
+  - <https://arxiv.org/abs/2510.11822>
+- **E:multi_llm_bias-44** [V] 'Bias in the Loop: Auditing LLM-as-a-Judge for Software Engineering' (arXiv 2604.16790, 2026-04-18, preprint) reports that judge decisions on software-engineering tasks are high…
+  - <https://arxiv.org/abs/2604.16790>
+- **E:multi_llm_bias-45** [V] 'Preference Leakage: A Contamination Problem in LLM-as-a-judge' (arXiv 2502.01534, Li et al.; listed as accepted at ICLR 2026) shows that judges favor student models related to…
+  - <https://arxiv.org/abs/2502.01534>
+- **E:multi_llm_bias-46** [V] 'Extreme Self-Preference in Language Models' (arXiv 2509.26464, Lehr, Cipperman and Banaji, preprint) ran 72 experiments with about 41,000 queries across eight LLMs. Models cons…
+  - <https://arxiv.org/abs/2509.26464>
+- **E:multi_llm_bias-47** [V] 'Self-Preference Is Weak or Absent in Verifiable Instruction-Following Revision' (arXiv 2606.20093, 2026-06-18, 7-page preprint) found no detectable self-preference across 85 au…
+  - <https://arxiv.org/abs/2606.20093>
 
 ## 白箱測試工具與研究
 
@@ -383,6 +487,31 @@
   - <https://github.com/boxed/mutmut>
   - <https://stryker-mutator.io/>
   - <https://pitest.org/>
+- **E:whitebox-47** [V] Hypothesis's LICENSE.txt says all code in the repository, except where explicitly noted otherwise, is released under the Mozilla Public License v2.0 (the GitHub license API repo…
+  - <https://raw.githubusercontent.com/HypothesisWorks/hypothesis/master/LICENSE.txt>
+  - <https://api.github.com/repos/HypothesisWorks/hypothesis/license>
+- **E:whitebox-48** [V] fast-check (dubzzz/fast-check) is MIT-licensed according to the GitHub license API.
+  - <https://api.github.com/repos/dubzzz/fast-check/license>
+- **E:whitebox-49** [V] gitleaks (gitleaks/gitleaks) and Betterleaks (betterleaks/betterleaks) are both MIT-licensed according to the GitHub license API.
+  - <https://api.github.com/repos/gitleaks/gitleaks/license>
+  - <https://api.github.com/repos/betterleaks/betterleaks/license>
+- **E:whitebox-50** [V] OWASP Benchmark for Java (OWASP-Benchmark/BenchmarkJava) is GPL-2.0 according to the GitHub license API.
+  - <https://api.github.com/repos/OWASP-Benchmark/BenchmarkJava/license>
+- **E:whitebox-51** [V] The TruffleHog README states that since v3.0 TruffleHog is released under the AGPL 3 license. The README mentions an enterprise product, but no statement offering an alternative…
+  - <https://github.com/trufflesecurity/trufflehog>
+  - <https://api.github.com/repos/trufflesecurity/trufflehog/license>
+- **E:whitebox-52** [V] The GitHub license API reports LGPL-2.1 for both the Semgrep engine (semgrep/semgrep) and the Opengrep engine (opengrep/opengrep).
+  - <https://api.github.com/repos/semgrep/semgrep/license>
+  - <https://api.github.com/repos/opengrep/opengrep/license>
+- **E:whitebox-53** [P] github/codeql (queries and libraries) is MIT, but the CodeQL CLI binaries license (github/codeql-cli-binaries LICENSE.md) permits use for academic research, testing OSI-licensed…
+  - <https://api.github.com/repos/github/codeql/license>
+  - <https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md>
+- **E:whitebox-54** [V] The GitHub license API reports Apache-2.0 for CoverUp (plasma-umass/coverup) and MIT for pytest (pytest-dev/pytest).
+  - <https://api.github.com/repos/plasma-umass/coverup/license>
+  - <https://api.github.com/repos/pytest-dev/pytest/license>
+- **E:whitebox-55** [V] The CycloneDX specification repository is Apache-2.0 (GitHub license API). The SPDX specification LICENSE states it is provided under the Community Specification License 1.0, wi…
+  - <https://api.github.com/repos/CycloneDX/specification/license>
+  - <https://api.github.com/repos/spdx/spdx-spec/license>
 
 ## 威脅建模方法與標準
 
@@ -523,6 +652,74 @@
   - <https://github.com/OWASP/wstg/>
   - <https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/CHANGELOG.md>
   - <https://opencre.org/rest/v1/standards>
+- **E:threat_modeling-53** [V] In OWASP WSTG v4.2, test 4.7.19 'Testing for Server-Side Request Forgery' has ID WSTG-INPV-19.
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/07-Input_Validation_Testing/19-Testing_for_Server-Side_Request_Forgery.md>
+- **E:threat_modeling-54** [V] In OWASP WSTG v4.2, test 4.5.1 'Testing Directory Traversal File Include' has ID WSTG-ATHZ-01.
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/01-Testing_Directory_Traversal_File_Include.md>
+- **E:threat_modeling-55** [V] OWASP WSTG v4.2 Session Management Testing (4.6) contains nine tests: 4.6.1 Testing for Session Management Schema (WSTG-SESS-01), 4.6.2 Cookies Attributes, 4.6.3 Session Fixatio…
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/README.md>
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/01-Testing_for_Session_Management_Schema.md>
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/06-Testing_for_Logout_Functionality.md>
+- **E:threat_modeling-56** [V] The OWASP WSTG v4.2 test index (chapter 4) has no test dedicated to JSON Web Tokens and none dedicated to insecure deserialization: Session Management Testing lists 4.6.1-4.6.9…
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/README.md>
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README.md>
+- **E:threat_modeling-57** [V] In OWASP WSTG v4.2, WSTG-ATHN-04 is 'Testing for Bypassing Authentication Schema' and WSTG-ATHZ-02 is 'Testing for Bypassing Authorization Schema'.
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/04-Authentication_Testing/04-Testing_for_Bypassing_Authentication_Schema.md>
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/02-Testing_for_Bypassing_Authorization_Schema.md>
+- **E:threat_modeling-58** [V] In OWASP WSTG v4.2, WSTG-ERRH-01 is 'Testing for Improper Error Handling' and WSTG-ERRH-02 is 'Testing for Stack Traces'.
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/08-Testing_for_Error_Handling/README.md>
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/08-Testing_for_Error_Handling/01-Testing_For_Improper_Error_Handling.md>
+- **E:threat_modeling-59** [V] In OWASP WSTG v4.2, the API Testing chapter (4.12) contains one test, 4.12.1 'Testing GraphQL', with ID WSTG-APIT-01.
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/12-API_Testing/01-Testing_GraphQL.md>
+- **E:threat_modeling-60** [V] In OWASP WSTG v4.2, WSTG-BUSL-05 is 'Test Number of Times a Function Can Be Used Limits'.
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/10-Business_Logic_Testing/05-Test_Number_of_Times_a_Function_Can_Be_Used_Limits.md>
+- **E:threat_modeling-61** [V] The OWASP AI Testing Guide repository lists application-layer tests AITG-APP-01 Testing for Prompt Injection, AITG-APP-02 Testing for Indirect Prompt Injection, AITG-APP-03 Test…
+  - <https://github.com/OWASP/www-project-ai-testing-guide/tree/main/Document/content/tests>
+- **E:threat_modeling-62** [V] The OWASP AI Testing Guide repository lists infrastructure, model and data tests including AITG-INF-01 Testing for Supply Chain Tampering, AITG-INF-02 Testing for Resource Exhau…
+  - <https://github.com/OWASP/www-project-ai-testing-guide/tree/main/Document/content/tests>
+- **E:threat_modeling-63** [V] OWASP AISVS 1.0 chapter C9 'Orchestration & Agentic Security' (main branch, file 1.0/en/0x10-C09-Orchestration-and-Agentic-Action.md, read 2026-09-24) contains: 9.2.1 (L1) the a…
+  - <https://github.com/OWASP/AISVS/blob/main/1.0/en/0x10-C09-Orchestration-and-Agentic-Action.md>
+- **E:threat_modeling-64** [V] CWE-1427 is titled 'Improper Neutralization of Input Used for LLM Prompting'; the page read did not list Related Attack Patterns (CAPEC).
+  - <https://cwe.mitre.org/data/definitions/1427.html>
+- **E:threat_modeling-65** [V] CWE-862 is titled 'Missing Authorization' (CWE 4.20 page): the product does not perform an authorization check when an actor attempts to access a resource or perform an action.
+  - <https://cwe.mitre.org/data/definitions/862.html>
+- **E:threat_modeling-66** [V] In OWASP WSTG v4.2, WSTG-IDNT-04 is 'Testing for Account Enumeration and Guessable User Account'.
+  - <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/03-Identity_Management_Testing/04-Testing_for_Account_Enumeration_and_Guessable_User_Account.md>
+- **E:threat_modeling-67** [V] The GitHub license API reports CC-BY-SA-4.0 for the OWASP ASVS repository, the OWASP WSTG repository (OWASP/wstg) and the OWASP AISVS repository.
+  - <https://api.github.com/repos/OWASP/ASVS/license>
+  - <https://api.github.com/repos/OWASP/wstg/license>
+  - <https://api.github.com/repos/OWASP/AISVS/license>
+- **E:threat_modeling-68** [P] The OWASP Top 10 for LLM Applications repository's LICENSE.md contains the CC BY-SA 4.0 International text, and the genai.owasp.org site footer states that unless otherwise spec…
+  - <https://raw.githubusercontent.com/OWASP/www-project-top-10-for-large-language-model-applications/main/LICENSE.md>
+  - <https://genai.owasp.org/llm-top-10/>
+- **E:threat_modeling-69** [V] The CWE Terms of Use grant a non-exclusive, royalty-free license to use CWE for research, development and commercial purposes, provided copies reproduce MITRE's copyright design…
+  - <https://cwe.mitre.org/about/termsofuse.html>
+- **E:threat_modeling-70** [V] The CAPEC Terms of Use grant a non-exclusive, royalty-free license to use CAPEC for research, development and commercial purposes, provided copies preserve MITRE's copyright des…
+  - <https://capec.mitre.org/about/termsofuse.html>
+- **E:threat_modeling-71** [V] The MITRE ATLAS data repository (mitre-atlas/atlas-data) LICENSE is the Apache License 2.0, 'Copyright 2021-2026 MITRE'.
+  - <https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/LICENSE>
+- **E:threat_modeling-72** [P] The official resource page https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/ is titled 'OWASP Top 10 for LLM Applications 2026' and dated August 3, 2026. It links an…
+  - <https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/>
+  - <https://genai.owasp.org/download/56857/?tmstv=1785822482>
+- **E:threat_modeling-73** [V] The official OWASP Top 10 for LLM Applications 2026 PDF lists: LLM01:2026 Prompt Injection, LLM02:2026 Sensitive Information Disclosure, LLM03:2026 Excessive Agency, LLM04:2026…
+  - <https://genai.owasp.org/download/56857/?tmstv=1785822482>
+- **E:threat_modeling-74** [V] The OWASP LLM Top 10 2026 PDF front matter reads 'Version 2026' and '[Publication date to be set] August 4th, 2026', which differs by one day from the resource page's August 3,…
+  - <https://genai.owasp.org/download/56857/?tmstv=1785822482>
+  - <https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/>
+  - <https://genai.owasp.org/2026/09/01/owasp-genai-security-project-unveils-2026-top-10-for-llm-applications-new-agent-control-standard-and-sponsors-as-community-tops-30000-members/>
+- **E:threat_modeling-75** [V] As of 2026-09-24 the page genai.owasp.org/llm-top-10/ still shows the 2025 list (e.g. LLM07:2025 System Prompt Leakage), and the URL slug /resource/owasp-top-10-for-llm-applicat…
+  - <https://genai.owasp.org/llm-top-10/>
+  - <https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2026/>
+- **E:threat_modeling-76** [V] The official OWASP Top 10 for Agentic Applications for 2026 PDF (resource page dated 2025-12-09, https://genai.owasp.org/download/52117/?tmstv=1765059207) lists: ASI01 Agent Goa…
+  - <https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/>
+  - <https://genai.owasp.org/download/52117/?tmstv=1765059207>
+- **E:threat_modeling-77** [V] The OWASP WSTG project page says the current stable release is v4.2 and that release 5.0 is currently in development. owasp.org/www-project-web-security-testing-guide/v42/ and /…
+  - <https://owasp.org/www-project-web-security-testing-guide/>
+  - <https://owasp.org/www-project-web-security-testing-guide/v42/>
+  - <https://wstg.owasp.org/v4.2/>
+- **E:threat_modeling-78** [V] The OWASP AI Testing Guide repository LICENSE.md states it is published under CC BY-SA 4.0, and the OWASP OpenCRE repository is CC0-1.0 according to the GitHub license API.
+  - <https://api.github.com/repos/OWASP/www-project-ai-testing-guide/license>
+  - <https://api.github.com/repos/OWASP/OpenCRE/license>
 
 ## 黑箱驗證工具與安全實務
 
@@ -640,6 +837,65 @@
   - <https://www.docker.com/blog/why-microvms-the-architecture-behind-docker-sandboxes/>
 - **E:blackbox-40** [V] Anthropic's sandbox-runtime (srt, Apache-2.0) restricts processes at the OS level without containers: bubblewrap with network namespaces on Linux, Seatbelt profiles on macOS, an…
   - <https://github.com/anthropic-experimental/sandbox-runtime>
+- **E:blackbox-41** [V] CVE-2018-19333: in gVisor before 2018-11-01, pkg/sentry/kernel/shm/shm.go mishandled reference counts, letting attackers overwrite memory in processes running as root 'but not e…
+  - <https://cveawg.mitre.org/api/cve/CVE-2018-19333>
+- **E:blackbox-42** [P] CVE-2025-2713 (published 2025-03-28): a local privilege escalation in gVisor runsc caused by incorrect file-permission handling (processes ran with elevated permissions until th…
+  - <https://cveawg.mitre.org/api/cve/CVE-2025-2713>
+- **E:blackbox-43** [V] The google/gvisor GitHub repository's security advisories page shows no published security advisories, so gVisor vulnerabilities have to be tracked through CVE/NVD records.
+  - <https://github.com/google/gvisor/security/advisories>
+- **E:blackbox-44** [V] Anjali, Caraza-Harter and Swift, 'Blending Containers and Virtual Machines: A Study of Firecracker and gVisor' (VEE '20, DOI 10.1145/3381052.3381315), an independent academic st…
+  - <https://pages.cs.wisc.edu/~swift/papers/vee20-isolation.pdf>
+- **E:blackbox-45** [V] CVE-2019-18960: a buffer overflow in the Firecracker vsock implementation in versions 0.18.0 and 0.19.0 'can result in potentially exploitable crashes' (published 2019-12-11).
+  - <https://cveawg.mitre.org/api/cve/CVE-2019-18960>
+- **E:blackbox-46** [P] Firecracker advisory GHSA-776c-mpj7-jm3r / CVE-2026-5747 (High, 2026-04-07): a root guest can change virtio-PCI queue registers after device activation, causing DoS or host out-…
+  - <https://github.com/firecracker-microvm/firecracker/security/advisories/GHSA-776c-mpj7-jm3r>
+- **E:blackbox-47** [V] Firecracker advisory GHSA-36j2-f825-qvgc / CVE-2026-1386 (Moderate, 2026-01-23): symlink-following in the Jailer lets a local host user with write access to pre-created Jailer d…
+  - <https://github.com/firecracker-microvm/firecracker/security/advisories/GHSA-36j2-f825-qvgc>
+- **E:blackbox-48** [V] Weissman, Tiemann, Eisenbarth and Sunar, 'Microarchitectural Security of AWS Firecracker VMM for Serverless Cloud Platforms' (arXiv 2311.15999, 2023-11-27), report that Firecrac…
+  - <https://arxiv.org/abs/2311.15999>
+- **E:blackbox-49** [V] CVE-2020-2023: Kata Containers did not stop containers from accessing the guest root filesystem device, letting a malicious container gain code execution in the guest and masque…
+  - <https://cveawg.mitre.org/api/cve/CVE-2020-2023>
+- **E:blackbox-50** [P] CVE-2020-2026 (CVSS 3.1 7.8): a malicious Kata guest could make the kata runtime mount untrusted container filesystems on arbitrary host paths through improper link resolution,…
+  - <https://cveawg.mitre.org/api/cve/CVE-2020-2026>
+- **E:blackbox-51** [V] The Kata Containers GitHub security advisories page lists 10 advisories from January to August 2026, five rated Critical, including GHSA-rr59-xxvx-96qr 'VM Escape via virtiofsd…
+  - <https://github.com/kata-containers/kata-containers/security/advisories>
+- **E:blackbox-52** [V] GHSA-2gv2-cffp-j227 / CVE-2026-47243 (Critical): a guest-root to host-root escape in Kata runtime-rs <= 3.30.0 (patched in 3.31.0). With an unsandboxed host virtiofsd (--sandbox…
+  - <https://github.com/kata-containers/kata-containers/security/advisories/GHSA-2gv2-cffp-j227>
+- **E:blackbox-53** [V] Kata advisory GHSA-fgm4-mv68-h344 (High, 2026-07-21), titled 'Dragonball: missing length validation in virtio-blk allows guest-to-host VM escape', describes process_aio_request(…
+  - <https://github.com/kata-containers/kata-containers/security/advisories/GHSA-fgm4-mv68-h344>
+- **E:blackbox-54** [V] CVE-2019-5736: runc through 1.0-rc6 (Docker before 18.09.2) lets attackers overwrite the host runc binary, and so gain host root, through file-descriptor mishandling of /proc/se…
+  - <https://cveawg.mitre.org/api/cve/CVE-2019-5736>
+- **E:blackbox-55** [V] CVE-2024-21626: a file-descriptor leak in runc v1.0.0-rc93 through v1.1.11 enables host filesystem access and container escape. Fixed in runc v1.1.12, CVSS 3.1 8.6.
+  - <https://cveawg.mitre.org/api/cve/CVE-2024-21626>
+- **E:blackbox-56** [V] CVE-2025-31133 (published 2025-11-06): runc did not verify that the /dev/null bind-mount source used for maskedPaths was a real /dev/null inode, allowing mount races that can le…
+  - <https://cveawg.mitre.org/api/cve/CVE-2025-31133>
+- **E:blackbox-57** [V] As of 2026-09-24, the E2B GitHub repository (e2b-dev/E2B) LICENSE is Apache License 2.0 ('Copyright 2023 FoundryLabs, Inc.'), while the published 'e2b' 2.51.0 packages declare M…
+  - <https://raw.githubusercontent.com/e2b-dev/E2B/main/LICENSE>
+  - <https://pypi.org/pypi/e2b/json>
+  - <https://registry.npmjs.org/e2b/latest>
+- **E:blackbox-58** [V] github.com/e2b-dev/infra now redirects (HTTP 301) to github.com/e2b-dev/runtime, whose license the GitHub license API reports as Apache-2.0.
+  - <https://github.com/e2b-dev/infra>
+  - <https://api.github.com/repos/e2b-dev/infra/license>
+- **E:blackbox-59** [V] grafana/k6 is AGPL-3.0 (LICENSE.md). Grafana's licensing page and FAQ discuss the AGPL relicensing of Grafana, Loki and Tempo and offer commercial licenses to customers who want…
+  - <https://api.github.com/repos/grafana/k6/license>
+  - <https://grafana.com/licensing/>
+- **E:blackbox-60** [V] AGPL-3.0 section 13 (as reproduced in k6's LICENSE.md) requires that 'if you modify the Program', the modified version must prominently offer users interacting with it remotely…
+  - <https://raw.githubusercontent.com/grafana/k6/master/LICENSE.md>
+- **E:blackbox-61** [V] The GNU GPL FAQ (MereAggregation) says the line between separate programs and one combined program is a legal question that judges ultimately decide. It says pipes, sockets and…
+  - <https://www.gnu.org/licenses/gpl-faq.html>
+- **E:blackbox-62** [V] GitHub license API results: promptfoo MIT, ZAP (zaproxy/zaproxy) Apache-2.0, Nuclei (projectdiscovery/nuclei) MIT, Schemathesis MIT, Playwright Apache-2.0, RESTler (microsoft/re…
+  - <https://api.github.com/repos/promptfoo/promptfoo/license>
+  - <https://api.github.com/repos/zaproxy/zaproxy/license>
+  - <https://api.github.com/repos/projectdiscovery/nuclei/license>
+  - <https://api.github.com/repos/schemathesis/schemathesis/license>
+  - <https://api.github.com/repos/microsoft/playwright/license>
+  - <https://api.github.com/repos/microsoft/restler-fuzzer/license>
+- **E:blackbox-63** [V] The Kata Containers repository (kata-containers/kata-containers) states that its code is licensed under the Apache 2.0 license.
+  - <https://github.com/kata-containers/kata-containers>
+- **E:blackbox-64** [V] The GitHub license API reports Apache-2.0 for sigstore/cosign, OWASP/threat-dragon and moby/moby (Docker Engine).
+  - <https://api.github.com/repos/sigstore/cosign/license>
+  - <https://api.github.com/repos/OWASP/threat-dragon/license>
+  - <https://api.github.com/repos/moby/moby/license>
 
 ## Vibe coding 風險與事件
 
@@ -719,6 +975,12 @@
 - **E:vibe_risks-31** [V] No primary source shows the Tea breach was caused by vibe coding. Tea attributed it to legacy content not migrated to its newer system, and Simon Willison says he is "confident…
   - <https://simonwillison.net/2025/Jul/26/official-statement-from-tea/>
   - <https://www.404media.co/women-dating-safety-app-tea-breached-users-ids-posted-to-4chan/>
+- **E:vibe_risks-34** [V] BaxBench code (logic-star-ai/baxbench) is MIT-licensed ('Copyright (c) 2025 SRI Lab, LogicStar.ai'), and the Hugging Face dataset card LogicStar/BaxBench declares license MIT.
+  - <https://raw.githubusercontent.com/logic-star-ai/baxbench/main/LICENSE>
+  - <https://huggingface.co/datasets/LogicStar/BaxBench>
+- **E:vibe_risks-35** [P] The PrimeVul repository (DLVulDet/PrimeVul) is MIT-licensed according to the GitHub license API. Its README distributes the dataset through Google Drive links and states no sepa…
+  - <https://api.github.com/repos/DLVulDet/PrimeVul/license>
+  - <https://raw.githubusercontent.com/DLVulDet/PrimeVul/main/README.md>
 
 ## 參考系統架構
 
@@ -796,6 +1058,51 @@
   - <https://www.anthropic.com/news/claude-code-security>
   - <https://learn.chatgpt.com/docs/security>
   - <https://theori.io/blog/aixcc-and-roboduck-63447>
+- **E:reference_systems-38** [P] Synthesis: where these systems use several models, the documented purposes are ensemble diversity or coverage, latency, and fallback. No finalist documented cross-vendor voting…
+  - <https://arxiv.org/html/2602.07666v2>
+  - <https://theori.io/blog/aixcc-and-roboduck-63447>
+  - <https://team-atlanta.github.io/blog/post-patch-2026-ensemble/>
+  - <https://arxiv.org/abs/2404.18796>
+- **E:reference_systems-39** [P] CodeRabbit's blog post 'Claude Opus 5.5 for code review: More catches, different misses' (2026-09-22) tested two Opus 5.5 configurations inside CodeRabbit's review pipeline agai…
+  - <https://www.coderabbit.ai/blog/opus-5-5-model-review>
+- **E:reference_systems-40** [P] CodeRabbit's architecture documentation lists specialized AI agents working in parallel (Review, Verification, Chat, Pre-Merge Checks). It names no models or vendors and describ…
+  - <https://docs.coderabbit.ai/overview/architecture.md>
+- **E:reference_systems-41** [V] PR-Agent is MIT-licensed. Its README calls it 'a community-maintained legacy project of Qodo', distinct from Qodo's primary AI code review offering, and says it is being donated…
+  - <https://github.com/qodo-ai/pr-agent>
+- **E:reference_systems-42** [V] PR-Agent's configuration.toml defaults to a single OpenAI model with fallback_models tried in order if the primary is unavailable. It has optional model_reasoning (a dedicated r…
+  - <https://raw.githubusercontent.com/the-pr-agent/pr-agent/main/pr_agent/settings/configuration.toml>
+  - <https://github.com/the-pr-agent/pr-agent/blob/main/docs/docs/usage-guide/changing_a_model.md>
+- **E:reference_systems-43** [V] Qodo's code-review documentation says specialized agents evaluate a change in parallel (correctness, standards compliance, architecture, risk). A judge agent then merges their f…
+  - <https://docs.qodo.ai/code-review>
+- **E:reference_systems-44** [V] GitHub's Copilot code review documentation says it uses 'a carefully tuned mix of models, prompts, and system behaviors'. It says model switching is not supported because changi…
+  - <https://docs.github.com/en/copilot/concepts/agents/code-review>
+- **E:reference_systems-45** [P] Cursor's 'Building Bugbot' blog (2026-01-15) describes eight parallel review passes with randomized diff order and majority voting that filters out bugs found in only one pass.…
+  - <https://cursor.com/blog/building-bugbot>
+- **E:reference_systems-46** [V] DARPA's AIxCC final results (announced 2025-08-08): 1st Team Atlanta ($4 million), 2nd Trail of Bits ($3 million), 3rd Theori ($1.5 million). Four of the seven finalist CRSs wer…
+  - <https://www.darpa.mil/news/2025/aixcc-results>
+- **E:reference_systems-47** [V] The SoK 'DARPA's AI Cyber Challenge (AIxCC): Competition Design, Architectures, and Lessons Learned' (arXiv 2602.07666, v5 2026-08-02) is marked as accepted at USENIX Security 2…
+  - <https://arxiv.org/abs/2602.07666v5>
+  - <https://arxiv.org/html/2602.07666v5>
+- **E:reference_systems-48** [V] The AIxCC SoK reports that finalists' LLM spending concentrated in two providers (about 94% on Anthropic and OpenAI, about 6% on Gemini and xAI) and that LLM spend rank closely…
+  - <https://arxiv.org/html/2602.07666v5>
+- **E:reference_systems-49** [V] The AIxCC SoK describes Shellphish's CRS as having the most comprehensive technical coverage (53 components on a custom orchestration platform). It uses weighted votes across mu…
+  - <https://arxiv.org/html/2602.07666v5>
+- **E:reference_systems-50** [V] Shellphish's ARTIPHISHELL repository (github.com/shellphish/artiphishell) is MIT-licensed. Its setup instructions export OPENAI_API_KEY, ANTHROPIC_API_KEY and GEMINI_API_KEY.
+  - <https://github.com/shellphish/artiphishell>
+- **E:reference_systems-51** [C] （原主張已被推翻）更正：4th place, 28 vulnerabilities (6 zero-days), 14 patched, date 2025-09-08, Sheng et al., prioritized multi-model fallback (Anthropic, Google, OpenAI; claude-3.7, gpt-…
+  - <https://arxiv.org/abs/2509.07225>
+  - <https://arxiv.org/html/2509.07225v1>
+- **E:reference_systems-52** [V] The FuzzingBrain CRS repository (github.com/o2lab/afc-crs-all-you-need-is-a-fuzzing-brain) is Apache-2.0. It supports Anthropic, OpenAI and Google Gemini keys and needs at least…
+  - <https://github.com/o2lab/afc-crs-all-you-need-is-a-fuzzing-brain>
+- **E:reference_systems-53** [V] 42-b3yond-6ug's final CRS 'BugBuster' (github.com/42-b3yond-6ug/42-b3yond-6ug-crs) is GPL-3.0. Its README says not all development code is included, and it does not document its…
+  - <https://github.com/42-b3yond-6ug/42-b3yond-6ug-crs>
+- **E:reference_systems-54** [C] （原主張已被推翻）更正：Buttercup is AGPL-3.0 (confirmed). Atlantis is not cleanly MIT: its LICENSE file states the repository 'is licensed under the terms of the GNU General Public License…
+  - <https://github.com/trailofbits/buttercup>
+  - <https://github.com/Team-Atlanta/aixcc-afc-atlantis>
+- **E:reference_systems-55** [V] Microsoft PyRIT (Azure/PyRIT) is MIT-licensed according to the GitHub license API.
+  - <https://api.github.com/repos/Azure/PyRIT/license>
+- **E:reference_systems-56** [V] NVIDIA garak (NVIDIA/garak) is Apache-2.0-licensed according to the GitHub license API.
+  - <https://api.github.com/repos/NVIDIA/garak/license>
 
 ## 撰寫文件時補做的查證（S-01～S-10）
 

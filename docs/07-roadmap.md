@@ -1,31 +1,252 @@
 # 07 實作路線圖
 
-> 以下里程碑是在文件核准後才開始的實作計畫。**安全控制放在最前面（M1）**：ROE 驗章與 Scope Proxy 完成之前，不寫任何會接觸網路的功能。
+> 本文件列出文件核准之後的實作計畫：每個元件與節點在哪個里程碑完成，以及每個里程碑的出口準則。每一條出口準則都可以量測，也都可能不通過。
+>
+> 安全控制放在最前面（M1）：ROE 驗章與 Scope Proxy 完成之前，不寫任何會連網的功能。
+>
+> 以下內容本文件不重複：
+> - 模組配置、介面、CLI、測試清單與前兩週工單：見 [08 實作規格](08-implementation-spec.md)；
+> - 出口準則中的 `N-xx`：見 [08 §8.2](08-implementation-spec.md#82-m1-必須拒絕清單負面安全測試)；
+> - 範例應用：見 [08 §8.3](08-implementation-spec.md#83-範例應用整合測試的目標)。
+>
+> 里程碑的切分與出口準則都是設計選擇 [H]。
 
-## 里程碑
+## v0.2 變更摘要
 
-| 里程碑 | 內容 | 完成條件 |
+- **歸屬**：[03 §1](03-system-architecture.md#1-元件總覽) 的每個元件、[03 §5.7](03-system-architecture.md#57-節點規格表) 的每個節點，都指定了里程碑（§2）。
+- **出口準則**：
+  - 改為編號、可以量測的準則（`M1-X1` 等，§4）；
+  - 直接引用 05 的 M-1–M-11、04 的範例 A／B、06 的 ST-1–ST-7。
+  - v0.1 的「多家族 vs Self-MoA 比較」改為依 05 §5.3 報告，**不作為出口條件**。
+- **閘門**：法務項目與研究缺口改為各里程碑的入口閘門（§3），內容取自 [06 §4](06-security-legal-limitations.md#4-開放的法務與查證項目) 與 [01 §5](01-research-survey.md#5-研究缺口未搜尋或未能確認)。
+- **儀表板移除**（D14）：M5 只有靜態 HTML 報告。
+- **模型名稱**：旗艦模型改寫為「GPT-6 Astra／Sol」[P][E:providers-31]，別名 `gpt_flagship`。v0.1 只寫 GPT-6 Sol。
+- **新增**：
+  - 自測排程（§5）；
+  - 模型退役追蹤（§7）；
+  - 連到 [08](08-implementation-spec.md) 的完成定義。
+
+## 1. 總覽
+
+| 里程碑 | 主題 | 可以交付什麼 |
 |---|---|---|
-| **M1 基礎與安全控制** | ・專案骨架（Python）、Pydantic 資料模型（對應 [schemas/](schemas/)）<br>・Model Gateway（LiteLLM 鎖版本＋hash）與 `models.yaml`（family、lineage、資料等級、同家族 fallback）<br>・Policy Engine：資料等級 fail-closed、端點與參數白名單<br>・金鑰登錄整合（登錄、撤銷）與**委任設定驗章（G0a）**：驗章前不送任何程式碼到 LLM<br>・**ROE 驗章（G0b）、目標所有權驗證（由 Z3 經 Scope Proxy）、Scope Proxy**（白名單、每 job 請求白名單、每主機預算、redirect 與內網阻擋、第三方接觸白名單、kill switch）<br>・W0 inventory、W1 確定性掃描（SARIF 匯整）、secrets 遮罩、套件存在性檢查<br>・Audit Log<br>・CI Lane A | ・未簽章或過期的委任設定與 ROE、未登錄或已撤銷的金鑰、所有權驗證失敗、ROE 以外的主機、不在 job 白名單內的請求，全部被拒絕（有測試）<br>・C 級資料無法送到 `data_classes` 不含 C 的模型（有測試）<br>・W1 在範例應用上產出 SARIF |
-| **M2 白箱多家族審查** | ・W0.5 不變量起草＋G1<br>・Slicer（同等性單位、`slice_id`、多樣性降低標記）<br>・W2 fan-out／fan-in（`Send`、quorum、缺票）<br>・發現項片段比對<br>・Clusterer、Aggregator、跨家族驗證（匿名、隨機順序）<br>・Gate Service（CLI、簽章紀錄）＋G2<br>・Calibration Lab 第一版（自建語料、四個對照組）<br>・W4 測試生成（Hypothesis／fast-check、TestGen-LLM 濾網、mutation）<br>・W5 DFD＋種子威脅 | ・校準報告：各家族 precision／recall、κ／CAPA，以及「多家族 vs Self-MoA」比較<br>・所有 LLM 輸出都通過 Pydantic 驗證，或有記錄在案的修復／缺票 |
-| **M3 威脅建模** | ・B1 兩個視角的系統建模<br>・B2 多家族威脅建模、merger、critic；STRIDE-per-element、LINDDUN、OWASP LLM、ASI、MAESTRO<br>・分類版本欄位與 2025↔2026 對照<br>・G3（可部分核准）<br>・pytm 部分匯出 | ・範例應用的威脅模型通過 G3<br>・每個種子威脅都在模型中 |
-| **M4 黑箱執行** | ・B3 推導、crosswalk（含 provenance）、tool_binding adapters（Schemathesis、ZAP AF、Playwright、Nuclei 自簽章）<br>・安全等級計算、產物驗證、G4／G5<br>・Z3 Executor、停止條件自動化、S2 快照、還原（補償步驟）<br>・B5 判定、B6 追溯矩陣<br>・CI Lane B | ・範例 A（IDOR）端到端：FAIL → CONFIRMED_EXECUTABLE → 回歸測試 → 修正後 PASS<br>・S2 在 resume 或重試時不會重跑（有測試） |
-| **M5 LLM 功能測試與報告** | ・PyRIT／promptfoo adapter（關閉遠端生成、出站封鎖）<br>・機率判定（n、k、信賴區間）、canary 與工具呼叫紀錄 oracle<br>・受測應用上游 LLM 的花費上限<br>・報告（SARIF、HTML）與儀表板 | ・範例 B 端到端<br>・promptfoo 沒有任何雲端出站（以出站紀錄證明） |
+| **M1** | 基礎與安全控制 | 驗章、稽核、Gateway（fail-closed）、Z2 沙箱、W0／W1、最小的 Z3（所有權驗證）、CI Lane A。**還沒有任何 LLM 審查** |
+| **M2** | 白箱多家族審查 | W 子圖全部、Gate Service（G1、G2、GB）、Calibration Lab、白箱報告 |
+| **M3** | 威脅建模 | B1、B2、G3 |
+| **M4** | 黑箱執行 | B3–B6、G4、G5、Z3 完整版、S2 快照與還原、CI Lane B 完整版 |
+| **M5** | LLM 功能測試與報告 | LLM Relay、機率判定、靜態 HTML 報告 |
 
-## CI 兩條線（與 [03 §12](03-system-architecture.md#12-ci-整合兩條線) 一致）
+- 進入每個里程碑之前，§3 的入口閘門都要結案；
+- 離開之前，§4 的出口準則全部通過，而且達到 [08 §9.1](08-implementation-spec.md#91-各里程碑) 的完成定義。
+
+## 2. 元件與節點的歸屬
+
+### 2.1 元件（[03 §1](03-system-architecture.md#1-元件總覽)）
+
+| 元件 | M1 | M2 | M3 | M4 | M5 |
+|---|---|---|---|---|---|
+| Run Controller（LangGraph） | 骨架、checkpoint、resume、kill switch | W 子圖 | B1–B2、G3 | B3–B6、`abort_handler` | — |
+| Policy Engine | 資料等級、端點與參數白名單、G0a、G0b、目標解析 | 計畫驗證（CMD） | — | 安全等級計算、產物驗證 | Relay 的上限 |
+| Registries（模型、agent、工具、金鑰） | 全部 | `calibration.yaml` | — | — | — |
+| Blackboard／CAS | ✓ | — | — | — | — |
+| Model Gateway | fail-closed 的前置檢查、快取、修復、重試（M1 正式版沒有會呼叫 LLM 的節點） | 真實供應商、fallback、`earliest_retirement` 警告 | — | — | — |
+| Audit Log | ✓ | — | — | — | — |
+| Scope Proxy | 所有權驗證與 M1 的 GET | — | B1 的 S0 爬行 | 黑箱工具的攔截式 proxy（[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-13） | — |
+| Sandbox Runner（Z2） | W0、W1 | W4（`hypothesis:property`、`fast_check:property`） | — | — | — |
+| Z3 Executor | 最小版（`verify_ownership`、`http_get`） | — | B1 | 完整版（`run_job`、停止條件） | Relay 用戶端 |
+| Commander | — | CMD-1、CMD-2 | CMD-3 | CMD-4、CMD-5 | — |
+| Slicer、Clusterer、Aggregator | — | ✓ | — | 黑箱證據（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)：`E_proof`→R1、`E_fail_u`→R2 的工具佐證→R4／R5、`E_pass`→R11、`E_inc` 與證據衝突→R12；B5 重新裁決） | 機率判定 |
+| Gate Service | 只有 G0a／G0b 的離線驗章 | G1、G2、GB、`claim_run`、ASI09 抽查 | G3 | G4、G5 | — |
+| Calibration Lab | — | ✓ | — | — | — |
+| Budget Tracker | — | ✓ | — | — | Relay 的花費上限 |
+| Session Provider | — | — | — | ✓ | — |
+| Snapshot Service | — | — | — | ✓（S2、還原演練、oracle） | — |
+| LLM Relay | — | — | — | — | ✓ |
+| Reporter | — | 白箱（W5） | — | B6：JSON、SARIF、追溯矩陣 | 靜態 HTML |
+| 自測（06 §1.2.1） | ST-1、ST-3、ST-7 | ST-2、ST-4、ST-5 | INJ-DOC | ST-6、INJ-HTTP | INJ-LLMAPP |
+
+### 2.2 節點（[03 §5.7](03-system-architecture.md#57-節點規格表)）
+
+| 里程碑 | 節點 |
+|---|---|
+| **M1** | `run_init`、`G0a_engagement_check`、`W0_inventory`、`LA_static`、`W1_static`、`G0b_roe_check`、`B0_ownership_verify`、`run_resume`、`suspended_wait`、`m1_finish`（M1 暫時的結束節點，M2 起由 `W5_report` 取代，M4 起由 `B6_report` 取代，[08 §9.2](08-implementation-spec.md#92-m1-前兩週的工單)） |
+| **M2** | `W05_draft_invariants`、`claim_run`、`G1_gate`、`W2_slice`、`CMD1_plan`、`W2_fanout`、`W2_review`、`W2_fanin`、`W3_cluster`、`W3_verify_fanout`、`W3_adjudicate`、`CMD2_redispatch`、`G2_gate`、`W4_testgen`、`W4_exec`、`W4_readjudicate`、`W5_report`、`GB_budget_gate`、`LA_diff_review` |
+| **M3** | `B1_crawl`、`B1_model`、`CMD3_taxonomy`、`B2_threat_fanout`、`B2_merge_critic`、`G3_gate` |
+| **M4** | `CMD4_testplan`、`B3_derive`、`B3_validate_artifacts`、`G4_gate`、`B4_preflight`、`B4_s0s1_exec`、`B4_s2_queue`、`G5_gate`、`B4_s2_snapshot`、`B4_s2_exec`、`B4_s2_restore`、`abort_handler`（`ah_cancel`、`ah_restore`、`ah_escalate`、`ah_revoke`、`ah_report`）、`B5_verify`、`B5_readjudicate`、`CMD5_followup`、`B6_report`、`stopped_wait` |
+| **M5** | `B5_verify` 的機率判定分支；Relay 的多回合測試（在 `B4_s0s1_exec` 內） |
+
+## 3. 入口閘門（法務與查證）
+
+- 每個里程碑開始之前，下表中該里程碑的項目都要結案，結果有兩種：
+  - **已確認**：寫進 [06 §2.3](06-security-legal-limitations.md#23-授權登錄表) 與 `licenses.yaml`；
+  - **未確認**：該元件在這個里程碑停用，並以設定檔證明它已停用（`tools.yaml`、`models.yaml` 或 engagement 的允許清單）。
+- 項目與負責人取自 [06 §4](06-security-legal-limitations.md#4-開放的法務與查證項目)；研究缺口取自 [01 §5](01-research-survey.md#5-研究缺口未搜尋或未能確認)。
+
+| 閘門 | 項目 | 負責 | 未確認則 |
+|---|---|---|---|
+| **M1 前** | Anthropic API 條款 [V][E:providers-43][E:providers-44] | legal_reviewer | M1 不受影響；M2 的 `claude_*` 別名不啟用 |
+| | TruffleHog（AGPL，`trufflehog:scan`）[V][E:whitebox-51]～[E:blackbox-61] | legal_reviewer | `trufflehog:scan` 不註冊；W0 只用 `betterleaks:scan`／`gitleaks:scan` |
+| | psycopg（LGPL-3.0）的散布形式 [V][E:orchestration-42] | legal_reviewer | 只做內部部署，不對外散布 `vibecheck-z1` 映像 |
+| | Semgrep 官方規則（`semgrep:scan`）、CodeQL CLI（`codeql:analyze`）用於私有碼。CodeQL 條款允許在 GitHub.com 上託管與維護的開源碼庫做 CI／CD 的資料庫產生，限制只及於其他情境 [P][E:whitebox-04][E:whitebox-07][E:whitebox-53] | legal_reviewer | 兩者不註冊（`tools.yaml` 已登錄、受 `licenses.yaml` 法務閘門控制）；W1 只用 Opengrep＋自有規則。CodeQL 只可用於符合上述條件的開源 repo |
+| | nftables 授權（未查） | toolkit_maintainer | 補查完成前，Z2／Z3 的出站規則由容器執行環境的網路政策負責 |
+| | E2B 的授權依據 [V][E:blackbox-57] | toolkit_maintainer | 寫進 `licenses.yaml`（不阻擋） |
+| | G-11：固定 runsc／Firecracker 的版本、訂閱 CVE；逃逸測試列入 ST-7 | toolkit_maintainer | 不啟用 Z2 |
+| **M2 前** | NIM 是否屬於開發／測試用途 [V][E:providers-40] | legal_reviewer | 不使用 NIM；`nemotron_self` 改用其他推論伺服器 |
+| | OpenAI API 條款，由人工直接讀原文（G-13）[V][E:providers-45] | legal_reviewer | `gpt_flagship` 不啟用 |
+| | GPT-6 的 ZDR 書面確認（G-06）[V][E:providers-48][V][E:providers-35] | app_owner | `gpt_flagship` 不收 C 級資料 |
+| | Nemotron 雲端路徑的 DPA（G-04）[V][E:providers-42] | toolkit_maintainer＋legal_reviewer | C 級資料只送自架的 Nemotron；`nemotron_cloud` 只收 P 級 |
+| | Nemotron 託管端點的 json_schema 支援（G-05） | toolkit_maintainer | 改用用戶端 Pydantic 驗證＋修復（M2 的整合測試實測） |
+| | PrimeVul 樣本的重製：repo 標示 MIT，但資料集沒有另外的授權聲明；README 描述為取自 real-world C/C++ 專案的函式（未明寫開源）[P][E:vibe_risks-35] | legal_reviewer | 只作內部評估，不進對外報告 |
+| | OpenRouter 條款 | toolkit_maintainer | 不使用 OpenRouter |
+| **M3 前** | MAESTRO、LINDDUN 的授權（未查） | toolkit_maintainer | 只在分類欄位引用 ID，不重製內容 |
+| | OWASP LLM Top 10 預設版本：**已結案**。官方 PDF 的十項 ID 已查證 [V][E:threat_modeling-73]，新委任預設已切到 `owasp-llm@2026`（[04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照)）；資源頁標題為「OWASP GenAI LLM Top 10 2026」、PDF 封面為「OWASP Top 10 for LLM Applications 2026」[P][E:threat_modeling-72] | toolkit_maintainer | 不適用（已結案）；既有委任仍可沿用 2025 版並以對照表轉換 |
+| **M4 前** | k6（AGPL）[V][E:blackbox-25][E:blackbox-59] | legal_reviewer | 限流驗證改用其他工具；`k6:threshold` 不註冊 |
+| **M5 前** | promptfoo 部分策略繞過本地生成 [S-09] | toolkit_maintainer | 以出站紀錄實測之前，`promptfoo:*` 不註冊 |
+| | OWASP 內容（CC BY-SA 4.0；網站頁尾如此聲明，repo 的 LICENSE.md 只是 CC BY-SA 4.0 的摘要頁，不是完整授權條文）在報告中的引用 [P][E:threat_modeling-67][E:threat_modeling-68][E:threat_modeling-78] | legal_reviewer | 報告只列 ID 與連結 |
+
+## 4. 各里程碑
+
+### M1 基礎與安全控制
+
+**範圍**：
+- §2 中 M1 的元件與節點。
+- CI Lane A（W0、W1、secrets、套件存在性）。
+- 開發順序：[08 §9.2](08-implementation-spec.md#92-m1-前兩週的工單) 的 T-01–T-18。
+
+**出口準則**：
+
+| # | 準則 | 如何量測 | 不通過的判斷 |
+|---|---|---|---|
+| M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish` | 整合測試 | inventory 沒有 `routes/invoices.ts:42` 或 `invoices` 的 RLS 不是「無」；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
+| M1-X2 | 必須拒絕清單 N-01–N-31 全部通過 | `security` 線 | 任一項沒有拒絕，或沒有對應的稽核事件 |
+| M1-X3 | ST-1＝0、ST-3＝0、ST-7＝0（[06 §1.2.1](06-security-legal-limitations.md#121-工具包自測計畫植入注入的-repo-h)）；M1 的每個注入向量 ≥3 個樣本；每個 twin ≥10 個已知漏洞 | [selftest-report](schemas/selftest-report.schema.json)：三項都是 `status: RUN`、`passed: true` | 任一個大於 0，或任一項為 `NOT_RUN` |
+| M1-X4 | 在每個 M1 節點的邊界 kill 行程後 resume | 整合測試 | 最終產物的 hash 與不中斷的 run 不同；Sandbox job 被重跑；稽核去重後有重複事件 |
+| M1-X5 | 稽核與 CAS 的竄改偵測 | 性質測試 ≥1,000 例 | 偵測率 < 100% |
+| M1-X6 | `docs/schemas/examples/` 全部通過契約往返（[08 §3](08-implementation-spec.md#3-資料模型從-json-schema-產生-pydantic)） | `fast` 線 | 任一個範例不是逐位元組相同 |
+| M1-X7 | 供應鏈：鎖檔含 hash；LiteLLM 鎖版本，並排除 1.82.7、1.82.8 [V][E:orchestration-31]；每個依賴在 `licenses.yaml` 都有一列；Actions 鎖 SHA；有 SBOM | `licenses check`＋N-29 | 任一項缺少 |
+| M1-X8 | Z2 維運（[06 §1.4](06-security-legal-limitations.md#14-沙箱與網路)）：runsc 的版本寫進 SBOM、CVE 訂閱、不同 engagement 不共用主機、不掛 Docker socket | 檢查清單＋ST-7 | 任一項缺少 |
+| M1-X9 | §3「M1 前」的每一項都已結案 | 驗收包中的法務紀錄或設定檔證明 | 有未結案的項目，而該元件仍然啟用 |
+| M1-X10 | Lane A 在 `invoices-app` 上的耗時 | 連續 10 次的中位數與最大值，寫回 [03 §11](03-system-architecture.md#11-成本與延遲模型) | 沒有量測紀錄（只量測、不設門檻） |
+
+### M2 白箱多家族審查
+
+**範圍**：
+- §2 中 M2 的元件與節點；
+- W4 的 adapter：`hypothesis:property`、`fast_check:property`（[tools.yaml](examples/tools.yaml)）；
+- Calibration Lab 第一版（05 §5 的語料、對照組、預先登記）；
+- CI Lane B 的白箱部分。
+
+**出口準則**：
+
+| # | 準則 | 如何量測 | 不通過的判斷 |
+|---|---|---|---|
+| M2-X1 | 在**保留切分**上，[05 §5.3](05-bias-calibration.md#53-指標) 的 M-1–M-11 全部達到該表的門檻：每個模型×桶 ≥20 票，否則標 `near_zero`；`CONFIRMED_*` 的 precision ≥0.90 且 Wilson 下界 ≥0.80；CONFIRMED∪LIKELY 的 recall ≥0.60；M-4 的家族排除 100%；M-5 的翻轉率 ≤0.10；M-6 ≥30 個 DISPUTED；M-7 缺票率 ≤0.05。<br>預先登記在解盲前完成；主要假設（③ 優於 ②）**不論結果如何都要報告**，但它不是出口條件 | `calibrate report` | 任一個有門檻的指標沒有達標；解盲前沒有預先登記；`holdout_access_log` 有預先登記前的存取 |
+| M2-X2 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的白箱部分：`invoices-app` 的 IDOR（K-005）裁決為 ≥`LIKELY`；W5 產出對應的種子威脅 | 整合測試（真實供應商跑在 manual 線；CI 用錄製的回應） | K-005 沒有達到 `LIKELY`，或沒有種子威脅 |
+| M2-X3 | ST-2＝0；ST-4：`CONFIRMED_*` 為 0、`LIKELY` ≤5%；ST-5 ≤10 個百分點（≥3 次 run） | `selftest-report.json` | 任一項沒有達標 |
+| M2-X4 | Lane A 的結果永遠不會是 `CONFIRMED_*`（R9） | 性質測試＋ST | 出現任何一例 |
+| M2-X5 | 關卡行為：[03 §6.2](03-system-architecture.md#62-關卡逾時預設值) 的逾時；G2 未決定的項目視為 `NEEDS_INFO`；職責分離；偽造或重送的 GateRecord 被拒絕 | `security` 線 | 任一項不符 |
+| M2-X6 | 預算：80% 發出事件；用盡時進 GB；沒有費用上限時 fail-closed（[03 §11](03-system-architecture.md#11-成本與延遲模型)） | 整合測試 | 超出上限仍繼續呼叫 |
+| M2-X7 | ASI09 抽查：每個 run 抽 G2 的 10%（最少 3 項）；複核者不是原核准者；5 個工作天內完成 | 抽查紀錄 | 抽樣率不足、複核者是原核准者，或逾期 |
+| M2-X8 | §3「M2 前」全部結案；研究缺口 G-02、G-03、G-04、G-05、G-06、G-09、G-13 都完成 01 §5 列出的動作（例如 G-02：找到 Lacrosse 的資料，或在 Calibration 報告中註明找不到） | 驗收包 | 有缺口沒有完成動作 |
+| M2-X9 | 模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已有替代模型，或已明確停用 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
+| M2-X10 | [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的最小重跑：`model_key` 改變後，完成重跑之前該模型的權重 w＝0 | 整合測試 | 重跑前 w≠0 |
+| M2-X11 | 每個 LLM 輸出都通過 schema 驗證，或有記錄在案的修復或缺票 | 稽核查核 | 有未驗證的輸出進入 Blackboard |
+
+### M3 威脅建模
+
+**範圍**：§2 中 M3 的元件與節點；分類版本欄位與 2025↔2026 對照；pytm 部分匯出。
+
+**出口準則**：
+
+| # | 準則 | 如何量測 | 不通過的判斷 |
+|---|---|---|---|
+| M3-X1 | 範例 A 與[範例 B](04-threat-to-testcase.md#62-範例-bllm-功能的間接-prompt-injection-與工具濫用) 的威脅模型都通過 G3。每個種子威脅都要在模型中，或在 G3 以理由駁回；每個 `b1_diff` 項目都已處置 | 整合測試 | 有種子威脅沒有處置；有 `b1_diff` 項目沒有處置，G3 卻已開啟 |
+| M3-X2 | G-08：在範例應用上以人工標註的威脅清單比較 B2 與 pytm 規則輸出的 recall（只供 B2 設計參考，不設門檻） | 報告附原始資料 | 沒有報告 |
+| M3-X3 | INJ-DOC 對 B1／B2 的影響：植入 twin 的威脅模型漏列種子威脅 → 失敗 | `selftest-report.json` | 有任何一例 |
+| M3-X4 | OWASP LLM Top 10 的預設版本為 `owasp-llm@2026`（§3 已結案）；toolkit.yaml 與 crosswalk.yaml 的 `owasp_llm_default` 一致，2025 版委任可經對照表轉換 | 設定檔＋validator | 設定檔不一致，或 2025 版委任無法轉換 |
+| M3-X5 | B1 只使用 S0 請求；ST-1＝0 | `selftest-report.json`＋Scope Proxy 統計 | B1 有任何一個非 S0 的請求 |
+| M3-X6 | §3「M3 前」全部結案 | 驗收包 | 有未結案的項目 |
+
+### M4 黑箱執行
+
+**範圍**：§2 中 M4 的元件與節點；04 §4.3 的 tool_binding adapter（Schemathesis、ZAP AF、Playwright、Nuclei 自簽章模板）；停止條件自動化；CI Lane B 完整版。
+
+**出口準則**：
+
+| # | 準則 | 如何量測 | 不通過的判斷 |
+|---|---|---|---|
+| M4-X1 | 範例 A 端到端：`invoices-app` 植入版的 TC-012-01 → FAIL → 依 R1 裁決 `CONFIRMED_EXECUTABLE` → 產生回歸測試；修正版 → PASS | 整合測試 | 任一步不符 |
+| M4-X2 | S2 在 resume 或重試時不重跑；`EXECUTING` 但沒有結果的 job 被標為 `INTERRUPTED`，需要新的 G5；還原演練 ≤7 天；還原失敗 → `FAILED` 並通知聯絡人 | 整合測試 | 任一項不符 |
+| M4-X3 | [03 §7.3](03-system-architecture.md#73-限速與停止條件) 停止條件表的每一列，都有故障注入的整合測試，而且觸發 `abort_handler` | 整合測試 | 有任何一列沒有測試，或觸發後沒有停止 |
+| M4-X4 | ST-6＝0；INJ-HTTP 不改變裁決或計畫 | `selftest-report.json` | 大於 0 |
+| M4-X5 | S3 永遠不進 G4；安全等級依 04 §5 的虛擬碼計算（每個分支都有測試） | `security` 線 | 有任何一例 |
+| M4-X6 | G-07 pilot：在 ≥3 個含已知漏洞的 vibe-coded 範例應用（`invoices-app`、`support-agent-app`、`notes-rls-app`）上，量測 ZAP、Nuclei、Schemathesis 對種子漏洞的檢出率與誤報，報告附原始結果 | 報告 | 缺少任何一個工具或應用 |
+| M4-X7 | B6 的 JSON 報告通過 schema 驗證、SARIF 通過 SARIF 2.1.0 驗證；追溯矩陣中每一列都能從發現項追到測試案例與結果 | `fast`＋`integration` 線 | 驗證失敗，或有斷鏈 |
+| M4-X8 | ASI09 抽查：G3／G4 各抽 10%（最少 2 項）；G5 全部抽查，2 個工作天內完成 | 抽查紀錄 | 不符 |
+| M4-X9 | §3「M4 前」全部結案 | 驗收包 | 有未結案的項目 |
+
+### M5 LLM 功能測試與報告
+
+**範圍**：§2 中 M5 的元件與節點；PyRIT、promptfoo 的 adapter（關閉遠端生成、封鎖出站）；canary 與工具呼叫紀錄 oracle；受測應用上游 LLM 的花費上限；靜態 HTML 報告。
+
+**出口準則**：
+
+| # | 準則 | 如何量測 | 不通過的判斷 |
+|---|---|---|---|
+| M5-X1 | 範例 B 端到端：`support-agent-app` 植入版的 TC-031-01 在 n＝60 下判定 FAIL；修正版在 n＝60、k＝0 時依 04 §4.4 的上界公式報告殘餘率上界，而且**不寫成 PASS** | 整合測試 | 判定或上界不符 |
+| M5-X2 | Relay 的回合數與花費上限生效（`relay.max_turns`、`max_spend_usd_per_job`、`max_spend_usd_per_run`）；INJ-LLMAPP 不改變裁決 | `security` 線＋ST | 超過上限仍繼續；INJ-LLMAPP 改變了裁決 |
+| M5-X3 | promptfoo 沒有任何雲端出站 | 出站紀錄 | 有任何一筆 |
+| M5-X4 | HTML 報告是靜態檔案，不需要伺服器或外部資源；內容與 JSON 報告一致 | 測試 | 有外部請求，或與 JSON 不一致 |
+| M5-X5 | ST-1–ST-7 與全部 INJ 向量都通過 | `selftest-report.json` | 任一項失敗 |
+| M5-X6 | §3「M5 前」全部結案 | 驗收包 | 有未結案的項目 |
+
+## 5. 自測排程
+
+依 [06 §1.2.1](06-security-legal-limitations.md#121-工具包自測計畫植入注入的-repo-h)：
+
+| 里程碑 | 新增的自測 |
+|---|---|
+| M1 | ST-1、ST-3、ST-7 |
+| M2 | ST-2、ST-4、ST-5 |
+| M3 | INJ-DOC 對 B1／B2 的影響 |
+| M4 | ST-6、INJ-HTTP |
+| M5 | INJ-LLMAPP |
+
+- 自測是**累加**的：每個里程碑都要重跑之前的全部項目。
+- 更換任何模型、prompt 或 Commander 規則時，全部重跑。
+- 任一個 0 門檻失敗 → 阻擋發布（[08 §8.4](08-implementation-spec.md#84-ci-線)）。
+
+## 6. CI 線
+
+### 6.1 產品的兩條線
+
+這兩條線與 [03 §12](03-system-architecture.md#12-ci-整合兩條線) 一致：
 
 | 線 | 從哪個里程碑開始 | 內容 |
 |---|---|---|
-| Lane A（同步、每個 PR） | M1 | W0、W1、secrets、套件存在性；M2 起可選單一家族只審 diff |
-| Lane B（非同步） | M2 起部分、M4 起完整 | 完整多家族白箱、所有人工關卡、黑箱；checkpoint 續跑；結果回貼 PR |
+| Lane A（同步、每個 PR） | M1 | W0、W1、secrets、套件存在性；M2 起可選用單一家族只審 diff（`LA_diff_review`），結果最高只到 `UNCORROBORATED`（05 R9） |
+| Lane B（非同步） | M2 起白箱部分；M4 起完整 | 完整多家族白箱、所有人工關卡、黑箱；checkpoint 續跑；結果回貼 PR |
 
-## 每個里程碑都要做的事
-- 重新查證模型 ID 與版本（變動很快，例如 GPT-6 Sol 在 2026-09-22 才發布 [P][E:providers-31]）。
-- 更新授權登錄表（[06 §2.3](06-security-legal-limitations.md#23-授權登錄表)）。
-- 更新工具包自己的威脅模型（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
-- 在 pilot 中量測人工關卡的實際耗時，並回寫到 [03 §11](03-system-architecture.md#11-成本與延遲模型)。
+### 6.2 工具包自己的 CI
 
-## 暫不規劃
+工具包自己的 CI 線（`fast`、`security`、`integration`、`selftest`、`manual`）見 [08 §8.4](08-implementation-spec.md#84-ci-線)。
+
+## 7. 每個里程碑都要做的事
+
+- **模型**：重新查證模型 ID、版本與退役日期。
+  - 旗艦模型「GPT-6 Astra／Sol」[P][E:providers-31] 以別名 `gpt_flagship` 引用；程式與設定檔只使用別名，不寫死模型 ID。
+  - `models.yaml` 的每個別名都有 `earliest_retirement`；Gateway 在退役前 30 天發出警告 [H]。
+  - `claude_haiku`（Claude Haiku 4.5）最早在 2026-10-15 退役 [V][E:providers-49]。它目前是 `claude_sonnet` 的 fallback，也出現在範例中，所以 M2 前要決定替代模型（[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-11）。
+  - 模型改變時，依 05 §5.8 重跑，並重跑全部自測。
+- **授權**：更新授權登錄表（[06 §2.3](06-security-legal-limitations.md#23-授權登錄表)）與 `licenses.yaml`，並結案下一個里程碑的入口閘門（§3）。
+- **威脅模型**：更新工具包自己的威脅模型（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
+- **Z2**：每個里程碑都重跑 ST-7；每週檢查 CVE，High 以上 7 天內升級（[06 §1.4](06-security-legal-limitations.md#14-沙箱與網路)）。
+- **範例與 schema**：修改 `docs/examples/` 或 schema 之後，重跑 `python tools/sign_examples.py`（只供測試的金鑰）與 `python tools/validate_schemas.py`（[08 §3](08-implementation-spec.md#3-資料模型從-json-schema-產生-pydantic)）。
+- **人工關卡**：在 pilot 中量測人工關卡的實際耗時，並回寫到 [03 §11](03-system-architecture.md#11-成本與延遲模型)。
+
+## 8. 暫不規劃
+
 - 行動 App（iOS／Android）的黑箱測試。
-- 正式環境測試、效能容量測試。
+- 正式環境測試、效能與容量測試。
 - 自動修補（autofix）後直接合併；修補建議一律走人工審查。
+- **儀表板與任何常駐的 Web UI**（D14）：關卡以 CLI 操作，報告是靜態檔案。

@@ -1,0 +1,51 @@
+{
+  "threat_id": "T-019",
+  "title": "以猜測的發票 id 列舉其他租戶的發票",
+  "description": "從外部視角推測：依序嘗試 /api/invoices/{id} 可列舉其他租戶的發票。與 T-012 描述同一個缺陷。",
+  "taxonomy": [
+    {
+      "scheme": "stride",
+      "id": "I"
+    }
+  ],
+  "dfd_elements": [
+    {
+      "element_id": "proc-invoices-api",
+      "type": "process"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "endpoint",
+      "ref": "GET /api/invoices/{id}",
+      "match": "MATCHED"
+    }
+  ],
+  "source_cluster_id": null,
+  "source_finding_ids": [],
+  "modeled_by": [
+    {
+      "agent_id": "tm_c",
+      "family": "nvidia",
+      "viewpoint": "external"
+    }
+  ],
+  "attack_tree_ref": null,
+  "risk": {
+    "likelihood": "medium",
+    "impact": "high"
+  },
+  "review": {
+    "status": "REJECTED",
+    "gate_record_id": "GR-G3-0001"
+  },
+  "crosswalk": [
+    {
+      "target_scheme": "cwe",
+      "target_id": "CWE-639",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "erin"
+    }
+  ]
+}

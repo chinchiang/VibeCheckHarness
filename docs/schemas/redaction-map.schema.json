@@ -1,0 +1,19 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"redaction-map.schema.json","title":"Redaction Map（secrets 遮罩對照表）","description":"W0 產出。只記錄位置、偵測器與帶金鑰的 hash（HMAC-SHA256，金鑰在 Z1 secret store），永遠不含 secret 值本身；用來在回應中辨識被遮罩的位置與判斷同一 secret 是否重複出現。沒有此表時 Gateway 拒絕送出任何程式碼。[H]","type":"object","additionalProperties":false,
+"properties":{
+"run_id":{"$ref":"common.schema.json#/$defs/run_id"},
+"repo_commit":{"type":"string","pattern":"^[0-9a-f]{7,64}$"},
+"created_at":{"$ref":"common.schema.json#/$defs/datetime"},
+"hash_alg":{"const":"hmac-sha256"},
+"hmac_key_ref":{"type":"string","description":"secret store 參照，不是金鑰本身"},
+"entries":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "redaction_id":{"type":"string","pattern":"^RD-[0-9]{3,}$"},
+  "file":{"type":"string"},
+  "line":{"type":"integer","minimum":1},
+  "col_start":{"type":"integer","minimum":1},
+  "col_end":{"type":"integer","minimum":1},
+  "kind":{"enum":["secret","pii"]},
+  "detector":{"type":"string","description":"例如 betterleaks:<rule-id>"},
+  "value_hmac":{"type":"string","pattern":"^hmac-sha256:[0-9a-f]{64}$"},
+  "placeholder":{"type":"string","pattern":"^<REDACTED:[A-Za-z0-9_-]+>$","description":"送 LLM 時替換成的字樣"}},
+  "required":["redaction_id","file","line","col_start","col_end","kind","detector","value_hmac","placeholder"]}}},
+"required":["run_id","repo_commit","created_at","hash_alg","hmac_key_ref","entries"]}

@@ -1,0 +1,11 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"invariants.schema.json","title":"Invariants（invariants.yaml：G1 安全不變量規格）","description":"W0.5 產出、G1 由應用擁有者核准。invariants[] 是 source＝invariant 的需求；baseline[] 是採用的 ASVS／AISVS 基準需求（只列 ID 與層級，不複製標準原文）。G1 核准的產物 hash＝本檔 approval view（移除 signoff）的 hash。","type":"object","additionalProperties":false,
+"properties":{
+"engagement_id":{"$ref":"common.schema.json#/$defs/engagement_id"},
+"run_id":{"$ref":"common.schema.json#/$defs/run_id"},
+"round":{"type":"integer","minimum":1,"maximum":3},
+"drafted_by":{"type":"object","additionalProperties":false,"properties":{"agent_id":{"type":"string"},"family":{"type":"string"}},"required":["agent_id","family"]},
+"baseline":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"requirement_id":{"type":"string"},"source":{"enum":["asvs-5.0.0","aisvs-1.0"]},"ref":{"type":"string"},"level":{"anyOf":[{"enum":["L1","L2","L3"]},{"type":"null"}]}},"required":["requirement_id","source","ref","level"]}},
+"access_matrix":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"role":{"type":"string"},"resource":{"type":"string"},"actions":{"type":"array","items":{"enum":["read","create","update","delete","invoke"]}},"condition":{"type":"string"}},"required":["role","resource","actions","condition"]}},
+"invariants":{"type":"array","items":{"$ref":"requirement.schema.json"},"minItems":1},
+"signoff":{"type":"object","additionalProperties":false,"properties":{"gate_record_id":{"anyOf":[{"type":"string"},{"type":"null"}]},"status":{"enum":["PENDING","ACCEPTED","REJECTED","NEEDS_INFO"]}},"required":["gate_record_id","status"]}},
+"required":["engagement_id","run_id","round","drafted_by","baseline","access_matrix","invariants","signoff"]}

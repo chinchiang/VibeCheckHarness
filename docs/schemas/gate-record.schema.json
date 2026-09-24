@@ -1,177 +1,34 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "gate-record.schema.json",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "gate_record_id": {
-      "type": "string",
-      "pattern": "^GR-[0-9A-Za-z-]+$"
-    },
-    "gate": {
-      "type": "string",
-      "enum": [
-        "G0a",
-        "G0b",
-        "G1",
-        "G2",
-        "G3",
-        "G4",
-        "G5"
-      ]
-    },
-    "engagement_id": {
-      "type": "string"
-    },
-    "run_id": {
-      "type": "string"
-    },
-    "artifact": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "type": "string",
-          "enum": [
-            "engagement",
-            "roe",
-            "invariants",
-            "disputed_clusters",
-            "threat_model",
-            "test_plan",
-            "s2_job"
-          ]
-        },
-        "sha256": {
-          "type": "string",
-          "pattern": "^sha256:[0-9a-f]{64}$"
-        }
-      },
-      "required": [
-        "kind",
-        "sha256"
-      ]
-    },
-    "initiator": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "description": "發起執行或核准 G4 的人（不得是自動化帳號）"
-    },
-    "approvers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "test_lead",
-              "management",
-              "infrastructure_owner",
-              "app_owner",
-              "security_reviewer"
-            ]
-          },
-          "key_fingerprint": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "role",
-          "key_fingerprint"
-        ]
-      },
-      "minItems": 1,
-      "description": "每個關卡要求的角色見 docs/02 §1.3"
-    },
-    "decisions": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "item_id": {
-            "type": "string"
-          },
-          "decision": {
-            "type": "string",
-            "enum": [
-              "accept",
-              "reject",
-              "needs_info"
-            ]
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "item_id",
-          "decision",
-          "note"
-        ]
-      },
-      "minItems": 1
-    },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "signatures": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "key_fingerprint": {
-            "type": "string"
-          },
-          "alg": {
-            "type": "string"
-          },
-          "value": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "key_fingerprint",
-          "alg",
-          "value"
-        ]
-      },
-      "minItems": 1
-    }
-  },
-  "required": [
-    "gate_record_id",
-    "gate",
-    "engagement_id",
-    "run_id",
-    "artifact",
-    "initiator",
-    "approvers",
-    "decisions",
-    "timestamp",
-    "signatures"
-  ],
-  "description": "Policy Engine 驗證的是本紀錄的簽章（金鑰須在組織的金鑰登錄中）與 artifact.sha256，而不是 checkpoint 內容。G5 的核准者不得是發起者（由驗證程式檢查）。",
-  "title": "GateRecord（人工關卡簽章紀錄）"
-}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"gate-record.schema.json","title":"GateRecord（人工關卡簽章紀錄）","description":"Policy Engine 驗證的是本紀錄的簽章（金鑰只以金鑰登錄為準，D11）與 artifact.sha256，而不是 checkpoint 內容。G0a／G0b 是對委任設定／ROE 的離線驗章紀錄：outcome 為 VERIFIED／VERIFY_FAILED／EXPIRED，approvers＝文件簽署人，簽章在被驗證的文件上，本紀錄 signatures 可以是空陣列。其他關卡每位核准者一份簽章。","type":"object","additionalProperties":false,
+"properties":{
+"gate_record_id":{"type":"string","pattern":"^GR-[0-9A-Za-z-]+$"},
+"gate":{"$ref":"common.schema.json#/$defs/gate"},
+"engagement_id":{"$ref":"common.schema.json#/$defs/engagement_id"},
+"run_id":{"$ref":"common.schema.json#/$defs/run_id"},
+"round":{"type":"integer","minimum":1,"description":"G1／G3／G4 的重擬輪次（G1 最多 3 輪）；其他關卡為 1"},
+"artifact":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["engagement","roe","invariants","disputed_clusters","threat_model","test_plan","s2_job","budget"]},"sha256":{"$ref":"common.schema.json#/$defs/sha256"}},"required":["kind","sha256"],"description":"被核准的產物；多項產物（G2 叢集、G3 威脅、G4 測試計畫）用 set digest＝sha256(JCS(依 id 排序的 [{id, sha256}]))"},
+"job_id":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"只有 G5：被核准的 job"},
+"initiator":{"anyOf":[{"$ref":"common.schema.json#/$defs/person_id"},{"type":"null"}],"description":"發起執行、認領（initiator_claim）或核准 G4 的人；不得是自動化帳號；G5 核准者不得是發起者"},
+"approvers":{"type":"array","items":{"$ref":"common.schema.json#/$defs/person_ref"},"minItems":1,"description":"每個關卡要求的角色見 docs/02 §1.3"},
+"outcome":{"$ref":"common.schema.json#/$defs/gate_outcome"},
+"decisions":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "item_id":{"type":"string"},
+  "item_sha256":{"anyOf":[{"$ref":"common.schema.json#/$defs/sha256"},{"type":"null"}],"description":"逐項核准時該項的 approval hash（G2 叢集、G3 威脅、G4 測試案例）"},
+  "decision":{"enum":["accept","reject","needs_info"]},
+  "risk_override":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{"likelihood":{"enum":["high","medium","low"]},"impact":{"enum":["high","medium","low"]}},"required":["likelihood","impact"]},{"type":"null"}],"description":"G3 調整風險；調降時 note 必填"},
+  "note":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"G3 駁回種子威脅或調降風險時必填（docs/02 §5）"}},
+  "required":["item_id","item_sha256","decision","risk_override","note"]},"minItems":1},
+"gb":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{
+  "phase":{"enum":["W","B","run_total"]},
+  "choice":{"enum":["extend","stop_phase","abort"],"description":"extend→APPROVED；stop_phase→REJECTED；abort→APPROVED 且 run 轉 ABORTED"},
+  "new_caps":{"anyOf":[{"$ref":"common.schema.json#/$defs/budget_caps"},{"type":"null"}],"description":"extend 時必填"},
+  "tradeoffs":{"type":"array","items":{"type":"string"},"description":"例如降低 V、移除校準權重最低的家族；寫入報告"}},
+  "required":["phase","choice","new_caps","tradeoffs"]},{"type":"null"}],"description":"只有 GB"},
+"verification":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{
+  "document_ref":{"$ref":"common.schema.json#/$defs/sha256"},
+  "key_registry_version":{"type":"integer","minimum":1},
+  "signer_results":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"person_id":{"$ref":"common.schema.json#/$defs/person_id"},"key_fingerprint":{"$ref":"common.schema.json#/$defs/fingerprint"},"ok":{"type":"boolean"},"reason":{"anyOf":[{"type":"string"},{"type":"null"}]}},"required":["person_id","key_fingerprint","ok","reason"]},"minItems":1}},
+  "required":["document_ref","key_registry_version","signer_results"]},{"type":"null"}],"description":"只有 G0a／G0b：離線驗章結果"},
+"opened_at":{"$ref":"common.schema.json#/$defs/datetime"},
+"timestamp":{"$ref":"common.schema.json#/$defs/datetime","description":"決定（簽署）時間"},
+"signatures":{"type":"array","items":{"$ref":"common.schema.json#/$defs/signature"}}},
+"required":["gate_record_id","gate","engagement_id","run_id","round","artifact","job_id","initiator","approvers","outcome","decisions","gb","verification","opened_at","timestamp","signatures"]}

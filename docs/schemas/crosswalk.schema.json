@@ -1,0 +1,15 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"crosswalk.schema.json","title":"Crosswalk（分類對照表）","description":"docs/04 §2：威脅分類（STRIDE、OWASP LLM 等）到 CAPEC／ATLAS／CWE／ASVS／AISVS／WSTG／不變量的連結。official 連結附官方資料檔版本；llm-suggested 連結必須經人審（reviewed_by）才能用於推導。owasp_llm_default 預設 2026（2025 仍可選）；切換版本不會改寫既有威脅。","type":"object","additionalProperties":false,
+"properties":{
+"crosswalk_version":{"type":"string"},
+"owasp_llm_default":{"enum":["2025","2026"],"default":"2026"},
+"sources":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"scheme":{"type":"string"},"version":{"type":"string"},"source_ref":{"type":"string"},"sha256":{"$ref":"common.schema.json#/$defs/sha256_or_null","description":"已下載資料檔的 hash；null＝尚未取得（連結只能是 curated）"}},"required":["scheme","version","source_ref","sha256"]}},
+"links":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "from_scheme":{"enum":["stride","linddun","owasp-llm@2025","owasp-llm@2026","owasp-asi@2026","maestro"]},
+  "from_id":{"type":"string"},
+  "target_scheme":{"enum":["capec","atlas","cwe","asvs-5.0.0","aisvs-1.0","wstg-4.2","aitg-1","invariant"]},
+  "target_id":{"type":"string"},
+  "provenance":{"enum":["official","curated","llm-suggested"]},
+  "source_ref":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"official 時必填（sources 中的 source_ref）"},
+  "reviewed_by":{"anyOf":[{"$ref":"common.schema.json#/$defs/person_id"},{"type":"null"}],"description":"curated／llm-suggested 經人審時填審查者 person_id"}},
+  "required":["from_scheme","from_id","target_scheme","target_id","provenance","source_ref","reviewed_by"]}}},
+"required":["crosswalk_version","owasp_llm_default","sources","links"]}

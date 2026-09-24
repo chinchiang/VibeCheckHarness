@@ -1,0 +1,28 @@
+{
+  "plan_id": "plan-2026-10-06-cmd5",
+  "decision_node": "CMD-5",
+  "slices": [],
+  "extra_dispatch": [],
+  "taxonomies": [],
+  "testcase_ids": [
+    "TC-012-01"
+  ],
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "budget_tokens": 200000,
+  "rationale": "K-005 為 CONFIRMED_EXECUTABLE：修正後以同一個測試案例重測",
+  "followup_drafts": [
+    {
+      "draft_id": "FD-001",
+      "run_kind": "followup",
+      "cluster_ids": [
+        "K-005"
+      ],
+      "testcase_ids": [
+        "TC-012-01"
+      ],
+      "reason": "修正 routes/invoices.ts 的租戶條件後重測 TC-012-01"
+    }
+  ]
+}

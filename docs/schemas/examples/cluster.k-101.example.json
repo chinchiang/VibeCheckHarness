@@ -1,0 +1,29 @@
+{
+  "cluster_id": "K-101",
+  "run_id": "run-2026-09-25-pr-118",
+  "canonical_location": {
+    "file": "routes/exports.ts",
+    "symbol": "routes/exports.ts::getExport",
+    "source": null,
+    "sink": {
+      "file": "routes/exports.ts",
+      "line": 18
+    }
+  },
+  "cwe_bucket": "authz",
+  "cwes": [
+    "CWE-639"
+  ],
+  "member_finding_ids": [
+    "F-101"
+  ],
+  "families": [
+    "anthropic"
+  ],
+  "lineages": [
+    "claude"
+  ],
+  "independent_families": [],
+  "sarif_refs": [],
+  "linked_cluster_ids": []
+}

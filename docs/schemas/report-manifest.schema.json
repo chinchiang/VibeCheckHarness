@@ -1,0 +1,12 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"report-manifest.schema.json","title":"Report Manifest（報告清單）","description":"B6／W 報告的產物清單：每個產物的 hash、裁決統計與未能測試清單。gaps 必須與 run 紀錄的 gaps 一致；Lane A 報告必須標示僅供參考。","type":"object","additionalProperties":false,
+"properties":{
+"report_id":{"type":"string","pattern":"^RPT-[0-9A-Za-z-]+$"},
+"run_id":{"$ref":"common.schema.json#/$defs/run_id"},
+"generated_at":{"$ref":"common.schema.json#/$defs/datetime"},
+"advisory":{"type":"boolean","description":"Lane A＝true（D8）"},
+"artifacts":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["whitebox_report","sarif","threat_model","test_plan","testresult","verdict","gate_record","audit_log","followup_draft"]},"ref":{"type":"string"},"sha256":{"$ref":"common.schema.json#/$defs/sha256"}},"required":["kind","ref","sha256"]},"minItems":1},
+"verdict_counts":{"type":"object","additionalProperties":false,"properties":{"CONFIRMED_EXECUTABLE":{"type":"integer","minimum":0},"CONFIRMED_CORROBORATED":{"type":"integer","minimum":0},"LIKELY":{"type":"integer","minimum":0},"UNCORROBORATED":{"type":"integer","minimum":0},"DISPUTED":{"type":"integer","minimum":0},"REJECTED":{"type":"integer","minimum":0}},"required":["CONFIRMED_EXECUTABLE","CONFIRMED_CORROBORATED","LIKELY","UNCORROBORATED","DISPUTED","REJECTED"]},
+"gaps":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"kind":{"type":"string"},"ref":{"type":"string"},"reason":{"type":"string"}},"required":["kind","ref","reason"]},"description":"未能測試清單（run.gaps）"},
+"manual_review_clusters":{"type":"array","items":{"type":"string"}},
+"limitations_ref":{"type":"string","description":"報告附的限制聲明（docs/06 §3）"}},
+"required":["report_id","run_id","generated_at","advisory","artifacts","verdict_counts","gaps","manual_review_clusters","limitations_ref"]}

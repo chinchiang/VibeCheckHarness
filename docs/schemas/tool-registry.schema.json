@@ -1,0 +1,15 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"tool-registry.schema.json","title":"Tool Registry（tools.yaml）","description":"D13：工具 ID（tool）與模式 ID（tool:mode）的權威清單。ROE allowed_tools 用 tool，ROE denied_modes 與 testcase tool_binding.adapter 用 tool:mode。安全等級計算（docs/04 §5）讀 base_class 與 b4_executable。[H]","type":"object","additionalProperties":false,
+"properties":{
+"registry_version":{"type":"integer","minimum":1},
+"tools":{"type":"object","propertyNames":{"pattern":"^[a-z][a-z0-9_]*$"},"additionalProperties":{"type":"object","additionalProperties":false,"properties":{
+  "zone":{"enum":["Z2","Z3"],"description":"Z2＝白箱沙箱（無網路）；Z3＝黑箱執行（只經 Scope Proxy）"},
+  "description":{"type":"string"},
+  "license_ref":{"type":"string","description":"licenses.yaml 中的 component"},
+  "modes":{"type":"object","minProperties":1,"propertyNames":{"pattern":"^[a-z][a-z0-9_]*$"},"additionalProperties":{"type":"object","additionalProperties":false,"properties":{
+    "description":{"type":"string"},
+    "base_class":{"anyOf":[{"enum":["S0","S1","S2"]},{"type":"null"}],"description":"此模式本身的最低安全等級；null＝已登錄但未分類 → 至少 S2"},
+    "b4_executable":{"type":"boolean","description":"false＝只用於白箱（例如 semgrep:*），出現在 B4 測試案例 → S3"},
+    "toolkit_denied":{"type":"boolean","description":"工具包永遠不跑（nuclei:code_protocol、restler:fuzz）；必須與 docs/04 §5 TOOLKIT_DENYLIST 一致"}},
+    "required":["description","base_class","b4_executable","toolkit_denied"]}}},
+  "required":["zone","description","license_ref","modes"]}}},
+"required":["registry_version","tools"]}

@@ -1,0 +1,12 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"inventory.schema.json","title":"Inventory（W0 盤點）","description":"W0 產出（docs/02 §5）：檔案清單、語言、套件清單、端點與 LLM 整合點。只有 hash 與位置，不含程式內容。被路徑黑名單排除的檔案仍列出（excluded: true），但永遠不送 LLM。","type":"object","additionalProperties":false,
+"properties":{
+"run_id":{"$ref":"common.schema.json#/$defs/run_id"},
+"repo_commit":{"type":"string","pattern":"^[0-9a-f]{7,64}$"},
+"generated_at":{"$ref":"common.schema.json#/$defs/datetime"},
+"files":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"path":{"type":"string"},"sha256":{"$ref":"common.schema.json#/$defs/sha256"},"language":{"anyOf":[{"type":"string"},{"type":"null"}]},"bytes":{"type":"integer","minimum":0},"excluded":{"type":"boolean"},"exclude_reason":{"anyOf":[{"enum":["path_blacklist","binary","generated","vendored","too_large"]},{"type":"null"}]}},"required":["path","sha256","language","bytes","excluded","exclude_reason"]},"minItems":1},
+"manifests":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"path":{"type":"string"},"ecosystem":{"enum":["pypi","npm","maven","go","cargo","other"]}},"required":["path","ecosystem"]}},
+"endpoints":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"method":{"enum":["GET","HEAD","OPTIONS","POST","PUT","PATCH","DELETE"]},"path":{"type":"string"},"file":{"type":"string"},"line":{"type":"integer","minimum":1}},"required":["method","path","file","line"]}},
+"llm_integrations":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"file":{"type":"string"},"line":{"type":"integer","minimum":1},"kind":{"enum":["llm_call","tool_definition","prompt_template","rag_store"]}},"required":["file","line","kind"]}},
+"redaction_map_ref":{"$ref":"common.schema.json#/$defs/sha256","description":"W0 的 secrets 遮罩對照表（redaction-map）"},
+"sbom_ref":{"$ref":"common.schema.json#/$defs/sha256_or_null"}},
+"required":["run_id","repo_commit","generated_at","files","manifests","endpoints","llm_integrations","redaction_map_ref","sbom_ref"]}

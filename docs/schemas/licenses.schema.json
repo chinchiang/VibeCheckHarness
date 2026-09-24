@@ -1,0 +1,13 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"licenses.schema.json","title":"Licenses（licenses.yaml：元件授權登錄）","description":"docs/06 §2.3。CI 規則：requirements.txt 的每個套件、tools.yaml 的每個工具 license_ref 都要有一列。status＝法務閘門 的元件在 ROE 啟用時，legal_review.scope.component_licenses 必須為 true（L-6）。授權事實未查證者 evidence 引用 pending ID。","type":"object","additionalProperties":false,
+"properties":{
+"registry_version":{"type":"integer","minimum":1},
+"components":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "component":{"type":"string","description":"套件或工具名稱（requirements.txt 名稱小寫比對）"},
+  "license":{"type":"string","description":"SPDX 運算式；未知寫 NOASSERTION"},
+  "obligation":{"type":"string"},
+  "usage":{"enum":["validator_runtime","validator_test","b4_tool","w1_tool","secrets_scanner","db_client","reference"]},
+  "status":{"enum":["OK","注意","法務閘門","參考","不採用","待查"]},
+  "gate_milestone":{"anyOf":[{"type":"string","pattern":"^M[0-9]+$"},{"type":"null"}],"description":"法務閘門 必填：最晚在哪個里程碑前完成法務確認"},
+  "evidence":{"type":"array","items":{"type":"string"},"minItems":1,"description":"證據帳本 ID（E:<topic>-NN）"}},
+  "required":["component","license","obligation","usage","status","gate_milestone","evidence"]},"minItems":1}},
+"required":["registry_version","components"]}

@@ -1,0 +1,38 @@
+{
+  "result_id": "R-TC-027-01-1",
+  "testcase_id": "TC-027-01",
+  "run_id": "run-2026-09-23-001",
+  "phase": "B4",
+  "job_id": "job-zap-active-001",
+  "executed_at": "2026-10-05T22:00:00+08:00",
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "cluster_ids": [],
+  "outcome": "PASS",
+  "trials": {
+    "n": 1,
+    "k": 0
+  },
+  "replays": 0,
+  "replay_k": 0,
+  "oracle_observations": [
+    "ZAP 主動掃描 26 分鐘結束；SQL injection 類規則沒有 High／Medium 警示",
+    "Q-seed-count 掃描前後相同；快照已還原並驗證"
+  ],
+  "request_count": 2400,
+  "stop_reason": null,
+  "precondition_reached": {
+    "value": true,
+    "evidence_ref": "sha256:44fd06dc02d81328844fcac226dabbc6ce3a57ae19640552ee4fe8f81f1d3b0d"
+  },
+  "positive_control": {
+    "value": null,
+    "evidence_ref": null
+  },
+  "artifact_sha256": "sha256:082cdaa2f50d7bac98650daa3314d5ce72b3d3a7c5be0a405368d1bf3d551ebd",
+  "interpreted_by": {
+    "agent_id": "result_analyst",
+    "family": "nvidia"
+  }
+}

@@ -1,6 +1,6 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
-> **狀態**：設計文件（v0.1，2026-09-23）。尚未實作。
+> **狀態**：設計文件 v0.2（2026-09-24，可據以實作：每個階段／關卡／元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)）。工具包本身**尚未實作**；本 repo 另附可執行的資料模型驗證器與參考演算法（`tools/`）。v0.1：2026-09-23。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
 > **語言**：正體中文；證據原文保留英文（見 [`docs/evidence/ledger.md`](docs/evidence/ledger.md)）。
 
@@ -25,14 +25,14 @@
 | 一個主 AI agent 當 harness／指揮官，負責調度其他 agents | Harness＝Run Controller（程式碼：順序、並行、重試、限速、checkpoint）＋ Commander Agent（LLM，在 5 個決策節點規劃與加派）；Policy Engine 以程式碼強制範圍與關卡 | [03 §4](docs/03-system-architecture.md#4-harness指揮官如何滿足需求) | 指揮官刻意不能判定漏洞真偽、不能擴大範圍、不能跳過關卡 |
 | 白箱每個 agent 可接不同 LLM（Claude、Nemotron、ChatGPT 等）以減少模型偏誤 | `agents.yaml` 逐一綁模型；LiteLLM 接 Anthropic／OpenAI／NVIDIA（雲端＋自架）；規則：驗證者必須不同家族、不跨家族 fallback、第一輪互不可見 | [02 §2](docs/02-methodology.md#2-白箱階段w0w5)、[05](docs/05-bias-calibration.md)、[examples](docs/examples/) | 多家族**只能降低、不能消除**偏誤；是否勝過「單一最佳模型多次取樣」必須自己量 |
 | 黑箱階段一定先做威脅建模，再依結果設計 test cases | B2 威脅建模是強制關卡（G3 人工簽核）；B3 以「威脅→需求→測試」可追溯鏈產生案例；附兩個完整範例 | [02 §3](docs/02-methodology.md#3-黑箱階段b0b6)、[04](docs/04-threat-to-testcase.md) | 追溯鏈並非每一環都有官方對照，需人審對照表 |
-| 先上網搜尋可參考的專案與資料 | 8 個主題、321 條發現，逐條查核 | [01](docs/01-research-survey.md)、[ledger](docs/evidence/ledger.md) | 搜尋未窮盡（部分產品與論文未查） |
+| 先上網搜尋可參考的專案與資料 | 8 個主題、445 條發現（v0.1 的 321 條＋v0.2 新增 124 條），逐條獨立查核 | [01](docs/01-research-survey.md)、[ledger](docs/evidence/ledger.md) | 搜尋未窮盡（部分產品與論文未查） |
 | 完整的方法論 | 白箱 W0–W5、黑箱 B0–B6、事先簽署 G0a／G0b 與人工關卡 G1–G5、偏誤控制、校準實驗 | [02](docs/02-methodology.md)、[05](docs/05-bias-calibration.md) | — |
-| 詳細的系統架構 | 元件、信任區部署、LangGraph 狀態機、資料模型（JSON Schema）、設定範例、成本模型、CI 兩條線 | [03](docs/03-system-architecture.md)、[schemas](docs/schemas/) | 尚未實作，數字皆為設計假設 |
+| 詳細的系統架構 | 元件、信任區部署、LangGraph 狀態機、資料模型（JSON Schema）、設定範例、成本模型、CI 兩條線 | [03](docs/03-system-architecture.md)、[08](docs/08-implementation-spec.md)、[schemas](docs/schemas/) | 尚未實作，數字皆為設計假設 |
 | 目標應用：Web＋REST／GraphQL API、含 LLM／Agent 功能的應用 | Binding 表涵蓋 REST 與 GraphQL（輸入驗證、欄位層級授權、查詢深度、introspection）與 LLM／Agent 威脅（OWASP LLM Top 10、ASI、MAESTRO） | [04 §4.3](docs/04-threat-to-testcase.md#43-binding-表)、[02 B2](docs/02-methodology.md#b2-威脅建模g3-強制簽核) | 行動 App 不在本版範圍 |
-| 以 Python 實作 | LangGraph＋LiteLLM＋Pydantic；資料模型與驗證工具已用 Python 撰寫 | [03 §3](docs/03-system-architecture.md#3-框架選型)、[07](docs/07-roadmap.md)、[tools/](tools/) | 本次只交付文件與驗證工具，尚未實作 |
+| 以 Python 實作 | LangGraph＋LiteLLM＋Pydantic；套件配置、介面、CLI、錯誤分類、測試與完成定義見 08；資料模型驗證器與參考演算法（裁決規則、安全等級、JCS、Ed25519 驗章）已用 Python 撰寫並有測試 | [03 §3](docs/03-system-architecture.md#3-框架選型)、[07](docs/07-roadmap.md)、[08](docs/08-implementation-spec.md)、[tools/](tools/) | 本次只交付文件、驗證工具與參考實作，工具包本體尚未實作 |
 | Nemotron 同時支援雲端（build.nvidia.com）與自架（NIM／vLLM） | 兩種模式都接在 LiteLLM；雲端只收公開或合成程式碼，機密碼只用自架 | [03 §8.2](docs/03-system-architecture.md#82-nemotron-雙模式)、[examples/serving](docs/examples/serving/README.md) | 雲端試用條款禁止機密資訊與正式用途；自架需要 GPU |
 | 文件放在 repo 根目錄 | `README.md`＋`docs/` | — | — |
-| 做不到的事就說做不到 | 15 條明列 | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
+| 做不到的事就說做不到 | 25 條明列 | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
 | 所有內容經交叉比對核實 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經獨立代理對抗式審查 | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
 
 ## 文件導覽
@@ -46,9 +46,11 @@
 | [docs/05-bias-calibration.md](docs/05-bias-calibration.md) | 降低模型偏誤：偏誤定義、證據、規則、叢集與裁決、校準實驗 |
 | [docs/06-security-legal-limitations.md](docs/06-security-legal-limitations.md) | 工具包自身安全、法遵與授權、做不到的事 |
 | [docs/07-roadmap.md](docs/07-roadmap.md) | 實作里程碑 M1–M5 |
+| [docs/08-implementation-spec.md](docs/08-implementation-spec.md) | 實作規格：模組、介面、CLI、設定、錯誤、持久化、測試、完成定義、待決事項 |
 | [docs/references.md](docs/references.md) | 參考文獻 |
-| [docs/schemas/](docs/schemas/) | 資料模型 JSON Schema＋範例實例（`python3 tools/validate_schemas.py` 驗證） |
-| [docs/examples/](docs/examples/) | `models.yaml`、`agents.yaml`、`roe.yaml`、自架模型啟動範例 |
+| [docs/schemas/](docs/schemas/) | 資料模型 JSON Schema＋範例實例（`python tools/validate_schemas.py` 驗證；說明見 [schemas/README](docs/schemas/README.md)） |
+| [docs/examples/](docs/examples/) | `models.yaml`、`agents.yaml`、`engagement.yaml`、`roe.yaml`、`key-registry.yaml`、`tools.yaml`、`toolkit.yaml`、`licenses.yaml`、關卡紀錄、自架模型啟動範例 |
+| [tools/](tools/)、[tests/](tests/) | 驗證器、參考演算法（`tools/vchlib`）、範例簽章工具、證據帳本與參考文獻產生器；pytest 測試 |
 | [docs/evidence/](docs/evidence/) | 研究證據（JSON）與自動產生的證據帳本 |
 
 ## 標記說明
@@ -91,14 +93,27 @@
 | 共同輸入上限 | （同等性單位） | 所有參與模型中最小的可用 context；確保各家族看到相同切片 |
 | 裁決狀態 | — | `CONFIRMED_EXECUTABLE`、`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`、`REJECTED`，定義見 [05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則) |
 | SARIF | — | OASIS 靜態分析結果交換格式 2.1.0 |
+| run 狀態 | — | `RUNNING`、`WAITING_GATE`、`SUSPENDED`、`STOPPED`、`ABORTED`、`FAILED`、`COMPLETED`、`COMPLETED_WITH_GAPS`，見 [02](docs/02-methodology.md)、[03](docs/03-system-architecture.md) |
+| 關卡結果 | — | `APPROVED`、`PARTIALLY_APPROVED`（只限 G3、G4）、`REJECTED`、`NEEDS_INFO`、`EXPIRED`；G0a／G0b 為離線驗章，結果只有 `VERIFIED`、`VERIFY_FAILED`、`EXPIRED`；另有預算關卡 GB |
+| key registry | 金鑰登錄 | 唯一的簽章信任來源；以 toolkit.yaml 釘選的組織根金鑰指紋驗證 |
+| audit log | 稽核紀錄 | 雜湊鏈接的 append-only JSONL，每個關卡決定後寫入錨點 |
+| legal_reviewer | 法務審查者 | 簽署 `legal_review` 的角色，見 [06 §2.1.1](docs/06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h) |
+| 法務閘門 | — | 授權登錄表的狀態：該元件在指定里程碑前必須經法務確認，否則停用 |
+| P／C 級 | 資料等級 | P＝公開或合成資料；C＝機密資料（未標記即視為 C；只能送到委任設定允許的模型，見 [03 §8](docs/03-system-architecture.md)） |
 
 ## 快速驗證本 repo 的資料模型
 
 ```bash
-python3 -m pip install jsonschema pyyaml
-python3 tools/validate_schemas.py
+python -m pip install -r requirements.txt
+python tools/validate_schemas.py      # 印出 "all checks passed (...)"
+python -m pytest -q tests
 ```
+
+- **Windows**：驗證器需要 `tzdata`（已列在 requirements.txt）；在 cp950 主控台上執行其他工具時請設定 `PYTHONUTF8=1`。
+- **簽章**：範例檔帶有真正的 Ed25519 簽章，但使用的是 `tests/fixtures/TEST_ONLY_private_keys/` 裡的 **TEST ONLY** 金鑰；這些簽章**不代表任何真實的核准**。
+- CI：[.github/workflows/validate.yml](.github/workflows/validate.yml)（Ubuntu／Windows × Python 3.11／3.13）。
+- 依賴與授權：`requirements.txt`、`pyproject.toml`；授權見 [examples/licenses.yaml](docs/examples/licenses.yaml) 與 [06 §2.3](docs/06-security-legal-limitations.md#23-授權登錄表)。
 
 ## 授權
 
-本 repo 目前只含設計文件。工具包實作時使用的第三方工具與模型各有授權義務，見 [06 §2](docs/06-security-legal-limitations.md#2-法遵與授權)。
+本 repo 目前只含設計文件、驗證工具與參考實作。工具包實作時使用的第三方工具與模型各有授權義務，見 [06 §2](docs/06-security-legal-limitations.md#2-法遵與授權)。

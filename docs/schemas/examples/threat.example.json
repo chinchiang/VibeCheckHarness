@@ -75,28 +75,28 @@
       "target_id": "CWE-639",
       "provenance": "curated",
       "source_ref": null,
-      "reviewed_by": "security_reviewer_1"
+      "reviewed_by": "erin"
     },
     {
       "target_scheme": "asvs-5.0.0",
       "target_id": "v5.0.0-8.2.2",
       "provenance": "curated",
       "source_ref": null,
-      "reviewed_by": "security_reviewer_1"
+      "reviewed_by": "erin"
     },
     {
       "target_scheme": "wstg-4.2",
       "target_id": "WSTG-v42-ATHZ-04",
       "provenance": "curated",
       "source_ref": null,
-      "reviewed_by": "security_reviewer_1"
+      "reviewed_by": "erin"
     },
     {
       "target_scheme": "invariant",
       "target_id": "INV-AC-007",
       "provenance": "curated",
-      "source_ref": "invariants.yaml",
-      "reviewed_by": "app_owner_1"
+      "source_ref": null,
+      "reviewed_by": "frank"
     }
   ]
 }

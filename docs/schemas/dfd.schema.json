@@ -1,0 +1,25 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"dfd.schema.json","title":"DFD（資料流程圖：外部視角或合併視角）","description":"W5 產出初版；B1 產出外部視角（只用黑箱資訊）與合併視角兩份。合併視角附 b1_diff（兩者差異清單），由 B2 critic 逐項處置；未處置（pending）的差異項會擋住 G3（docs/02 §4 B2）。","type":"object","additionalProperties":false,
+"properties":{
+"dfd_id":{"type":"string","pattern":"^DFD-[0-9A-Za-z-]+$"},
+"run_id":{"$ref":"common.schema.json#/$defs/run_id"},
+"viewpoint":{"enum":["external","merged"]},
+"elements":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "element_id":{"type":"string"},
+  "type":{"enum":["process","external_entity","data_flow","data_store","trust_boundary"]},
+  "name":{"type":"string"},
+  "from":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"只有 data_flow"},
+  "to":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"只有 data_flow"},
+  "crosses":{"type":"array","items":{"type":"string"},"description":"data_flow 跨越的 trust_boundary"},
+  "evidence_refs":{"type":"array","items":{"type":"string"},"description":"端點、程式位置或發現項"}},
+  "required":["element_id","type","name","from","to","crosses","evidence_refs"]},"minItems":1},
+"b1_diff":{"anyOf":[{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "diff_id":{"type":"string","pattern":"^BD-[0-9]{3,}$"},
+  "kind":{"enum":["only_external","only_merged","attribute_mismatch"]},
+  "element_id":{"type":"string"},
+  "summary":{"type":"string"},
+  "disposition":{"enum":["pending","accepted","dismissed"],"description":"accepted＝納入模型（threat_ids 非空）；dismissed＝駁回（reason 必填）"},
+  "threat_ids":{"type":"array","items":{"type":"string","pattern":"^T-[0-9]{3,}$"}},
+  "reason":{"anyOf":[{"type":"string"},{"type":"null"}]},
+  "decided_by":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"B2 critic 的 agent ID"}},
+  "required":["diff_id","kind","element_id","summary","disposition","threat_ids","reason","decided_by"]}},{"type":"null"}],"description":"合併視角必填；外部視角為 null"}},
+"required":["dfd_id","run_id","viewpoint","elements","b1_diff"]}

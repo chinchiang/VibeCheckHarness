@@ -1,0 +1,62 @@
+{
+  "threat_id": "T-027",
+  "title": "發票搜尋參數的 SQL injection",
+  "description": "GET /api/invoices 的搜尋參數若直接拼進查詢，攻擊者可讀取或破壞其他租戶的資料。外部視角提出，白箱沒有對應叢集。",
+  "taxonomy": [
+    {
+      "scheme": "stride",
+      "id": "T"
+    }
+  ],
+  "dfd_elements": [
+    {
+      "element_id": "proc-invoices-api",
+      "type": "process"
+    },
+    {
+      "element_id": "store-invoices",
+      "type": "data_store"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "endpoint",
+      "ref": "GET /api/invoices",
+      "match": "MATCHED"
+    }
+  ],
+  "source_cluster_id": null,
+  "source_finding_ids": [],
+  "modeled_by": [
+    {
+      "agent_id": "tm_c",
+      "family": "nvidia",
+      "viewpoint": "external"
+    }
+  ],
+  "attack_tree_ref": null,
+  "risk": {
+    "likelihood": "low",
+    "impact": "high"
+  },
+  "review": {
+    "status": "ACCEPTED",
+    "gate_record_id": "GR-G3-0001"
+  },
+  "crosswalk": [
+    {
+      "target_scheme": "cwe",
+      "target_id": "CWE-89",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "erin"
+    },
+    {
+      "target_scheme": "asvs-5.0.0",
+      "target_id": "v5.0.0-1.2.4",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "erin"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+# crosswalk.yaml — 分類對照表（示意，crosswalk.schema.json；docs/04 §1.2、§2.3）
+# 規則（驗證程式檢查）[H]：
+#   - official 連結的 source_ref 必須出現在 sources[]，且該來源的 sha256 不能是 null（資料檔已下載）
+#   - reviewed_by 必須是 key-registry.yaml 中的人
+#   - llm-suggested 且 reviewed_by 為 null 的連結不能用於推導（已接受的威脅不能帶這種連結）
+# 這個範例的連結全部是 curated（官方資料檔尚未下載，sources[].sha256 為 null）。
+# CAPEC／ATLAS 只引用 ID，不複製執行流程（docs/04 §1.2）。
+
+crosswalk_version: "2026.09-1"
+owasp_llm_default: "2026"          # docs/04 §2.3；委任設定可改選 2025
+
+sources:
+  - scheme: asvs-5.0.0
+    version: "5.0.0"
+    source_ref: "OWASP ASVS 5.0.0（官方資料檔，尚未下載）"
+    sha256: null
+  - scheme: cwe
+    version: "4.x"
+    source_ref: "MITRE CWE（官方資料檔，尚未下載）"
+    sha256: null
+
+links:
+  - {from_scheme: stride, from_id: E, target_scheme: cwe, target_id: CWE-639, provenance: curated, source_ref: null, reviewed_by: erin}
+  - {from_scheme: stride, from_id: E, target_scheme: asvs-5.0.0, target_id: v5.0.0-8.2.2, provenance: curated, source_ref: null, reviewed_by: erin}
+  - {from_scheme: stride, from_id: E, target_scheme: invariant, target_id: INV-AC-007, provenance: curated, source_ref: null, reviewed_by: frank}
+  - {from_scheme: stride, from_id: T, target_scheme: cwe, target_id: CWE-89, provenance: curated, source_ref: null, reviewed_by: erin}
+  - {from_scheme: stride, from_id: T, target_scheme: asvs-5.0.0, target_id: v5.0.0-1.2.4, provenance: curated, source_ref: null, reviewed_by: erin}
+  - {from_scheme: "owasp-llm@2026", from_id: LLM01, target_scheme: cwe, target_id: CWE-1427, provenance: curated, source_ref: null, reviewed_by: erin}
+  - {from_scheme: "owasp-llm@2026", from_id: LLM03, target_scheme: invariant, target_id: INV-LLM-003, provenance: curated, source_ref: null, reviewed_by: frank}
+  # LLM 提議、尚未人審：不能用於推導（G3 前要轉成 curated 或刪除）
+  - {from_scheme: stride, from_id: I, target_scheme: invariant, target_id: INV-AC-007, provenance: llm-suggested, source_ref: null, reviewed_by: null}

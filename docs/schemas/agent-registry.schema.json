@@ -8,7 +8,15 @@
     "additionalProperties": false,
     "properties": {
       "model": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "models.yaml 的 key；確定性角色為 null"
       },
       "role": {
         "type": "string",
@@ -17,6 +25,7 @@
           "invariant_drafter",
           "reviewer",
           "verifier",
+          "cross_family_verifier",
           "test_generator",
           "test_critic",
           "threat_modeler",
@@ -25,8 +34,13 @@
           "test_designer",
           "test_implementer",
           "result_analyst",
-          "reporter"
-        ]
+          "lane_a_reviewer",
+          "reporter",
+          "aggregator",
+          "scope_proxy",
+          "executor"
+        ],
+        "description": "aggregator、scope_proxy、executor 是確定性元件（model 為 null）；lane_a_reviewer 只用於 Lane A（結果最高 UNCORROBORATED）"
       },
       "facets": {
         "type": "array",
@@ -71,5 +85,6 @@
       "model",
       "role"
     ]
-  }
+  },
+  "description": "代理登錄。LLM 角色的 model 必須在 models.yaml，且在委任設定該資料等級的允許清單中。"
 }

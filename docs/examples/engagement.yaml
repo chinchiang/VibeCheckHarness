@@ -1,19 +1,27 @@
-# engagement.yaml — 委任設定（示意）
+# engagement.yaml — 委任設定（示意，engagement.schema.json）
 # G0a：在 W0 之前驗章。任何把程式碼送往 LLM、或在 Z2 執行程式碼的步驟，都要先通過這份設定的驗證。
 # 資料等級未填時視為 C（fail-closed）。
+# 簽署人只能引用 key-registry.yaml 中的人（D11）；公鑰只從金鑰登錄取得。
+# 簽章：Ed25519 over JCS（RFC 8785），簽署內容＝整份文件去掉 signatures（D11；tools/vchlib/canonical.py）。
+# TEST ONLY：簽章由 tests/fixtures/TEST_ONLY_private_keys/ 的測試金鑰產生（tools/sign_examples.py）。
 
 engagement_id: eng-acme-invoices-2026q4
+version: 1
 purpose: "ACME 發票系統的白箱＋黑箱安全驗證"
-key_registry_ref: "keys://acme-security/approvers"   # out-of-band 金鑰登錄（登錄、撤銷由資安團隊管理）
+issued_at: "2026-09-18T10:00:00+08:00"
+key_registry_ref: "docs/examples/key-registry.yaml"   # 必須等於 toolkit.yaml key_registry.location
+
+run_owner: alice              # 自動觸發（schedule／merge）時的紀錄發起者；必須是登錄中的人
+budget_approver: null         # null＝GB 由 run_owner 核准
 
 code_ownership:
   repositories:
     - url: "https://git.example.com/acme/invoices"
       owner: "ACME Inc."
   attested_by:
-    name: frank
+    person_id: frank
     role: app_owner
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
+    key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
   attestation: true
 
 data_class: C
@@ -22,6 +30,9 @@ allowed_models:            # 每個資料等級允許的模型（對應 models.y
   P: [claude_sonnet, claude_haiku, gpt_flagship, gpt_oss_self, nemotron_self, nemotron_cloud]
   C: [claude_sonnet, claude_haiku, gpt_flagship, gpt_oss_self, nemotron_self]
 
+lane_a_model: claude_haiku    # Lane A 單一家族 diff 審查（結果最高 UNCORROBORATED）
+owasp_llm_version: null       # null＝沿用 toolkit.yaml owasp_llm_default（2026）
+
 telemetry_disabled: true
 retention_days: 30
 
@@ -29,18 +40,34 @@ validity:
   not_before: "2026-09-20T00:00:00+08:00"
   not_after: "2026-10-31T23:59:59+08:00"
 
+budgets:                      # docs/03 §11；費用上限必填
+  run_total: {max_input_tokens: 30000000, max_output_tokens: 3000000, max_cost_usd: 400, max_compute_minutes: 2880}
+  W: {max_input_tokens: 15000000, max_output_tokens: 1500000, max_cost_usd: 150, max_compute_minutes: 1440}
+  B: {max_input_tokens: 5000000, max_output_tokens: 500000, max_cost_usd: 50, max_compute_minutes: 1440}
+
+gate_timeouts_hours:          # 只能比 toolkit.yaml 短
+  claim_run: 168
+  G1: 168
+  G2: 168
+  G3: 168
+  G4: 72
+  G5: 24
+  GB: 24
+
 signatories:
-  - name: frank
+  - person_id: frank
     role: app_owner
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
-  - name: carol
+    key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
+  - person_id: carol
     role: management
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
+    key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
 
 signatures:
-  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
+  - signer: frank
+    key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    detached_signature_ref: "engagement.yaml.frank.sig"
-  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
+    value: "8i3dLbHTjZelaz7eRkURvuFuDI/9Rdm1xCRLe7m5VxeyECIjm1nk3MVrflXWUXWr5/ie2ufCnXp2BnuzBc7ZCQ=="
+  - signer: carol
+    key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    detached_signature_ref: "engagement.yaml.carol.sig"
+    value: "TdSbvDnsekDxCQK5EzWXlDnmRcxF8PbAoiVN9D/5lp8hKQjnHuxTADeA9gVTCv2GEPg0qkqUNuQNC2DCF//bDA=="

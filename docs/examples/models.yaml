@@ -13,6 +13,7 @@ claude_sonnet:
   structured: claude_subset    # 無數值/長度限制、minItems 只能 0/1（[V] E:providers-25）
   data_classes: [P, C]         # C 級前提：組織層級保留/ZDR 設定已宣告並比對
   purpose: [production, evaluation]
+  earliest_retirement: null
   fallback: [claude_haiku]
   api: messages
 
@@ -24,6 +25,7 @@ claude_haiku:
   structured: claude_subset
   data_classes: [P, C]
   purpose: [production, evaluation]
+  earliest_retirement: "2026-10-15"        # 最早退役日 [V][E:providers-49]；run 期間會到期 → 驗證警告
   fallback: []
   api: messages
 
@@ -35,6 +37,7 @@ gpt_flagship:
   structured: openai_strict    # additionalProperties:false、全部欄位 required（[V] E:providers-32）
   data_classes: [P, C]
   purpose: [production, evaluation]
+  earliest_retirement: null
   fallback: []
   api: responses               # 部分 GPT-6 模型的工具呼叫需用 Responses API（[P] E:providers-31）
   store: false                 # C 級強制 store=false（[V] E:providers-34）
@@ -48,6 +51,7 @@ gpt_oss_self:
   structured: vllm_json_schema
   data_classes: [P, C]
   purpose: [production, evaluation]
+  earliest_retirement: null
   fallback: []
   api: chat_completions
 
@@ -60,6 +64,7 @@ nemotron_self:
   structured: vllm_json_schema # 注意：LiteLLM hosted_vllm 會移除 tools 的 strict（[C] E:providers-22）→ 用戶端 Pydantic 再驗證
   data_classes: [P, C]
   purpose: [production, evaluation]
+  earliest_retirement: null
   fallback: []
   api: chat_completions
 
@@ -71,6 +76,7 @@ nemotron_cloud:
   structured: unconfirmed      # 託管端點的 json_schema 支援未確認
   data_classes: [P]            # NVIDIA API Trial Terms：禁止機密資訊（[V] E:providers-10）
   purpose: [evaluation, prototyping]   # 禁止正式用途；不當成常駐預設驗證者
+  earliest_retirement: null
   fallback: []
   api: chat_completions
   notes: "只用於評估與原型，且只限公開或合成程式碼"

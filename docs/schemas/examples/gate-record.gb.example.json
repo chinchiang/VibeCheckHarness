@@ -1,0 +1,55 @@
+{
+  "gate_record_id": "GR-GB-0001",
+  "gate": "GB",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "budget",
+    "sha256": "sha256:ac09280bea60913c1afa31a81a5e100338fb98c0f9e4e2c7dbc0d9fb47821b94"
+  },
+  "job_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "alice",
+      "role": "test_lead",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "W",
+      "item_sha256": null,
+      "decision": "accept",
+      "risk_override": null,
+      "note": "W 階段輸入 token 上限 15M → 20M"
+    }
+  ],
+  "gb": {
+    "phase": "W",
+    "choice": "extend",
+    "new_caps": {
+      "max_input_tokens": 20000000,
+      "max_output_tokens": 1500000,
+      "max_cost_usd": 150,
+      "max_compute_minutes": 1440
+    },
+    "tradeoffs": [
+      "延長：K-011 的 W3 第二輪與 W5 報告可完成",
+      "停止 W：直接進 B 階段，K-011 只有一票"
+    ]
+  },
+  "verification": null,
+  "opened_at": "2026-09-26T20:00:00+08:00",
+  "timestamp": "2026-09-27T09:00:00+08:00",
+  "signatures": [
+    {
+      "signer": "alice",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+      "alg": "ed25519",
+      "value": "IQg40uiYLtwN58VdCJCXKXRzNguziSO2wfxvYJOtmigrZalLvdMHtyoDkvxcb1f7Omd6w+jmRHjlvnQlO8EOBw=="
+    }
+  ]
+}

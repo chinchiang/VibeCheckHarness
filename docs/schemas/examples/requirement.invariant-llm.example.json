@@ -1,0 +1,16 @@
+{
+  "requirement_id": "INV-LLM-003",
+  "source": "invariant",
+  "ref": "INV-LLM-003",
+  "level": null,
+  "text": "客服 agent 的 refund 工具必須經人工確認，且只能針對目前登入使用者自己的訂單。",
+  "applies_to_features": [
+    "support_agent",
+    "refund_tool"
+  ],
+  "signoff": {
+    "gate": "G1",
+    "gate_record_id": "GR-G1-0001",
+    "status": "ACCEPTED"
+  }
+}

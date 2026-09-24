@@ -1,0 +1,129 @@
+{
+  "run_id": "run-2026-09-23-001",
+  "repo_commit": "4f2a9c1",
+  "generated_at": "2026-09-23T10:10:00+08:00",
+  "files": [
+    {
+      "path": "routes/invoices.ts",
+      "sha256": "sha256:ea7f809b40b8c2efe8c9089453e68154e2517fe0f5dc1b434b9f514763833e4a",
+      "language": "typescript",
+      "bytes": 4210,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "db/schema.prisma",
+      "sha256": "sha256:85689dc06cecfa622eb36c0b0e565a845102558522d7457b4f5ca99e850342dd",
+      "language": "prisma",
+      "bytes": 2380,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "src/support/agent.ts",
+      "sha256": "sha256:9f9bd26a811eb095a041053694a17adcfc7187f5f4abf9507aa0433a6f647c98",
+      "language": "typescript",
+      "bytes": 5120,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "config/default.ts",
+      "sha256": "sha256:c9d14d6a1a3614befae324a01fa006c9769ff0568428b1cc5cd66c791812ef79",
+      "language": "typescript",
+      "bytes": 900,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "test/fixtures/users.json",
+      "sha256": "sha256:a4588d1bb97f774a6ffe93793f8a6d29f52c193516b9e23d62e20a2968984e57",
+      "language": "json",
+      "bytes": 600,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "package.json",
+      "sha256": "sha256:deca6a01af8fc6a7ccd9c593f64c72561b63f5e30812dcca619d30575985be6b",
+      "language": "json",
+      "bytes": 1400,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": ".env.staging",
+      "sha256": "sha256:2b3ba69f36e5ea5ac0c6f57887faebed6504536ad03144d31cc42590864e0d9a",
+      "language": null,
+      "bytes": 300,
+      "excluded": true,
+      "exclude_reason": "path_blacklist"
+    },
+    {
+      "path": "playwright/.auth/tenantA.json",
+      "sha256": "sha256:9b891cf64080d6740f75008487149186c26dbf8c962c28399ece7a95bed57d79",
+      "language": "json",
+      "bytes": 800,
+      "excluded": true,
+      "exclude_reason": "path_blacklist"
+    }
+  ],
+  "manifests": [
+    {
+      "path": "package.json",
+      "ecosystem": "npm"
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/invoices/{id}",
+      "file": "routes/invoices.ts",
+      "line": 40
+    },
+    {
+      "method": "PUT",
+      "path": "/api/invoices/{id}",
+      "file": "routes/invoices.ts",
+      "line": 61
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/invoices/{id}",
+      "file": "routes/invoices.ts",
+      "line": 80
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices",
+      "file": "routes/invoices.ts",
+      "line": 20
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions",
+      "file": "src/support/agent.ts",
+      "line": 20
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session}/messages",
+      "file": "src/support/agent.ts",
+      "line": 31
+    }
+  ],
+  "llm_integrations": [
+    {
+      "file": "src/support/agent.ts",
+      "line": 40,
+      "kind": "llm_call"
+    },
+    {
+      "file": "src/support/agent.ts",
+      "line": 57,
+      "kind": "tool_definition"
+    }
+  ],
+  "redaction_map_ref": "sha256:9024b649e30bba09bb32183c48bbaea1c3e119b8e0c47a28cfea99fb581586ad",
+  "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f"
+}

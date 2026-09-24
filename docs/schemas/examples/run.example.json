@@ -1,0 +1,323 @@
+{
+  "run_id": "run-2026-09-23-001",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_kind": "initial",
+  "parent_run_id": null,
+  "reuse": [],
+  "trigger": "manual",
+  "run_owner": "alice",
+  "initiators": [
+    "alice",
+    "erin"
+  ],
+  "status": "COMPLETED",
+  "status_reason": null,
+  "current_node": null,
+  "resume_node": null,
+  "resume_deadline": null,
+  "data_class": "C",
+  "toolkit_config_ref": "sha256:0948a01e5864ec7f289f776ec38cfae57f8e87e652ef326c5f86ea1b69a81b48",
+  "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
+  "engagement_ref": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+  "roe_ref": "sha256:55651ed81d98bcd693d7d6a36495155f1448a7dbff62b41dbb1656ac56eb9b5c",
+  "repo_commit": "4f2a9c1",
+  "owasp_llm_version": "2026",
+  "calibration_version": 3,
+  "inventory_ref": "sha256:6c95d28a3c0f63e9da547aa8fe26cabef44b2f639df18b1131d486eae2222f06",
+  "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f",
+  "redaction_map_ref": "sha256:9024b649e30bba09bb32183c48bbaea1c3e119b8e0c47a28cfea99fb581586ad",
+  "invariants_ref": "sha256:6c66cd1d11dec8793920aa80a50720fa284da19cb8c17c08af4546ac96ad065d",
+  "invariants_changed": false,
+  "g1_round": 1,
+  "w1_sarif_ref": "sha256:ec3d31408b0d361ed7d343838dc9cba76123659054384e89bccf6962b50f92a1",
+  "deps_check_ref": "sha256:8829c3257f45156f7f94e865aa84d4450302a9aab4246ea20988c42108b2b976",
+  "slice_refs": [
+    "sha256:29c34c37a9617bceb0d741006798fb94dbf97a181c95ca73a101fb8bc025a09e"
+  ],
+  "plan_ids": [
+    "plan-2026-09-23-001",
+    "plan-2026-10-06-cmd5"
+  ],
+  "findings": [
+    "F-017",
+    "F-021",
+    "F-044"
+  ],
+  "cluster_ids": [
+    "K-005",
+    "K-011"
+  ],
+  "verdicts": [
+    "V-005-1",
+    "V-011-1",
+    "V-005-2",
+    "V-011-2"
+  ],
+  "missing_votes": [
+    {
+      "cluster_id": "K-005",
+      "agent_id": "ver_1",
+      "reason": "rate_limited"
+    }
+  ],
+  "diversity_flags": [],
+  "cmd2_rounds": 1,
+  "g2_queue": [
+    "K-011"
+  ],
+  "w4_iteration": 0,
+  "w4_results": [],
+  "whitebox_report_ref": "sha256:f607afc98514f0341c68630bc9a6208f6c0087d89eeae607c1fa253d3bb45a4e",
+  "w_sarif_ref": "sha256:82f4a3c14165fe508e60abeac07c0518a59c57b027e20486c6eb48d28f703ce7",
+  "dfd_ref": "sha256:44fef9918cb3b5879a7f0e5a696f3764b1c09e8355c16564d3e34b93cd8b7425",
+  "seed_threats_ref": "sha256:1800df843469bca131e8b435f8c72139f7f550735d6855fc2c75ca748c661324",
+  "lane_a_advisories": [],
+  "disputed_after_g2": [],
+  "egress_allowlist_ref": "sha256:33fb855d248a08262ce5f02dbdd80c717e6ad7913f551c522545533a9fbeeddb",
+  "ownership_results": [
+    {
+      "target_id": "tgt-staging-api",
+      "method": "dns_txt",
+      "ok": true,
+      "checked_at": "2026-10-01T09:30:00+08:00",
+      "batch_id": "own-2026-10-01-1",
+      "signed_result_ref": "sha256:22e6399178522507134530b6da13fcff195f6a65cfb4973c1c88968bae841521"
+    },
+    {
+      "target_id": "tgt-staging-app",
+      "method": "well_known_path",
+      "ok": true,
+      "checked_at": "2026-10-01T09:30:00+08:00",
+      "batch_id": "own-2026-10-01-1",
+      "signed_result_ref": "sha256:09f71321ae9f341a484d4ae241f002d48babd0dae265ea44f1b610b30e64c130"
+    },
+    {
+      "target_id": "tgt-canary",
+      "method": "dns_txt",
+      "ok": true,
+      "checked_at": "2026-10-01T09:30:00+08:00",
+      "batch_id": "own-2026-10-01-1",
+      "signed_result_ref": "sha256:65fc31e7792457fff205fe0987cd0634e6ed854c666a4911fd4b8e175652aa02"
+    },
+    {
+      "target_id": "tgt-staging-db",
+      "method": "dns_txt",
+      "ok": true,
+      "checked_at": "2026-10-01T09:30:00+08:00",
+      "batch_id": "own-2026-10-01-1",
+      "signed_result_ref": "sha256:dd6b69e37959711407e107c89b7ec007b8dd986f13371014397125af6bb88dc4"
+    }
+  ],
+  "b1_external_ref": "sha256:43a24cedb29be051efc779897098ce121dfc08a995d148359dfe4c5b4009f3e4",
+  "b1_merged_ref": "sha256:44fef9918cb3b5879a7f0e5a696f3764b1c09e8355c16564d3e34b93cd8b7425",
+  "b1_diff_ref": "sha256:d4ef4e92e2b26dccc1155986118d5a8fe98ca6bde2a561f2c275dfb536ba9123",
+  "taxonomy_plan_id": "plan-2026-10-01-cmd3",
+  "threat_model_ref": "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a",
+  "b1_diff_dispositions_ref": "sha256:5647a710ee3efacde3402733bd5692419bcf526667623df8c2954368d00087f4",
+  "g3_round": 1,
+  "testplan_ref": "sha256:c0134516b8bd5ab24aef2d2341e06d6a8cd2d73568d6b3b9f605e3f2a195da6a",
+  "testcase_ids": [
+    "TC-012-01",
+    "TC-027-01",
+    "TC-031-01"
+  ],
+  "artifact_hashes": {
+    "TC-012-01": "sha256:ea0109ae367634ff9490542045b037476ef7a71f71221d8842087ffef3fec804",
+    "TC-027-01": "sha256:de5218d8d039830d3c0979177636e6fd0293a8ed80f6f1c5593eaa03d9a2cd4d",
+    "TC-031-01": "sha256:6a71c2daf253222c0201ed004fda6262e08535dcaab0c6a22a429567cfae3346"
+  },
+  "g4_round": 1,
+  "approved_testcase_ids": [
+    "TC-012-01",
+    "TC-027-01",
+    "TC-031-01"
+  ],
+  "restore_drill_ref": "sha256:9848742001e340a87092079c88610fce9ab2f8637850c8204e67db461d047b40",
+  "jobs": {
+    "job-idor-001": {
+      "job_id": "job-idor-001",
+      "testcase_id": "TC-012-01",
+      "safety_class": "S1",
+      "target_id": "tgt-staging-api",
+      "status": "EXECUTED",
+      "g5_record_id": null,
+      "snapshot_ref": null,
+      "restore_verified": false,
+      "result_ref": "sha256:77ab1e9a23f858db33e9eb66445bc43a32e6b988e255f20e4a17a36e6ba6a053",
+      "skip_reason": null
+    },
+    "job-llm-001": {
+      "job_id": "job-llm-001",
+      "testcase_id": "TC-031-01",
+      "safety_class": "S1",
+      "target_id": "tgt-staging-app",
+      "status": "EXECUTED",
+      "g5_record_id": null,
+      "snapshot_ref": null,
+      "restore_verified": false,
+      "result_ref": "sha256:229e7b7fd188c43618f64a36f8c771092dc79c0050aeae50df06973a7775339e",
+      "skip_reason": null
+    },
+    "job-zap-active-001": {
+      "job_id": "job-zap-active-001",
+      "testcase_id": "TC-027-01",
+      "safety_class": "S2",
+      "target_id": "tgt-staging-api",
+      "status": "RESTORED",
+      "g5_record_id": "GR-G5-0001",
+      "snapshot_ref": "snap-2026-10-05-01",
+      "restore_verified": true,
+      "result_ref": "sha256:91fe3e662a41c200d3674b06ec10c3a67f561688629d882da0cc0afd7bd5c87e",
+      "skip_reason": null
+    }
+  },
+  "executed_jobs": [
+    "job-idor-001",
+    "job-llm-001",
+    "job-zap-active-001"
+  ],
+  "stop_events": [],
+  "kill_switch": false,
+  "testresults": [
+    "sha256:77ab1e9a23f858db33e9eb66445bc43a32e6b988e255f20e4a17a36e6ba6a053",
+    "sha256:229e7b7fd188c43618f64a36f8c771092dc79c0050aeae50df06973a7775339e",
+    "sha256:91fe3e662a41c200d3674b06ec10c3a67f561688629d882da0cc0afd7bd5c87e"
+  ],
+  "manual_review_clusters": [],
+  "followup_drafts": [
+    "FD-001"
+  ],
+  "report_manifest_ref": "sha256:d4b9e1a4620be38174f324219f006abfe1051f9aae15122bef7acdc03f5b7f71",
+  "gate_records": [
+    {
+      "gate": "G0a",
+      "gate_record_id": "GR-G0a-0001",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+      "job_id": null,
+      "opened_at": "2026-09-23T10:00:00+08:00",
+      "decided_at": "2026-09-23T10:01:00+08:00"
+    },
+    {
+      "gate": "G1",
+      "gate_record_id": "GR-G1-0001",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:79018547b2920a6d1db95caf530fecb898973049403d3b4193651f96fc0870cc",
+      "job_id": null,
+      "opened_at": "2026-09-23T15:00:00+08:00",
+      "decided_at": "2026-09-24T11:00:00+08:00"
+    },
+    {
+      "gate": "G2",
+      "gate_record_id": "GR-G2-0001",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:98e0ffaa9eceaa05c46525125a6a8388d738a6f7daabf28e51d249fd4de82520",
+      "job_id": null,
+      "opened_at": "2026-09-25T12:00:00+08:00",
+      "decided_at": "2026-09-28T10:00:00+08:00"
+    },
+    {
+      "gate": "GB",
+      "gate_record_id": "GR-GB-0001",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:ac09280bea60913c1afa31a81a5e100338fb98c0f9e4e2c7dbc0d9fb47821b94",
+      "job_id": null,
+      "opened_at": "2026-09-26T20:00:00+08:00",
+      "decided_at": "2026-09-27T09:00:00+08:00"
+    },
+    {
+      "gate": "G0b",
+      "gate_record_id": "GR-G0b-0001",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:55651ed81d98bcd693d7d6a36495155f1448a7dbff62b41dbb1656ac56eb9b5c",
+      "job_id": null,
+      "opened_at": "2026-10-01T08:59:00+08:00",
+      "decided_at": "2026-10-01T09:00:00+08:00"
+    },
+    {
+      "gate": "G3",
+      "gate_record_id": "GR-G3-0001",
+      "outcome": "PARTIALLY_APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a",
+      "job_id": null,
+      "opened_at": "2026-10-01T18:00:00+08:00",
+      "decided_at": "2026-10-02T10:15:00+08:00"
+    },
+    {
+      "gate": "G4",
+      "gate_record_id": "GR-G4-0001",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:c0134516b8bd5ab24aef2d2341e06d6a8cd2d73568d6b3b9f605e3f2a195da6a",
+      "job_id": null,
+      "opened_at": "2026-10-02T12:00:00+08:00",
+      "decided_at": "2026-10-03T11:00:00+08:00"
+    },
+    {
+      "gate": "G5",
+      "gate_record_id": "GR-G5-0001",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:0ea87f705fc99cb785ad2c06910b79ed87bf760d54efefd94c18f79116a99260",
+      "job_id": "job-zap-active-001",
+      "opened_at": "2026-10-05T21:00:00+08:00",
+      "decided_at": "2026-10-05T21:50:00+08:00"
+    }
+  ],
+  "budgets": {
+    "run_total": {
+      "max_input_tokens": 30000000,
+      "max_output_tokens": 3000000,
+      "max_cost_usd": 400,
+      "max_compute_minutes": 2880,
+      "spent_input_tokens": 18400000,
+      "spent_output_tokens": 910000,
+      "spent_cost_usd": 212.4,
+      "compute_minutes": 1310
+    },
+    "W": {
+      "max_input_tokens": 20000000,
+      "max_output_tokens": 1500000,
+      "max_cost_usd": 150,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 16900000,
+      "spent_output_tokens": 820000,
+      "spent_cost_usd": 131.2,
+      "compute_minutes": 760
+    },
+    "B": {
+      "max_input_tokens": 5000000,
+      "max_output_tokens": 500000,
+      "max_cost_usd": 50,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 1500000,
+      "spent_output_tokens": 90000,
+      "spent_cost_usd": 21.2,
+      "compute_minutes": 550
+    },
+    "upstream_llm_spend_usd": 3.1,
+    "relay_spend_usd": 0,
+    "gb_return_node": null
+  },
+  "gaps": [],
+  "audit_anchors": [
+    "sha256:5b0250a2f4fd778dd653630af7b005e1ca495e6f57b9bb585dcc0cf6475268b6",
+    "sha256:aedf147967c3bc562422dce0e4aa7c90312bf15b5c9e80c89a616fa5662b70b0",
+    "sha256:4c89f0ac945331b7b0ab8ef452cd74a9093aa086beaecc41e0b6feb76ba3a70c",
+    "sha256:9e13b9242e07a5688f57527a27918a16408ae7fc2d8a95e854fba82a699af970",
+    "sha256:45eae755927127cd4aaa4d88704cbce632220f0a1a91ade96140a67d978990ee",
+    "sha256:7a10c9e6227c239ec51d6c871a3e9abb7bd1840e2847086447ec740b887d2c5e",
+    "sha256:2328ee2b859089cabbc3c200a6984a458d43a05d7465ec89c047e9e72ed07602",
+    "sha256:c0b94d065b4510d19174fb52092dd089fb88e1d2a4486fab99f7d7afdb65b623",
+    "sha256:87d00a9adbe5a38520814b49ade5865487539aeff6fa2da967c9a514cf3e7432",
+    "sha256:d83f742317e282a95aef13a1d0ed045484510495d40b1973560f32efe7ae4073",
+    "sha256:48cc12445183ed753a40d1abbef696870c481f07d462403539b51cc15fe56e48"
+  ],
+  "errors": []
+}

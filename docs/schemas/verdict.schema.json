@@ -11,6 +11,24 @@
       "type": "string",
       "pattern": "^K-[0-9]{3,}$"
     },
+    "readjudicated_by": {
+      "type": "string",
+      "enum": [
+        "W3_adjudicate",
+        "W4_readjudicate",
+        "B5_readjudicate"
+      ]
+    },
+    "supersedes_verdict_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "votes": {
       "type": "array",
       "items": {
@@ -60,6 +78,15 @@
           "valid": {
             "type": "boolean",
             "description": "投票者家族與血統都不在叢集中，且理由引用了通過片段比對的位置或工具證據"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "description": "§4.3 的 w(m, b)；0＝接近零或未校準"
+          },
+          "weighted_valid": {
+            "type": "boolean",
+            "description": "valid ∧ weight > 0；只有這些票計入 S"
           }
         },
         "required": [
@@ -72,7 +99,9 @@
           "fallback_used",
           "anonymized",
           "order_randomized",
-          "valid"
+          "valid",
+          "weight",
+          "weighted_valid"
         ]
       }
     },
@@ -185,8 +214,130 @@
         }
       ]
     },
+    "test_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "E_proof",
+                "E_fail_u",
+                "E_pass",
+                "E_inc"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "最強的證據類別；null＝沒有測試結果"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "result_ref": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "class": {
+                "type": "string",
+                "enum": [
+                  "E_proof",
+                  "E_fail_u",
+                  "E_pass",
+                  "E_inc"
+                ]
+              },
+              "positive_control": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "result_ref",
+              "class",
+              "positive_control",
+              "reason"
+            ]
+          }
+        }
+      },
+      "required": [
+        "class",
+        "results"
+      ]
+    },
     "diversity_degraded": {
       "type": "boolean"
+    },
+    "no_eligible_verifier": {
+      "type": "boolean",
+      "description": "沒有任何家族與血統都不在叢集中的驗證者"
+    },
+    "calibration_version": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "w 與 θ 所用的校準版本"
+    },
+    "theta_confirm": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "快照；null＝停用（+∞）"
+    },
+    "theta_reject": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "快照；null＝停用"
+    },
+    "score": {
+      "type": "number",
+      "description": "S＝Σ w·stance（SUPPORT＝+1、REFUTE＝−1，只計 weighted_valid）"
+    },
+    "g2_decision_ref": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^GR-[0-9A-Za-z-]+$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "G2 逐項決定所在的 GateRecord"
     },
     "status": {
       "type": "string",
@@ -205,47 +356,97 @@
         {
           "type": "string",
           "enum": [
-            "LIKELY"
+            "LIKELY",
+            "UNCORROBORATED"
           ]
         },
         {
           "type": "null"
         }
-      ]
+      ],
+      "description": "LIKELY：R8；UNCORROBORATED：Lane A（R9）"
+    },
+    "advisory": {
+      "type": "boolean",
+      "description": "Lane A 的參考性結果（D8）"
+    },
+    "annotations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "test_not_reproduced",
+              "test_inconclusive",
+              "conflicting_test_results",
+              "g3_rejected",
+              "post_g2_conflict",
+              "w4_became_disputed"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "g3_rejected 必填"
+          }
+        },
+        "required": [
+          "kind",
+          "reason"
+        ]
+      }
     },
     "decided_by": {
       "const": "aggregator"
     },
     "rule_version": {
-      "type": "string"
-    },
-    "no_eligible_verifier": {
-      "type": "boolean",
-      "description": "沒有任何家族與血統都不在叢集中的驗證者"
+      "type": "string",
+      "description": "docs/05 版本，例如 05-v0.2"
     },
     "rule_trace": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "pattern": "^R([0-9]|1[0-3])(:.*)?$"
       },
       "minItems": 1,
-      "description": "依序觸發的裁決規則，例如 R2、R6"
+      "description": "依序觸發的規則（R0–R13），可附說明，例如 \"R7 row 10\""
     }
   },
   "required": [
     "verdict_id",
     "cluster_id",
+    "readjudicated_by",
+    "supersedes_verdict_id",
     "votes",
     "missing_votes",
     "tool_corroboration",
     "executable_proof",
+    "test_evidence",
     "diversity_degraded",
+    "no_eligible_verifier",
+    "calibration_version",
+    "theta_confirm",
+    "theta_reject",
+    "score",
+    "g2_decision_ref",
     "status",
     "status_cap",
+    "advisory",
+    "annotations",
     "decided_by",
     "rule_version",
-    "no_eligible_verifier",
     "rule_trace"
   ],
-  "title": "Verdict（裁決）"
+  "title": "Verdict（裁決）",
+  "description": "Aggregator 依 docs/05 §4.2 有序規則（R0–R13）與 §4.3 校準權重決定。每一版裁決都保留（append-only）：重新裁決產生新的 verdict_id，以 supersedes_verdict_id 指向前一版。"
 }

@@ -3,51 +3,72 @@
   "gate": "G3",
   "engagement_id": "eng-acme-invoices-2026q4",
   "run_id": "run-2026-09-23-001",
+  "round": 1,
   "artifact": {
     "kind": "threat_model",
-    "sha256": "sha256:09202c50b6cb14872b21d8173623747a0fdeab2a37e5a9e96eb24ace3e45da8d"
+    "sha256": "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a"
   },
+  "job_id": null,
   "initiator": "alice",
   "approvers": [
     {
-      "name": "erin",
+      "person_id": "erin",
       "role": "security_reviewer",
-      "key_fingerprint": "ed25519:SHA256:EXAMPLEONLY5"
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84"
     },
     {
-      "name": "frank",
+      "person_id": "frank",
       "role": "app_owner",
-      "key_fingerprint": "ed25519:SHA256:EXAMPLEONLY6"
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     }
   ],
+  "outcome": "PARTIALLY_APPROVED",
   "decisions": [
     {
       "item_id": "T-012",
+      "item_sha256": "sha256:99bee658d90475ebebdce30734529840e0f35682d4ef6789b5fc9cd6c279c836",
       "decision": "accept",
+      "risk_override": null,
       "note": null
     },
     {
       "item_id": "T-019",
+      "item_sha256": "sha256:2bc54fbfc608d4aa7a1460e419ed65db3f27cb6fb6fd6585d9081b2704c60cdc",
       "decision": "reject",
+      "risk_override": null,
       "note": "與 T-012 重複"
     },
     {
-      "item_id": "T-031",
+      "item_id": "T-027",
+      "item_sha256": "sha256:0010b46f3b36bf8123de18fda95a6a1e8355e455229b69efd17a2e875927b9a7",
       "decision": "accept",
+      "risk_override": null,
+      "note": null
+    },
+    {
+      "item_id": "T-031",
+      "item_sha256": "sha256:4a6672300e1be94cb9f539ff9884849d7b5143f191b565c1f127e8031bdb1ad4",
+      "decision": "accept",
+      "risk_override": null,
       "note": null
     }
   ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-01T18:00:00+08:00",
   "timestamp": "2026-10-02T10:15:00+08:00",
   "signatures": [
     {
-      "key_fingerprint": "ed25519:SHA256:EXAMPLEONLY5",
+      "signer": "erin",
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "EXAMPLE-SIGNATURE-NOT-REAL"
+      "value": "IQdqLXi5oFnkuQHdz5f6sHyPS0a9/cLTEFu47RU0D6cl2EvYddjloN8rJPO6SEEkNyyKSlRiq09UDGvaofRNBQ=="
     },
     {
-      "key_fingerprint": "ed25519:SHA256:EXAMPLEONLY6",
+      "signer": "frank",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "EXAMPLE-SIGNATURE-NOT-REAL"
+      "value": "VuHS02HxN/5pAnB6BrelfT80+3wjXry1piwCUXCkYFUd2bU5jveyByOGPKgsE7L+/WG+NVtj4pAgugegAYbWCg=="
     }
   ]
 }

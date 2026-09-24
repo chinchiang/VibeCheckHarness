@@ -93,12 +93,38 @@
             "type": "string"
           },
           "minItems": 1
+        },
+        "oracle_query_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^Q-[A-Za-z0-9_-]+$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "count-only DB oracle（docs/03 §7.6 oracle_count）：seed manifest oracle_queries 的 ID"
+        },
+        "oracle_query_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "查詢本體 hash（G4 綁定）；必須等於 seed manifest 中的 sql_sha256"
         }
       },
       "required": [
         "type",
         "conditions",
-        "requirement_refs"
+        "requirement_refs",
+        "oracle_query_id",
+        "oracle_query_sha256"
       ]
     },
     "tool_binding": {
@@ -115,19 +141,8 @@
         },
         "adapter": {
           "type": "string",
-          "enum": [
-            "schemathesis_check",
-            "zap_passive",
-            "zap_active",
-            "nuclei_signed",
-            "pytest_playwright_api",
-            "playwright_ui",
-            "schemathesis_hook",
-            "pyrit",
-            "promptfoo",
-            "k6_threshold",
-            "manual"
-          ]
+          "pattern": "^([a-z][a-z0-9_]*:[a-z][a-z0-9_]*|manual)$",
+          "description": "D13 tool:mode（必須在 tools.yaml 登錄）或 manual；v0.1 的底線寫法（zap_passive 等）已廢止"
         },
         "params": {
           "type": "object",
@@ -218,7 +233,7 @@
           },
           "path": {
             "type": "string",
-            "description": "路徑樣板；DELETE 只能對 seed manifest 中的 ID"
+            "description": "路徑樣板（以 / 開頭、已正規化）；變數段用 {name}；DELETE 的每個變數段都必須是 {seed:key}"
           }
         },
         "required": [
@@ -255,11 +270,19 @@
           "items": {
             "type": "string"
           }
+        },
+        "db_tables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "oracle 會讀的表；必須 ⊆ ROE db_access.oracle_tables"
         }
       },
       "required": [
         "seed_data",
-        "roles"
+        "roles",
+        "db_tables"
       ]
     },
     "trials": {
@@ -284,13 +307,55 @@
               "seed"
             ]
           }
+        },
+        "fail_k_min": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "k ≥ fail_k_min 判 FAIL；預設 1"
+        },
+        "replay_n": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "FAIL 後重播次數；預設 20"
+        },
+        "multi_turn_max_turns": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "multi_turn 時的輪數上限（≤ ROE relay.max_turns）"
         }
       },
       "required": [
         "n",
         "pass_rule",
-        "record"
-      ]
+        "record",
+        "fail_k_min",
+        "replay_n",
+        "multi_turn_max_turns"
+      ],
+      "description": "機率性測試（LLM 功能）；確定性測試 n＝1。pass_rule 預設「k == 0（k ≥ 1 即 FAIL）」（docs/04 §4.4）"
+    },
+    "multi_turn": {
+      "type": "boolean",
+      "description": "多輪 LLM 功能測試；true 時經 Z3→Z1 relay（docs/03 §7.5），ROE relay 必須非 null"
+    },
+    "strategy_template_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "multi_turn 的攻擊策略範本 hash（G4 綁定）；multi_turn false 時為 null"
     },
     "artifact_sha256": {
       "anyOf": [
@@ -322,7 +387,10 @@
     "seed_manifest_ref",
     "data_needed",
     "trials",
+    "multi_turn",
+    "strategy_template_sha256",
     "artifact_sha256"
   ],
-  "title": "TestCase（測試案例）"
+  "title": "TestCase（測試案例）",
+  "description": "B3 產出（LLM 直接輸出，保持自足以便降級成跨廠商子集）。safety_class_computed 由程式碼依 docs/04 §5 計算，LLM 的 safety_class_proposed 只當下限。工具與模式用 D13 的 tool:mode（tools.yaml）。"
 }

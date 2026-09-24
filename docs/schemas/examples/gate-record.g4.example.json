@@ -1,0 +1,56 @@
+{
+  "gate_record_id": "GR-G4-0001",
+  "gate": "G4",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "test_plan",
+    "sha256": "sha256:c0134516b8bd5ab24aef2d2341e06d6a8cd2d73568d6b3b9f605e3f2a195da6a"
+  },
+  "job_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "erin",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "TC-012-01",
+      "item_sha256": "sha256:ea0109ae367634ff9490542045b037476ef7a71f71221d8842087ffef3fec804",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null
+    },
+    {
+      "item_id": "TC-027-01",
+      "item_sha256": "sha256:de5218d8d039830d3c0979177636e6fd0293a8ed80f6f1c5593eaa03d9a2cd4d",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "S2：每個 job 另需 G5"
+    },
+    {
+      "item_id": "TC-031-01",
+      "item_sha256": "sha256:6a71c2daf253222c0201ed004fda6262e08535dcaab0c6a22a429567cfae3346",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-02T12:00:00+08:00",
+  "timestamp": "2026-10-03T11:00:00+08:00",
+  "signatures": [
+    {
+      "signer": "erin",
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
+      "alg": "ed25519",
+      "value": "+sAbfEHY4lZZr6dvM2uDEHKuNhTogGml5LAdBUjzWyyOnccc+uMa/jrrmr0voB8BtBIWj0E+VF8ObMq9B1pBBQ=="
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "slice_id": "sha256:29c34c37a9617bceb0d741006798fb94dbf97a181c95ca73a101fb8bc025a09e",
+  "run_id": "run-2026-09-23-001",
+  "files": [
+    {
+      "path": "routes/invoices.ts",
+      "sha256": "sha256:ea7f809b40b8c2efe8c9089453e68154e2517fe0f5dc1b434b9f514763833e4a",
+      "line_start": 1,
+      "line_end": 120
+    },
+    {
+      "path": "db/schema.prisma",
+      "sha256": "sha256:85689dc06cecfa622eb36c0b0e565a845102558522d7457b4f5ca99e850342dd",
+      "line_start": 1,
+      "line_end": 80
+    },
+    {
+      "path": "src/support/agent.ts",
+      "sha256": "sha256:9f9bd26a811eb095a041053694a17adcfc7187f5f4abf9507aa0433a6f647c98",
+      "line_start": 1,
+      "line_end": 140
+    }
+  ],
+  "entry_points": [
+    "GET /api/invoices/{id}",
+    "PUT /api/invoices/{id}",
+    "POST /api/chat/sessions/{session}/messages"
+  ],
+  "facets": [
+    "authz",
+    "data_access",
+    "llm_integration"
+  ],
+  "token_count": 18450,
+  "tokenizer": "o200k_base（估算；各模型以自身 tokenizer 重算）",
+  "redacted": true,
+  "excluded_models": [
+    {
+      "model_key": "nemotron_cloud",
+      "reason": "data_class"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "verdict_id": "V-101-1",
+  "cluster_id": "K-101",
+  "readjudicated_by": "W3_adjudicate",
+  "supersedes_verdict_id": null,
+  "votes": [],
+  "missing_votes": [],
+  "tool_corroboration": [],
+  "executable_proof": null,
+  "test_evidence": {
+    "class": null,
+    "results": []
+  },
+  "diversity_degraded": false,
+  "no_eligible_verifier": false,
+  "calibration_version": 3,
+  "theta_confirm": 1.2,
+  "theta_reject": null,
+  "score": 0,
+  "g2_decision_ref": null,
+  "status": "UNCORROBORATED",
+  "status_cap": "UNCORROBORATED",
+  "advisory": true,
+  "annotations": [],
+  "decided_by": "aggregator",
+  "rule_version": "05-v0.2",
+  "rule_trace": [
+    "R9:lane_a->cap UNCORROBORATED,advisory"
+  ]
+}

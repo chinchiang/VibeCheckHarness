@@ -1,0 +1,15 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"seed-threats.schema.json","title":"Seed Threats（種子威脅清單）","description":"W5 由白箱叢集產生（docs/02 §4 W5、docs/04 §1）。每個種子在 B2 必須出現在威脅模型中（threat_id）；G3 駁回種子威脅時必須附理由。disputed_after_g2＝該叢集在 W4_readjudicate 重新裁決時才轉為 DISPUTED（G3 另列），由帶 w4_became_disputed 註記的 verdict 推導。","type":"object","additionalProperties":false,
+"properties":{
+"run_id":{"$ref":"common.schema.json#/$defs/run_id"},
+"generated_at":{"$ref":"common.schema.json#/$defs/datetime"},
+"seeds":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "seed_id":{"type":"string","pattern":"^ST-[0-9]{3,}$"},
+  "source_cluster_id":{"type":"string","pattern":"^K-[0-9]{3,}$"},
+  "verdict_id":{"type":"string"},
+  "cluster_status":{"enum":["CONFIRMED_EXECUTABLE","CONFIRMED_CORROBORATED","LIKELY","UNCORROBORATED","DISPUTED"]},
+  "cwe_bucket":{"$ref":"common.schema.json#/$defs/cwe_bucket"},
+  "threat_id":{"anyOf":[{"type":"string","pattern":"^T-[0-9]{3,}$"},{"type":"null"}],"description":"B2 後填入；null＝尚未建模（擋住 G3）"},
+  "disputed_after_g2":{"type":"boolean","description":"推導值：source_cluster_id 有任一 verdict 帶 w4_became_disputed 註記（W4_readjudicate 由非 DISPUTED 轉為 DISPUTED，通常是 LIKELY 經 R11 轉為 DISPUTED；docs/05 §4.2）時為 true；驗證器（E-DERIVED）比對"},
+  "reason":{"type":"string","description":"為何成為種子（例如 UNCORROBORATED 高嚴重度、G2 accept）"}},
+  "required":["seed_id","source_cluster_id","verdict_id","cluster_status","cwe_bucket","threat_id","disputed_after_g2","reason"]}}},
+"required":["run_id","generated_at","seeds"]}

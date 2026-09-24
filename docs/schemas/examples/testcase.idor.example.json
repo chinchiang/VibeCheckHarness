@@ -24,16 +24,18 @@
     "conditions": [
       "status in {403, 404}",
       "response body 不含 B 的發票欄位",
-      "B 的發票資料列前後快照相同"
+      "Q-invoice-b-row 前後計數相同（B 的發票資料列未被改動）"
     ],
     "requirement_refs": [
       "REQ-ASVS-8.2.2",
       "INV-AC-007"
-    ]
+    ],
+    "oracle_query_id": "Q-invoice-b-row",
+    "oracle_query_sha256": "sha256:8c2e4a6b0d1f3e5a7c9b2d4f6e8a0c1b3d5f7e9a2c4b6d8f0e1a3c5b7d9f2e4a"
   },
   "tool_binding": {
     "kind": "GENERATED_SCRIPT",
-    "adapter": "pytest_playwright_api",
+    "adapter": "playwright:api",
     "params": {
       "contexts": [
         "tenantA_user",
@@ -65,7 +67,7 @@
       "path": "/api/invoices/{seed:tenant_b_invoice}"
     }
   ],
-  "seed_manifest_ref": "seeds/eng-acme-invoices-2026q4.yaml",
+  "seed_manifest_ref": "docs/examples/seed-manifest.yaml",
   "data_needed": {
     "seed_data": [
       "tenant_a_invoice",
@@ -74,14 +76,22 @@
     "roles": [
       "tenantA_user",
       "tenantB_user"
+    ],
+    "db_tables": [
+      "invoices"
     ]
   },
   "trials": {
     "n": 1,
-    "pass_rule": "確定性測試；失敗時重播 2 次",
+    "pass_rule": "確定性測試；失敗時重播 2 次，結果相同才算可重現",
     "record": [
       "seed"
-    ]
+    ],
+    "fail_k_min": 1,
+    "replay_n": 2,
+    "multi_turn_max_turns": null
   },
-  "artifact_sha256": "sha256:f280ceb93a714bfe2efbb9071ee48c882fb947b84d8ed417dc30f3989f4787bc"
+  "multi_turn": false,
+  "strategy_template_sha256": null,
+  "artifact_sha256": "sha256:391007bf87c869892bccfff6bce2239f19da9479f2e5b669f4fe317550e6d78f"
 }

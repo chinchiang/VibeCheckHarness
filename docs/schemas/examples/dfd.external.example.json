@@ -1,0 +1,59 @@
+{
+  "dfd_id": "DFD-run-2026-09-23-001-ext",
+  "run_id": "run-2026-09-23-001",
+  "viewpoint": "external",
+  "elements": [
+    {
+      "element_id": "ext-tenant-user",
+      "type": "external_entity",
+      "name": "租戶使用者（瀏覽器）",
+      "from": null,
+      "to": null,
+      "crosses": [],
+      "evidence_refs": []
+    },
+    {
+      "element_id": "proc-invoices-api",
+      "type": "process",
+      "name": "發票 API",
+      "from": null,
+      "to": null,
+      "crosses": [],
+      "evidence_refs": [
+        "endpoint:GET /api/invoices/{id}"
+      ]
+    },
+    {
+      "element_id": "proc-support-agent",
+      "type": "process",
+      "name": "客服 agent",
+      "from": null,
+      "to": null,
+      "crosses": [],
+      "evidence_refs": [
+        "endpoint:POST /api/chat/sessions"
+      ]
+    },
+    {
+      "element_id": "flow-user-api",
+      "type": "data_flow",
+      "name": "HTTPS 請求",
+      "from": "ext-tenant-user",
+      "to": "proc-invoices-api",
+      "crosses": [
+        "tb-internet"
+      ],
+      "evidence_refs": []
+    },
+    {
+      "element_id": "tb-internet",
+      "type": "trust_boundary",
+      "name": "網際網路／staging 邊界",
+      "from": null,
+      "to": null,
+      "crosses": [],
+      "evidence_refs": []
+    }
+  ],
+  "b1_diff": null
+}

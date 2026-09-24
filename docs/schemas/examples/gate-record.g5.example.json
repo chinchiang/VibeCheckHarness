@@ -3,31 +3,40 @@
   "gate": "G5",
   "engagement_id": "eng-acme-invoices-2026q4",
   "run_id": "run-2026-09-23-001",
+  "round": 1,
   "artifact": {
     "kind": "s2_job",
-    "sha256": "sha256:02e8a119e8f1e1b040be14d9de702410e99b6dfe7e4489bde99cb811b719d9ee"
+    "sha256": "sha256:0ea87f705fc99cb785ad2c06910b79ed87bf760d54efefd94c18f79116a99260"
   },
+  "job_id": "job-zap-active-001",
   "initiator": "alice",
   "approvers": [
     {
-      "name": "erin",
+      "person_id": "heidi",
       "role": "security_reviewer",
-      "key_fingerprint": "ed25519:SHA256:EXAMPLEONLY5"
+      "key_fingerprint": "ed25519:SHA256:1jyZZuA652L7cTLJWgVC2VwK7buTjLotvqc4xrc9bKk"
     }
   ],
+  "outcome": "APPROVED",
   "decisions": [
     {
-      "item_id": "job-zap-active-001",
+      "item_id": "TC-027-01",
+      "item_sha256": "sha256:de5218d8d039830d3c0979177636e6fd0293a8ed80f6f1c5593eaa03d9a2cd4d",
       "decision": "accept",
-      "note": "限 ROE 時間窗內執行"
+      "risk_override": null,
+      "note": "快照 snap-2026-10-05-01 已建立；還原演練 10-02 通過"
     }
   ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-05T21:00:00+08:00",
   "timestamp": "2026-10-05T21:50:00+08:00",
   "signatures": [
     {
-      "key_fingerprint": "ed25519:SHA256:EXAMPLEONLY5",
+      "signer": "heidi",
+      "key_fingerprint": "ed25519:SHA256:1jyZZuA652L7cTLJWgVC2VwK7buTjLotvqc4xrc9bKk",
       "alg": "ed25519",
-      "value": "EXAMPLE-SIGNATURE-NOT-REAL"
+      "value": "1cRVEWXS5gZt1Z9W9oBfJKPvEbwUQAR91MUF6pROOj2bLTU12lFp8Apkl+aBewZxswc4dMJYiH4UDX8exwUVCw=="
     }
   ]
 }

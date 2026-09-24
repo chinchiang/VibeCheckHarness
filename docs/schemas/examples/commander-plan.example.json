@@ -3,10 +3,11 @@
   "decision_node": "CMD-1",
   "slices": [
     {
-      "slice_id": "sha256:e282b9539b73974f71ea3956e0d47c6bccb03843f9dd80be214f73ee61210af1",
+      "slice_id": "sha256:29c34c37a9617bceb0d741006798fb94dbf97a181c95ca73a101fb8bc025a09e",
       "facets": [
         "authz",
-        "data_access"
+        "data_access",
+        "llm_integration"
       ],
       "agents": [
         "rev_a",
@@ -20,5 +21,6 @@
   "testcase_ids": [],
   "target_ids": [],
   "budget_tokens": 2000000,
-  "rationale": "路由 /api/invoices/* 的查詢沒有 owner 條件，加重 authz 與 data_access 面向"
+  "rationale": "路由 /api/invoices/* 的查詢沒有 owner 條件，加重 authz 與 data_access 面向",
+  "followup_drafts": []
 }

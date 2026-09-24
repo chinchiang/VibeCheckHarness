@@ -1,0 +1,154 @@
+{
+  "run_id": "run-2026-10-07-001",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_kind": "followup",
+  "parent_run_id": "run-2026-09-23-001",
+  "reuse": [
+    "sha256:6c66cd1d11dec8793920aa80a50720fa284da19cb8c17c08af4546ac96ad065d",
+    "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a"
+  ],
+  "trigger": "manual",
+  "run_owner": "alice",
+  "initiators": [
+    "alice"
+  ],
+  "status": "WAITING_GATE",
+  "status_reason": "等待 G4（重測計畫）",
+  "current_node": "G4",
+  "resume_node": null,
+  "resume_deadline": "2026-10-10T10:30:00+08:00",
+  "data_class": "C",
+  "toolkit_config_ref": "sha256:0948a01e5864ec7f289f776ec38cfae57f8e87e652ef326c5f86ea1b69a81b48",
+  "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
+  "engagement_ref": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+  "roe_ref": "sha256:55651ed81d98bcd693d7d6a36495155f1448a7dbff62b41dbb1656ac56eb9b5c",
+  "repo_commit": "7d3e1a0",
+  "owasp_llm_version": "2026",
+  "calibration_version": 3,
+  "inventory_ref": null,
+  "sbom_ref": null,
+  "redaction_map_ref": null,
+  "invariants_ref": null,
+  "invariants_changed": false,
+  "g1_round": 0,
+  "w1_sarif_ref": null,
+  "deps_check_ref": null,
+  "slice_refs": [],
+  "plan_ids": [
+    "plan-2026-10-06-cmd5"
+  ],
+  "findings": [],
+  "cluster_ids": [
+    "K-005"
+  ],
+  "verdicts": [],
+  "missing_votes": [],
+  "diversity_flags": [],
+  "cmd2_rounds": 0,
+  "g2_queue": [],
+  "w4_iteration": 0,
+  "w4_results": [],
+  "whitebox_report_ref": null,
+  "w_sarif_ref": null,
+  "dfd_ref": null,
+  "seed_threats_ref": null,
+  "lane_a_advisories": [],
+  "disputed_after_g2": [],
+  "egress_allowlist_ref": null,
+  "ownership_results": [],
+  "b1_external_ref": null,
+  "b1_merged_ref": null,
+  "b1_diff_ref": null,
+  "taxonomy_plan_id": null,
+  "threat_model_ref": null,
+  "b1_diff_dispositions_ref": null,
+  "g3_round": 0,
+  "testplan_ref": "sha256:72a4b39e1a92317743634d47d9a0877ea422ddd49837a5f2e246c80de774b10b",
+  "testcase_ids": [
+    "TC-012-01"
+  ],
+  "artifact_hashes": {
+    "TC-012-01": "sha256:ea0109ae367634ff9490542045b037476ef7a71f71221d8842087ffef3fec804"
+  },
+  "g4_round": 1,
+  "approved_testcase_ids": [],
+  "restore_drill_ref": null,
+  "jobs": {},
+  "executed_jobs": [],
+  "stop_events": [],
+  "kill_switch": false,
+  "testresults": [],
+  "manual_review_clusters": [],
+  "followup_drafts": [],
+  "report_manifest_ref": null,
+  "gate_records": [
+    {
+      "gate": "G0a",
+      "gate_record_id": "GR-G0a-0002",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:00:00+08:00",
+      "decided_at": "2026-10-07T10:01:00+08:00"
+    },
+    {
+      "gate": "G0b",
+      "gate_record_id": "GR-G0b-0002",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:55651ed81d98bcd693d7d6a36495155f1448a7dbff62b41dbb1656ac56eb9b5c",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:01:00+08:00",
+      "decided_at": "2026-10-07T10:02:00+08:00"
+    },
+    {
+      "gate": "G4",
+      "gate_record_id": null,
+      "outcome": null,
+      "round": 1,
+      "subject_hash": "sha256:72a4b39e1a92317743634d47d9a0877ea422ddd49837a5f2e246c80de774b10b",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:30:00+08:00",
+      "decided_at": null
+    }
+  ],
+  "budgets": {
+    "run_total": {
+      "max_input_tokens": 30000000,
+      "max_output_tokens": 3000000,
+      "max_cost_usd": 400,
+      "max_compute_minutes": 2880,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "W": {
+      "max_input_tokens": 15000000,
+      "max_output_tokens": 1500000,
+      "max_cost_usd": 150,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "B": {
+      "max_input_tokens": 5000000,
+      "max_output_tokens": 500000,
+      "max_cost_usd": 50,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "upstream_llm_spend_usd": 0,
+    "relay_spend_usd": 0,
+    "gb_return_node": null
+  },
+  "gaps": [],
+  "audit_anchors": [],
+  "errors": []
+}

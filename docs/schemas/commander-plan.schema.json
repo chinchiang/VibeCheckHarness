@@ -117,6 +117,48 @@
     },
     "rationale": {
       "type": "string"
+    },
+    "followup_drafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "draft_id": {
+            "type": "string"
+          },
+          "run_kind": {
+            "type": "string",
+            "enum": [
+              "followup",
+              "regression"
+            ]
+          },
+          "cluster_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "testcase_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_id",
+          "run_kind",
+          "cluster_ids",
+          "testcase_ids",
+          "reason"
+        ]
+      },
+      "description": "只有 CMD-5：追蹤／回歸 run 草稿（需人啟動，不自動執行）"
     }
   },
   "required": [
@@ -128,7 +170,8 @@
     "testcase_ids",
     "target_ids",
     "budget_tokens",
-    "rationale"
+    "rationale",
+    "followup_drafts"
   ],
   "description": "Commander 只能在程式碼產生的覆蓋下限上增加項目；Policy Engine 驗證後才執行。",
   "title": "CommanderPlan（指揮官計畫）"

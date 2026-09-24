@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "checkpoint-metadata.schema.json",
+  "title": "Checkpoint Metadata（checkpoint 中繼資料）",
+  "description": "LangGraph checkpoint 的中繼資料（docs/03 §5.1）。checkpoint 內容不是授權依據：resume 時 Policy Engine 重新驗證 gate_records 指向的簽章紀錄、委任設定與 ROE（G0a／G0b）。 檔名依 docs/08 §4（D15）為 checkpoint-metadata；state_sha256＝RunState 的 JCS hash（content_hash），反序列化時重算，不符 → IntegrityError。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "checkpoint_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "$ref": "common.schema.json#/$defs/run_id"
+    },
+    "thread_id": {
+      "type": "string"
+    },
+    "parent_checkpoint_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "node": {
+      "type": "string",
+      "description": "寫入此 checkpoint 的節點"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/datetime"
+    },
+    "state_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256",
+      "description": "序列化 RunState 的 hash"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "run_status": {
+      "enum": [
+        "RUNNING",
+        "WAITING_GATE",
+        "SUSPENDED",
+        "STOPPED",
+        "ABORTED",
+        "FAILED",
+        "COMPLETED",
+        "COMPLETED_WITH_GAPS"
+      ]
+    },
+    "pending_interrupt": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "gate",
+                "claim_run",
+                "suspended_wait",
+                "stopped_wait"
+              ]
+            },
+            "gate": {
+              "anyOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/gate"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "subject_hash": {
+              "$ref": "common.schema.json#/$defs/sha256_or_null"
+            },
+            "deadline": {
+              "$ref": "common.schema.json#/$defs/datetime_or_null"
+            }
+          },
+          "required": [
+            "kind",
+            "gate",
+            "subject_hash",
+            "deadline"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "encrypted": {
+      "const": true
+    },
+    "authoritative": {
+      "const": false,
+      "description": "固定為 false：提醒 checkpoint 不能當授權依據"
+    }
+  },
+  "required": [
+    "checkpoint_id",
+    "run_id",
+    "thread_id",
+    "parent_checkpoint_id",
+    "node",
+    "created_at",
+    "state_sha256",
+    "schema_version",
+    "run_status",
+    "pending_interrupt",
+    "encrypted",
+    "authoritative"
+  ]
+}

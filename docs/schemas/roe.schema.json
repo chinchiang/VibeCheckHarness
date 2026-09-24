@@ -1,503 +1,66 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "roe.schema.json",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "engagement": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^eng-[a-z0-9-]+$"
-        },
-        "version": {
-          "type": "integer"
-        },
-        "purpose": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "version",
-        "purpose"
-      ]
-    },
-    "key_registry_ref": {
-      "type": "string",
-      "description": "組織的金鑰登錄（out-of-band），核准者指紋必須在其中且未撤銷"
-    },
-    "signatories": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "test_lead",
-              "management",
-              "infrastructure_owner",
-              "app_owner",
-              "security_reviewer"
-            ]
-          },
-          "key_fingerprint": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "role",
-          "key_fingerprint"
-        ]
-      },
-      "minItems": 3,
-      "contains": {
-        "type": "object",
-        "properties": {
-          "role": {
-            "const": "infrastructure_owner"
-          }
-        },
-        "required": [
-          "role"
-        ]
-      },
-      "description": "簽署 ROE 的人：至少含測試負責人、管理層、基礎設施擁有者"
-    },
-    "gate_approvers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "test_lead",
-              "management",
-              "infrastructure_owner",
-              "app_owner",
-              "security_reviewer"
-            ]
-          },
-          "key_fingerprint": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "role",
-          "key_fingerprint"
-        ]
-      },
-      "minItems": 1,
-      "description": "可核准 G1–G5 的已登錄人員"
-    },
-    "validity": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "not_before": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "not_after": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "windows": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "days": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "mon",
-                    "tue",
-                    "wed",
-                    "thu",
-                    "fri",
-                    "sat",
-                    "sun"
-                  ]
-                },
-                "minItems": 1
-              },
-              "start": {
-                "type": "string",
-                "pattern": "^[0-2][0-9]:[0-5][0-9]$"
-              },
-              "end": {
-                "type": "string",
-                "pattern": "^[0-2][0-9]:[0-5][0-9]$"
-              },
-              "tz": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "days",
-              "start",
-              "end",
-              "tz"
-            ]
-          },
-          "minItems": 1
-        }
-      },
-      "required": [
-        "not_before",
-        "not_after",
-        "windows"
-      ]
-    },
-    "targets": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^tgt-[a-z0-9-]+$"
-          },
-          "base_url": {
-            "type": "string",
-            "format": "uri"
-          },
-          "environment": {
-            "type": "string",
-            "enum": [
-              "staging",
-              "tester_controlled"
-            ],
-            "description": "tester_controlled＝我方控制的設施（例如 canary 伺服器）"
-          },
-          "ownership_proof": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "method": {
-                "type": "string",
-                "enum": [
-                  "dns_txt",
-                  "well_known_path"
-                ]
-              },
-              "token_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "method",
-              "token_ref"
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "base_url",
-          "environment",
-          "ownership_proof"
-        ]
-      },
-      "minItems": 1
-    },
-    "test_roles": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "role": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "credential_ref": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "role",
-          "description",
-          "credential_ref"
-        ]
-      },
-      "minItems": 1
-    },
-    "exclusions": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "paths": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "hosts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "paths",
-        "hosts"
-      ]
-    },
-    "activities": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "allowed_safety_classes": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": [
-              "S0",
-              "S1",
-              "S2"
-            ]
-          },
-          "minItems": 1
-        },
-        "allowed_tools": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1
-        },
-        "denied_modes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "allowed_safety_classes",
-        "allowed_tools",
-        "denied_modes"
-      ]
-    },
-    "rate_limits": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "per_host_rps": {
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "max_concurrency": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "s1_request_cap": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "zap_delay_ms_min": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "zap_max_scan_minutes": {
-          "type": "integer",
-          "minimum": 1
-        }
-      },
-      "required": [
-        "per_host_rps",
-        "max_concurrency",
-        "s1_request_cap",
-        "zap_delay_ms_min",
-        "zap_max_scan_minutes"
-      ]
-    },
-    "stop_conditions": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "max_5xx_ratio": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "max_p95_latency_ms": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "contacts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1
-        }
-      },
-      "required": [
-        "max_5xx_ratio",
-        "max_p95_latency_ms",
-        "contacts"
-      ]
-    },
-    "data_handling": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "data_class": {
-          "type": "string",
-          "enum": [
-            "P",
-            "C"
-          ]
-        },
-        "synthetic_data_attested": {
-          "const": true
-        },
-        "pii_scan_before_b4": {
-          "type": "boolean"
-        },
-        "retention_days": {
-          "type": "integer",
-          "minimum": 1
-        }
-      },
-      "required": [
-        "data_class",
-        "synthetic_data_attested",
-        "pii_scan_before_b4",
-        "retention_days"
-      ]
-    },
-    "integrations": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "mode": {
-            "type": "string",
-            "enum": [
-              "sandbox",
-              "test",
-              "disabled"
-            ]
-          }
-        },
-        "required": [
-          "name",
-          "mode"
-        ]
-      }
-    },
-    "upstream_llm_providers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "provider": {
-            "type": "string"
-          },
-          "terms_confirmed_by": {
-            "type": "string"
-          },
-          "spend_cap_usd": {
-            "type": "number",
-            "minimum": 0
-          }
-        },
-        "required": [
-          "provider",
-          "terms_confirmed_by",
-          "spend_cap_usd"
-        ]
-      }
-    },
-    "secrets_verification": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "trufflehog_verify": {
-          "type": "boolean"
-        },
-        "providers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "trufflehog_verify",
-        "providers"
-      ]
-    },
-    "signatures": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "key_fingerprint": {
-            "type": "string"
-          },
-          "alg": {
-            "type": "string"
-          },
-          "detached_signature_ref": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "key_fingerprint",
-          "alg",
-          "detached_signature_ref"
-        ]
-      },
-      "minItems": 1
-    }
-  },
-  "required": [
-    "engagement",
-    "key_registry_ref",
-    "signatories",
-    "gate_approvers",
-    "validity",
-    "targets",
-    "test_roles",
-    "exclusions",
-    "activities",
-    "rate_limits",
-    "stop_conditions",
-    "data_handling",
-    "integrations",
-    "upstream_llm_providers",
-    "secrets_verification",
-    "signatures"
-  ],
-  "title": "ROE（交戰規則）"
-}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"roe.schema.json","title":"ROE（交戰規則）","description":"G0b 離線驗章；Policy Engine 在每個接觸網路的步驟重新驗證。簽署人與核准者只能引用金鑰登錄中的人（D11），ROE 不能引入金鑰。工具與模式用 D13 ID。","type":"object","additionalProperties":false,
+"properties":{
+"engagement":{"type":"object","additionalProperties":false,"properties":{"id":{"$ref":"common.schema.json#/$defs/engagement_id"},"version":{"type":"integer","minimum":1},"purpose":{"type":"string"}},"required":["id","version","purpose"]},
+"issued_at":{"$ref":"common.schema.json#/$defs/datetime","description":"簽署時間；用於判斷簽署時金鑰是否有效（docs/03 §6.1 步驟 4–5）"},
+"key_registry_ref":{"type":"string","description":"金鑰登錄位置；必須等於 toolkit.yaml key_registry.location"},
+"signatories":{"type":"array","items":{"$ref":"common.schema.json#/$defs/person_ref"},"minItems":3,"description":"簽署 ROE 的人：至少含 test_lead、management、infrastructure_owner（validator 檢查）"},
+"gate_approvers":{"type":"array","items":{"$ref":"common.schema.json#/$defs/person_ref"},"minItems":1,"description":"可核准 G1–G5、GB 的人；G0b 之後的核准者必須在 signatories 或此清單中（docs/03 §6.1 步驟 6）"},
+"validity":{"type":"object","additionalProperties":false,"properties":{"not_before":{"$ref":"common.schema.json#/$defs/datetime"},"not_after":{"$ref":"common.schema.json#/$defs/datetime"},"windows":{"type":"array","items":{"$ref":"common.schema.json#/$defs/window"},"minItems":1}},"required":["not_before","not_after","windows"]},
+"targets":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"properties":{
+  "id":{"$ref":"common.schema.json#/$defs/target_id"},
+  "kind":{"enum":["http","database"],"description":"database 只給 Snapshot Service（TCP 轉送），測試 job 不能直連（docs/03 §7.6）"},
+  "base_url":{"anyOf":[{"type":"string","format":"uri"},{"type":"null"}],"description":"kind: http 時必填"},
+  "endpoint":{"anyOf":[{"type":"string","pattern":"^[A-Za-z0-9.-]+:[0-9]{1,5}$"},{"type":"null"}],"description":"kind: database 時必填（host:port）"},
+  "environment":{"enum":["staging","tester_controlled"],"description":"tester_controlled＝我方控制的設施（例如 canary 伺服器）"},
+  "ownership_proof":{"type":"object","additionalProperties":false,"properties":{"method":{"enum":["dns_txt","well_known_path"]},"token_ref":{"type":"string"}},"required":["method","token_ref"]}},
+  "required":["id","kind","base_url","endpoint","environment","ownership_proof"]}},
+"test_roles":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"properties":{
+  "role":{"type":"string"},"description":{"type":"string"},"credential_ref":{"type":"string"},
+  "login":{"type":"object","additionalProperties":false,"properties":{"method":{"enum":["form","api_token","oauth_password","browser_recipe"]},"target_id":{"$ref":"common.schema.json#/$defs/target_id"},"login_path":{"anyOf":[{"type":"string"},{"type":"null"}]},"recipe_ref":{"anyOf":[{"type":"string"},{"type":"null"}]}},"required":["method","target_id","login_path","recipe_ref"],"description":"Session Provider 的登入方式（docs/03 §7.4）；不含憑證值"}},
+  "required":["role","description","credential_ref","login"]}},
+"exclusions":{"type":"object","additionalProperties":false,"properties":{"paths":{"type":"array","items":{"type":"string"},"description":"fnmatch 逐段比對；最後一段為 * 代表該前綴與其下任何深度（docs/04 §5 path_may_match）"},"hosts":{"type":"array","items":{"type":"string"}}},"required":["paths","hosts"]},
+"activities":{"type":"object","additionalProperties":false,"properties":{
+  "allowed_safety_classes":{"type":"array","items":{"enum":["S0","S1","S2"]},"minItems":1},
+  "allowed_tools":{"type":"array","items":{"$ref":"common.schema.json#/$defs/tool_id"},"minItems":1,"description":"D13 工具 ID（tools.yaml 的鍵）"},
+  "denied_modes":{"type":"array","items":{"$ref":"common.schema.json#/$defs/tool_mode"},"description":"D13 tool:mode，精確比對、不允許萬用字元；只能在工具包拒絕清單之上再加"}},
+  "required":["allowed_safety_classes","allowed_tools","denied_modes"]},
+"rate_limits":{"type":"object","additionalProperties":false,"properties":{"per_host_rps":{"type":"number","exclusiveMinimum":0},"max_concurrency":{"type":"integer","minimum":1},"s1_request_cap":{"type":"integer","minimum":1},"zap_delay_ms_min":{"type":"integer","minimum":0},"zap_max_scan_minutes":{"type":"integer","minimum":1}},"required":["per_host_rps","max_concurrency","s1_request_cap","zap_delay_ms_min","zap_max_scan_minutes"]},
+"stop_conditions":{"type":"object","additionalProperties":false,"description":"覆寫 toolkit.yaml 的預設（docs/03 §7.3）；沒寫的鍵用預設值。validator 檢查覆寫值不比預設寬鬆。",
+  "properties":{
+  "window_seconds":{"type":"integer","minimum":1},"min_window_requests":{"type":"integer","minimum":1},
+  "max_5xx_ratio":{"type":"number","minimum":0,"maximum":1},"max_consecutive_5xx":{"type":"integer","minimum":1},
+  "max_p95_latency_ms":{"type":"integer","minimum":1},"baseline_latency_multiplier":{"type":"number","exclusiveMinimum":1},
+  "max_conn_error_ratio":{"type":"number","minimum":0,"maximum":1},
+  "rate_limited_429":{"type":"object","additionalProperties":false,"properties":{"count":{"type":"integer","minimum":1},"window_seconds":{"type":"integer","minimum":1},"sustain_minutes":{"type":"integer","minimum":1}},"required":["count","window_seconds","sustain_minutes"]},
+  "health_url":{"anyOf":[{"type":"string","format":"uri"},{"type":"null"}]},
+  "health_fail_count":{"type":"integer","minimum":1},"health_interval_seconds":{"type":"integer","minimum":1},
+  "out_of_scope_blocked_per_job":{"type":"integer","minimum":1},
+  "contacts":{"type":"array","items":{"type":"string"},"minItems":1}},
+  "required":["contacts"]},
+"data_handling":{"type":"object","additionalProperties":false,"properties":{"data_class":{"$ref":"common.schema.json#/$defs/data_class"},"synthetic_data_attested":{"const":true},"pii_scan_before_b4":{"type":"boolean"},"retention_days":{"type":"integer","minimum":1}},"required":["data_class","synthetic_data_attested","pii_scan_before_b4","retention_days"]},
+"integrations":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"name":{"type":"string"},"mode":{"enum":["sandbox","test","disabled"]}},"required":["name","mode"]}},
+"upstream_llm_providers":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"provider":{"type":"string"},"terms_confirmed_by":{"$ref":"common.schema.json#/$defs/person_id"},"spend_cap_usd":{"type":"number","minimum":0}},"required":["provider","terms_confirmed_by","spend_cap_usd"]}},
+"relay":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{"models":{"type":"array","items":{"type":"string"},"minItems":1,"description":"models.yaml 的 key；也必須在委任設定對該資料等級的允許清單中"},"max_turns":{"type":"integer","minimum":1},"max_spend_usd_per_job":{"type":"number","minimum":0},"max_spend_usd_per_run":{"type":"number","minimum":0}},"required":["models","max_turns","max_spend_usd_per_job","max_spend_usd_per_run"]},{"type":"null"}],"description":"Z3→Z1 relay（docs/03 §7.5）；null＝不允許多輪測試"},
+"db_access":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{
+  "target_id":{"$ref":"common.schema.json#/$defs/target_id","description":"kind: database 的 ROE 目標"},
+  "endpoint":{"type":"string","pattern":"^[A-Za-z0-9.-]+:[0-9]{1,5}$","description":"必須等於該目標的 endpoint"},
+  "snapshot_method":{"enum":["provider_api","logical_dump","none"],"description":"none → 不能執行 S2"},
+  "snapshot_credential_ref":{"anyOf":[{"type":"string"},{"type":"null"}]},
+  "oracle_readonly_credential_ref":{"type":"string"},
+  "oracle_readonly_attested":{"const":true,"description":"基礎設施擁有者聲明 oracle 憑證只有 oracle_tables 的 SELECT 權限"},
+  "oracle_tables":{"type":"array","items":{"type":"string"},"minItems":1},
+  "seed_manifest_ref":{"type":"string"}},
+  "required":["target_id","endpoint","snapshot_method","snapshot_credential_ref","oracle_readonly_credential_ref","oracle_readonly_attested","oracle_tables","seed_manifest_ref"]},{"type":"null"}],"description":"docs/03 §7.6；由基礎設施擁有者在 ROE 中簽署"},
+"legal_review":{"type":"object","additionalProperties":false,"description":"docs/06 §2.1.1；attested_by 的簽章必須出現在本 ROE 的 signatures 中（L-3）",
+  "properties":{
+  "attested_by":{"$ref":"common.schema.json#/$defs/person_id"},
+  "attested_at":{"$ref":"common.schema.json#/$defs/datetime"},
+  "jurisdictions":{"type":"array","items":{"type":"string"},"minItems":1},
+  "scope":{"type":"object","additionalProperties":false,"properties":{"computer_misuse":{"$ref":"#/$defs/scope_item"},"privacy":{"$ref":"#/$defs/scope_item"},"cross_border":{"$ref":"#/$defs/scope_item"},"third_party_platform_policy":{"$ref":"#/$defs/scope_item"},"upstream_llm_terms":{"$ref":"#/$defs/scope_item"},"component_licenses":{"$ref":"#/$defs/scope_item"}},"required":["computer_misuse","privacy","cross_border","third_party_platform_policy","upstream_llm_terms","component_licenses"]},
+  "reference_doc_sha256":{"$ref":"common.schema.json#/$defs/sha256"},
+  "expires_at":{"$ref":"common.schema.json#/$defs/datetime"}},
+  "required":["attested_by","attested_at","jurisdictions","scope","reference_doc_sha256","expires_at"]},
+"secrets_verification":{"type":"object","additionalProperties":false,"properties":{"trufflehog_verify":{"type":"boolean"},"providers":{"type":"array","items":{"type":"string"}}},"required":["trufflehog_verify","providers"]},
+"signatures":{"type":"array","items":{"$ref":"common.schema.json#/$defs/signature"},"minItems":1,"description":"每位 signatory 與 legal_review.attested_by 各一份"}},
+"required":["engagement","issued_at","key_registry_ref","signatories","gate_approvers","validity","targets","test_roles","exclusions","activities","rate_limits","stop_conditions","data_handling","integrations","upstream_llm_providers","relay","db_access","legal_review","secrets_verification","signatures"],
+"$defs":{"scope_item":{"anyOf":[{"const":true},{"type":"object","additionalProperties":false,"properties":{"value":{"const":false},"not_applicable_reason":{"type":"string","minLength":1}},"required":["value","not_applicable_reason"]}]}}}

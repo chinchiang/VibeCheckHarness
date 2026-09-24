@@ -1,0 +1,34 @@
+{
+  "finding_id": "F-101",
+  "run_id": "run-2026-09-25-pr-118",
+  "slice_id": "sha256:993c57c087955d4b434dd103ceaac590eed5bf5e0da31f8c7988fc572f82b7d1",
+  "facet": "authz",
+  "reporter": {
+    "agent_id": "lane_a",
+    "model_key": "claude_haiku",
+    "family": "anthropic",
+    "lineage": "claude",
+    "round": 1
+  },
+  "title": "新增的匯出端點沒有擁有者檢查",
+  "cwe": [
+    "CWE-639"
+  ],
+  "severity": "medium",
+  "confidence": "low",
+  "evidence": [
+    {
+      "file": "routes/exports.ts",
+      "line_start": 18,
+      "line_end": 18,
+      "snippet": "const job = await db.exportJob.findUnique({ where: { id } });",
+      "snippet_sha256": "sha256:1ce9deedd0e3d736b6326d531a2db398c3504c957fef789722b1c22c98334a38",
+      "match": "MATCHED"
+    }
+  ],
+  "reasoning": "PR #118 新增 GET /api/exports/{id}，只以 id 取匯出工作，沒有比對 tenant。Lane A 單一家族審查，只作參考。",
+  "invariant_refs": [
+    "INV-AC-007"
+  ],
+  "status": "VERIFIED_SNIPPET"
+}

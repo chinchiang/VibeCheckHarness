@@ -1,0 +1,49 @@
+{
+  "gate_record_id": "GR-G1-0001",
+  "gate": "G1",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "invariants",
+    "sha256": "sha256:79018547b2920a6d1db95caf530fecb898973049403d3b4193651f96fc0870cc"
+  },
+  "job_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "frank",
+      "role": "app_owner",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "INV-AC-007",
+      "item_sha256": "sha256:b858889cd46927ec075d3f0f312d48a9e4f8bbe8fb78a432fc5dae90f71ea4fa",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null
+    },
+    {
+      "item_id": "INV-LLM-003",
+      "item_sha256": "sha256:8a61198e2f16a652ffb63e9408e2906299421c34e8e58a5c12f1d61c18944c79",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-09-23T15:00:00+08:00",
+  "timestamp": "2026-09-24T11:00:00+08:00",
+  "signatures": [
+    {
+      "signer": "frank",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
+      "alg": "ed25519",
+      "value": "AjM62rOjzj4Re4VW/iof0/ACRDlMh036QI4FExAwHPoTdkhV5ECaCrhdb2qm3GlIDAFSIbtKztue9snvOjNaAg=="
+    }
+  ]
+}

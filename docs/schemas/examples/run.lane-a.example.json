@@ -1,0 +1,133 @@
+{
+  "run_id": "run-2026-09-25-pr-118",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_kind": "lane_a",
+  "parent_run_id": null,
+  "reuse": [],
+  "trigger": "pull_request",
+  "run_owner": "alice",
+  "initiators": [
+    "alice"
+  ],
+  "status": "COMPLETED",
+  "status_reason": null,
+  "current_node": null,
+  "resume_node": null,
+  "resume_deadline": null,
+  "data_class": "C",
+  "toolkit_config_ref": "sha256:0948a01e5864ec7f289f776ec38cfae57f8e87e652ef326c5f86ea1b69a81b48",
+  "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
+  "engagement_ref": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+  "roe_ref": null,
+  "repo_commit": "9b7e3d2",
+  "owasp_llm_version": "2026",
+  "calibration_version": 3,
+  "inventory_ref": null,
+  "sbom_ref": null,
+  "redaction_map_ref": null,
+  "invariants_ref": null,
+  "invariants_changed": false,
+  "g1_round": 0,
+  "w1_sarif_ref": null,
+  "deps_check_ref": null,
+  "slice_refs": [
+    "sha256:993c57c087955d4b434dd103ceaac590eed5bf5e0da31f8c7988fc572f82b7d1"
+  ],
+  "plan_ids": [],
+  "findings": [
+    "F-101"
+  ],
+  "cluster_ids": [
+    "K-101"
+  ],
+  "verdicts": [
+    "V-101-1"
+  ],
+  "missing_votes": [],
+  "diversity_flags": [],
+  "cmd2_rounds": 0,
+  "g2_queue": [],
+  "w4_iteration": 0,
+  "w4_results": [],
+  "whitebox_report_ref": null,
+  "w_sarif_ref": null,
+  "dfd_ref": null,
+  "seed_threats_ref": null,
+  "lane_a_advisories": [
+    "K-101"
+  ],
+  "disputed_after_g2": [],
+  "egress_allowlist_ref": null,
+  "ownership_results": [],
+  "b1_external_ref": null,
+  "b1_merged_ref": null,
+  "b1_diff_ref": null,
+  "taxonomy_plan_id": null,
+  "threat_model_ref": null,
+  "b1_diff_dispositions_ref": null,
+  "g3_round": 0,
+  "testplan_ref": null,
+  "testcase_ids": [],
+  "artifact_hashes": {},
+  "g4_round": 0,
+  "approved_testcase_ids": [],
+  "restore_drill_ref": null,
+  "jobs": {},
+  "executed_jobs": [],
+  "stop_events": [],
+  "kill_switch": false,
+  "testresults": [],
+  "manual_review_clusters": [],
+  "followup_drafts": [],
+  "report_manifest_ref": null,
+  "gate_records": [
+    {
+      "gate": "G0a",
+      "gate_record_id": "GR-G0a-0003",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+      "job_id": null,
+      "opened_at": "2026-09-25T14:00:00+08:00",
+      "decided_at": "2026-09-25T14:00:00+08:00"
+    }
+  ],
+  "budgets": {
+    "run_total": {
+      "max_input_tokens": 30000000,
+      "max_output_tokens": 3000000,
+      "max_cost_usd": 400,
+      "max_compute_minutes": 2880,
+      "spent_input_tokens": 42000,
+      "spent_output_tokens": 3100,
+      "spent_cost_usd": 0.21,
+      "compute_minutes": 3
+    },
+    "W": {
+      "max_input_tokens": 15000000,
+      "max_output_tokens": 1500000,
+      "max_cost_usd": 150,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 42000,
+      "spent_output_tokens": 3100,
+      "spent_cost_usd": 0.21,
+      "compute_minutes": 3
+    },
+    "B": {
+      "max_input_tokens": 5000000,
+      "max_output_tokens": 500000,
+      "max_cost_usd": 50,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "upstream_llm_spend_usd": 0,
+    "relay_spend_usd": 0,
+    "gb_return_node": null
+  },
+  "gaps": [],
+  "audit_anchors": [],
+  "errors": []
+}

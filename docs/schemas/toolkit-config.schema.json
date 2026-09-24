@@ -1,0 +1,426 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "toolkit-config.schema.json",
+  "title": "Toolkit Config（toolkit.yaml）",
+  "description": "隨部署設定管理，不由 run 輸入（docs/03 §6.1）。釘選組織根金鑰、預設逾時、預算、停止條件、沙箱限制與 relay 上限。[H]",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "toolkit_version": {
+      "type": "string"
+    },
+    "org_root_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fingerprint": {
+          "$ref": "common.schema.json#/$defs/fingerprint"
+        },
+        "alg": {
+          "const": "ed25519"
+        }
+      },
+      "required": [
+        "fingerprint",
+        "alg"
+      ]
+    },
+    "key_registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "location": {
+          "type": "string"
+        },
+        "min_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "上次接受的登錄版本（防回滾）"
+        }
+      },
+      "required": [
+        "location",
+        "min_version"
+      ]
+    },
+    "tool_registry_ref": {
+      "type": "string",
+      "description": "tools.yaml 的位置（D13 權威清單）"
+    },
+    "gate_timeouts_hours": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claim_run": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "G1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "G2": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "G3": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "G4": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "G5": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24,
+          "description": "上限；實際逾時＝該 job 所在時間窗的結束時間與此值的較早者"
+        },
+        "GB": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "claim_run",
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "GB"
+      ],
+      "description": "docs/03 §6.2；engagement 可縮短、不能延長"
+    },
+    "budget_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "W": {
+          "$ref": "common.schema.json#/$defs/budget_caps"
+        },
+        "B": {
+          "$ref": "common.schema.json#/$defs/budget_caps"
+        },
+        "threshold_event_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "W",
+        "B",
+        "threshold_event_ratio"
+      ],
+      "description": "docs/03 §11：W 15M、B 5M input tokens、每階段 24 小時運算；沒有預設金額（max_cost_usd 為 null，必須由 engagement 設定）"
+    },
+    "stop_condition_defaults": {
+      "$ref": "#/$defs/stop_conditions"
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anchor_interval_events": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "hash_alg": {
+          "const": "sha256"
+        }
+      },
+      "required": [
+        "anchor_interval_events",
+        "hash_alg"
+      ]
+    },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "disk_gib": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "w1_tool_timeout_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "w4_batch_timeout_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_output_mib": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "network": {
+          "enum": [
+            "none",
+            "mirror_only"
+          ]
+        }
+      },
+      "required": [
+        "cpu",
+        "memory_mib",
+        "disk_gib",
+        "w1_tool_timeout_minutes",
+        "w4_batch_timeout_minutes",
+        "max_output_mib",
+        "network"
+      ]
+    },
+    "path_blacklist": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "W0 永遠不送 LLM 的檔案樣式"
+    },
+    "relay": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_turns": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_spend_usd_per_job": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_spend_usd_per_run": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "max_turns",
+        "max_spend_usd_per_job",
+        "max_spend_usd_per_run"
+      ],
+      "description": "docs/03 §7.5 預設：10 輪、每 job 2 USD、每 run 20 USD"
+    },
+    "b4_batch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_jobs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_minutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "max_jobs",
+        "max_minutes"
+      ]
+    },
+    "restore_drill_interval_days": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "automation_accounts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "不能記為發起者、不能核准任何關卡的帳號（例如 run-controller）"
+    },
+    "owasp_llm_default": {
+      "enum": [
+        "2025",
+        "2026"
+      ],
+      "default": "2026",
+      "description": "新委任設定的 OWASP LLM Top 10 預設版本（docs/04 §2.3）；委任設定 owasp_llm_version 可改選 2025"
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "CAS 物件保留期限（docs/08 §7.5）。預設值都是 [H]，實際值需法務決定。ContentStore.gc 只刪除超過期限且沒有 legal_hold 的物件，每次刪除都寫稽核事件；稽核檔中的 hash 不刪。",
+      "properties": {
+        "p_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "P 級內容自寫入起保留天數"
+        },
+        "c_days_after_run_end": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "C 級內容：run 結束後保留天數"
+        },
+        "audit_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "稽核檔與 GateRecord 保留天數（3 年＝1095）"
+        },
+        "checkpoint_days_after_run_end": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "checkpoint：run 結束後保留天數，之後只留最後一個"
+        },
+        "checkpoint_keep_last": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "legal_hold": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "type": "string",
+                "description": "engagement_id 或 run_id"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "placed_by": {
+                "$ref": "common.schema.json#/$defs/person_id"
+              },
+              "placed_at": {
+                "$ref": "common.schema.json#/$defs/datetime"
+              }
+            },
+            "required": [
+              "scope",
+              "reason",
+              "placed_by",
+              "placed_at"
+            ]
+          },
+          "description": "有 legal_hold 的範圍一律不刪"
+        }
+      },
+      "required": [
+        "p_days",
+        "c_days_after_run_end",
+        "audit_days",
+        "checkpoint_days_after_run_end",
+        "checkpoint_keep_last",
+        "legal_hold"
+      ]
+    }
+  },
+  "required": [
+    "toolkit_version",
+    "org_root_key",
+    "key_registry",
+    "tool_registry_ref",
+    "gate_timeouts_hours",
+    "budget_defaults",
+    "stop_condition_defaults",
+    "audit",
+    "sandbox",
+    "path_blacklist",
+    "relay",
+    "b4_batch",
+    "restore_drill_interval_days",
+    "automation_accounts",
+    "owasp_llm_default",
+    "retention"
+  ],
+  "$defs": {
+    "stop_conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "window_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_window_requests": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_5xx_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_consecutive_5xx": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_p95_latency_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseline_latency_multiplier": {
+          "type": "number",
+          "exclusiveMinimum": 1
+        },
+        "max_conn_error_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rate_limited_429": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "window_seconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sustain_minutes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "count",
+            "window_seconds",
+            "sustain_minutes"
+          ]
+        },
+        "health_fail_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "health_interval_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "out_of_scope_blocked_per_job": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "window_seconds",
+        "min_window_requests",
+        "max_5xx_ratio",
+        "max_consecutive_5xx",
+        "max_p95_latency_ms",
+        "baseline_latency_multiplier",
+        "max_conn_error_ratio",
+        "rate_limited_429",
+        "health_fail_count",
+        "health_interval_seconds",
+        "out_of_scope_blocked_per_job"
+      ],
+      "description": "docs/03 §7.3 的預設值；ROE 只能更嚴"
+    }
+  }
+}

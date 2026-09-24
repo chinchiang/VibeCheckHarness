@@ -4,6 +4,8 @@
 #   - C 級資料的 reviewer 至少涵蓋 2 個家族（建議 3 個）
 #   - 每個 reviewer 家族都有一個家族與血統都不同、能處理 C 級資料的 verifier
 #   - 跨家族 fallback（fallback_models）只允許不參與裁決的 reporter
+#   - lane_a 的 model 必須等於 engagement.yaml lane_a_model；Lane A 結果最高 UNCORROBORATED（docs/05 R9）
+#   - aggregator、scope_proxy、executor 是確定性元件（model: null）
 # 注意：若某叢集被 3 個家族都回報，就沒有「家族不在叢集中」的驗證者 → 依 docs/05 §4.2 R6 處理
 
 commander:
@@ -102,3 +104,21 @@ reporter:
   role: reporter
   fallback_models: [gpt_flagship]   # reporter 不參與裁決，可跨家族 fallback
   tools: [read_blackboard]
+
+lane_a:
+  model: claude_haiku          # 必須等於 engagement.yaml lane_a_model；單一家族 → 最高 UNCORROBORATED
+  role: lane_a_reviewer
+  facets: [authz, injection, secrets_config]
+  tools: [read_slice]
+
+aggregator:
+  model: null                  # 確定性元件（docs/05 §4.2）
+  role: aggregator
+
+scope_proxy:
+  model: null
+  role: scope_proxy
+
+executor:
+  model: null
+  role: executor

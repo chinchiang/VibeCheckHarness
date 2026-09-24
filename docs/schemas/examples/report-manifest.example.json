@@ -1,0 +1,124 @@
+{
+  "report_id": "RPT-2026-10-06-001",
+  "run_id": "run-2026-09-23-001",
+  "generated_at": "2026-10-06T12:00:00+08:00",
+  "advisory": false,
+  "artifacts": [
+    {
+      "kind": "whitebox_report",
+      "ref": "reports/run-2026-09-23-001/whitebox.md",
+      "sha256": "sha256:f607afc98514f0341c68630bc9a6208f6c0087d89eeae607c1fa253d3bb45a4e"
+    },
+    {
+      "kind": "sarif",
+      "ref": "reports/run-2026-09-23-001/whitebox.sarif",
+      "sha256": "sha256:82f4a3c14165fe508e60abeac07c0518a59c57b027e20486c6eb48d28f703ce7"
+    },
+    {
+      "kind": "threat_model",
+      "ref": "GR-G3-0001",
+      "sha256": "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a"
+    },
+    {
+      "kind": "test_plan",
+      "ref": "GR-G4-0001",
+      "sha256": "sha256:c0134516b8bd5ab24aef2d2341e06d6a8cd2d73568d6b3b9f605e3f2a195da6a"
+    },
+    {
+      "kind": "testresult",
+      "ref": "R-TC-012-01-1",
+      "sha256": "sha256:77ab1e9a23f858db33e9eb66445bc43a32e6b988e255f20e4a17a36e6ba6a053"
+    },
+    {
+      "kind": "testresult",
+      "ref": "R-TC-031-01-1",
+      "sha256": "sha256:229e7b7fd188c43618f64a36f8c771092dc79c0050aeae50df06973a7775339e"
+    },
+    {
+      "kind": "testresult",
+      "ref": "R-TC-027-01-1",
+      "sha256": "sha256:91fe3e662a41c200d3674b06ec10c3a67f561688629d882da0cc0afd7bd5c87e"
+    },
+    {
+      "kind": "verdict",
+      "ref": "V-005-1",
+      "sha256": "sha256:fbf1e05cf71db593813cbc05cca662b1ee778a6e7cd563431971f77f3673d08f"
+    },
+    {
+      "kind": "verdict",
+      "ref": "V-011-1",
+      "sha256": "sha256:8235016efb9a91d7212e24b0d2e9a2b6f3d2543c7fd7fef9004ed0c789fa66d2"
+    },
+    {
+      "kind": "verdict",
+      "ref": "V-005-2",
+      "sha256": "sha256:5b890e507030c7895475e789a22f7925495975403d0f2f55ef0bb5305ed4947a"
+    },
+    {
+      "kind": "verdict",
+      "ref": "V-011-2",
+      "sha256": "sha256:0dc11b90516d5eca8168a0763e5e8ac625d6fde45f885585b689ba933e672224"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-G0a-0001",
+      "sha256": "sha256:0bee2a91cd655a8561893d791d9986b218a1e4ba6983e3c0308707ad85eebc0b"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-G1-0001",
+      "sha256": "sha256:e837e787bd0f5bf20fbf8710adcf3ca922acefe87c9384b3fb076586e93a004f"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-G2-0001",
+      "sha256": "sha256:a301bcc40c33cc771dd0bfcc4e3a75da1d688fdd0f3174d6017d6bc805df55a6"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-GB-0001",
+      "sha256": "sha256:46b63011ce28deee27f9075fb1089880a642ea6259c8598a185c5892e9bca092"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-G0b-0001",
+      "sha256": "sha256:8572ca4ecad51ae04da3cc73773dd2cd105579636c37ad4937dcd33d11d46df1"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-G3-0001",
+      "sha256": "sha256:000f12117e727b333f087e08fc3dbeeb9f54d7bf3d4d309e457c06463925d7e6"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-G4-0001",
+      "sha256": "sha256:d71887c80000f2b7e05e59d134ef1043f7b68bb537d95338bbd20ef0ec8fa3db"
+    },
+    {
+      "kind": "gate_record",
+      "ref": "GR-G5-0001",
+      "sha256": "sha256:63b91b779c7a6a6a75a29b6c9d7f8d36ce02676381cce70036c4ab222bf4ea09"
+    },
+    {
+      "kind": "audit_log",
+      "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
+      "sha256": "sha256:4f5f7b5a2820c09c58475fbd536323475cdd99ed2d999a598ca4293151ba54fa"
+    },
+    {
+      "kind": "followup_draft",
+      "ref": "FD-001",
+      "sha256": "sha256:a2266866ff7c65805cbe9cc41a7c704eb29a00645f5d339363d607577c097543"
+    }
+  ],
+  "verdict_counts": {
+    "CONFIRMED_EXECUTABLE": 1,
+    "CONFIRMED_CORROBORATED": 0,
+    "LIKELY": 0,
+    "UNCORROBORATED": 1,
+    "DISPUTED": 0,
+    "REJECTED": 0
+  },
+  "gaps": [],
+  "manual_review_clusters": [],
+  "limitations_ref": "reports/run-2026-09-23-001/limitations.md"
+}

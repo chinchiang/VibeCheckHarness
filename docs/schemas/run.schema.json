@@ -1,0 +1,918 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run.schema.json",
+  "title": "Run（run 紀錄，RunState 的持久化子集）",
+  "description": "欄位對應 docs/03 §5.1 RunState。只存參照（sha256: 或 Blackboard ID）。授權一律以 gate_records 指向的簽章紀錄為準，不以本紀錄或 checkpoint 內容為準。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "$ref": "common.schema.json#/$defs/run_id"
+    },
+    "engagement_id": {
+      "$ref": "common.schema.json#/$defs/engagement_id"
+    },
+    "run_kind": {
+      "enum": [
+        "initial",
+        "followup",
+        "regression",
+        "lane_a"
+      ]
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/run_id"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "followup／regression 必填"
+    },
+    "reuse": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "description": "沿用的上一 run 產物（輸入 hash 必須相同）"
+    },
+    "trigger": {
+      "enum": [
+        "manual",
+        "schedule",
+        "merge",
+        "pull_request"
+      ]
+    },
+    "run_owner": {
+      "$ref": "common.schema.json#/$defs/person_id"
+    },
+    "initiators": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/person_id"
+      },
+      "description": "啟動者、認領者、G4 核准者；都必須是人"
+    },
+    "status": {
+      "enum": [
+        "RUNNING",
+        "WAITING_GATE",
+        "SUSPENDED",
+        "STOPPED",
+        "ABORTED",
+        "FAILED",
+        "COMPLETED",
+        "COMPLETED_WITH_GAPS"
+      ]
+    },
+    "status_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "current_node": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resume_node": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resume_deadline": {
+      "$ref": "common.schema.json#/$defs/datetime_or_null",
+      "description": "min(委任 not_after, ROE not_after)"
+    },
+    "data_class": {
+      "$ref": "common.schema.json#/$defs/data_class"
+    },
+    "toolkit_config_ref": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "key_registry_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "engagement_ref": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "roe_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "repo_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,64}$"
+    },
+    "owasp_llm_version": {
+      "anyOf": [
+        {
+          "enum": [
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "B2 實際使用的 OWASP LLM 版本（委任設定或 toolkit 預設）；W-only 與 Lane A 為 null"
+    },
+    "calibration_version": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "裁決所用的校準版本（calibration.yaml calibration_version）"
+    },
+    "inventory_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "sbom_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "redaction_map_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null",
+      "description": "null 時 Gateway 拒絕此 run 的所有 LLM 請求"
+    },
+    "invariants_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "invariants_changed": {
+      "type": "boolean"
+    },
+    "g1_round": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "w1_sarif_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "deps_check_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "slice_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "plan_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^F-[0-9]{3,}$"
+      }
+    },
+    "cluster_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^K-[0-9]{3,}$"
+      }
+    },
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "每一版裁決都保留（append-only）"
+    },
+    "missing_votes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cluster_id": {
+            "type": "string"
+          },
+          "agent_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_id",
+          "agent_id",
+          "reason"
+        ]
+      }
+    },
+    "diversity_flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "reason"
+        ]
+      }
+    },
+    "cmd2_rounds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "g2_queue": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "w4_iteration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "w4_results": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "whitebox_report_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "w_sarif_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "dfd_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "seed_threats_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "lane_a_advisories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lane A 帶入的參考性發現項；不計入 independent_families"
+    },
+    "disputed_after_g2": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^K-[0-9]{3,}$"
+      },
+      "description": "W4_readjudicate 重新裁決時才轉為 DISPUTED 的叢集（G3 另列）。推導值：本 run 中帶 w4_became_disputed 註記之 verdict 的 cluster_id（排序、不重複；docs/05 §4.2）；驗證器（E-DERIVED）比對"
+    },
+    "egress_allowlist_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "ownership_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target_id": {
+            "$ref": "common.schema.json#/$defs/target_id"
+          },
+          "method": {
+            "enum": [
+              "dns_txt",
+              "well_known_path"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "checked_at": {
+            "$ref": "common.schema.json#/$defs/datetime"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "signed_result_ref": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        },
+        "required": [
+          "target_id",
+          "method",
+          "ok",
+          "checked_at",
+          "batch_id",
+          "signed_result_ref"
+        ]
+      }
+    },
+    "b1_external_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "b1_merged_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "b1_diff_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "taxonomy_plan_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "threat_model_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "b1_diff_dispositions_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "g3_round": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "testplan_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "testcase_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "artifact_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "description": "testcase_id → 可執行產物 hash（G4 綁定）"
+    },
+    "g4_round": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "approved_testcase_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "restore_drill_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "jobs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/job"
+      },
+      "description": "以 job_id 為鍵"
+    },
+    "executed_jobs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "所有 job 的冪等鍵"
+    },
+    "stop_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "$ref": "common.schema.json#/$defs/datetime"
+          },
+          "scope": {
+            "enum": [
+              "job",
+              "target",
+              "run"
+            ]
+          },
+          "condition": {
+            "type": "string"
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "$ref": "common.schema.json#/$defs/target_id"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "at",
+          "scope",
+          "condition",
+          "observed",
+          "threshold",
+          "job_id",
+          "target_id"
+        ]
+      }
+    },
+    "kill_switch": {
+      "type": "boolean"
+    },
+    "testresults": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "manual_review_clusters": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^K-[0-9]{3,}$"
+      },
+      "description": "B5_readjudicate 後轉為 DISPUTED 者（B6 人工複核清單）"
+    },
+    "followup_drafts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "report_manifest_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "gate_records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gate_ref"
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_total": {
+          "$ref": "#/$defs/phase_budget"
+        },
+        "W": {
+          "$ref": "#/$defs/phase_budget"
+        },
+        "B": {
+          "$ref": "#/$defs/phase_budget"
+        },
+        "upstream_llm_spend_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "relay_spend_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "gb_return_node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "run_total",
+        "W",
+        "B",
+        "upstream_llm_spend_usd",
+        "relay_spend_usd",
+        "gb_return_node"
+      ]
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "manual",
+              "g3_rejected",
+              "g4_rejected",
+              "g5_skipped",
+              "tool_failed",
+              "ownership_failed",
+              "gb_stopped",
+              "seed_reset_failed",
+              "error"
+            ]
+          },
+          "ref": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref",
+          "reason"
+        ]
+      },
+      "description": "B6「未能測試清單」的來源"
+    },
+    "audit_anchors": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "description": "稽核錨點：audit_anchor 事件寫入時最後一行的 sha256（＝該錨點事件的 prev_hash）"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "node": {
+            "type": "string"
+          },
+          "error_class": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "detail_ref": {
+            "$ref": "common.schema.json#/$defs/sha256_or_null"
+          }
+        },
+        "required": [
+          "node",
+          "error_class",
+          "attempt",
+          "detail_ref"
+        ]
+      }
+    }
+  },
+  "required": [
+    "run_id",
+    "engagement_id",
+    "run_kind",
+    "parent_run_id",
+    "reuse",
+    "trigger",
+    "run_owner",
+    "initiators",
+    "status",
+    "status_reason",
+    "current_node",
+    "resume_node",
+    "resume_deadline",
+    "data_class",
+    "toolkit_config_ref",
+    "key_registry_ref",
+    "engagement_ref",
+    "roe_ref",
+    "repo_commit",
+    "owasp_llm_version",
+    "calibration_version",
+    "inventory_ref",
+    "sbom_ref",
+    "redaction_map_ref",
+    "invariants_ref",
+    "invariants_changed",
+    "g1_round",
+    "w1_sarif_ref",
+    "deps_check_ref",
+    "slice_refs",
+    "plan_ids",
+    "findings",
+    "cluster_ids",
+    "verdicts",
+    "missing_votes",
+    "diversity_flags",
+    "cmd2_rounds",
+    "g2_queue",
+    "w4_iteration",
+    "w4_results",
+    "whitebox_report_ref",
+    "w_sarif_ref",
+    "dfd_ref",
+    "seed_threats_ref",
+    "lane_a_advisories",
+    "disputed_after_g2",
+    "egress_allowlist_ref",
+    "ownership_results",
+    "b1_external_ref",
+    "b1_merged_ref",
+    "b1_diff_ref",
+    "taxonomy_plan_id",
+    "threat_model_ref",
+    "b1_diff_dispositions_ref",
+    "g3_round",
+    "testplan_ref",
+    "testcase_ids",
+    "artifact_hashes",
+    "g4_round",
+    "approved_testcase_ids",
+    "restore_drill_ref",
+    "jobs",
+    "executed_jobs",
+    "stop_events",
+    "kill_switch",
+    "testresults",
+    "manual_review_clusters",
+    "followup_drafts",
+    "report_manifest_ref",
+    "gate_records",
+    "budgets",
+    "gaps",
+    "audit_anchors",
+    "errors"
+  ],
+  "$defs": {
+    "gate_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "$ref": "common.schema.json#/$defs/gate"
+        },
+        "gate_record_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^GR-[0-9A-Za-z-]+$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "EXPIRED 時為 null"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/gate_outcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null＝關卡已開啟、尚未決定（此時 gate_record_id 與 decided_at 也是 null）"
+        },
+        "round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "subject_hash": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "opened_at": {
+          "$ref": "common.schema.json#/$defs/datetime"
+        },
+        "decided_at": {
+          "$ref": "common.schema.json#/$defs/datetime_or_null"
+        }
+      },
+      "required": [
+        "gate",
+        "gate_record_id",
+        "outcome",
+        "round",
+        "subject_hash",
+        "job_id",
+        "opened_at",
+        "decided_at"
+      ]
+    },
+    "phase_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_compute_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "spent_input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "spent_output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "spent_cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "compute_minutes": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "max_input_tokens",
+        "max_output_tokens",
+        "max_cost_usd",
+        "max_compute_minutes",
+        "spent_input_tokens",
+        "spent_output_tokens",
+        "spent_cost_usd",
+        "compute_minutes"
+      ]
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "type": "string"
+        },
+        "testcase_id": {
+          "type": "string"
+        },
+        "safety_class": {
+          "enum": [
+            "S0",
+            "S1",
+            "S2"
+          ]
+        },
+        "target_id": {
+          "$ref": "common.schema.json#/$defs/target_id"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "AWAITING_G5",
+            "SNAPSHOTTED",
+            "EXECUTING",
+            "EXECUTED",
+            "INTERRUPTED",
+            "RESTORED",
+            "RESTORE_FAILED",
+            "SKIPPED",
+            "STOPPED"
+          ]
+        },
+        "g5_record_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snapshot_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "restore_verified": {
+          "type": "boolean"
+        },
+        "result_ref": {
+          "$ref": "common.schema.json#/$defs/sha256_or_null"
+        },
+        "skip_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "g4_rejected",
+                "g5_rejected",
+                "g5_expired",
+                "no_snapshot",
+                "ownership_failed",
+                "seed_reset_failed",
+                "outside_window",
+                "stopped"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "job_id",
+        "testcase_id",
+        "safety_class",
+        "target_id",
+        "status",
+        "g5_record_id",
+        "snapshot_ref",
+        "restore_verified",
+        "result_ref",
+        "skip_reason"
+      ]
+    }
+  }
+}

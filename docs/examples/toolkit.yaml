@@ -1,0 +1,89 @@
+# toolkit.yaml — 工具包部署設定（示意，toolkit-config.schema.json）
+# 隨部署設定管理，不由 run 輸入（docs/03 §6.1）。所有預設值都是 [H]。
+# 範例中的金鑰都是 tests/fixtures/TEST_ONLY_private_keys/ 的測試金鑰，不得用於任何真實環境。
+
+toolkit_version: "0.2.0"
+
+org_root_key:                      # 釘選組織根金鑰；key-registry.yaml 的根簽章以此驗證
+  fingerprint: "ed25519:SHA256:BapVgk4zzu3O27bFRo4KQPgpimca+HewBXfVD+sMLeQ"
+  alg: ed25519
+
+key_registry:
+  location: "docs/examples/key-registry.yaml"
+  min_version: 4                   # 上次接受的登錄版本；登錄 version 較小 → 拒絕（防回滾）
+
+tool_registry_ref: "docs/examples/tools.yaml"
+
+gate_timeouts_hours:               # docs/03 §6.2；委任設定可縮短、不能延長
+  claim_run: 168
+  G1: 168
+  G2: 168
+  G3: 168
+  G4: 72
+  G5: 24                           # 上限；實際逾時＝該 job 所在時間窗的結束時間
+  GB: 24
+
+budget_defaults:                   # docs/03 §11；費用上限沒有預設值（null → 委任設定必須給）
+  W: {max_input_tokens: 15000000, max_output_tokens: null, max_cost_usd: null, max_compute_minutes: 1440}
+  B: {max_input_tokens: 5000000, max_output_tokens: null, max_cost_usd: null, max_compute_minutes: 1440}
+  threshold_event_ratio: 0.8       # 80% 寫 budget_threshold
+
+stop_condition_defaults:           # docs/03 §7.3；ROE stop_conditions 可覆寫
+  window_seconds: 60
+  min_window_requests: 20
+  max_5xx_ratio: 0.05
+  max_consecutive_5xx: 10
+  max_p95_latency_ms: 3000
+  baseline_latency_multiplier: 3
+  max_conn_error_ratio: 0.1
+  rate_limited_429: {count: 3, window_seconds: 60, sustain_minutes: 5}
+  health_fail_count: 3
+  health_interval_seconds: 30
+  out_of_scope_blocked_per_job: 3
+
+audit:
+  anchor_interval_events: 500      # 另在每個關卡決定、階段結束、run 結束時錨定
+  hash_alg: sha256
+
+sandbox:                           # docs/03 §2 Z2 預設上限
+  cpu: 2
+  memory_mib: 4096
+  disk_gib: 10
+  w1_tool_timeout_minutes: 30
+  w4_batch_timeout_minutes: 10
+  max_output_mib: 100
+  network: none
+
+path_blacklist:                    # W0：完全不進任何後續產物（docs/02 W0、docs/06 §1）
+  - ".env*"
+  - "**/*.pem"
+  - "**/*.key"
+  - "**/id_rsa*"
+  - "playwright/.auth/**"
+  - ".github/secrets/**"
+
+relay:                             # docs/03 §7.5；ROE relay 只能再調低
+  max_turns: 10
+  max_spend_usd_per_job: 2
+  max_spend_usd_per_run: 20
+
+b4_batch:
+  max_jobs: 20
+  max_minutes: 60
+
+restore_drill_interval_days: 7
+
+automation_accounts:               # 不能記成發起者或核准者（docs/03 §6）
+  - run-controller
+  - scheduler
+  - ci-bot
+
+owasp_llm_default: "2026"          # docs/04 §2.3；新委任預設 2026，engagement 可選 2025
+
+retention:                         # docs/08 §7.5；預設值 [H]，實際值需法務決定（docs/08 §10）
+  p_days: 365                      # P 級：365 天
+  c_days_after_run_end: 90         # C 級：run 結束後 90 天
+  audit_days: 1095                 # 稽核檔與 GateRecord：3 年
+  checkpoint_days_after_run_end: 30
+  checkpoint_keep_last: 1          # 30 天後只留最後一個
+  legal_hold: []                   # 有 legal_hold 的範圍一律不刪；刪除 C 級內容後稽核 hash 仍保留

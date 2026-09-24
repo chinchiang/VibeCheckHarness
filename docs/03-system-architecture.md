@@ -2,61 +2,96 @@
 
 > 標記說明見 [README](../README.md#標記說明)。本文件是設計，尚未實作；所有數值都是設計假設，除非另附證據。
 
+## v0.2 變更摘要
+
+- **狀態機完整化**（§5）：拆成主圖＋W 子圖＋B 子圖＋B4 執行迴圈＋中止／補償／resume 圖；每個關卡都有 `APPROVED`／`PARTIALLY_APPROVED`／`REJECTED`／`NEEDS_INFO`／`EXPIRED` 邊；加上終止狀態與可續跑狀態。
+- **新節點**：`run_init`、`claim_run`、`LA_static`、`LA_diff_review`、`W4_exec`、`W4_readjudicate`、`B0_ownership_verify`、`B1_crawl`、`B4_preflight`、`GB_budget_gate`、`abort_handler`、`run_resume`、`suspended_wait`、`stopped_wait`。
+- **完整 RunState**（§5.1）：W 與 B 欄位、關卡紀錄、預算、`run_kind`、`parent_run_id`、狀態 enum。
+- **節點規格表**（§5.7）：每個節點的執行區、是否用 LLM、冪等鍵、副作用、失敗邊；節點邊界規則延伸到新節點。
+- **Secrets 先於 LLM**：W0 完全確定性；Model Gateway 對沒有 `redaction_map_ref` 的 run 一律拒絕（§8.4）。
+- **金鑰登錄與驗章流程**（§6.1）、**關卡逾時預設值**（§6.2）、**稽核事件格式與類型**（§13）。
+- **停止條件預設門檻**（§7.3）、**DB 快照與 oracle 唯讀存取路徑**（§7.6）、**Session Provider 介面**（§7.4）、**Z3→Z1 relay**（§7.5）、**Z2 沙箱需求**（§2）。
+- **Blackboard、content-addressed store** 與其他元件的介面（§15）；每個元件標出負責的里程碑（§1）。
+- 預算觸頂改由 `GB_budget_gate` 決定（§11）；Lane A 的單一家族審查只有參考性（§12）。
+- 儀表板移出範圍：M5 只交付靜態 HTML＋SARIF＋JSON 報告。
+- **v0.2 後續對齊（04／05）**：裁決規則改為 05 的 R0–R13；G2 之後才出現的 `DISPUTED` 不重開 G2（§5.3）；Snapshot Service 新增 `oracle_capture` 與 G4 核准的 `oracle_count`、種子重置失敗規則（§7.6、§15）；§7.1 無法分類工具的等級規則對齊 04 §5。
+- **v0.2 後續對齊（06）**：§6.1 引用 [01 §7](01-research-survey.md#7-v02-補充研究2026-09-24) 的證據（已獨立查核），並加入嚴格 YAML 規則與 `legal_reviewer` 角色；G0b 加入 `legal_review` 檢查（§5.4）；Z2 加入版本鎖定與 CVE 更新要求（§2）；§8 補上 GPT-6 Luna 與模型退役提醒；§13.1 引用稽核鏈文獻；Executor 的 TruffleHog 驗證為選用。
+- 模型命名統一：OpenAI 旗艦寫作 GPT-6 Astra／Sol（[P][E:providers-31]），設定檔中的代號為 `gpt_flagship`（§8.1）。
+
 ## 1. 元件總覽
 
 ```mermaid
 flowchart LR
   subgraph Z1["Z1 控制平面"]
-    CLI["CLI / API"] --> RC["Run Controller<br/>(LangGraph StateGraph)"]
+    CLI["CLI"] --> RC["Run Controller<br/>(LangGraph StateGraph)"]
     RC <--> CMD["Commander Agent<br/>(LLM)"]
-    CMD -- 計畫 JSON --> PE["Policy Engine<br/>(程式碼)"]
+    CMD -- 計畫 JSON --> PE["Policy Engine<br/>(程式碼，含驗章)"]
     PE -- 驗證後的計畫 --> RC
-    RC --> REG["Agent / Model Registry"]
+    RC --> REG["Agent / Model / Tool Registry"]
     RC <--> BB[("Blackboard<br/>Postgres")]
+    RC <--> CAS[("Content-addressed<br/>Store")]
     RC --> SL["Slicer"] --> AG["Reviewer / Verifier / Designer agents"]
     AG --> CL["Clusterer"] --> AGG["Aggregator<br/>(規則式裁決)"]
     AGG --> CAL["Calibration Lab"]
     RC <--> GS["Gate Service"]
     RC --> REP["Reporter"]
-    RC --> AUD[("Audit Log<br/>加密")]
+    RC --> AUD[("Audit Log<br/>hash chain")]
     AG <--> GW["Model Gateway<br/>(LiteLLM, 鎖版本)"]
     CMD <--> GW
+    GW <--> BT["Budget Tracker"]
+    RLY["LLM Relay endpoint"] --> GW
   end
   GW -->|HTTPS| CLOUD["Anthropic / OpenAI / build.nvidia.com"]
   GW -->|內網| Z4["Z4 自架模型<br/>vLLM / SGLang / NIM"]
-  RC -->|工作| Z2["Z2 程式執行沙箱"]
-  RC -->|工作| Z3["Z3 黑箱執行區"]
+  RC -->|工作| Z2["Z2 Sandbox Runner"]
+  RC -->|工作| Z3["Z3 Executor<br/>Session Provider / Snapshot Service"]
   Z3 -->|Scope Proxy| TGT["ROE 目標（staging）"]
+  Z3 -. 多輪 LLM 測試 .-> RLY
 ```
 
-| 元件 | 責任 | 是否用 LLM |
-|---|---|---|
-| Run Controller | 依狀態機排程、並行、重試、限速、checkpoint | 否 |
-| Commander Agent | 在 5 個決策節點提出計畫與加派（§4） | 是 |
-| Policy Engine | 強制 ROE、資料分級、覆蓋下限、預算、安全等級計算、產物驗證、核准紀錄驗證 | 否 |
-| Agent／Model Registry | `agents.yaml`、`models.yaml`（含 `family`、`lineage`、能力、可處理的資料等級） | 否 |
-| Blackboard | 型別化 artifact 的唯一交換處；agent 之間**不直接對話**（OSS-CRS 也是只透過交換檔案協作 [V][E:reference_systems-13]） | 否 |
-| Slicer／Clusterer／Aggregator | 切片、叢集、裁決（[05 §4](05-bias-calibration.md#4-叢集與裁決)） | 否 |
-| Calibration Lab | 量測各模型精準度、錯誤相關、自我偏好（[05 §5](05-bias-calibration.md#5-calibration--bias-lab)） | 被測對象是 LLM |
-| Gate Service | 人工關卡的呈現、簽章核准、resume（§6） | 否 |
-| Reporter | 唯一撰寫最終敘事者；不改裁決 | 是 |
-| Model Gateway | 唯一有 LLM 出站、持有 API 金鑰的元件 | — |
-| Audit Log | 保存每次 prompt、回應、工具呼叫、費用；加密、分級、有保留期限 | 否 |
+| 元件 | 責任 | 是否用 LLM | 區 | 里程碑 [H] |
+|---|---|---|---|---|
+| Run Controller | 依狀態機排程、並行、重試、限速、checkpoint | 否 | Z1 | M1（骨架）、M2（W 圖）、M3–M4（B 圖） |
+| Commander Agent | 在 5 個決策節點提出計畫與加派（§4） | 是 | Z1 | M2（CMD-1、CMD-2）、M3（CMD-3）、M4（CMD-4、CMD-5） |
+| Policy Engine | 強制 ROE、資料分級、覆蓋下限、預算、安全等級計算、產物驗證、核准紀錄與簽章驗證（§6.1） | 否 | Z1 | M1（資料等級、白名單、G0a／G0b、目標解析、驗章）、M2（CMD 計畫驗證）、M4（安全等級計算、產物驗證）、M5（Relay 上限） |
+| Agent／Model／Tool Registry | `agents.yaml`、`models.yaml`（含 `family`、`lineage`、能力、可處理的資料等級）、`tools.yaml`（工具 ID 與 `tool:mode`） | 否 | Z1 | M1（M2 加 `calibration.yaml`） |
+| Blackboard | 型別化 artifact 的索引與唯一交換處；agent 之間**不直接對話**（OSS-CRS 也是只透過交換檔案協作 [V][E:reference_systems-13]） | 否 | Z1 | M1 |
+| Content-addressed Store（CAS） | 以 sha256 為鍵存放所有產物本體（SARIF、切片、報告、產生的測試、LLM 請求與回應） | 否 | Z1 | M1 |
+| Slicer／Clusterer／Aggregator | 切片、叢集、裁決（[05 §4](05-bias-calibration.md#4-叢集與裁決)） | 否 | Z1 | M2、M4（黑箱證據）、M5（機率判定） |
+| Calibration Lab | 量測各模型精準度、錯誤相關、自我偏好（[05 §5](05-bias-calibration.md#5-calibration--bias-lab)） | 被測對象是 LLM | Z1＋Z2 | M2 |
+| Gate Service | 人工關卡的呈現、簽章核准、逾時、resume（§6） | 否 | Z1 | M1（只有 G0a／G0b 離線驗章）、M2（G1、G2、GB）、M3（G3）、M4（G4、G5） |
+| Reporter | 唯一撰寫最終敘事者；不改裁決；輸出 SARIF、JSON、靜態 HTML | 是 | Z1 | M2（白箱報告）、M4（B6 JSON／SARIF／矩陣）、M5（靜態 HTML） |
+| Model Gateway | 唯一有 LLM 出站、持有 API 金鑰的元件；沒有 `redaction_map_ref` 的 run 一律拒絕 | — | Z1 | M1（fail-closed 前置檢查、快取、修復、重試）、M2（真實供應商、fallback） |
+| Budget Tracker | 追蹤每個 run 與階段的 token、費用、時間；觸頂時觸發 GB（§11） | 否 | Z1 | M2、M5（Relay 的花費上限） |
+| Audit Log | append-only JSONL、hash chain、定期錨定（§13） | 否 | Z1 | M1 |
+| Sandbox Runner | 在 Z2 執行 W0、W1、W4 與目標建置（§2） | 否 | Z2 | M1（W0／W1）、M2（W4） |
+| Z3 Executor | M1 只做最小出站執行器：Scope Proxy＋所有權驗證＋經 proxy 的 HTTP GET；M3 加 B1 的 S0 爬行；M4 加工具 adapter 與停止條件 | 否 | Z3 | M1（最小）、M3（B1 爬行）、M4（完整）、M5（Relay 用戶端） |
+| Scope Proxy | Z3 唯一出口（§2） | 否 | Z3 | M1（所有權驗證與 GET）、M3（B1 的 S0 爬行）、M4（黑箱工具的攔截式 proxy） |
+| Session Provider | 測試角色登入與多工具憑證轉換（§7.4） | 否 | Z3 | M4 |
+| Snapshot Service | DB 快照、還原、還原演練、oracle 唯讀查詢（§7.6） | 否 | Z3 | M4 |
+| LLM Relay | Z3 多輪 LLM 功能測試向 Z1 要下一輪輸入的受限通道（§7.5） | 經 Gateway | Z1 端點＋Z3 用戶端 | M5 |
+
+- 里程碑欄與 [07 §2.1](07-roadmap.md#21-元件03-1) 一致；兩者不同時**以 07 為準**。
+
+**不在範圍內**：網頁儀表板。v0.2 起 M5 只交付靜態 HTML、SARIF 與 JSON 報告；Gate Service 以 CLI 為主。
 
 ## 2. 部署與信任區
 
 ```mermaid
 flowchart TB
   subgraph Z1["Z1 控制平面：無目標網路；唯一 LLM 出站（經 Gateway）"]
-    RC2["Run Controller / Policy Engine / Gate Service / Stores"]
+    RC2["Run Controller / Policy Engine / Gate Service / Blackboard / CAS / Audit"]
     GW2["Model Gateway（持有金鑰）"]
+    RLY2["LLM Relay endpoint（只接受 Z3 Executor 身分）"]
   end
   subgraph Z2["Z2 程式執行沙箱：gVisor 或 microVM"]
-    T1["W1 工具 / 目標建置 / W4 測試"]
+    T1["W0 盤點與 secrets / W1 工具 / 目標建置 / W4 測試"]
   end
   subgraph Z3["Z3 黑箱執行區"]
-    EX["Executor（B1 爬行、B4 測試、TruffleHog 驗證）"]
-    SS[("測試帳號 secret store")]
+    EX["Executor（所有權驗證、B1 爬行、B4 測試、選用的 TruffleHog 驗證）"]
+    SPV["Session Provider"]
+    SNAP["Snapshot Service"]
+    SS[("Z3 secret store：測試帳號、DB 憑證")]
     SP["Scope Proxy"]
   end
   subgraph Z4["Z4 自架模型"]
@@ -67,14 +102,18 @@ flowchart TB
   GW2 --> M1
   T1 -. 只允許 .-> MIR["套件鏡像 / 漏洞 DB 鏡像"]
   EX --> SP --> TGT2["ROE 目標"]
-  SS --> EX
+  SNAP --> SP
+  SP --> DB2[("staging DB（ROE db_access）")]
+  SS --> SPV --> EX
+  SS --> SNAP
+  EX -. 多輪 relay .-> RLY2
 ```
 
 | 區 | 內容 | 出站 | 秘密 |
 |---|---|---|---|
-| Z1 | Run Controller、Policy Engine、Gate Service、Postgres、檔案庫、Model Gateway | 只有 Gateway 能連 LLM 端點；**不能連目標** | LLM API 金鑰（只在 Gateway） |
-| Z2 | W1 掃描、目標應用建置與相依安裝、W4 測試 | 只能連套件鏡像與漏洞 DB 鏡像；**沒有 LLM、沒有目標** | 無 |
-| Z3 | B1 爬行、B4 執行、TruffleHog 驗證（若 ROE 允許） | 只經 Scope Proxy 到 ROE 目標 | 只有測試帳號，存在 Z3 自己的 secret store，**永遠不進 LLM context** |
+| Z1 | Run Controller、Policy Engine、Gate Service、Postgres、CAS、Audit Log、Model Gateway、Budget Tracker、LLM Relay endpoint | 只有 Gateway 能連 LLM 端點；**不能連目標**；唯一入站是 Z3 → Relay endpoint（mTLS）[H] | LLM API 金鑰（只在 Gateway） |
+| Z2 | W0 盤點與 secrets 掃描、W1 掃描、目標應用建置與相依安裝、W4 測試 | 只能連套件鏡像與漏洞 DB 鏡像；**沒有 LLM、沒有目標** | 無 |
+| Z3 | 所有權驗證、B1 爬行、B4 執行、Session Provider、Snapshot Service、TruffleHog 驗證（選用，需 ROE 允許且通過法務閘門） | 只經 Scope Proxy 到 ROE 目標與 ROE `db_access` 端點；另可連 Z1 Relay endpoint | 測試帳號與 DB 憑證，存在 Z3 自己的 secret store，**永遠不進 LLM context、不回傳 Z1** |
 | Z4 | 自架模型伺服器 | 無對外出站；只接受 Gateway 連線 | 無 |
 
 **隔離要求**：
@@ -83,23 +122,41 @@ flowchart TB
 - gVisor、Firecracker、E2B 的逃逸抵抗力，本研究只找到廠商自述，未找到獨立評估（搜尋未窮盡）[研究限制]。
 - 出站白名單在 proxy／namespace 層強制，例如 Anthropic sandbox-runtime 的 `allowedDomains`（research preview）[V][E:blackbox-40] 或 nftables。工具自己的 origin 選項不是安全邊界 [V][E:blackbox-24]。
 
+**Z2 沙箱需求**（Sandbox Runner 必須滿足，全部 [H]，數值可在 `toolkit.yaml` 調整）：
+
+| 項目 | 要求 |
+|---|---|
+| 執行環境 | gVisor 或 Firecracker microVM；每個 job 一個全新環境，結束即銷毀；不共用檔案系統 |
+| 映像 | 以 digest 鎖定；工具版本登錄在 `tools.yaml`；不在 job 內下載工具 |
+| 輸入 | repo 以唯讀複本掛入（路徑黑名單已排除）；其他輸入只從 CAS 取得並驗 hash |
+| 網路 | 預設無網路；`mirror_only` 設定檔只允許套件鏡像與漏洞 DB 鏡像；W4 測試一律 `none` |
+| 權限 | 非 root；無 Docker socket；無主機掛載；無憑證、無環境變數 secrets；預設關閉 lifecycle scripts |
+| 資源上限（預設） | 2 vCPU、4 GiB 記憶體、10 GiB 磁碟；W1 每個工具 30 分鐘、W4 每批 10 分鐘；超過即終止並記 `ERROR` |
+| 輸出 | 只收集指定輸出目錄與 stdout／stderr，單一 job 上限 200 MiB；離開 Z2 前套用 `secrets-redaction-map` 與 pattern＋entropy 遮罩，再寫入 CAS |
+| 冪等 | job ID＝sha256（映像 digest＋指令＋輸入 hash）；結果已存在就不重跑 |
+| 隔離層版本 | runsc／Firecracker 版本鎖定並列入 SBOM；每週比對 CVE，High 以上 7 天內升級。gVisor、Firecracker、Kata 都有逃逸或權限提升類 CVE／advisory [P][E:blackbox-41][E:blackbox-42][E:blackbox-45]～[E:blackbox-47][E:blackbox-51]～[E:blackbox-53]；一般 runc 容器也有多次逃逸 CVE [V][E:blackbox-54]～[E:blackbox-56]（詳見 [06 §1.4](06-security-legal-limitations.md#14-沙箱與網路)） |
+| 主機設定 | Firecracker 不開 `--enable-pci`；Jailer 目錄只有 root 可寫；virtiofsd 等主機端輔助程式沙箱化執行 |
+| 共置 | 同一台實體主機不同時執行不同 engagement 的 Z2 job（側通道，[V][E:blackbox-48]），或改用關閉 SMT 的專用主機 |
+
 **Scope Proxy（Z3 唯一出口）**：
-- 只放行 ROE 目標的主機。目標 ID→主機名稱的對應由 Policy Engine 完成（不經 LLM）；DNS 解析結果由 Scope Proxy 固定。
+- 只放行通過所有權驗證的 ROE 目標主機。目標 ID→主機名稱的對應由 Policy Engine 完成（不經 LLM）；DNS 解析結果由 Scope Proxy 固定。
 - 擋內網、雲端 metadata 位址，以及 ROE 以外的 redirect。
 - **每個 job 的請求白名單**：依測試案例的 `request_allowlist`（目標 ID × HTTP 方法 × 路徑樣板）逐一放行，並強制 `max_requests`。DELETE 只允許 seed manifest 中的 ID。這是真正的強制點；對產物做的靜態抽取（§7.2）只是第一道檢查。
-- 每個主機設請求預算與並行上限，**與工具設定無關**。
-- **所有權驗證**從這裡發出：Executor 經 Scope Proxy 讀取目標的 DNS TXT 或 well-known path token，結果簽署後回傳 Policy Engine（Z1 本身不能連目標）。
+- 每個主機設請求預算與並行上限，**與工具設定無關**；並計算停止條件所需的指標（§7.3）。
+- **所有權驗證**從這裡發出：Executor 經 Scope Proxy 讀取目標的 DNS TXT 或 well-known path token，結果以 Z3 Executor 的服務金鑰簽署後回傳 Policy Engine（Z1 本身不能連目標）。
+- **DB 連線**：只有 Snapshot Service 的身分可以用 TCP 轉送模式連到 ROE `db_access.endpoint`；Executor 的測試 job 不能直連 DB（§7.6）[H]。
 - **第三方接觸是另一份白名單**：TruffleHog 驗證只能連到 ROE `secrets_verification.providers` 列出的供應商端點，每次都標記為「第三方接觸」並記錄；預設這份白名單是空的。
-- 支援 kill switch：一鍵取消所有 Executor 工作並記錄原因。
+- 支援 kill switch：一鍵取消所有 Executor 工作、關閉所有 job 白名單，並記錄原因。
 
 **Z3 與 LLM 的關係**：Z3 不持有 LLM 金鑰、不能直連 LLM 端點。
 - 單輪的 LLM 功能測試：測試輸入（prompt、合成文件）在 Z1 經 Gateway 產生，成為 G4 核准的產物，再交給 Z3 送到目標；目標的回應回傳 Z1 評分。
-- 多輪策略（例如 iterative、crescendo）需要邊測邊產生下一輪輸入：Z3 經一條**受限的 relay** 呼叫 Z1，由 Z1 經 Gateway 產生下一輪。relay 只允許 ROE 指定的模型，有每輪與總花費上限，並全部寫入 audit。
+- 多輪策略（例如 iterative、crescendo）需要邊測邊產生下一輪輸入：Z3 經一條**受限的 relay** 呼叫 Z1，由 Z1 經 Gateway 產生下一輪。relay 只允許 ROE 指定的模型，有每輪與總花費上限，並全部寫入 audit。細節見 [§7.5](#75-llm-功能測試的額外控制)。
 
 **儲存**：
-- Postgres：LangGraph checkpoint（PostgresSaver [V][E:orchestration-05]）、blackboard、audit、gate 紀錄。
-- Content-addressed 檔案庫：SARIF、報告、產生的測試與工具設定，以 sha256 為鍵。
-- Audit Log 與 DB 快照：加密、套用與原始碼相同的資料等級、設保留期限、限制存取、secrets 遮罩。
+- Postgres：LangGraph checkpoint（PostgresSaver [V][E:orchestration-05]）、Blackboard 索引、gate 紀錄、run 紀錄。
+- Content-addressed Store：SARIF、切片、報告、產生的測試與工具設定、LLM 請求與回應、請求紀錄，以 sha256 為鍵（介面見 §15）。
+- Audit Log：JSONL 檔（hash chain，§13），大型內容只存 CAS hash。
+- Audit Log、CAS 與 DB 快照：加密、套用與原始碼相同的資料等級、設保留期限、限制存取、secrets 遮罩。
 
 ## 3. 框架選型
 
@@ -120,13 +177,13 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 - Run Controller 決定**怎麼執行**：順序、並行、重試、限速、checkpoint。
 - Commander 決定**要做什麼**：在下列 5 個決策節點產出計畫。
 
-| 節點 | 時機 | Commander 決定 | Policy Engine 檢查 |
-|---|---|---|---|
-| CMD-1 | W1 之後、Slicer 產出切片時 | 白箱計畫：切片 × 面向 × 指派 agent × 預算 | 覆蓋下限、資料等級與模型相容、預算 |
-| CMD-2 | W3 之後 | 對 DISPUTED 或票數不足的叢集加派審查者；補覆蓋不足的切片 | 加派的模型家族規則、預算 |
-| CMD-3 | B1 之後 | 套用哪些威脅分類（STRIDE 一律；有個資加 LINDDUN；有 LLM／Agent 加 LLM Top 10、ASI、MAESTRO） | 確定性特徵觸發的分類不可移除 |
-| CMD-4 | G3 之後 | 測試設計計畫與 `tool_binding` 選擇 | 目標只能是 ROE 目標 ID；安全等級由程式碼重算 |
-| CMD-5 | B5 之後 | 追加測試、回饋任務（白箱根因、回歸測試） | 同上 |
+| 節點 | 時機 | Commander 決定 | Policy Engine 檢查 | 計畫不合規時 [H] |
+|---|---|---|---|---|
+| CMD-1 | W1 之後、Slicer 產出切片時 | 白箱計畫：切片 × 面向 × 指派 agent × 預算 | 覆蓋下限、資料等級與模型相容、預算 | 修復 ≤2 次；仍不合規 → 使用程式碼產生的覆蓋下限計畫 |
+| CMD-2 | W3 之後 | 對 DISPUTED 或票數不足的叢集加派審查者；補覆蓋不足的切片（最多 2 輪） | 加派的模型家族規則、預算 | 不加派，直接進 G2 路由 |
+| CMD-3 | B1 之後 | 套用哪些威脅分類（STRIDE 一律；有個資加 LINDDUN；有 LLM／Agent 加 LLM Top 10、ASI、MAESTRO） | 確定性特徵觸發的分類不可移除 | 只用確定性特徵觸發的分類 |
+| CMD-4 | G3 之後 | 測試設計計畫與 `tool_binding` 選擇 | 目標只能是 ROE 目標 ID；工具與模式在 ROE 允許清單中；安全等級由程式碼重算 | 該威脅標 `MANUAL` |
+| CMD-5 | B5 之後 | 追加測試、後續 run 草稿（`followup`／`regression`） | 同上；後續 run 只是草稿，要由人啟動 | 不建立草稿，B6 列出建議 |
 
 **覆蓋下限**：「每個切片 × 每個必要面向」的最小計畫由程式碼從 W0 inventory 產生。Commander **只能加，不能減**；任何降權或略過都要記錄並出現在報告中。這也防止受測 repo 內容透過 Commander 讓覆蓋縮水。
 
@@ -137,11 +194,12 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 - 直接執行工具
 - 把 C 級資料送到不允許的模型
 - 撰寫最終報告敘事（只寫計畫理由；敘事交給 Reporter）
+- 啟動後續 run（只能建立草稿）
 
 **為什麼這樣設計**：
 - AIxCC 的計分有準確度乘數 AM＝1−(1−r)^4（準確率 50% 時為 0.9375、40% 時為 0.8704），錯誤的關聯會讓獎勵變成懲罰 [單源：SoK][E:reference_systems-05]。AIxCC SoK 的關鍵發現是「穩定性與準確度決定勝負」「技術先進與工程良好是兩個不同的挑戰」[V][E:reference_systems-08]。
 - 冠軍 Atlantis 是 ensemble-first，亞軍 Buttercup 是確定性流程＋只在工具不足處用 LLM [V][E:reference_systems-02]。本設計兩者兼取：流程確定、審查端多家族整合（ensemble）。
-- OWASP LLM06:2025 Excessive Agency（2026 版為 LLM03 [P][S-01]）的緩解建議：最小化 agent 可用的擴充、避免開放式工具、最小權限、高影響動作需人核准 [V][E:blackbox-32]。
+- OWASP LLM06:2025 Excessive Agency（2026 版為 LLM03 [V][S-01][E:threat_modeling-73]）的緩解建議：最小化 agent 可用的擴充、避免開放式工具、最小權限、高影響動作需人核准 [V][E:blackbox-32]。
 - 裁決若交給 LLM，會有自我偏好問題 [V][E:multi_llm_bias-05]。
 
 **加派機制**：用 LangGraph `Send` 從條件邊動態 fan-out 到多個平行分支 [V][S-03]；fan-in 節點採 **quorum**（容許晚到或失敗的分支，記為缺票）。
@@ -165,37 +223,261 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 
 ### 5.1 State（Pydantic，示意）
 
+State 只存**參照**（CAS 的 `sha256:` hash 或 Blackboard ID），不存大型內容。持久化的 run 紀錄（`run.schema.json`）是 RunState 的子集；checkpoint 的中繼資料依 checkpoint metadata schema。**checkpoint 內容不是授權依據**（§6）。
+
 ```python
-from typing import Annotated
+from datetime import datetime
+from enum import Enum
 from operator import add
+from typing import Annotated, Literal
 from pydantic import BaseModel
 
+ArtifactRef = str                       # "sha256:<hex>"，指向 content-addressed store
+
+class RunStatus(str, Enum):
+    RUNNING = "RUNNING"
+    WAITING_GATE = "WAITING_GATE"
+    SUSPENDED = "SUSPENDED"             # 可續跑：關卡逾時、時間窗外、GB 逾時
+    STOPPED = "STOPPED"                 # 可續跑：停止條件、kill switch（需簽署 resume）
+    ABORTED = "ABORTED"                 # 終止：授權不成立、G1 三輪未過、GB 中止
+    FAILED = "FAILED"                   # 終止：無法恢復的技術錯誤、還原失敗
+    COMPLETED = "COMPLETED"
+    COMPLETED_WITH_GAPS = "COMPLETED_WITH_GAPS"
+
+class RunKind(str, Enum):
+    INITIAL = "initial"
+    FOLLOWUP = "followup"
+    REGRESSION = "regression"
+    LANE_A = "lane_a"
+
+GateId = Literal["G0a", "G0b", "G1", "G2", "G3", "G4", "G5", "GB"]
+GateOutcome = Literal["APPROVED", "PARTIALLY_APPROVED", "REJECTED", "NEEDS_INFO", "EXPIRED",
+                      "VERIFIED", "VERIFY_FAILED"]          # 後兩者只用於 G0a/G0b（系統驗證，非人工簽核）
+
+class GateRef(BaseModel):
+    gate: GateId
+    gate_record_id: str | None          # EXPIRED 時為 None
+    outcome: GateOutcome
+    round: int = 1                      # G1/G3/G4 的重擬輪次
+    subject_hash: ArtifactRef           # 被核准產物的 hash
+    job_id: str | None = None           # 只有 G5
+    opened_at: datetime
+    decided_at: datetime | None = None
+
+class PhaseBudget(BaseModel):
+    max_input_tokens: int
+    max_output_tokens: int
+    max_cost_usd: float                 # 未設定 → Gateway 拒絕（fail-closed）
+    max_compute_minutes: int            # 不含等待人工關卡的時間
+    spent_input_tokens: int = 0
+    spent_output_tokens: int = 0
+    spent_cost_usd: float = 0.0
+    compute_minutes: float = 0.0
+
+class Budgets(BaseModel):
+    run_total: PhaseBudget
+    W: PhaseBudget
+    B: PhaseBudget
+    upstream_llm_spend_usd: float = 0.0 # 受測應用的上游 LLM 花費（ROE 上限）
+    relay_spend_usd: float = 0.0        # Z3→Z1 relay 花費
+    gb_return_node: str | None = None   # GB 核准「延長」後回到的節點
+
+class OwnershipCheck(BaseModel):
+    target_id: str
+    method: Literal["dns_txt", "well_known_path"]
+    ok: bool
+    checked_at: datetime
+    batch_id: str | None                # None = B0；否則為 B4_preflight 的批次
+    signed_result_ref: ArtifactRef      # Z3 Executor 服務金鑰簽署的結果
+
+JobStatus = Literal["PENDING", "AWAITING_G5", "SNAPSHOTTED", "EXECUTING", "EXECUTED",
+                    "INTERRUPTED", "RESTORED", "RESTORE_FAILED", "SKIPPED", "STOPPED"]
+
+class JobState(BaseModel):
+    job_id: str                         # sha256(testcase_id + 產物 hash + attempt)
+    testcase_id: str
+    safety_class: Literal["S0", "S1", "S2"]
+    target_id: str
+    status: JobStatus
+    g5_record_id: str | None = None
+    snapshot_ref: str | None = None
+    restore_verified: bool = False
+    result_ref: ArtifactRef | None = None
+    skip_reason: str | None = None      # g4_rejected / g5_rejected / g5_expired / no_snapshot / ownership_failed …
+
+class StopEvent(BaseModel):
+    at: datetime
+    scope: Literal["job", "target", "run"]
+    condition: str                      # 對應 ROE stop_conditions 的鍵，或 kill_switch
+    observed: float | None
+    threshold: float | None
+    job_id: str | None
+    target_id: str | None
+
+class Gap(BaseModel):                   # B6「未能測試清單」的來源
+    kind: str                           # manual / g3_rejected / g4_rejected / g5_skipped / tool_failed / ownership_failed / gb_stopped / error …
+    ref: str
+    reason: str
+
+class ErrorRecord(BaseModel):
+    node: str
+    error_class: str                    # 錯誤分類（08 定義）
+    attempt: int
+    detail_ref: ArtifactRef | None
+
+def merge_jobs(cur: dict[str, JobState], upd: dict[str, JobState]) -> dict[str, JobState]:
+    return {**cur, **upd}               # 以 job_id 為鍵，更新同一 job 的狀態
+
 class RunState(BaseModel):
+    # --- 身分、種類、狀態 ---
     run_id: str
-    engagement_id: str                      # 對應已簽章 ROE / 委任設定
-    data_class: str = "C"                   # fail-closed：未標記即 C
-    inventory_ref: str | None = None        # 檔案庫 sha256
-    invariants_ref: str | None = None
-    findings: Annotated[list[dict], add] = []      # 平行 reviewer 寫入以 reducer 合併
-    verdicts: Annotated[list[dict], add] = []
+    engagement_id: str                  # 對應已簽章委任設定 / ROE
+    run_kind: RunKind
+    parent_run_id: str | None = None
+    reuse: list[ArtifactRef] = []       # 沿用的上一 run 產物（輸入 hash 必須相同）
+    trigger: Literal["manual", "schedule", "merge", "pull_request"]
+    run_owner: str                      # 委任設定指定的人；自動觸發時的紀錄發起者
+    initiators: Annotated[list[str], add] = []   # 啟動者、認領者（initiator_claim）、G4 核准者；都必須是人
+    status: RunStatus = RunStatus.RUNNING
+    status_reason: str | None = None
+    current_node: str | None = None
+    resume_node: str | None = None      # SUSPENDED/STOPPED 後要回到的節點
+    resume_deadline: datetime | None = None      # 等待中關卡的 opened_at ＋ 委任設定的關卡逾時
+    # --- 設定與授權（全部是 hash）---
+    data_class: Literal["P", "C"] = "C"  # fail-closed：未標記即 C
+    toolkit_config_ref: ArtifactRef
+    key_registry_ref: ArtifactRef | None = None
+    engagement_ref: ArtifactRef
+    roe_ref: ArtifactRef | None = None
+    repo_commit: str
+    # --- W 階段 ---
+    inventory_ref: ArtifactRef | None = None
+    sbom_ref: ArtifactRef | None = None
+    redaction_map_ref: ArtifactRef | None = None # 為 None 時 Gateway 拒絕此 run 的所有請求
+    invariants_ref: ArtifactRef | None = None
+    invariants_changed: bool = True
+    g1_round: int = 0
+    w1_sarif_ref: ArtifactRef | None = None
+    deps_check_ref: ArtifactRef | None = None
+    slice_refs: Annotated[list[ArtifactRef], add] = []
+    plan_ids: Annotated[list[str], add] = []     # Commander 計畫（已經 Policy Engine 驗證）
+    findings: Annotated[list[str], add] = []     # 平行 reviewer 寫入以 reducer 合併
+    cluster_ids: list[str] = []
+    verdicts: Annotated[list[str], add] = []     # 每一版裁決都保留
     missing_votes: Annotated[list[dict], add] = []
     diversity_flags: Annotated[list[dict], add] = []
-    gate_records: Annotated[list[str], add] = []   # 只存 GateRecord ID，驗證以簽章紀錄為準
-    executed_jobs: Annotated[list[str], add] = []  # S2 冪等鍵
-    budget_spent_tokens: int = 0
+    cmd2_rounds: int = 0
+    g2_queue: list[str] = []            # 空 → 略過 G2
+    w4_iteration: int = 0               # CoverUp 迭代輪次（≤3）
+    w4_results: Annotated[list[ArtifactRef], add] = []
+    whitebox_report_ref: ArtifactRef | None = None
+    w_sarif_ref: ArtifactRef | None = None
+    dfd_ref: ArtifactRef | None = None
+    seed_threats_ref: ArtifactRef | None = None
+    lane_a_advisories: list[str] = []   # Lane A 帶入的參考性發現項（最高 UNCORROBORATED；不計入 independent_families）
+    calibration_version: int | None = None   # 裁決所用的校準版本（與 calibration.yaml 相同的整數）；未完成最小重跑的模型權重為 0
+    disputed_after_g2: list[str] = []   # 推導值：本 run 中帶 w4_became_disputed 註記之裁決的 cluster_id（G3 另列；05 §4.2）
+    # --- B 階段 ---
+    egress_allowlist_ref: ArtifactRef | None = None
+    ownership_results: Annotated[list[OwnershipCheck], add] = []
+    b1_external_ref: ArtifactRef | None = None
+    b1_merged_ref: ArtifactRef | None = None
+    b1_diff_ref: ArtifactRef | None = None
+    taxonomy_plan_id: str | None = None
+    threat_model_ref: ArtifactRef | None = None
+    b1_diff_dispositions_ref: ArtifactRef | None = None
+    g3_round: int = 0
+    testplan_ref: ArtifactRef | None = None
+    testcase_ids: list[str] = []
+    artifact_hashes: dict[str, ArtifactRef] = {}
+    g4_round: int = 0
+    approved_testcase_ids: list[str] = []
+    restore_drill_ref: ArtifactRef | None = None
+    jobs: Annotated[dict[str, JobState], merge_jobs] = {}
+    executed_jobs: Annotated[list[str], add] = []   # 所有 job 的冪等鍵（不只 S2）
+    stop_events: Annotated[list[StopEvent], add] = []
+    kill_switch: bool = False
+    testresults: Annotated[list[ArtifactRef], add] = []
+    manual_review_clusters: list[str] = []   # B5_readjudicate 後轉為 DISPUTED 者（B6 人工複核清單）
+    followup_drafts: list[str] = []
+    report_manifest_ref: ArtifactRef | None = None
+    # --- 共通 ---
+    gate_records: Annotated[list[GateRef], add] = []  # 驗證一律以簽章紀錄為準
+    budgets: Budgets
+    gaps: Annotated[list[Gap], add] = []
+    audit_anchors: Annotated[list[str], add] = []     # 每個 audit_anchor 事件的 prev_hash（§13.1）
+    errors: Annotated[list[ErrorRecord], add] = []
 ```
 
 平行節點的更新以 reducer 合併：`new = reducer(current, update)`；列表用 `operator.add` 串接，不會覆蓋 [V][S-03]。
 
-### 5.2 節點與邊界
+### 5.2 主狀態圖
+
+主圖只畫階段層級與終止狀態；細節見 §5.3–§5.6。`SUSPENDED`、`STOPPED` 以 interrupt 節點（`suspended_wait`、`stopped_wait`）實作，run 紀錄的 `status` 同步更新 [H]。
 
 ```mermaid
 stateDiagram-v2
-  [*] --> G0a_engagement_check
-  G0a_engagement_check --> W0_inventory
-  W0_inventory --> W05_draft_invariants
-  W05_draft_invariants --> G1_gate
-  G1_gate --> W1_static
+  [*] --> run_init
+  run_init --> G0a_engagement_check
+  G0a_engagement_check --> ABORTED: 驗章失敗或過期
+  G0a_engagement_check --> W0_inventory: 通過
+  W0_inventory --> FAILED: 盤點或遮罩失敗
+  W0_inventory --> LA_static: run_kind 為 lane_a
+  LA_static --> LA_diff_review
+  LA_diff_review --> COMPLETED
+  W0_inventory --> PhaseW: 其他 run_kind
+  PhaseW --> ABORTED: G1 三輪未通過
+  PhaseW --> SUSPENDED: G1 或認領逾時
+  PhaseW --> W5_report
+  W5_report --> COMPLETED: 委任不含黑箱
+  W5_report --> PhaseB: 委任含黑箱
+  PhaseB --> ABORTED: ROE 驗章失敗
+  PhaseB --> SUSPENDED: ROE 未生效、時間窗外、G3 或 G4 逾時
+  PhaseB --> abort_handler: 停止條件、kill switch、ROE 失效
+  PhaseB --> B6_report
+  B6_report --> COMPLETED: 只有 MANUAL 缺口
+  B6_report --> COMPLETED_WITH_GAPS: 有其他缺口
+  PhaseW --> GB_budget_gate: 預算觸頂
+  PhaseB --> GB_budget_gate: 預算觸頂
+  GB_budget_gate --> PhaseW: 延長（W 中）
+  GB_budget_gate --> PhaseB: 延長（B 中）
+  GB_budget_gate --> W5_report: 停止 W 階段
+  GB_budget_gate --> B6_report: 停止 B 階段
+  GB_budget_gate --> ABORTED: 中止（B4 以外）
+  GB_budget_gate --> abort_handler: 中止（B4 中）
+  GB_budget_gate --> SUSPENDED: EXPIRED
+  abort_handler --> STOPPED: 停止條件或 kill switch
+  abort_handler --> ABORTED: ROE 失效或 GB 中止
+  abort_handler --> FAILED: 還原失敗
+  SUSPENDED --> run_resume: 人工 resume
+  STOPPED --> run_resume: 測試負責人簽署 resume
+  SUSPENDED --> B6_report: 到期未續跑
+  STOPPED --> B6_report: 到期未續跑
+  run_resume --> G0a_engagement_check: 重驗後回到 resume_node
+  ABORTED --> [*]
+  FAILED --> [*]
+  COMPLETED --> [*]
+  COMPLETED_WITH_GAPS --> [*]
+```
+
+- `PhaseW`＝§5.3 的 W1–W4（含 W0.5、G1、G2、`claim_run`）；`PhaseB`＝§5.4 與 §5.5。
+- 「到期未續跑」：委任設定或 ROE 的 `not_after` 過後由 Run Controller 的排程清理，以既有產物產生報告，狀態為 `COMPLETED_WITH_GAPS`（若還沒到 W5，報告只含已完成的部分）[H]。
+- 預算觸頂的偵測在進入任何消耗預算的節點之前（條件邊），以及節點執行中 Gateway 回報 `BudgetExceeded` 時；兩者都先 checkpoint 再進 `GB_budget_gate` [H]。
+
+### 5.3 W 子圖
+
+```mermaid
+stateDiagram-v2
+  [*] --> W0_inventory
+  W0_inventory --> W05_draft_invariants: 需要新規格
+  W0_inventory --> W1_static: 沿用已簽核不變量
+  W05_draft_invariants --> claim_run: 自動觸發且未認領
+  claim_run --> G1_gate: 已認領
+  W05_draft_invariants --> G1_gate: 已有發起者
+  G1_gate --> W1_static: APPROVED
+  G1_gate --> W05_draft_invariants: REJECTED 或 NEEDS_INFO，第 1 到 3 輪
+  G1_gate --> ABORTED: 第 3 輪仍未通過
+  G1_gate --> suspended_wait: EXPIRED
   W1_static --> W2_slice
   W2_slice --> CMD1_plan
   CMD1_plan --> W2_fanout
@@ -205,67 +487,258 @@ stateDiagram-v2
   W3_cluster --> W3_verify_fanout
   W3_verify_fanout --> W3_adjudicate
   W3_adjudicate --> CMD2_redispatch
-  CMD2_redispatch --> W2_fanout: 加派審查者
-  CMD2_redispatch --> W3_verify_fanout: 加派驗證者
-  CMD2_redispatch --> G2_gate: 無加派
-  G2_gate --> W4_testgen
-  W4_testgen --> W5_report
-  W5_report --> G0b_roe_check
-  G0b_roe_check --> B1_model
+  CMD2_redispatch --> W2_fanout: 加派審查者（至多 2 輪）
+  CMD2_redispatch --> W3_verify_fanout: 加派驗證者（至多 2 輪）
+  CMD2_redispatch --> claim_run: 無加派且未認領
+  CMD2_redispatch --> G2_gate: 無加派、G2 佇列非空
+  CMD2_redispatch --> W4_testgen: 無加派、G2 佇列為空（略過 G2）
+  claim_run --> G2_gate: 已認領、G2 佇列非空
+  claim_run --> W4_testgen: 已認領、G2 佇列為空
+  claim_run --> suspended_wait: 認領逾時
+  G2_gate --> W4_testgen: APPROVED 或 EXPIRED（逐項套用）
+  W4_testgen --> W4_exec
+  W4_exec --> W4_testgen: 覆蓋率仍增加且未滿 3 輪
+  W4_exec --> W4_readjudicate: 迭代結束
+  W4_readjudicate --> W5_report
+  W5_report --> [*]
+```
+
+- **G2 之後的爭議** [H]：`W4_readjudicate` 產生的 `DISPUTED` 不回到 `G2_gate`（圖中沒有 W4 → G2 的邊），而是在該版裁決加註 `w4_became_disputed`（前一版不是 `DISPUTED`、W4 重新裁決後為 `DISPUTED`，與 G2 是否已決定無關），種子威脅與 run 的 `disputed_after_g2` 由此推導，G3 另列「W4 後轉為爭議」一區；`B5_readjudicate` 經 R11 產生的 `DISPUTED` 不加此註記、不進 `disputed_after_g2`，而是列入 B6 人工複核清單。G2 已 `REJECTED` 的叢集之後只註記 `post_g2_conflict`（05 R10）。
+- G2 GateRecord 的整關 `outcome` 只有 `APPROVED` 或 `EXPIRED`；逐項的 reject／needs_info 記在 `decisions[]`，不接受整關 `REJECTED`／`NEEDS_INFO`（validator 檢查）[H]。
+- G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`，以及成員最高嚴重度為 `critical`／`high` 的 `UNCORROBORATED`（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
+- `W4_exec` 在 Z2（無網路）；`W4_testgen` 與 `W4_exec` 只透過 Blackboard／CAS 交換產物。
+- 自動觸發（`schedule`、`merge`）的 run：在沒有人認領之前，只能執行到 W3；`claim_run` 是 interrupt，認領寫入 `initiators` 與稽核事件 `initiator_claim`。
+
+### 5.4 B 子圖（G0b 到 G4）
+
+```mermaid
+stateDiagram-v2
+  [*] --> G0b_roe_check
+  G0b_roe_check --> ABORTED: 驗章失敗
+  G0b_roe_check --> suspended_wait: 未生效或時間窗外
+  G0b_roe_check --> B6_report: ROE 已過期或未提供
+  G0b_roe_check --> B0_ownership_verify: 通過
+  B0_ownership_verify --> B1_crawl: 至少一個目標通過
+  B0_ownership_verify --> B6_report: 全部目標失敗
+  B0_ownership_verify --> suspended_wait: Z3 無法連線（重試 3 次後）
+  B1_crawl --> B1_model
   B1_model --> CMD3_taxonomy
   CMD3_taxonomy --> B2_threat_fanout
-  B2_threat_fanout --> B2_merge_critic
+  B2_threat_fanout --> B2_merge_critic: 種子威脅＋b1_diff
   B2_merge_critic --> G3_gate
-  G3_gate --> CMD4_testplan
+  G3_gate --> CMD4_testplan: APPROVED 或 PARTIALLY_APPROVED
+  G3_gate --> B2_merge_critic: NEEDS_INFO，至多 3 輪
+  G3_gate --> B6_report: 全部 REJECTED
+  G3_gate --> suspended_wait: EXPIRED
   CMD4_testplan --> B3_derive
   B3_derive --> B3_validate_artifacts
-  B3_validate_artifacts --> G4_gate
-  G4_gate --> B4_s0s1_exec
-  B4_s0s1_exec --> B4_s2_queue
-  B4_s2_queue --> G5_gate: 有 S2
-  G5_gate --> B4_s2_snapshot
-  B4_s2_snapshot --> B4_s2_exec
-  B4_s2_exec --> B4_s2_restore
-  B4_s2_restore --> B4_s2_queue: 下一個 S2 job
+  B3_validate_artifacts --> B3_derive: 驗證失敗，修復至多 2 次
+  B3_validate_artifacts --> G4_gate: 全部通過或已改為 MANUAL
+  G4_gate --> B4_preflight: APPROVED 或 PARTIALLY_APPROVED
+  G4_gate --> B3_derive: NEEDS_INFO 的測試案例，至多 2 輪
+  G4_gate --> B6_report: 全部 REJECTED
+  G4_gate --> suspended_wait: EXPIRED
+```
+
+- `G0b_roe_check` 在 B 階段入口、每次 `run_resume` 之後都會執行。
+- `G0b_roe_check` 同時檢查 ROE 的 `legal_review` 聲明（[06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h) 規則 L-1～L-6）[H]：L-1～L-4 失敗 → 「驗章失敗」邊（`roe_verify_failed`，理由如 `legal_review_missing`）；L-5（聲明者就是 `test_lead`）→ G0b 記為 `VERIFY_FAILED`（G0 的結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`），但 run 不走中止邊，而是等待 ROE 修正（`suspended_wait`）；L-6 → 法務閘門元件從允許清單移除並記為缺口。`B4_preflight` 也檢查聲明未到期，到期 → `suspended_wait`。
+- `B2_merge_critic` 在交 G3 前檢查兩個條件：每個種子威脅都在模型中；每個 `b1_diff` 項目都已處置。任一不成立就不開 G3（修復 ≤2 次後以程式碼補上 `seed-only` 威脅或「未處置」標記交 G3）[H]。
+
+### 5.5 B4 執行迴圈
+
+```mermaid
+stateDiagram-v2
+  [*] --> B4_preflight: G4 核准後
+  B4_preflight --> B4_s0s1_exec: 下一批 S0 或 S1
+  B4_preflight --> B4_s2_queue: S0 與 S1 已完成
+  B4_preflight --> B4_s2_snapshot: 已核准的 S2 job
+  B4_preflight --> B4_s2_queue: 還原演練失敗（S2 全部略過）
+  B4_preflight --> suspended_wait: 時間窗外
+  B4_preflight --> abort_handler: ROE 失效、金鑰撤銷、全部目標失去所有權、kill switch
+  B4_s0s1_exec --> B4_preflight: 本批完成
+  B4_s0s1_exec --> abort_handler: 停止條件或 kill switch
+  B4_s2_queue --> G5_gate: 有待執行的 S2
   B4_s2_queue --> B5_verify: 沒有待執行的 S2
+  B4_s2_queue --> abort_handler: kill switch
+  G5_gate --> B4_preflight: APPROVED
+  G5_gate --> B4_s2_queue: REJECTED、NEEDS_INFO、EXPIRED（略過並記錄）
+  G5_gate --> abort_handler: kill switch
+  B4_s2_snapshot --> B4_s2_exec: 快照成功
+  B4_s2_snapshot --> B4_s2_queue: 快照失敗（job 略過）
+  B4_s2_snapshot --> abort_handler: kill switch
+  B4_s2_exec --> B4_s2_restore: 執行結束
+  B4_s2_exec --> abort_handler: 停止條件或 kill switch
+  B4_s2_restore --> B4_s2_queue: 還原並驗證成功
+  B4_s2_restore --> abort_handler: 還原失敗（重試 2 次後）
   B5_verify --> B5_readjudicate
   B5_readjudicate --> CMD5_followup
   CMD5_followup --> B6_report
-  B6_report --> [*]
 ```
 
-- `G0a_engagement_check` 與 `G0b_roe_check` 是**離線簽章的驗證**（委任設定、ROE），不是等待人的 interrupt；驗證失敗就停止。
-- `B5_readjudicate`：測試結果寫回叢集，由 Aggregator 重新裁決（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。W4 的測試結果也以同樣方式回寫。
-- 回饋（新需求回寫 G1、黑箱確認項的回歸測試）由 CMD-5 建立**後續執行**（同一個 engagement 的新 run），不在同一張圖內回圈。
+- **批次**：S0／S1 job 依目標分批，每批至多 `toolkit.yaml` 的 `b4_batch.max_jobs`（預設 20）個 job 或 `b4_batch.max_minutes`（預設 60）分鐘 [H]；每批開始都進 `B4_preflight`。每個 S2 job 自成一批。
+- **`B4_preflight` 檢查**：ROE 驗章仍有效且在時間窗內；所有簽署金鑰未撤銷；該批目標的所有權重驗（DNS TXT／well-known token）；`kill_switch` 為 false；預算足夠；該批所需的 Session 可用；每個 S2 job 前，`toolkit.restore_drill_interval_days`（預設 7）天內有成功的 `restore_drill` 稽核事件（§7.6）；量測目標基準延遲（§7.3）。
+- 單一目標失去所有權 → 該目標的 job 標 `SKIPPED`（`ownership_failed`），其他目標繼續；全部失去 → `abort_handler`。
+- 有狀態改變的 S1 job 結束後，由 Snapshot Service 依 seed manifest 重置種子資料 [H]。
 
-**節點邊界規則**：
-- LangGraph 的 `interrupt()` 會在 resume 時**從該節點開頭重新執行**，所以 interrupt 之前的副作用必須是冪等的 [V][E:orchestration-04]。本設計讓每個 `G*_gate` 節點**只做 interrupt**，前面沒有任何副作用。
+### 5.6 中止、補償與 resume
+
+```mermaid
+stateDiagram-v2
+  [*] --> abort_handler: 任一 B4 節點、GB 中止、ROE 失效
+  abort_handler --> ah_cancel
+  ah_cancel --> ah_restore: 關閉 job 白名單、取消 Executor 工作
+  ah_restore --> ah_revoke: 每個有快照且未成功還原的 job 都已還原
+  ah_restore --> ah_escalate: 任一還原失敗
+  ah_escalate --> ah_revoke: 通知 ROE 聯絡人，標記 FAILED
+  ah_revoke --> ah_report: 作廢所有測試 session
+  ah_report --> [*]: 寫稽核與中止報告，設定最終狀態
+  state resume_flow {
+    [*] --> run_resume
+    run_resume --> G0a_engagement_check: 驗證 resume 簽章
+    G0a_engagement_check --> G0b_roe_check: resume_node 在 B 階段
+    G0b_roe_check --> B0_ownership_verify
+    B0_ownership_verify --> B4_preflight: resume_node 在 B4
+    B0_ownership_verify --> resume_node: 其他 B 節點
+    G0a_engagement_check --> resume_node: resume_node 在 W 階段
+  }
+```
+
+**`abort_handler`**（可重入、冪等）：
+1. `ah_cancel`：設 `kill_switch`，Scope Proxy 關閉所有 job 白名單，取消 Executor 工作；正在執行的 job 標 `INTERRUPTED`。
+2. `ah_restore`：對每個 `snapshot_ref` 不為空且 `restore_verified` 為 false 的 job，呼叫 Snapshot Service 還原並驗證（重試 2 次）。
+3. `ah_escalate`：還原失敗時，立即通知 ROE `stop_conditions.contacts`，最終狀態為 `FAILED`（staging 狀態未知，需人工處理）。
+4. `ah_revoke`：Session Provider 作廢本 run 的所有 session。
+5. `ah_report`：寫入稽核事件（`stop_condition`／`kill_switch`、`snapshot_restored`／`restore_failed`、`run_status_changed`），由 Reporter 產生中止報告（確定性部分）；最終狀態：還原失敗 → `FAILED`；ROE 失效、GB 中止、政策違規 → `ABORTED`；其他 → `STOPPED`。
+
+**resume 規則** [H]：
+- `SUSPENDED`：run_owner 或任何發起者以 `vibecheck run resume` 續跑；若停在關卡，重新開啟該關卡（新的 GateRecord，`round` 不增加）。
+- `STOPPED`：需由 ROE 的 `test_lead` 簽署 resume 紀錄（稽核事件 `run_resume`，附簽章與停止原因已處理的說明）。
+- 兩者都只能在委任設定與 ROE 的 `not_after` 之前續跑（停在關卡時，重開的關卡會得到新的 `resume_deadline`＝`opened_at`＋關卡逾時）；續跑一律重驗 G0a，若 `resume_node` 在 B 階段再重驗 G0b 與所有權。
+- **job 的續跑規則**：`EXECUTED` 不重跑；`INTERRUPTED` 的 S0 可重跑；S1 先重置種子資料再重跑；S2 必須重新走 G5（原 G5 核准失效）。
+
+### 5.7 節點規格表
+
+| 節點 | 區 | LLM | 冪等鍵／副作用 | 失敗邊 |
+|---|---|---|---|---|
+| `run_init` | Z1 | 否 | `run_id`；建立 run 紀錄（已存在就略過）、寫 `run_created` | 設定不合法 → `FAILED` |
+| `G0a_engagement_check` | Z1 | 否 | 純驗證；寫 `engagement_verified`／`engagement_verify_failed` | → `ABORTED` |
+| `W0_inventory` | Z2 | 否 | Sandbox job ID；輸出寫 CAS | → `FAILED` |
+| `LA_static`、`LA_diff_review` | Z2、Z1 | 否、可選單一家族 | job ID、LLM 請求快取 | 失敗只標示 PR 檢查失敗 |
+| `W05_draft_invariants` | Z1 | 是 | LLM 請求快取鍵（§5.8） | 修復 ≤2 → 交空白矩陣 |
+| `claim_run` | Z1 | 否 | 只做 interrupt | 逾時 → `suspended_wait` |
+| `G1_gate`、`G2_gate`、`G3_gate`、`G4_gate`、`G5_gate`、`GB_budget_gate` | Z1 | 否 | 只做 interrupt；開關卡、通知由 Gate Service 在圖外處理 | 依 [02 §1.4](02-methodology.md#14-關卡結果與-run-狀態) |
+| `W1_static` | Z2 | 否 | 每個工具一個 Sandbox job | 單一工具 → 缺口；全部 → `FAILED` |
+| `W2_slice` | Z1 | 否 | 切片以 `slice_id` 定址 | → `FAILED` |
+| `CMD1_plan`…`CMD5_followup` | Z1 | 是 | 計畫 ID；先經 Policy Engine 驗證才寫入 state | 見 §4 |
+| `W2_fanout`、`W3_verify_fanout`、`B2_threat_fanout` | Z1 | — | 只產生 `Send` | — |
+| `W2_review`、`W3_adjudicate` 的驗證者分支 | Z1 | 是 | LLM 請求快取鍵 | 重試用盡 → 缺票 |
+| `W2_fanin`、`W3_cluster`、`W3_adjudicate` | Z1 | 否 | 純函式（輸入 hash → 輸出 hash）；依 05 R0–R13 | quorum 不足 → R8 封頂 |
+| `W4_testgen` | Z1 | 是 | LLM 請求快取鍵 | 修復 ≤2 → `MANUAL` |
+| `W4_exec` | Z2 | 否 | Sandbox job ID | 重試 1 次 → `ERROR` |
+| `W4_readjudicate`、`B5_readjudicate` | Z1 | 否 | 新版裁決 append-only | — |
+| `W5_report` | Z1 | 部分 | CAS | LLM 失敗 → 只輸出確定性部分 |
+| `G0b_roe_check` | Z1 | 否 | 純驗證 | 見 §5.4 |
+| `B0_ownership_verify` | Z3 | 否 | `(run_id, target_id, batch_id)`；只做 GET／DNS 查詢 | 見 §5.4 |
+| `B1_crawl` | Z3 | 否 | 爬行 job ID；S0 | 停止條件 → 只用 schema |
+| `B1_model`、`B2_merge_critic`、`B3_derive` | Z1 | 是 | LLM 請求快取鍵 | 見 §5.4 |
+| `B3_validate_artifacts` | Z1 | 否 | 純函式 | 修復 ≤2 → `MANUAL` |
+| `B4_preflight` | Z1＋Z3 | 否 | `(run_id, batch_id)`；只讀檢查與基準量測 | 見 §5.5 |
+| `B4_s0s1_exec` | Z3 | 否 | 執行前檢查 `executed_jobs`；有狀態改變的 S1 結束後重置種子 | → `abort_handler` |
+| `B4_s2_queue` | Z1 | 否 | 純函式 | — |
+| `B4_s2_snapshot` | Z3 | 否 | `run_id + job_id`：快照已存在就略過 | 失敗 → job 略過 |
+| `B4_s2_exec` | Z3 | 否 | 執行前檢查 `executed_jobs` 與 job 狀態；`EXECUTING` 中斷者不自動重跑 | → `abort_handler` |
+| `B4_s2_restore` | Z3 | 否 | 以 `snapshot_ref` 為鍵；還原後驗證 checksum | 重試 2 → `abort_handler` |
+| `abort_handler` | Z1＋Z3 | 否（中止報告的敘事可選） | 逐步檢查 state 後才動作，可重入 | 還原失敗 → `FAILED` |
+| `B5_verify` | Z1 | 是 | LLM 請求快取鍵 | 無合格 analyst → 不升級 |
+| `B6_report` | Z1 | 是（敘事） | CAS；報告清單 | 見 §5.4 |
+| `run_resume` | Z1 | 否 | resume 紀錄 ID；驗證簽章 | 簽章無效 → 維持原狀態 |
+| `suspended_wait`、`stopped_wait` | Z1 | 否 | 只做 interrupt | 到期 → B6 |
+
+### 5.8 節點邊界規則
+
+- LangGraph 的 `interrupt()` 會在 resume 時**從該節點開頭重新執行**，所以 interrupt 之前的副作用必須是冪等的 [V][E:orchestration-04]。本設計讓每個 `G*_gate`、`claim_run`、`suspended_wait`、`stopped_wait` 節點**只做 interrupt**，前面沒有任何副作用；開啟關卡、發送通知、寫 `gate_opened` 稽核事件由 Gate Service 觀察到待處理的 interrupt 後在圖外完成 [H]。
+- **LLM 呼叫的冪等**：每個請求以 sha256（模型 ID＋版本＋參數＋prompt hash＋schema hash）為快取鍵，回應存 CAS。節點重新執行（resume、重試、GB 延長後）時命中快取，不會重複花費 [H]。
+- **Sandbox 與 Executor job**：job ID 由輸入 hash 決定；結果已存在就不重跑。
 - `B4_s2_snapshot` 以 `run_id + job_id` 為冪等鍵：快照已存在就略過。
-- `B4_s2_exec` 執行前檢查 `executed_jobs`，防止 resume 或重試時重跑。
-- `B4_s2_restore` 是**補償步驟**：中止、失敗、kill switch 觸發時也會執行，由 checkpoint 狀態驅動。
+- `B4_s0s1_exec`、`B4_s2_exec` 執行前檢查 `executed_jobs`，防止 resume 或重試時重跑；狀態為 `EXECUTING` 卻沒有結果的 job 一律標 `INTERRUPTED`，依 §5.6 的續跑規則處理。
+- `B4_s2_restore` 是**補償步驟**：中止、失敗、kill switch 觸發時由 `abort_handler` 也會執行，由 checkpoint 中的 `jobs` 狀態驅動。
 - 每個 `CMD*` 節點的輸出都要先經 Policy Engine 驗證，才寫入 state。
+- **稽核事件**在節點重新執行時可能重複寫入；每個事件帶 `idempotency_key`（run_id＋節點＋冪等鍵），讀取時去重 [H]。
 
-### 5.3 fan-out／fan-in、重試、缺票
+### 5.9 fan-out／fan-in、重試、缺票
 - 每個節點設重試上限（例如 schema 驗證失敗最多修復 2 次、429 依 Retry-After 最多 3 次）。
 - 重試用盡就寫入 `missing_votes`，**不無限重試**。
 - fan-in 採 quorum：例如 3 家族中至少 2 家族有結果。少於 quorum 時**仍照常裁決**，但只靠投票得到的確認上限為 `LIKELY`，並標記 `diversity_degraded`；可執行證明與工具佐證不受此限（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) R8）。
 
 ## 6. 人工關卡服務
 
-- **介面**：CLI 優先，之後可加網頁。
+- **介面**：CLI 優先（網頁介面不在本版範圍）。
   - `vibecheck gate list`
   - `vibecheck gate show <gate-id>`：顯示已叢集、排序、附證據的項目（file:line、片段、CWE、殘餘風險）
   - `vibecheck gate approve <gate-id> --decisions decisions.yaml --sign`
-- **可部分核准**：逐項 `accept`／`reject`／`needs_info`。被拒絕的項目不進入下游，但保留紀錄。
+  - `vibecheck run claim <run-id> --sign`（認領自動觸發的 run）
+  - `vibecheck run resume <run-id> [--sign]`（`STOPPED` 必須簽署）
+- **可部分核准**：逐項 `accept`／`reject`／`needs_info`。被拒絕的項目不進入下游，但保留紀錄。整體結果與處理路徑見 [02 §1.4](02-methodology.md#14-關卡結果與-run-狀態)。
 - **核准紀錄（GateRecord）**，依 [schemas/gate-record.schema.json](schemas/gate-record.schema.json)：
+  - `gate`（G0a、G0b、G1–G5、GB）、`outcome`、`round`
   - 核准者（可多人）的身分、角色、時間；每個關卡要求的角色見 [02 §1.3](02-methodology.md#13-人工關卡一覽)
   - 被核准產物的 sha256
-  - 逐項決定
-  - 每位核准者各自簽章
-- **金鑰的信任根**：核准者的公鑰登錄在組織的**金鑰登錄**中（out-of-band，由資安團隊管理，含登錄、輪替、撤銷流程）。ROE 與委任設定只引用登錄中的指紋，不能自己宣告新的可信金鑰；驗章時同時檢查金鑰未被撤銷。
+  - 逐項決定（G3 駁回種子威脅、降低風險等級時理由必填；GB 附選項與新上限）
+  - `signatures[]`：每位核准者各一筆（格式見 §6.1）
+  - **G0a／G0b 例外**：它們記錄的是**系統的驗證結果**，不是人工簽核，所以 `signatures: []`，另有 `verification` 區塊：`document_ref`、`key_registry_version`、`signer_results[]`（`person_id`、`key_fingerprint`、`ok`、`reason`）
+- **金鑰的信任根**：核准者的公鑰登錄在組織的**金鑰登錄**（`key-registry.yaml`）中（out-of-band，由資安團隊管理，含登錄、輪替、撤銷流程）。ROE 與委任設定只引用登錄中的指紋，不能自己宣告新的可信金鑰；驗章時同時檢查金鑰未被撤銷。
 - **驗證**：Policy Engine 驗的是**簽章紀錄**，不是 checkpoint 內容。只要能寫 checkpoint DB 就能偽造 resume 值，所以 checkpoint 不能當作授權依據。OpenAI Agents SDK 的文件也提醒，只能從可信儲存反序列化快照 [V][E:orchestration-18]。產物有任何變動，核准就失效。
-- **職責分離**：G5（S2 執行）的核准者不能是發起者。發起者是啟動該次執行或核准 G4 的**人**，不能記成自動化帳號（例如 `run-controller`），否則職責分離形同虛設。
+- **職責分離**：G5（S2 執行）的核准者不能是發起者。發起者是啟動該次執行、認領自動觸發的執行，或核准 G4 的**人**，不能記成自動化帳號，否則職責分離形同虛設。自動化帳號列在 `toolkit.yaml` 的 `automation_accounts`（例如 `run-controller`、`scheduler`、`ci-bot`），**永遠不能是發起者或任何關卡的核准者**，驗證器會強制檢查。自動觸發的 run 以委任設定的 `run_owner` 為紀錄發起者，直到有人認領。
 - 核准後以 `Command(resume=<gate_record_id>)` 繼續圖的執行 [V][E:orchestration-04]。
+
+### 6.1 金鑰登錄與驗章流程
+
+**設計（[H]）**：方案本身是設計選擇；所依據的外部事實見 [01 §7](01-research-survey.md#7-v02-補充研究2026-09-24)，並已獨立查核。
+
+| 物件 | 內容 |
+|---|---|
+| `toolkit.yaml`（`toolkit-config.schema.json`） | 釘選組織根金鑰：`org_root_key.fingerprint`、`alg`；`key_registry.location`；`key_registry.min_version`（防回滾）；`automation_accounts`；`restore_drill_interval_days` |
+| `key-registry.yaml`（`key-registry.schema.json`） | `registry_id`、`version`（單調遞增）、`issued_at`、`entries[]`：`person_id`、`roles[]`（含 `legal_reviewer`、`z3_executor`）、`public_key`、`alg`、`fingerprint`、`not_before`、`not_after`、`revoked_at`、`revocation_reason`（`compromised`／`role_change`／`retired`）；`signatures[]`：組織根金鑰的簽章 |
+| 被簽署的文件 | `engagement.yaml`、`roe.yaml`、GateRecord（G0a／G0b 除外）；人為的稽核事件 `initiator_claim`、`run_resume`。每位簽署人在 `signatures[]` 中一筆：`{signer, key_fingerprint, alg: ed25519, value}`（舊的 `signature_ref` 欄位已移除） |
+
+**提案的簽章方案** [H]：Ed25519 簽章，`value` 的簽署對象是「解析文件後、移除 `signatures` 欄位（稽核事件則移除 `signature`），再以 JCS 正規化」的位元組。
+- **金鑰指紋**：`ed25519:SHA256:` 加上原始 32-byte 公鑰之 SHA-256 的 base64（不含 padding）[H]。
+- 相關事實：Ed25519 定義於 RFC 8032（IRTF CFRG 的 Informational 文件），公鑰 32 bytes、簽章 64 bytes、簽章是確定性的 [V][E:orchestration-43]。JCS 是 **RFC 8785（Informational，Independent Submission），不是 IETF 標準**；輸入必須是 I-JSON（無重複屬性名稱），數字以 IEEE-754 double 表示並以 ECMAScript 方式序列化，鍵依 UTF-16 code unit 排序 [V][E:orchestration-44]。
+- 候選實作：Python `rfc8785`（Apache-2.0）[V][E:orchestration-45]；`cryptography` 的 Ed25519 API，驗證失敗時 `verify()` 丟出 `InvalidSignature` [V][E:orchestration-46]。
+- **嚴格 YAML 載入**：YAML 1.2 是 JSON 的超集合，且規定 mapping 的鍵必須唯一 [P][E:orchestration-52]；但 PyYAML 是 YAML 1.1 解析器 [V][E:orchestration-53]，而且有一個仍未關閉的 issue 回報它（以及 libyaml）會**靜默接受重複鍵**，不報錯 [P][E:orchestration-54]。所以簽署文件必須用自訂的嚴格載入器 [H]：
+  - (a) 拒絕重複鍵（不能用預設的 `safe_load`）；
+  - (b) 不使用 YAML 1.1 隱式型別（yes／no／on／off 布林、未加引號的時間、八進位、六十進位）；時間一律是加引號、帶時區的 ISO 8601 字串；
+  - (c) 整數必須在 ±2^53 以內，更大的數值寫成字串；
+  - (d) 不允許 NaN、Infinity、anchor／alias、自訂 tag；
+  - (e) 簽署文件（engagement、ROE、`key-registry.yaml`、GateRecord）的任何違反都記為 `signature_invalid`（CLI 結束碼 4），**不是**解析警告；同一載入器也用於未簽署的設定檔（`toolkit.yaml`、`models.yaml`、`agents.yaml` 等），違反時是設定錯誤（結束碼 3），見 [08 §4.1](08-implementation-spec.md#41-共用選項與結束碼)。
+  - 攻擊範例：ROE 有兩個 `targets:` 鍵；若檢視工具與驗證器對重複鍵取不同的值（例如一個取第一個、一個取最後一個），簽署人核准的範圍就會與實際執行的範圍不同 [H]。
+- **現成簽章工具的備案**：`vibecheck sign` 可以呼叫 OpenSSH `ssh-keygen -Y sign/verify`（8.1 起），它有 namespace（`-n`）、allowed_signers 的 `valid-after`／`valid-before` 與撤銷檔（`-r`）[V][E:orchestration-47]。minisign 沒有撤銷與效期機制 [V][E:orchestration-48]；cosign keyless 需要線上的 Fulcio／Rekor，key 模式則沒有透明紀錄 [V][E:orchestration-49]。選擇哪一種由實作規格決定；無論用哪種，金鑰登錄仍是唯一的信任來源 [H]。
+
+**驗證流程**（Policy Engine，Z1）：
+1. 讀 `toolkit.yaml`（隨部署設定管理，不由 run 輸入）取得根金鑰指紋 `org_root_key.fingerprint`。
+2. 驗證 `key-registry.yaml` 的根簽章；`version` < `key_registry.min_version` → 拒絕（回滾）；登錄的 `registry_id`、`toolkit.yaml` 的 `key_registry.location` 與委任設定／ROE 的 `key_registry_ref` 必須一致。
+3. 對被簽署文件：解析 → 移除 `signatures` → 正規化 → 對每份簽章以登錄中的公鑰驗證。
+4. 檢查每位簽署人：`key_fingerprint` 在登錄中、角色符合該文件或關卡的要求、簽署時間在 `not_before`–`not_after` 之間。**簽署時間**取文件的 `issued_at`、GateRecord 的 `timestamp` 或稽核事件的 `ts`；這些都是自行宣告的時間，沒有時間戳記服務（限制，見 06）。
+5. **撤銷**：`revocation_reason = compromised` → 該金鑰的**所有**簽章都無效（不論簽署時間）；其他原因 → `revoked_at` 之前的簽章仍有效，之後的無效。
+6. G0b 以後的核准者還必須列在 ROE 的 `signatories` 或 `gate_approvers` 中；`legal_review` 由 `management` 聲明時產生警告 `W-L2-MANAGEMENT`（不是錯誤）。
+7. 結果寫入稽核（`key_registry_loaded`、`signature_verified`／`signature_invalid`），`key_registry_ref` 寫入 run；G0a／G0b 的結果寫成 GateRecord 的 `verification` 區塊。
+
+- 工具包**不持有任何核准者私鑰**；簽章在核准者自己的裝置或硬體金鑰上產生（`vibecheck sign` 只呼叫外部簽章程式）[H]。
+- Z3 Executor 的服務金鑰（簽署所有權驗證結果）也登錄在金鑰登錄中，角色為 `z3_executor` [H]。
+
+### 6.2 關卡逾時預設值
+
+在 `toolkit.yaml` 設定，委任設定可以縮短，但不能超過委任設定與 ROE 的 `not_after`；關卡開啟時 `resume_deadline`＝`opened_at`＋逾時 [H]：
+
+| 關卡 | 預設逾時 | 逾時結果 |
+|---|---|---|
+| `claim_run` | 7 天 | `SUSPENDED` |
+| G1 | 7 天 | `SUSPENDED` |
+| G2 | 7 天 | 未決項視同 NEEDS_INFO，run 繼續 |
+| G3 | 7 天 | `SUSPENDED` |
+| G4 | 3 天 | `SUSPENDED` |
+| G5 | 該 job 所在時間窗的結束時間（最長 24 小時） | 該 job 略過 |
+| GB | 24 小時 | `SUSPENDED` |
 
 ## 7. 黑箱執行安全
 
@@ -277,14 +750,15 @@ stateDiagram-v2
 |---|---|---|---|
 | S0 被動 | 只觀察，不送出會改變狀態的請求 | ZAP passive scan、回應標頭檢查 | ROE 有效即可 |
 | S1 良性主動 | 用測試帳號、低速、只碰種子資料的主動請求 | 多角色授權矩陣、Schemathesis 限速測試、LLM 功能測試 | ROE 允許該類活動 |
-| S2 侵入 | 大量或非預期輸入，可能影響可用性 | ZAP active scan、高量 fuzz | 每次 G5 核准＋DB 快照與還原演練 |
+| S2 侵入 | 大量或非預期輸入，可能影響可用性 | ZAP active scan、高量 fuzz | 每次 G5 核准＋DB 快照與有效的還原演練（§7.6） |
 | S3 拒絕 | 破壞性或範圍外 | 見下 | **一律拒絕** |
 
-- **計算依據**：工具、模式、HTTP 方法（會改變狀態的方法至少 S1）、請求量、是否命中 ROE 排除清單。
-- LLM 提議的等級**只當下限**，取兩者中較高者；無法分類的一律當 S2 或拒絕。
+- **計算依據**：工具與模式（`tool:mode`）、HTTP 方法（會改變狀態的方法至少 S1）、請求量、是否命中 ROE 排除清單。
+- LLM 提議的等級**只當下限**，取兩者中較高者。
+- **無法分類時**（規則見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)）：`adapter` 不在 `tools.yaml` 或格式錯誤 → S3（拒絕）；已登錄但 `base_class` 為 null 的模式 → 至少 S2。
 - **S3 拒絕清單**：
-  - Nuclei code-protocol 模板（Nuclei 的 code、headless、fuzz 模板本來就要明確旗標才會執行 [V][E:blackbox-10]）
-  - 非拋棄式環境中的 RESTler fuzz 模式（官方文件警告可能造成服務中斷 [V][E:blackbox-16]）
+  - Nuclei code-protocol 模板（`nuclei:code_protocol`；Nuclei 的 code、headless、fuzz 模板本來就要明確旗標才會執行 [V][E:blackbox-10]）
+  - 非拋棄式環境中的 RESTler fuzz 模式（`restler:fuzz`；官方文件警告可能造成服務中斷 [V][E:blackbox-16]）
   - 對非種子資料的 DELETE
   - 排除清單中的路徑
 
@@ -302,14 +776,31 @@ stateDiagram-v2
   - **Nuclei**：`-rl` 預設 150 req/s [V][E:blackbox-10]，要調低。只跑自簽章模板；注意 `-dut` 是**略過**未簽章模板，而不是讓執行失敗 [P][E:blackbox-11]，所以要另外檢查略過數。
   - **Schemathesis**：`--rate-limit`；用 include／exclude 篩選操作 [V][E:blackbox-15]。
   - **EvoMaster**（選用）：`--ratePerMinute` [V][E:blackbox-19]。
-- **停止條件自動化**：
-  - 5xx 比例或延遲超過門檻
+- **停止條件自動化**：由 Scope Proxy 計算指標、Executor 判定；工具自己的機制只是輔助：
   - ZAP 2.17 的 Insights 可以提早停止掃描 [V][E:blackbox-08]
   - k6 的 `abortOnFail` 只用於限流驗證 [V][E:blackbox-27]
   - kill switch
 
+**預設門檻**（全部 [H]，在 ROE `stop_conditions` 覆寫；ROE 沒寫的鍵用 `toolkit.yaml` 預設值；指標以每個目標的 60 秒滑動視窗計算，視窗內至少 20 個請求才判定）：
+
+| 條件 | 預設門檻 | 範圍 | 動作 |
+|---|---|---|---|
+| 5xx 比例 | > 5%（`max_5xx_ratio: 0.05`） | 目標 | run 停止 → `abort_handler` |
+| 連續 5xx | ≥ 10 個 | 目標 | run 停止 |
+| p95 延遲 | > 3000 ms（`max_p95_latency_ms`），或 > 3 × `B4_preflight` 量到的基準 p95 | 目標 | run 停止 |
+| 連線錯誤或逾時比例 | > 10% | 目標 | run 停止 |
+| 目標回 429 | 60 秒內 ≥ 3 次 → 速率減半；持續 5 分鐘 | 目標 | 先降速，持續則 run 停止 |
+| 健康檢查（ROE 提供 `health_url` 時） | 連續 3 次失敗（每 30 秒一次） | 目標 | run 停止 |
+| 回應中偵測到 PII | 任一次高信心命中 | job | job 停止；B5 只用自架模型 |
+| job 請求數 | 達到 `max_requests` | job | Scope Proxy 拒絕後續請求，job 結束 |
+| 越界請求（不在 job 白名單） | 單一 job ≥ 3 次被擋，或任何一次指向 ROE 以外的主機 | job | job 停止，產物標記為可疑並列入報告 |
+| 第三方接觸白名單以外的連線 | 任一次 | job | job 停止＋`policy_violation` 稽核事件 |
+| 受測應用上游 LLM 花費 | ≥ ROE `spend_cap_usd` | run | 停止所有 LLM 功能測試 |
+| 時間窗結束 | 到達 `end` | run | 等進行中的請求完成（最多 60 秒）→ `SUSPENDED`（不是停止條件） |
+| kill switch | 手動 | run | 立即 → `abort_handler` |
+
 ### 7.4 測試帳號與 Session Provider（Z3）
-多角色授權測試會同時用到好幾個工具，但它們的認證機制互不相通。所以 Z3 設一個 **Credential／Session Provider**：
+多角色授權測試會同時用到好幾個工具，但它們的認證機制互不相通。所以 Z3 設一個 **Credential／Session Provider**（M4）：
 - **角色憑證集**：ROE 列出的每個測試角色（例如 `tenantA_user`、`tenantB_user`、`admin`）各有一組 staging 專用帳號，存在 Z3 的 secret store，**永不進 LLM context**。
 - **一次登入，多種轉換**：
 
@@ -323,6 +814,8 @@ stateDiagram-v2
 
 - **Session 維護**：遇到 401 或 token 過期就自動重新登入。長時間的 ZAP 掃描要有 re-auth 設定。
 - **範圍**：所有憑證都綁定 ROE 的 engagement ID 與到期日；ROE 失效時一併作廢。
+- **介面**（[H]，完整簽名見 §15）：`materialize(role, form, job_id) → SessionHandle`、`refresh(handle)`、`revoke_run(run_id)`。`SessionHandle` 只含 Z3 本機路徑或不透明 ID，**不含憑證值**；Z1 只看到角色名稱與 handle ID。
+- 每次登入寫稽核事件 `session_login`（角色、結果、時間；不含憑證）。
 
 ### 7.5 LLM 功能測試的額外控制
 - **promptfoo**：紅隊攻擊預設由 promptfoo 雲端生成 [V][E:reference_systems-23]，而 promptfoo 已被 OpenAI 收購 [V][E:reference_systems-25]。沒有 API key 時，還會把應用的 `purpose`、送給目標的 prompt、目標的回應（評分用）、使用者 email 送到 `api.promptfoo.app` [V][S-08]。所以：
@@ -333,14 +826,45 @@ stateDiagram-v2
 - **受測應用的上游 LLM**：ROE 要列出受測應用呼叫的 LLM 供應商，使用者要確認自己與該供應商的條款允許這類測試；S1 LLM 測試要設花費與請求上限（OWASP：Unbounded Consumption）。
 - **判定規則**：見 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)，採機率規則。
 
+**Z3→Z1 LLM Relay**（M5，全部 [H]）：
+- **方向**：只有 Z3 Executor 能呼叫 Z1 的 Relay endpoint（mTLS，用戶端憑證綁定 Executor 服務身分）；Z1 不主動連 Z3。
+- **請求**：`{run_id, job_id, testcase_id, turn, transcript_ref, target_response_ref}`；目標回應先存入 CAS，relay 只傳 hash。
+- **Z1 檢查**：該測試案例在 G4 核准時標為多輪（`multi_turn: true`）且模板 hash 相符；模型在 ROE 允許的 relay 模型清單中，且在委任設定對該資料等級的允許清單中；`turn ≤ max_turns`（預設 10）；該 job 與整個 run 的 relay 花費未超過上限（預設每 job 2 USD、每 run 20 USD，ROE 可改）。
+- **產生下一輪**：只用 G4 核准的策略模板；目標回應在 prompt 中以「待處理資料」區塊放入，不當指令；先做 PII 掃描，命中就觸發停止條件並改用自架模型。
+- **輸出檢查**：下一輪輸入不得含 URL 或主機名稱（除了 ROE 目標 ID 對應者）、不得含遮罩對照表中的任何 hash 對應內容。
+- **稽核**：每次 relay 寫 `relay_call`（模型、token、費用、輸入輸出 hash）。
+
+### 7.6 DB 快照、種子資料與 oracle 唯讀存取
+
+v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE 欄位見 [schemas/roe.schema.json](schemas/roe.schema.json) 的 `db_access`）：
+
+| 項目 | 設計 |
+|---|---|
+| 授權來源 | ROE `db_access` 區塊：`endpoint`（host:port，列為 ROE 目標，`kind: database`）、`snapshot_method`（`provider_api`／`logical_dump`／`none`）、`snapshot_credential_ref`、`oracle_readonly_credential_ref`、`oracle_tables`、`seed_manifest_ref`。由基礎設施擁有者在 ROE 中簽署 |
+| 執行區 | **Z3 的 Snapshot Service**；憑證只在 Z3 secret store |
+| 網路路徑 | Snapshot Service → Scope Proxy（TCP 轉送模式，只允許 `db_access.endpoint`，只接受 Snapshot Service 身分）→ staging DB。`provider_api` 模式則經 Scope Proxy 連到 ROE 列出的雲端 API 端點 |
+| 快照與還原憑證 | `snapshot_credential_ref`：只能對 staging DB 做快照與還原，不能碰其他 DB；只在 `B4_s2_snapshot`、`B4_s2_restore`、`abort_handler`、還原演練中使用 |
+| oracle 讀取憑證 | `oracle_readonly_credential_ref`：DB 唯讀角色，只對 `oracle_tables` 有 SELECT 權限；用於測試前後的狀態比對（例如 [04 §6](04-threat-to-testcase.md#6-完整範例) 範例 A 的發票資料列比對） |
+| 測試前狀態擷取 | `oracle_capture(run_id, job_id, tables)`：在 job 執行前，用 **oracle 唯讀憑證**（不是快照憑證）擷取 `oracle_tables` 中相關資料列的 hash，存在 Z3，回傳 `before_ref`。S1 job 沒有 DB 快照，也能用這個方法做前後比對 |
+| 計數型 oracle | `oracle_count(query_id, params)`：只執行 **G4 核准**的參數化 `SELECT COUNT(*)` 查詢（查詢文字以產物 hash 綁定在測試案例中，參數只能是 seed manifest 中的 ID 或測試案例宣告的常數），只回傳整數。例如「工具呼叫紀錄表中沒有未確認的 `refund` 呼叫」（[04 §6](04-threat-to-testcase.md#6-完整範例) 範例 B）[H] |
+| 回傳 Z1 的內容 | 只回傳**比對結果**：每個資料列的 hash 是否改變、改變的欄位名稱與列數；**不回傳欄位值** |
+| 種子資料 | seed manifest（`seed-manifest.schema.json`）列出每個種子物件的 ID、所屬表、建立與重置方式；有狀態改變的 S1 job 結束後、S2 還原後都依 manifest 重置。**重置失敗**：之後所有使用同一份 seed manifest 的 job 標 `SKIPPED`（`skip_reason: seed_reset_failed`），寫稽核事件 `seed_reset_failed`，列入 B6 未能測試清單；其他 job 繼續 [H] |
+| 還原演練 | 「快照 → 修改一筆種子資料 → 還原 → 驗證 checksum」，結果寫成 `restore_drill` 稽核事件並存 `restore_drill_ref`。**每個 S2 job 開始前**，必須有一筆成功的 `restore_drill` 事件，且距今不超過 `toolkit.restore_drill_interval_days`（預設 7 天）；沒有就由 `B4_preflight` 先做一次演練。演練失敗 → 該 run 的所有 S2 job 略過 |
+| `snapshot_method: none` | 不能執行 S2；需要 DB oracle 的測試改用只看 API 回應的 oracle，或標 `MANUAL` |
+
+**做不到**：快照只能還原 DB；已經送出的 email、webhook、第三方呼叫無法撤回，所以 ROE 必須讓外部整合處於 sandbox 模式（[02 B0](02-methodology.md#b0-roe-與範圍g0b機器可驗證)）。
+
 ## 8. Model Gateway
 
 ### 8.1 模型登錄、家族與 fallback
 `models.yaml` 每個模型都要有 `family`（廠商或主要訓練者）與 `lineage`（基礎模型血統）。例如 Llama-Nemotron 是 Llama 衍生模型 [V][E:providers-04]，`family: nvidia`、`lineage: llama`；Nemotron 3 則是 `lineage: nemotron3`。
 
+- **命名**：本文件稱 OpenAI 旗艦為 **GPT-6 Astra／Sol**（Astra 2026-09-03、Sol 2026-09-22 發布；兩者都是 1,050,000 tokens context [P][E:providers-31]）；設定檔中的代號是 `gpt_flagship`。API 模型 ID 為 `gpt-6-astra`、`gpt-6-sol`、`gpt-6-luna` [V][E:providers-46]（[examples/models.yaml](examples/models.yaml)）。
+- **退役日期**：`models.yaml` 記錄每個模型最早的退役日期，Gateway 在剩不到 30 天時發出警告並寫稽核事件 [H]。例如 Claude Haiku 4.5（`claude-haiku-4-5-20251001`）最早 2026-10-15 退役 [V][E:providers-49]；本設計只把它用在不參與裁決的 reporter（有跨家族 fallback）、選用的 Lane A diff 審查與 `claude_sonnet` 的 fallback，不作為任何投票或裁決角色；validator 在委任期間內遇到退役日時發出 `W-MODEL-RETIREMENT`，須在退役前換成後繼版本並重新校準。
 - **不自評**：驗證者的 `family` 與 `lineage` 都必須和報告者不同。
 - **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback（例如 Claude Opus → Claude Sonnet），並寫入 Verdict 紀錄。跨家族 fallback 會讓兩個「獨立」審查者變成同一家族，驗證就等於同家族自評：LLM 評審會偏好自己或同供應商的輸出 [V][E:multi_llm_bias-02][E:multi_llm_bias-05][E:multi_llm_bias-08]。錯誤相關性本來就跨供應商存在 [V][E:multi_llm_bias-01]，同家族是否更高沒有直接證據 [H]，但沒有理由讓它更糟。
 - 跨家族 fallback 只能在 `agents.yaml` 對**不參與裁決**的角色（目前只有 reporter）設定 `fallback_models`；`models.yaml` 的 `fallback` 一律同家族。兩者都由 `tools/validate_schemas.py` 檢查。
+- **Lane A 的單一家族審查**：與「驗證者必須不同家族」不衝突，因為 Lane A 的結果只有參考性、最高 `UNCORROBORATED`，不進入任何 `CONFIRMED_*`（§12）。Lane A 使用的模型必須在 G0a 的允許清單中。
 
 範例見 [examples/models.yaml](examples/models.yaml)。
 
@@ -366,7 +890,7 @@ stateDiagram-v2
 | 來源 | 限制 |
 |---|---|
 | Claude [V][E:providers-25] | 不支援遞迴 schema、數值 min／max、字串長度限制；陣列 `minItems` 只能是 0 或 1；另依查核：不支援 `multipleOf`、複雜 enum、外部 `$ref`。Claude Opus 5.5 會以 400 錯誤拒絕強制 `tool_choice`，要改用 `auto`＋strict tool use 或 structured outputs [V][E:providers-26] |
-| OpenAI [V][E:providers-32] | Structured Outputs 需 `additionalProperties: false`，且每個欄位都列為 required；Chat Completions 用 `response_format`，Responses API 用 `text.format`；拒答另有 `refusal` 欄位。GPT-6 Astra 的工具呼叫需用 Responses API [P][E:providers-31] |
+| OpenAI [V][E:providers-32] | Structured Outputs 需 `additionalProperties: false`，且每個欄位都列為 required；Chat Completions 用 `response_format`，Responses API 用 `text.format`；拒答另有 `refusal` 欄位。GPT-6 Astra 的工具呼叫需用 Responses API；GPT-6 Sol 在 Chat Completions 只有 `reasoning_effort` 為 none 時支援 function calling [P][E:providers-31]，GPT-6 Luna 也有相同限制 [P][E:providers-47] → `gpt_flagship` 與 Luna 一律走 Responses API |
 | Nemotron | 自架 vLLM 可用 json_schema；NIM 2.x 只部分查證；託管端點未確認（§8.2） |
 
 **設計**：
@@ -375,6 +899,7 @@ stateDiagram-v2
 - 這一版 [docs/schemas/](schemas/) 是「存檔與交換用」的完整 schema；送給 LLM 的「輸出用」schema 由它自動降級產生。
 
 ### 8.4 資料治理
+- **Secrets 先於任何 LLM**：Model Gateway 對每個請求檢查所屬 run 的 `redaction_map_ref`；為空就拒絕（稽核事件 `llm_refused_policy`）。請求內容在送出前再以 pattern＋entropy 掃描一次，命中遮罩對照表中任何值的 HMAC 就拒絕 [H]。
 - **資料等級採 fail-closed**：未標記＝C（機密）。等級寫在已簽章的委任設定中，**LLM 不能決定**。
 - **C 級的端點與參數白名單**：
   - 只允許一般對話端點。
@@ -394,19 +919,20 @@ stateDiagram-v2
 - 每個家族設並行上限，並以 token bucket 限速。
 - 遵守 `Retry-After`；重試有上限，用盡記為缺票。
 - NVIDIA 試用端點的速率限制沒有公布數字 [V][E:providers-09]，所以預設並行度要低，並依觀察到的 429 自動降速。
-- 每次執行的 token 預算由 LiteLLM proxy 追蹤。OSS-CRS 也是用 proxy 限制每個系統的 USD 預算 [V][E:reference_systems-13]。
+- 每次執行的 token 預算由 LiteLLM proxy 追蹤，Budget Tracker 彙整到 run 與階段層級（§11）。OSS-CRS 也是用 proxy 限制每個系統的 USD 預算 [V][E:reference_systems-13]。
 
 ## 9. Agent 名冊
 
 | 階段 | Agent | 用 LLM | 權限與限制 |
 |---|---|---|---|
-| W | Inventory、Static Runner、Supply-chain、Secrets | 否（Inventory 可少量） | Z2，唯讀 |
-| W | Invariant Drafter | 是 | 只起草；G1 簽核 |
+| W | Inventory、Secrets（W0）、Static Runner、Supply-chain（W1） | **否** | Z2，唯讀 |
+| W | Invariant Drafter | 是 | 只收遮罩後內容；只起草；G1 簽核 |
 | W | Reviewer ×N | 是（不同家族） | 只讀切片；無 shell、無網路、無寫入 |
 | W | Refuter／Verifier ×M | 是 | 家族與血統都和報告者不同；看不到來源模型 |
 | W | Test Generator／Test Critic | 是（不同家族） | 產物在 Z2 執行；只能用鎖定的相依套件 |
+| W | Lane A Diff Reviewer | 是（單一家族） | 只有參考性；結果最高 `UNCORROBORATED` |
 | B | System Modeler | 部分 | 確定性骨幹＋LLM 標籤 |
-| B | Threat Modeler ×N、Merger、Critic | 是（不同家族） | 一組只看外部視角 |
+| B | Threat Modeler ×N、Merger、Critic | 是（不同家族） | 一組只看外部視角；Critic 處置 `b1_diff` |
 | B | Test Designer、Test Implementer | 是 | 產物須經 Policy Engine 驗證＋G4 |
 | B | Executor | 否 | Z3；只經 Scope Proxy |
 | B | Result Analyst、Cross-family Verifier | 是 | 只讀結果；有 PII 時只用自架模型 |
@@ -419,18 +945,24 @@ stateDiagram-v2
 
 ```mermaid
 erDiagram
+  KEYREGISTRY ||--o{ GATERECORD : "驗章"
   ENGAGEMENT ||--|| ROE : "簽章"
   ENGAGEMENT ||--o{ RUN : has
+  RUN ||--o| RUN : "parent_run_id"
   RUN ||--o{ SLICE : has
   SLICE ||--o{ FINDING : "reviewer 產出"
   FINDING }o--|| CLUSTER : "叢集"
   CLUSTER ||--o{ VERDICT : "驗證票"
-  CLUSTER ||--o| THREAT : "種子威脅"
+  CLUSTER ||--o| SEEDTHREAT : "種子"
+  SEEDTHREAT ||--o| THREAT : "B2"
   INVARIANT ||--o{ REQUIREMENT : "來源"
-  THREAT ||--o{ REQUIREMENT : "對照"
+  THREAT ||--o{ REQUIREMENT : "對照（crosswalk）"
   REQUIREMENT ||--o{ TESTCASE : "推導"
   TESTCASE ||--o{ TESTRESULT : "執行"
+  SEEDMANIFEST ||--o{ TESTCASE : "種子資料"
   GATERECORD }o--|| RUN : "核准"
+  RUN ||--o{ AUDITEVENT : "稽核"
+  RUN ||--o| REPORTMANIFEST : "報告"
 ```
 
 | Schema | 用途 |
@@ -438,16 +970,29 @@ erDiagram
 | `finding.schema.json` | reviewer 發現項（含 Evidence） |
 | `cluster.schema.json` | 叢集鍵、成員、家族 |
 | `verdict.schema.json` | 驗證票與裁決狀態 |
-| `threat.schema.json` | 威脅（含分類版本、證據、簽核狀態、種子來源） |
+| `threat.schema.json` | 威脅（含分類版本、證據、簽核狀態、種子來源、attack tree 參照） |
 | `requirement.schema.json` | 需求（ASVS／AISVS／G1 不變量）與 crosswalk 連結來源 |
 | `testcase.schema.json` | 測試案例（tool_binding、oracle、安全等級、機率規則） |
-| `gate-record.schema.json` | 人工關卡的簽章紀錄 |
+| `gate-record.schema.json` | 人工關卡的簽章紀錄（G0a、G0b、G1–G5、GB） |
 | `roe.schema.json` | 交戰規則 |
 | `commander-plan.schema.json` | 指揮官計畫 |
 | `engagement.schema.json` | 委任設定（G0a）：程式碼所有權、資料等級、每個等級允許的模型 |
 | `testresult.schema.json` | 測試結果（ERROR／SKIPPED／STOPPED 屬執行失敗，列入未能測試清單） |
 | `model-registry.schema.json` | `models.yaml`（family、lineage、資料等級、同家族 fallback） |
 | `agent-registry.schema.json` | `agents.yaml`（角色、模型、工具權限） |
+| `run.schema.json`（v0.2） | run 紀錄：狀態 enum、`run_kind`、`parent_run_id`、`reuse`、預算、關卡參照 |
+| `slice.schema.json`（v0.2） | 切片（`slice_id`、檔案範圍、token 數、排除的模型） |
+| `invariants.schema.json`（v0.2） | `invariants.yaml`：`source = invariant` 的需求清單 |
+| `dfd.schema.json`（v0.2） | DFD（外部視角與合併視角） |
+| `seed-threats.schema.json`（v0.2） | 種子威脅清單 |
+| `crosswalk.schema.json`（v0.2） | 對照表 |
+| `seed-manifest.schema.json`（v0.2） | 種子資料清單（ID、表、重置方式） |
+| `calibration.schema.json`（v0.2） | 校準設定與結果 |
+| `report-manifest.schema.json`（v0.2） | 報告清單（產物 hash） |
+| `tool-registry.schema.json`（v0.2） | `tools.yaml`：工具 ID 與 `tool:mode` |
+| `key-registry.schema.json`（v0.2） | 金鑰登錄（§6.1） |
+| `audit-event.schema.json`（v0.2） | 稽核事件（§13） |
+| `toolkit-config.schema.json`（v0.2） | `toolkit.yaml`：根金鑰指紋、預設門檻、逾時、預算 |
 
 ## 11. 成本與延遲模型
 
@@ -470,28 +1015,62 @@ erDiagram
 
 → W2 共 240 次、約 7.2M tokens；W3 共 200 次、約 2M tokens；一次完整白箱**約 9–10M 輸入 tokens**。費用依當時定價計算，本文件不列價格（未查證）。
 
+**預算**（Budget Tracker，[H]）：
+- 預算分三層：run 總額、W 階段、B 階段；每層有輸入 token、輸出 token、費用（USD）、運算時間（不含等待人工關卡）。
+- 預設值在 `toolkit.yaml`：W 階段 15M 輸入 tokens（上面示意值的約 1.5 倍）、B 階段 5M 輸入 tokens、每階段 24 小時運算時間。**費用上限沒有預設值**：委任設定或 `toolkit.yaml` 沒設 `max_cost_usd` 時，Gateway 拒絕該 run 的請求（fail-closed）。
+- 消耗達 80% 時寫稽核事件 `budget_threshold` 並通知 run_owner；達 100%，或下一個 fan-out 的預估消耗會超過剩餘額度時，進入 **`GB_budget_gate`**。
+
 **預算用盡時**：
 1. 先 checkpoint。
-2. 由人決定：加預算、降低 V、或移除校準權重最低的家族。
+2. `GB_budget_gate` 由人決定：**延長**（新上限寫入 GateRecord）、**停止本階段**（W → 直接到 W5；B → 直接到 B6；最終 `COMPLETED_WITH_GAPS`）、或**中止**。延長時也可以附帶「降低 V」或「移除校準權重最低的家族」，這些取捨寫入 GateRecord。
 3. **絕不靜默刪減覆蓋**；所有取捨都寫入報告。
 
-**延遲**：人工關卡（G1–G5）與事先簽署（G0a、G0b）是主要延遲來源；AIxCC 決賽在無人介入下跑了約 143 小時 [單源：SoK；DARPA 只確認名次][E:reference_systems-08]，SoK 的人工審 patch 花了兩人週 [V][E:reference_systems-07]。實際人力需在 pilot 中量測。
+**延遲**：人工關卡（G1–G5、GB）與事先簽署（G0a、G0b）是主要延遲來源；AIxCC 決賽在無人介入下跑了約 143 小時 [單源：SoK；DARPA 只確認名次][E:reference_systems-08]，SoK 的人工審 patch 花了兩人週 [V][E:reference_systems-07]。實際人力需在 pilot 中量測。
 
 ## 12. CI 整合（兩條線）
 
 | 線 | 觸發 | 內容 | 預期時間 |
 |---|---|---|---|
-| Lane A（同步） | 每個 PR | W0、W1、secrets、套件存在性；可選單一家族只審 diff | 分鐘級（待量測） |
-| Lane B（非同步） | 手動、排程或合併到主幹 | 完整多家族白箱＋所有關卡＋黑箱；以 checkpoint 續跑，並發送通知；結果回貼 PR | 小時到天（受人工關卡影響） |
+| Lane A（同步，`run_kind: lane_a`） | 每個 PR | W0、W1、secrets、套件存在性；可選單一家族只審 diff（參考性） | 分鐘級（待量測） |
+| Lane B（非同步，`initial`／`followup`／`regression`） | 手動、排程或合併到主幹 | 完整多家族白箱＋所有關卡＋黑箱；以 checkpoint 續跑，並發送通知；結果回貼 PR | 小時到天（受人工關卡影響） |
 
 - Lane A 只審 diff：RoboDuck 的 delta 模式縮小範圍後，誤報大幅減少 [V][E:reference_systems-12]。
+- **Lane A 的結果只有參考性**：單一家族的發現項最高只能是 `UNCORROBORATED`（05 R9），永遠不會進入 `CONFIRMED_*`，也不計入下一個 Lane B run 的 `independent_families`；它們會被帶入同一 repo 的下一個 Lane B run，作為額外輸入（`lane_a_advisories`）。Lane A 的模型必須在 G0a 的允許清單中；Lane A 也要先跑 W0，沒有遮罩對照表就不送任何 diff 給 LLM。
+- **排程與合併觸發的 Lane B**：只自動執行 W0–W3（無網路出站、不執行受測程式），紀錄發起者是 `run_owner`；在 G1 決定、W4 或任何 B 節點之前，必須有人認領（`claim_run`）。
 - CI 中的 GitHub Actions 鎖 commit SHA，binary 用 cosign 驗證；Trivy CVE-2026-33634 的官方建議是鎖 SHA、cosign 驗證、輪替 secrets [V][E:whitebox-13]；本設計再加上「掃描器在沒有 CI secrets 的環境中執行」[H：設計推論]。
 
 ## 13. 可觀測性與稽核
-- 每次 LLM 呼叫記錄：模型、family、lineage、prompt hash、回應、token、費用、延遲、fallback、重試、schema 修復次數。
+- 每次 LLM 呼叫記錄：模型、family、lineage、prompt hash、回應 hash、token、費用、延遲、fallback、重試、schema 修復次數。
 - 每次工具呼叫記錄：產物 hash、目標 ID、安全等級、請求數、停止原因。
 - 可用 checkpoint 重播整次執行，時間旅行與容錯是 LangGraph 持久化功能的一部分 [V][E:orchestration-05]。
 - Audit Log 加密、分級、有保留期限、secrets 遮罩、限制存取。
+
+### 13.1 稽核事件格式（`audit-event.schema.json`，[H]）
+- **儲存**：append-only JSONL，每個 run 一個檔（另有一個 engagement 層級的檔記錄跨 run 事件）；大型內容（prompt、回應、請求紀錄）只存 CAS hash，本體加密存在 CAS。
+- **欄位**：`seq`（從 1 起連續）、`ts`、`run_id`、`engagement_id`、`event_type`、`actor`（`{kind: human|agent|system, id}`）、`node`、`zone`、`data_class`、`idempotency_key`、`payload`（小型結構化內容）、`payload_refs[]`（CAS hash）、`prev_hash`、`signature`。全部欄位都必填；只有人為的 `initiator_claim` 與 `run_resume` 事件有簽章（Ed25519，簽署對象是移除 `signature` 後事件的 JCS），其他事件 `signature: null`。
+- **hash chain**：`prev_hash` ＝ 前一行原始位元組（不含換行）的 sha256；第一行的 `prev_hash` ＝ sha256(`run_id`)。只有 Audit Writer 一個寫入者，以檔案鎖序列化。
+- **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件的 `prev_hash`（也就是它之前所有紀錄的 hash）寫入 run 紀錄的 `audit_anchors`（Postgres）；可選擇另外寫到 WORM 儲存或外部系統 [H]。
+- **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。
+- **驗證**：`vibecheck audit verify <run-id>` 重算整條鏈並與錨點比對。
+- **限制（做不到）**：hash chain 只能**偵測**竄改；同時控制稽核檔與 run 紀錄的人可以整條重寫。只有把錨點寫到該人無法修改的外部系統，才能防止這種情況（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 16 條）。
+- **與文獻的關係**：防竄改紀錄要靠持有先前承諾（錨點）的稽核者；純 hash chain 的證明長度與紀錄大小成線性 [V][E:orchestration-51]，以每個 run 的規模來說可以接受 [H]。Certificate Transparency v2（RFC 9162，Experimental）改用 Merkle tree 提供包含與一致性證明，並警告紀錄可能對不同用戶端呈現不同視圖 [V][E:orchestration-50]；若日後需要跨 run 的公開驗證，可改用 Merkle 結構 [H]。
+
+### 13.2 事件類型（enum）
+
+| 類別 | 事件 |
+|---|---|
+| run 生命週期 | `run_created`、`run_status_changed`、`initiator_claim`、`run_resume`、`resume_expired`、`config_loaded` |
+| 授權與驗章 | `key_registry_loaded`、`signature_verified`、`signature_invalid`、`engagement_verified`、`engagement_verify_failed`、`roe_verified`、`roe_verify_failed`、`ownership_check` |
+| secrets 與資料 | `redaction_map_created`、`secret_detected`（只含位置與 hash）、`pii_detected` |
+| LLM | `llm_request`、`llm_response`、`llm_refused_policy`、`schema_repair`、`retry`、`missing_vote`、`fallback_used`、`relay_call` |
+| 規劃與政策 | `commander_plan`、`policy_decision`（allow／deny＋規則 ID）、`coverage_floor_applied` |
+| 關卡 | `gate_opened`、`gate_decision`、`gate_expired`、`gate_skipped` |
+| 預算 | `budget_threshold`、`budget_exhausted` |
+| 產物與裁決 | `artifact_stored`、`artifact_validation`、`verdict_changed` |
+| 執行 | `sandbox_job_start`、`sandbox_job_end`、`tool_invocation_start`、`tool_invocation_end`、`session_login`、`egress_blocked`、`third_party_contact`、`job_skipped` |
+| 停止與補償 | `stop_condition`、`kill_switch`、`snapshot_created`、`snapshot_restored`、`restore_failed`、`restore_drill`、`seed_reset_failed`、`policy_violation` |
+| 報告 | `report_published`、`followup_draft_created` |
+| 稽核本身 | `audit_anchor` |
 
 ## 14. 序列圖
 
@@ -511,6 +1090,7 @@ sequenceDiagram
   PE-->>RC: 允許 rev_a, rev_b, rev_c
   par 第一輪互不可見
     RC->>GW: slice → rev_a
+    GW->>GW: 檢查 redaction_map_ref、預算
     GW->>RA: 審查
     RA-->>RC: findings (JSON)
   and
@@ -539,26 +1119,150 @@ sequenceDiagram
   participant GS as Gate Service
   participant H as 核准者（非發起者）
   participant EX as Executor (Z3)
+  participant SN as Snapshot Service (Z3)
   participant SP as Scope Proxy
   participant T as Staging 目標
-  RC->>PE: S2 job（產物 hash、目標 ID）
-  PE->>PE: ROE 驗章、時間窗、安全等級重算
-  PE->>EX: 請求所有權驗證
-  EX->>SP: 讀取 DNS TXT／well-known token
-  SP-->>EX: token
-  EX-->>PE: 簽署的驗證結果
-  PE-->>RC: 需要 G5
-  RC->>GS: interrupt（此節點無副作用）
+  RC->>GS: interrupt G5（此節點無副作用）
   GS->>H: 顯示 job、產物、風險
   H-->>GS: 簽章核准
   GS-->>RC: Command(resume=gate_record_id)
   RC->>PE: 驗證 GateRecord 簽章與 hash
-  RC->>EX: 快照（冪等）
+  RC->>PE: B4_preflight：ROE 驗章、時間窗、金鑰撤銷、安全等級重算
+  PE->>EX: 請求所有權驗證
+  EX->>SP: 讀取 DNS TXT／well-known token
+  SP-->>EX: token
+  EX-->>PE: 簽署的驗證結果
+  RC->>SN: 快照（冪等）
+  SN->>SP: TCP 轉送（只限 db_access.endpoint）
   RC->>EX: 執行（檢查 executed_jobs）
   EX->>SP: 請求
-  SP->>SP: job 請求白名單、每主機預算、redirect 檢查
+  SP->>SP: job 請求白名單、每主機預算、redirect 檢查、停止條件指標
   SP->>T: 轉送
   T-->>EX: 回應
   EX-->>RC: 結果／停止條件
-  RC->>EX: 還原（補償步驟，失敗或中止也執行）
+  RC->>SN: 還原＋checksum 驗證（補償步驟，失敗或中止也執行）
+```
+
+## 15. 元件介面（[H]）
+
+以下是元件層級的介面草案；模組配置、錯誤分類與 CLI 細節以 [08 實作規格](08-implementation-spec.md) 為準（兩者不一致時由 08 更新本節）。
+
+```python
+from typing import Protocol, Literal, Iterable
+from pydantic import BaseModel
+
+ArtifactRef = str   # "sha256:<hex>"
+
+class Provenance(BaseModel):
+    producer: str                       # agent_id 或元件名稱
+    model: str | None                   # LiteLLM 模型 ID（含版本）
+    family: str | None
+    lineage: str | None
+    input_refs: list[ArtifactRef]       # 產生此產物所用的全部輸入
+    node: str
+    run_id: str
+
+# --- Content-addressed Store（Z1；M1）---
+class ContentStore(Protocol):
+    def put(self, data: bytes, media_type: str, data_class: Literal["P", "C"],
+            retention_days: int) -> ArtifactRef: ...          # 已存在則直接回傳同一 hash
+    def get(self, ref: ArtifactRef) -> bytes: ...             # 讀取時重算 hash，不符即丟例外
+    def exists(self, ref: ArtifactRef) -> bool: ...
+    def gc(self, now: str) -> int: ...                        # 只刪除超過保留期限且沒有 legal hold 者
+
+# --- Blackboard（Z1 Postgres 索引；M1）---
+class Blackboard(Protocol):
+    def publish(self, run_id: str, kind: str, obj: BaseModel,
+                schema: str, provenance: Provenance) -> ArtifactRef: ...  # 先以完整 schema 驗證；append-only
+    def get(self, ref: ArtifactRef, model: type[BaseModel]) -> BaseModel: ...
+    def query(self, run_id: str, kind: str, **filters) -> list[ArtifactRef]: ...
+    # 沒有 update / delete：新版本以新的 publish 表示（例如裁決的每一版）
+
+# --- 驗章（Policy Engine 內，Z1；M1）---
+class SignatureVerifier(Protocol):
+    def load_registry(self, registry_bytes: bytes) -> "KeyRegistry": ...   # 驗根簽章與版本
+    def verify_document(self, doc_bytes: bytes, detached: list[bytes],
+                        required_roles: set[str], at: str) -> "VerifyResult": ...
+
+# --- 稽核（Z1；M1）---
+class AuditWriter(Protocol):
+    def append(self, event: BaseModel) -> str: ...            # 回傳該行 sha256；自動填 seq 與 prev_hash
+    def anchor(self, run_id: str) -> str: ...                 # 寫 audit_anchor，回傳錨點 hash
+    def verify(self, run_id: str) -> bool: ...
+
+# --- Model Gateway 外層（Z1；M1）---
+class ModelGateway(Protocol):
+    def complete(self, run_id: str, agent_id: str, request: BaseModel,
+                 output_schema: dict) -> BaseModel: ...
+    # 拒絕條件：redaction_map_ref 為空、資料等級不允許、端點或參數不在白名單、預算不足（BudgetExceeded）
+
+# --- Z2 Sandbox Runner（M1）---
+class SandboxJobSpec(BaseModel):
+    image_digest: str
+    argv: list[str]
+    inputs: list[ArtifactRef]
+    network: Literal["none", "mirror_only"]
+    cpu: int = 2
+    memory_mib: int = 4096
+    timeout_s: int
+    output_dirs: list[str]
+
+class SandboxResult(BaseModel):
+    job_id: str
+    exit_code: int | None
+    outputs: list[ArtifactRef]          # 已遮罩
+    stdout_ref: ArtifactRef
+    stderr_ref: ArtifactRef
+    killed_reason: str | None           # timeout / oom / output_too_large
+
+class SandboxRunner(Protocol):
+    def run(self, spec: SandboxJobSpec) -> SandboxResult: ...   # job_id 由 spec 的 hash 決定
+
+# --- Z3 Executor（M1 最小版：ownership + GET；M4 完整版）---
+class Executor(Protocol):
+    def verify_ownership(self, run_id: str, target_id: str, batch_id: str | None) -> ArtifactRef: ...
+    def http_get(self, run_id: str, target_id: str, path: str) -> ArtifactRef: ...       # M1
+    def run_job(self, run_id: str, job_id: str, adapter: str,
+                artifact_refs: list[ArtifactRef], session_roles: list[str]) -> ArtifactRef: ...  # M4
+    def kill(self, run_id: str, reason: str) -> None: ...
+
+# --- Session Provider（Z3；M4）---
+class SessionHandle(BaseModel):
+    handle_id: str
+    role: str
+    form: Literal["storage_state", "zap_context", "header", "cookie_jar"]
+    expires_at: str                     # 不含任何憑證值
+
+class SessionProvider(Protocol):
+    def materialize(self, run_id: str, role: str, form: str, job_id: str) -> SessionHandle: ...
+    def refresh(self, handle: SessionHandle) -> SessionHandle: ...
+    def revoke_run(self, run_id: str) -> None: ...
+
+# --- Snapshot Service（Z3；M4）---
+class SnapshotService(Protocol):
+    def snapshot(self, run_id: str, job_id: str) -> str: ...          # 冪等：同一 (run_id, job_id) 回傳同一 snapshot_ref
+    def restore(self, snapshot_ref: str) -> bool: ...                 # 還原後驗證 checksum
+    def restore_drill(self, engagement_id: str) -> ArtifactRef: ...
+    def reset_seeds(self, seed_manifest_ref: ArtifactRef) -> None: ...
+    def oracle_capture(self, run_id: str, job_id: str, tables: list[str]) -> str: ...  # 唯讀憑證；回傳 before_ref（hash 存在 Z3）
+    def oracle_diff(self, before_ref: str, tables: list[str]) -> ArtifactRef: ...  # 只回傳 hash 比對結果
+    def oracle_count(self, query_id: str, params: dict[str, str]) -> int: ...     # 只執行 G4 核准（hash 綁定）的 SELECT COUNT
+
+# --- LLM Relay（Z1 端點＋Z3 用戶端；M5）---
+class RelayRequest(BaseModel):
+    run_id: str
+    job_id: str
+    testcase_id: str
+    turn: int
+    transcript_ref: ArtifactRef
+    target_response_ref: ArtifactRef
+
+class LlmRelay(Protocol):
+    def next_turn(self, req: RelayRequest) -> ArtifactRef: ...        # 超過 turn/花費上限或模型不允許 → 拒絕
+
+# --- Budget Tracker（Z1；M2）---
+class BudgetTracker(Protocol):
+    def reserve(self, run_id: str, phase: Literal["W", "B"], est_tokens: int) -> bool: ...
+    def record(self, run_id: str, phase: str, tokens_in: int, tokens_out: int, cost_usd: float) -> None: ...
+    def status(self, run_id: str) -> "Budgets": ...
 ```

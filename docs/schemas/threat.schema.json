@@ -288,7 +288,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "審查者的 person_id（金鑰登錄）；llm-suggested 未經審查為 null"
         }
       },
       "required": [

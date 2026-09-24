@@ -1,0 +1,31 @@
+{
+  "run_id": "run-2026-09-23-001",
+  "repo_commit": "4f2a9c1",
+  "created_at": "2026-09-23T10:05:00+08:00",
+  "hash_alg": "hmac-sha256",
+  "hmac_key_ref": "vault://runs/run-2026-09-23-001/redaction-hmac",
+  "entries": [
+    {
+      "redaction_id": "RD-001",
+      "file": "config/default.ts",
+      "line": 12,
+      "col_start": 20,
+      "col_end": 60,
+      "kind": "secret",
+      "detector": "betterleaks:scan",
+      "value_hmac": "hmac-sha256:68d9cd6d13c395fc70d93763bb7fbcdfc570b1f663339a29960a70a94fadc70c",
+      "placeholder": "<REDACTED:STRIPE_KEY_1>"
+    },
+    {
+      "redaction_id": "RD-002",
+      "file": "test/fixtures/users.json",
+      "line": 4,
+      "col_start": 14,
+      "col_end": 38,
+      "kind": "pii",
+      "detector": "pii:email",
+      "value_hmac": "hmac-sha256:ec9cfd1ffbaceb0bd6bc3c21da9eabb9438b213f87343f309efe689d9f194933",
+      "placeholder": "<REDACTED:EMAIL_1>"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"key-registry.schema.json","title":"Key Registry（金鑰登錄，key-registry.yaml）","description":"核准者與服務金鑰的唯一信任來源（D11、docs/03 §6.1）。由組織根金鑰簽署；根金鑰指紋釘選在 toolkit.yaml。engagement／ROE 不能引入新的金鑰。[H]","type":"object","additionalProperties":false,
+"properties":{
+"registry_id":{"type":"string","description":"位置，對應 toolkit.yaml key_registry.location"},
+"version":{"type":"integer","minimum":1,"description":"單調遞增；小於 toolkit.yaml 記錄的上次接受版本 → 拒絕（防回滾）"},
+"issued_at":{"$ref":"common.schema.json#/$defs/datetime"},
+"org_root_public_key":{"type":"string","pattern":"^[A-Za-z0-9+/]{43}=$","description":"組織根金鑰的 32 位元組原始公鑰（base64）；其指紋必須等於 toolkit.yaml 釘選的指紋"},
+"entries":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"properties":{
+  "person_id":{"$ref":"common.schema.json#/$defs/person_id"},
+  "display_name":{"type":"string"},
+  "roles":{"type":"array","items":{"$ref":"common.schema.json#/$defs/role"},"minItems":1},
+  "public_key":{"type":"string","pattern":"^[A-Za-z0-9+/]{43}=$","description":"32 位元組 Ed25519 原始公鑰（base64）"},
+  "alg":{"const":"ed25519"},
+  "fingerprint":{"$ref":"common.schema.json#/$defs/fingerprint"},
+  "not_before":{"$ref":"common.schema.json#/$defs/datetime"},
+  "not_after":{"$ref":"common.schema.json#/$defs/datetime"},
+  "revoked_at":{"$ref":"common.schema.json#/$defs/datetime_or_null"},
+  "revocation_reason":{"anyOf":[{"enum":["compromised","role_change","retired"]},{"type":"null"}],"description":"compromised → 該金鑰所有簽章無效；其他原因 → revoked_at 之前的簽章仍有效"}},
+  "required":["person_id","display_name","roles","public_key","alg","fingerprint","not_before","not_after","revoked_at","revocation_reason"]}},
+"signatures":{"type":"array","minItems":1,"items":{"$ref":"common.schema.json#/$defs/signature"},"description":"組織根金鑰的簽章（signer＝org_root）"}},
+"required":["registry_id","version","issued_at","org_root_public_key","entries","signatures"]}

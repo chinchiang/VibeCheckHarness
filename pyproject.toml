@@ -1,0 +1,20 @@
+[project]
+name = "vibecheck-harness-design"
+version = "0.2.0"
+description = "VibeCheck Harness design repo: schemas, examples and the example validator (tools/vchlib)"
+requires-python = ">=3.11"
+dependencies = [
+  "jsonschema>=4.23",
+  "pyyaml>=6.0",
+  "tzdata>=2024.1",
+  "cryptography>=43",
+  "rfc8785==0.1.4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tools", "tests"]
+addopts = "-q"

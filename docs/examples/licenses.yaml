@@ -1,0 +1,54 @@
+# licenses.yaml — 元件授權登錄（示意，licenses.schema.json；docs/06 §2.3）
+# CI 規則（tools/validate_schemas.py 檢查）[H]：
+#   - requirements.txt 的每個套件都要有一列（名稱小寫比對）
+#   - tools.yaml 每個工具的 license_ref 都要有一列
+#   - status＝法務閘門 必須寫 gate_milestone；ROE 啟用該元件時 legal_review.scope.component_licenses 必須為 true（L-6）
+# 授權事實都是轉述，以 docs/06 §2.3 與其證據為準；evidence 引用證據帳本 ID（已獨立查核）。
+
+registry_version: 1
+
+components:
+  # ---------- 驗證工具（requirements.txt）----------
+  - {component: jsonschema, license: MIT, obligation: "保留授權聲明", usage: validator_runtime, status: OK, gate_milestone: null, evidence: ["E:orchestration-40"]}
+  - {component: pyyaml, license: MIT, obligation: "保留授權聲明；解析陷阱見 docs/06 §1.6（驗證程式用嚴格載入器）", usage: validator_runtime, status: OK, gate_milestone: null, evidence: ["E:orchestration-40"]}
+  - {component: tzdata, license: Apache-2.0, obligation: "保留 NOTICE", usage: validator_runtime, status: OK, gate_milestone: null, evidence: ["E:orchestration-40"]}
+  - {component: cryptography, license: "Apache-2.0 OR BSD-3-Clause", obligation: "保留授權聲明", usage: validator_runtime, status: OK, gate_milestone: null, evidence: ["E:orchestration-46"]}
+  - {component: rfc8785, license: Apache-2.0, obligation: "發布頻率低：固定版本 0.1.4，並以 RFC 8785 測試向量交叉比對", usage: validator_runtime, status: 注意, gate_milestone: null, evidence: ["E:orchestration-45"]}
+  - {component: pytest, license: MIT, obligation: "保留授權聲明", usage: validator_test, status: OK, gate_milestone: null, evidence: ["E:whitebox-54"]}
+
+  # ---------- 工具包實作依賴（見 docs/08）----------
+  - {component: LangGraph, license: MIT, obligation: "—", usage: reference, status: OK, gate_milestone: null, evidence: ["E:orchestration-01"]}
+  - {component: langgraph-checkpoint-sqlite, license: MIT, obligation: "—", usage: reference, status: OK, gate_milestone: null, evidence: ["E:orchestration-59"]}
+  - {component: psycopg, license: LGPL-3.0-only, obligation: "散布映像時要允許替換該函式庫", usage: db_client, status: 法務閘門, gate_milestone: M1, evidence: ["E:orchestration-42"]}
+  - {component: PostgreSQL, license: PostgreSQL, obligation: "保留版權聲明", usage: reference, status: OK, gate_milestone: null, evidence: ["E:orchestration-41"]}
+  - {component: LiteLLM, license: MIT, obligation: "不得使用 enterprise/ 目錄的功能；鎖版本", usage: reference, status: 注意, gate_milestone: null, evidence: ["E:orchestration-29", "E:orchestration-39"]}
+  - {component: Pydantic, license: MIT, obligation: "—", usage: reference, status: OK, gate_milestone: null, evidence: ["E:orchestration-38"]}
+  - {component: datamodel-code-generator, license: MIT, obligation: "只在開發時由 schema 產生模型", usage: reference, status: OK, gate_milestone: null, evidence: ["E:orchestration-55"]}
+  - {component: httpx, license: BSD-3-Clause, obligation: "保留授權聲明", usage: reference, status: OK, gate_milestone: null, evidence: ["E:orchestration-57"]}
+  - {component: dnspython, license: ISC, obligation: "保留授權聲明", usage: reference, status: OK, gate_milestone: null, evidence: ["E:orchestration-58"]}
+  - {component: vibecheck, license: NOASSERTION, obligation: "工具包自有程式碼（inventory、pkgcheck adapter）；授權由組織決定", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["docs/08"]}
+
+  # ---------- 白箱工具（tools.yaml zone Z2）----------
+  - {component: Betterleaks, license: MIT, obligation: "—", usage: secrets_scanner, status: OK, gate_milestone: null, evidence: ["E:whitebox-09", "E:whitebox-49"]}
+  - {component: gitleaks, license: MIT, obligation: "已進入只修安全問題的狀態", usage: secrets_scanner, status: OK, gate_milestone: null, evidence: ["E:whitebox-49"]}
+  - {component: TruffleHog, license: AGPL-3.0-only, obligation: "只用未修改的 binary、以 CLI 呼叫；是否算 aggregate 需法律判斷", usage: secrets_scanner, status: 法務閘門, gate_milestone: M1, evidence: ["E:whitebox-10", "E:whitebox-51", "E:blackbox-60", "E:blackbox-61"]}
+  - {component: Syft, license: Apache-2.0, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-14"]}
+  - {component: Grype, license: Apache-2.0, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-14"]}
+  - {component: Opengrep, license: LGPL-2.1-only, obligation: "以 CLI 呼叫；修改並散布時有 LGPL 義務", usage: w1_tool, status: 注意, gate_milestone: null, evidence: ["E:whitebox-06", "E:whitebox-52"]}
+  - {component: Semgrep CE, license: "LGPL-2.1-only AND LicenseRef-Semgrep-Rules-1.0", obligation: "官方規則使用限制", usage: w1_tool, status: 法務閘門, gate_milestone: M1, evidence: ["E:whitebox-04", "E:whitebox-52"]}
+  - {component: CodeQL, license: "MIT AND LicenseRef-GitHub-CodeQL-Terms", obligation: "依 GitHub CodeQL Terms：開源碼與學術研究可用（含在 CI/CD 為 GitHub.com 上的開源碼產生資料庫）；私有碼需 GitHub Advanced Security 授權；實際範圍以法務審查為準", usage: w1_tool, status: 法務閘門, gate_milestone: M1, evidence: ["E:whitebox-07", "E:whitebox-53"]}
+  - {component: Bandit, license: Apache-2.0, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-08"]}
+  - {component: OSV-Scanner, license: Apache-2.0, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-11"]}
+  - {component: Trivy, license: Apache-2.0, obligation: "供應鏈事件，需鎖版本", usage: w1_tool, status: 注意, gate_milestone: null, evidence: ["E:whitebox-13"]}
+  - {component: Hypothesis, license: MPL-2.0, obligation: "檔案層級 copyleft：修改 Hypothesis 自己的檔案並散布時要公開那些檔案", usage: w1_tool, status: 注意, gate_milestone: null, evidence: ["E:whitebox-47", "E:orchestration-56"]}
+  - {component: fast-check, license: MIT, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-48"]}
+
+  # ---------- 黑箱工具（tools.yaml zone Z3）----------
+  - {component: ZAP, license: Apache-2.0, obligation: "—", usage: b4_tool, status: OK, gate_milestone: null, evidence: ["E:blackbox-01", "E:blackbox-62"]}
+  - {component: Playwright, license: Apache-2.0, obligation: "—", usage: b4_tool, status: OK, gate_milestone: null, evidence: ["E:blackbox-21"]}
+  - {component: Schemathesis, license: MIT, obligation: "—", usage: b4_tool, status: OK, gate_milestone: null, evidence: ["E:blackbox-13"]}
+  - {component: Nuclei, license: MIT, obligation: "只跑自簽章模板", usage: b4_tool, status: OK, gate_milestone: null, evidence: ["E:blackbox-09", "E:blackbox-12"]}
+  - {component: RESTler, license: MIT, obligation: "fuzz 模式在工具包拒絕清單", usage: b4_tool, status: OK, gate_milestone: null, evidence: ["E:blackbox-16"]}
+  - {component: k6, license: AGPL-3.0-only, obligation: "同 TruffleHog：未修改的 binary 以 CLI 呼叫", usage: b4_tool, status: 法務閘門, gate_milestone: M4, evidence: ["E:blackbox-25", "E:blackbox-59", "E:blackbox-60", "E:blackbox-61"]}
+  - {component: promptfoo, license: MIT, obligation: "關閉遠端生成與 telemetry（docs/03 §7.5）", usage: b4_tool, status: 注意, gate_milestone: null, evidence: ["E:reference_systems-25", "E:blackbox-62"]}
+  - {component: PyRIT, license: MIT, obligation: "—", usage: b4_tool, status: OK, gate_milestone: null, evidence: ["E:reference_systems-55"]}

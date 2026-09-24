@@ -1,0 +1,26 @@
+{
+  "run_id": "run-2026-09-23-001",
+  "generated_at": "2026-09-29T10:00:00+08:00",
+  "seeds": [
+    {
+      "seed_id": "ST-001",
+      "source_cluster_id": "K-005",
+      "verdict_id": "V-005-1",
+      "cluster_status": "LIKELY",
+      "cwe_bucket": "authz",
+      "threat_id": "T-012",
+      "disputed_after_g2": false,
+      "reason": "LIKELY：兩個獨立家族回報"
+    },
+    {
+      "seed_id": "ST-002",
+      "source_cluster_id": "K-011",
+      "verdict_id": "V-011-1",
+      "cluster_status": "UNCORROBORATED",
+      "cwe_bucket": "llm_specific",
+      "threat_id": "T-031",
+      "disputed_after_g2": false,
+      "reason": "G2 保留：高嚴重度的 LLM 工具濫用"
+    }
+  ]
+}

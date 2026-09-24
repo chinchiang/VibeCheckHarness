@@ -14,6 +14,25 @@
     "run_id": {
       "type": "string"
     },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "W4",
+        "B4"
+      ],
+      "description": "W4＝白箱可執行測試（Z2）；B4＝黑箱執行（Z3）"
+    },
+    "job_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "B4 job ID（run.jobs 的鍵）；W4 為 null"
+    },
     "executed_at": {
       "type": "string",
       "format": "date-time"
@@ -25,6 +44,14 @@
         "pattern": "^tgt-[a-z0-9-]+$"
       },
       "minItems": 1
+    },
+    "cluster_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^K-[0-9]{3,}$"
+      },
+      "description": "此結果作為證據的叢集（也可由 testcase→threat→source_cluster_id 推導；兩者必須一致）"
     },
     "outcome": {
       "type": "string",
@@ -56,7 +83,13 @@
     },
     "replays": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "description": "重播 job 的執行次數 n_r（沒有重播時為 0）"
+    },
+    "replay_k": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "重播 job 中確定性 oracle 違反的次數 k_r（≤ replays；沒有重播時為 0）。FAIL 的重現判定見 docs/04 §4.4：確定性測試 k_r＝replays，機率型測試 k_r ≥ fail_k_min"
     },
     "oracle_observations": {
       "type": "array",
@@ -78,6 +111,63 @@
           "type": "null"
         }
       ]
+    },
+    "precondition_reached": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "boolean"
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "evidence_ref"
+      ],
+      "description": "測試確實到達要驗證的程式位置或端點（例如 sink 行被覆蓋、端點回應 200）；E_pass 的必要條件（docs/05 §4.2）"
+    },
+    "positive_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "evidence_ref"
+      ],
+      "description": "正對照（已知會觸發的變體）是否如預期失敗；null＝沒有正對照"
     },
     "artifact_sha256": {
       "type": "string",
@@ -112,17 +202,23 @@
     "result_id",
     "testcase_id",
     "run_id",
+    "phase",
+    "job_id",
     "executed_at",
     "target_ids",
+    "cluster_ids",
     "outcome",
     "trials",
     "replays",
+    "replay_k",
     "oracle_observations",
     "request_count",
     "stop_reason",
+    "precondition_reached",
+    "positive_control",
     "artifact_sha256",
     "interpreted_by"
   ],
   "title": "TestResult（測試結果）",
-  "description": "ERROR／SKIPPED／STOPPED 屬於執行失敗，列入「未能測試清單」，不代表需求未滿足。"
+  "description": "ERROR／SKIPPED／STOPPED 屬於執行失敗，列入「未能測試清單」，不代表需求未滿足；它們在 docs/05 §4.2 歸為 E_inc。"
 }

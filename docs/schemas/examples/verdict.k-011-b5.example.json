@@ -1,0 +1,59 @@
+{
+  "verdict_id": "V-011-2",
+  "cluster_id": "K-011",
+  "readjudicated_by": "B5_readjudicate",
+  "supersedes_verdict_id": "V-011-1",
+  "votes": [
+    {
+      "voter_agent_id": "ver_1",
+      "voter_model_key": "nemotron_self",
+      "voter_family": "nvidia",
+      "voter_lineage": "nemotron3",
+      "stance": "SUPPORT",
+      "rationale": "src/support/agent.ts:57 把 refund 直接交給 agent，前面沒有確認步驟，也沒有比對訂單擁有者。",
+      "fallback_used": null,
+      "anonymized": true,
+      "order_randomized": true,
+      "valid": true,
+      "weight": 0.6222,
+      "weighted_valid": true
+    }
+  ],
+  "missing_votes": [],
+  "tool_corroboration": [],
+  "executable_proof": null,
+  "test_evidence": {
+    "class": "E_pass",
+    "results": [
+      {
+        "result_ref": "sha256:229e7b7fd188c43618f64a36f8c771092dc79c0050aeae50df06973a7775339e",
+        "class": "E_pass",
+        "positive_control": true,
+        "reason": "PASS，n′＝60、k＝0，前置條件已到達；result_analyst（nvidia）不在叢集家族中"
+      }
+    ]
+  },
+  "diversity_degraded": false,
+  "no_eligible_verifier": false,
+  "calibration_version": 3,
+  "theta_confirm": 1.2,
+  "theta_reject": null,
+  "score": 0.6222,
+  "g2_decision_ref": "GR-G2-0001",
+  "status": "UNCORROBORATED",
+  "status_cap": null,
+  "advisory": false,
+  "annotations": [
+    {
+      "kind": "test_not_reproduced",
+      "reason": "TC-031-01：60 次都沒有重現（p_u≈0.049）"
+    }
+  ],
+  "decided_by": "aggregator",
+  "rule_version": "05-v0.2",
+  "rule_trace": [
+    "R2:weighted_support=1,score=0.6222<theta_confirm=1.2",
+    "R7:independent_families=1->UNCORROBORATED",
+    "R11:E_pass on UNCORROBORATED->annotate test_not_reproduced"
+  ]
+}

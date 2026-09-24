@@ -103,6 +103,18 @@
             "type": "null"
           }
         ]
+      },
+      "earliest_retirement": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "供應商公告的最早退役日（docs/08 §7；E:providers-49）。日期已過 → 驗證失敗；run 期間會到期 → 警告。未公告寫 null"
       }
     },
     "required": [
@@ -113,7 +125,8 @@
       "structured",
       "data_classes",
       "purpose",
-      "fallback"
+      "fallback",
+      "earliest_retirement"
     ]
   }
 }

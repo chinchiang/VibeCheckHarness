@@ -1,32 +1,40 @@
-# roe.yaml — 交戰規則（示意）
-# 本檔必須附上分離式簽章，並由已登錄金鑰的核准者簽署；Policy Engine 在每個接觸網路的步驟驗章。
-# 內容對應 NIST SP 800-115 附錄 B（E:blackbox-29）。範例網域使用保留網域 example.com / example.net。
+# roe.yaml — 交戰規則（示意，roe.schema.json）
+# G0b 驗章；Policy Engine 在每個接觸網路的步驟重新驗證。內容對應 NIST SP 800-115 附錄 B（E:blackbox-29）。
+# 範例網域使用保留網域 example.com / example.net。
+# 簽署人與核准者只能引用 key-registry.yaml 中的人（D11）；ROE 本身不帶公鑰。
+# 工具與模式用 D13 ID（tools.yaml）。簽章：Ed25519 over JCS（去掉 signatures）。
+# TEST ONLY：簽章由 tests/fixtures/TEST_ONLY_private_keys/ 的測試金鑰產生（tools/sign_examples.py）。
+# 注意：本檔以嚴格 YAML 載入（重複鍵、anchor、自訂 tag 一律拒絕；docs/06 §1.6）。
 
 engagement:
   id: eng-acme-invoices-2026q4
   version: 1
   purpose: "ACME 發票系統 staging 的安全驗證（先白箱、後黑箱）"
 
-key_registry_ref: "keys://acme-security/approvers"   # 指紋必須在此登錄且未撤銷
+issued_at: "2026-09-30T15:00:00+08:00"
+key_registry_ref: "docs/examples/key-registry.yaml"   # 必須等於 toolkit.yaml key_registry.location
 
 signatories:                 # 簽署 ROE 的人：必須含 test_lead、management、infrastructure_owner
-  - name: alice
+  - person_id: alice
     role: test_lead
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY1"
-  - name: carol
+    key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  - person_id: carol
     role: management
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
-  - name: dave
+    key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
+  - person_id: dave
     role: infrastructure_owner
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY4"
+    key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
 
-gate_approvers:              # 可核准 G1–G5 的已登錄人員
-  - name: erin
+gate_approvers:              # 可核准 G1–G5、GB 的人（G0b 之後的核准者必須在 signatories 或此清單中）
+  - person_id: erin
     role: security_reviewer
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY5"
-  - name: frank
+    key_fingerprint: "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84"
+  - person_id: heidi
+    role: security_reviewer
+    key_fingerprint: "ed25519:SHA256:1jyZZuA652L7cTLJWgVC2VwK7buTjLotvqc4xrc9bKk"
+  - person_id: frank
     role: app_owner
-    key_fingerprint: "ed25519:SHA256:EXAMPLEONLY6"
+    key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
 
 validity:
   not_before: "2026-10-01T00:00:00+08:00"
@@ -36,23 +44,41 @@ validity:
       start: "20:00"
       end: "23:00"
       tz: "Asia/Taipei"
+    - days: [sat]                  # 跨午夜：週六 22:00 到週日 02:00（days 指開始的那一天）
+      start: "22:00"
+      end: "02:00"
+      tz: "Asia/Taipei"
 
 targets:
   - id: tgt-staging-api
+    kind: http
     base_url: "https://api.staging.example.com"
+    endpoint: null
     environment: staging
     ownership_proof:
       method: dns_txt
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
   - id: tgt-staging-app
+    kind: http
     base_url: "https://app.staging.example.com"
+    endpoint: null
     environment: staging
     ownership_proof:
       method: well_known_path
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
   - id: tgt-canary
+    kind: http
     base_url: "https://canary.example.net"
-    environment: tester_controlled   # 我方控制的 canary 伺服器
+    endpoint: null
+    environment: tester_controlled   # 我方控制的 canary 伺服器（LLM 工具呼叫外洩偵測）
+    ownership_proof:
+      method: dns_txt
+      token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+  - id: tgt-staging-db
+    kind: database                   # 只給 Snapshot Service 與 oracle（TCP 轉送）；測試 job 不能直連
+    base_url: null
+    endpoint: "db.staging.example.com:5432"
+    environment: staging
     ownership_proof:
       method: dns_txt
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
@@ -61,12 +87,15 @@ test_roles:                  # 測試帳號只存在 Z3 secret store，永不進
   - role: tenantA_user
     description: "合成租戶 A 的一般使用者"
     credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/tenantA_user"
+    login: {method: api_token, target_id: tgt-staging-api, login_path: null, recipe_ref: null}
   - role: tenantB_user
     description: "合成租戶 B 的一般使用者"
     credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/tenantB_user"
+    login: {method: api_token, target_id: tgt-staging-api, login_path: null, recipe_ref: null}
   - role: U1
     description: "LLM 客服功能的合成使用者"
     credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/U1"
+    login: {method: form, target_id: tgt-staging-app, login_path: "/login", recipe_ref: null}
 
 exclusions:
   paths: ["/admin/billing/*", "/api/payments/*"]
@@ -74,8 +103,8 @@ exclusions:
 
 activities:
   allowed_safety_classes: [S0, S1, S2]     # S2 仍需每次 G5；S3 永遠拒絕
-  allowed_tools: [zap, schemathesis, playwright, nuclei_signed, promptfoo, pyrit, k6]
-  denied_modes: [nuclei_code_protocol, restler_fuzz]
+  allowed_tools: [zap, schemathesis, playwright, nuclei, promptfoo, pyrit, k6]   # D13 工具 ID
+  denied_modes: [nuclei:code_protocol, restler:fuzz]                           # 工具包拒絕清單之上再加
 
 rate_limits:
   per_host_rps: 5
@@ -84,9 +113,10 @@ rate_limits:
   zap_delay_ms_min: 200          # ZAP 預設 delayInMs=0（E:blackbox-06）
   zap_max_scan_minutes: 60       # ZAP 預設不限時
 
-stop_conditions:
+stop_conditions:                 # 沒寫的欄位用 toolkit.yaml 預設；覆寫值只能更嚴
   max_5xx_ratio: 0.05
   max_p95_latency_ms: 3000
+  health_url: "https://api.staging.example.com/healthz"
   contacts: ["oncall-staging@example.com"]
 
 data_handling:
@@ -103,20 +133,59 @@ integrations:
 
 upstream_llm_providers:
   - provider: "受測應用使用的 LLM 供應商"
-    terms_confirmed_by: "app_owner_1"
+    terms_confirmed_by: frank
     spend_cap_usd: 20
+
+relay:                           # docs/03 §7.5；只能比 toolkit.yaml relay 更低
+  models: [nemotron_self]
+  max_turns: 6
+  max_spend_usd_per_job: 1
+  max_spend_usd_per_run: 10
+
+db_access:                       # docs/03 §7.6；由 infrastructure_owner（dave）在 ROE 上簽署
+  target_id: tgt-staging-db
+  endpoint: "db.staging.example.com:5432"
+  snapshot_method: provider_api
+  snapshot_credential_ref: "vault://engagements/eng-acme-invoices-2026q4/db/snapshot"
+  oracle_readonly_credential_ref: "vault://engagements/eng-acme-invoices-2026q4/db/oracle-ro"
+  oracle_readonly_attested: true
+  oracle_tables: [invoices, agent_tool_calls, orders]
+  seed_manifest_ref: "docs/examples/seed-manifest.yaml"
+
+legal_review:                    # docs/06 §2.1.1；grace 必須也簽這份 ROE（L-3），且不能是 test_lead（L-5）
+  attested_by: grace
+  attested_at: "2026-09-29T16:00:00+08:00"
+  jurisdictions: ["TW"]
+  scope:
+    computer_misuse: true
+    privacy: true
+    cross_border:
+      value: false
+      not_applicable_reason: "staging 與全部 LLM 端點都在同一法域；受測資料為合成資料"
+    third_party_platform_policy: true
+    upstream_llm_terms: true
+    component_licenses: true     # L-6：ROE 啟用 k6（法務閘門）→ 必須為 true
+  reference_doc_sha256: "sha256:5d1c1b1e0a3f9c8e7d6b5a4f3e2d1c0b9a8f7e6d5c4b3a291807f6e5d4c3b2a1"
+  expires_at: "2027-03-31T23:59:59+08:00"
 
 secrets_verification:
   trufflehog_verify: false
   providers: []
 
-signatures:                  # 每位 signatory 一份分離式簽章
-  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY1"
+signatures:                      # 每位 signatory 與 legal_review.attested_by 各一份
+  - signer: alice
+    key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    detached_signature_ref: "roe.yaml.alice.sig"
-  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY3"
+    value: "038hiQIYMuPG6lkE/FAu1aGMkwS06D+VpiVevEX7ZkWsrtnSCa5hiU4g9y26HFEMAYQY3VQvbfG6KZz2mIw+DA=="
+  - signer: carol
+    key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    detached_signature_ref: "roe.yaml.carol.sig"
-  - key_fingerprint: "ed25519:SHA256:EXAMPLEONLY4"
+    value: "ZlF/J4IWYWdlle55AnoZ+/hrGHn2LtRnFRqDEuCWjwaNgCFhqGnt624xjeQASpjovIZWiygMxJFccMJGk+ivAQ=="
+  - signer: dave
+    key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    detached_signature_ref: "roe.yaml.dave.sig"
+    value: "MzCGdKDfZDC7s26WaKBtHBgWqOSPKKqBw72kKoqbvmGkqtjsFdJawseMdj3Fny35e/PvFtQuYADUITgz+rnKCw=="
+  - signer: grace
+    key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
+    alg: ed25519
+    value: "K/hESJ7gPMVOEPCSlfrHat9RZQMjxiDXnmKTsPrQIdnhfYIsrX6sRhpj+pwRR0gNmdcbr5MH+fxQCQrSuISqBg=="
