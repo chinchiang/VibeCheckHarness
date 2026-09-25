@@ -15,33 +15,34 @@ claude_sonnet:
   data_classes: [P, C]         # C 級前提：組織層級保留/ZDR 設定已宣告並比對
   purpose: [production, evaluation]
   earliest_retirement: null
-  fallback: [claude_haiku]
+  fallback: [claude_opus_48]
   api: messages
 
-claude_haiku:
-  litellm: "anthropic/claude-haiku-4-5-20251001"
+claude_opus_48:
+  # U-11 決定（2026-09-25）：取代 Claude Haiku 4.5（最早 2026-10-15 退役 [V][E:providers-49]）
+  litellm: "anthropic/claude-opus-4-8"     # [V][E:providers-52]；legacy，仍為 Active
   family: anthropic
   lineage: claude
-  usable_ctx: 200000
-  structured: claude_subset
+  usable_ctx: 1000000          # [V][E:providers-52]
+  structured: claude_subset    # 沿用 Anthropic structured outputs 的限制 [H]；M2 manual 線確認
   data_classes: [P, C]
   purpose: [production, evaluation]
-  earliest_retirement: "2026-10-15"        # 最早退役日 [V][E:providers-49]；run 期間會到期 → 驗證警告
+  earliest_retirement: "2027-05-28"        # 最早退役日 [V][E:providers-52]
   fallback: []
   api: messages
 
 gpt_flagship:
-  litellm: "openai/<GPT-6 系列模型 ID，實作時確認>"
-  placeholder: true            # 待使用者決定（U-12）；validator 發出 W-MODEL-PLACEHOLDER
+  # U-12 決定（2026-09-25）：GPT-6 Sol
+  litellm: "openai/gpt-6-sol"  # [V][E:providers-46]
   family: openai
   lineage: gpt
-  usable_ctx: 1050000          # [P] E:providers-31
+  usable_ctx: 1050000          # [V][E:providers-46]
   structured: openai_strict    # additionalProperties:false、全部欄位 required（[V] E:providers-32）
   data_classes: [P, C]
   purpose: [production, evaluation]
   earliest_retirement: null
   fallback: []
-  api: responses               # 部分 GPT-6 模型的工具呼叫需用 Responses API（[P] E:providers-31）
+  api: responses               # Sol 在 Chat Completions 只有 reasoning_effort=none 才能 function calling；Responses 無此限制（[P] E:providers-47）
   store: false                 # C 級強制 store=false（[V] E:providers-34）
 
 gpt_oss_self:

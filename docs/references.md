@@ -3,7 +3,7 @@
 > 本檔由 `tools/build_references.py` 依文件中實際引用的證據 ID 自動產生。每條的完整主張、查核意見與所有來源見 [evidence/ledger.md](evidence/ledger.md)。
 > 狀態：V＝已查證、P＝部分查證、C＝原主張被推翻（以更正為準）。
 
-文件共引用 390 條證據。
+文件共引用 391 條證據。
 
 ## 多代理編排框架與模型閘道
 
@@ -282,6 +282,8 @@
   - <https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b>
   - <https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b>
   - <https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b>
+- **E:providers-52** [V] As of 2026-09-25, Anthropic documents Claude Opus 4.8 with Claude API model ID claude-opus-4-8, released 2026-05-28, status Active (legacy; Claude Opus 5.5 is the current Opus m…
+  - <https://platform.claude.com/docs/en/models/opus-4-8/overview>
 
 ## 多模型與偏誤研究
 

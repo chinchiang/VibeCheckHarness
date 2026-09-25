@@ -4,7 +4,7 @@
 > 主張（claim）保留研究代理的英文原文；「查核」欄是獨立查核代理的結論與更正。
 > 中文文件中的 `[E:<id>]` 指向本檔的條目。若查核欄有更正，**以更正為準**。
 
-總計 445 條：C 已更正（原主張被推翻） 7、P 部分查證 60、V 已查證 378
+總計 446 條：C 已更正（原主張被推翻） 7、P 部分查證 60、V 已查證 379
 
 ## 目錄
 - [多代理編排框架與模型閘道（orchestration）](#orchestration)
@@ -696,6 +696,12 @@
 - **主張**：build.nvidia.com model pages list Nemotron-3-Super-120B-A12B (2026-03-11, NVIDIA Nemotron Open Model License), Nemotron-3-Ultra-550B-A55B (2026-06-04, OpenMDW-1.1) and Nemotron-3.5-Lightning-30B-A3B (2026-08-11, OpenMDW-1.1), with hosted use governed by the NVIDIA API Trial Terms of Service.
 - **查核**：No correction.
 - **來源**：<https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b> ｜ <https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b> ｜ <https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b> ｜ <https://r.jina.ai/https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b/modelcard> ｜ <https://r.jina.ai/https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard> ｜ <https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b/modelcard>
+
+### E:providers-52 — V 已查證
+
+- **主張**：As of 2026-09-25, Anthropic documents Claude Opus 4.8 with Claude API model ID claude-opus-4-8, released 2026-05-28, status Active (legacy; Claude Opus 5.5 is the current Opus model), tentative retirement not sooner than 2027-05-28, 1M-token context window, 128K max output, adaptive thinking, and base pricing of $5 input / $25 output per million tokens (Claude Haiku 4.5: $1 / $5, 200K context).
+- **查核**：Vendor documentation only (three separate Anthropic pages agree on ID, status, retirement date and pricing); retirement is a 'not sooner than' commitment for Anthropic-operated platforms, Bedrock and Google Cloud set their own dates.
+- **來源**：<https://platform.claude.com/docs/en/models/opus-4-8/overview> ｜ <https://platform.claude.com/docs/en/about-claude/model-deprecations> ｜ <https://platform.claude.com/docs/en/docs/about-claude/models/overview>
 
 **本主題研究限制（研究代理自述）**
 

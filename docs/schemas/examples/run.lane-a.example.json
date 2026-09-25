@@ -17,7 +17,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:0948a01e5864ec7f289f776ec38cfae57f8e87e652ef326c5f86ea1b69a81b48",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+  "engagement_ref": "sha256:03f99ccea66cb8b2579b8a19647322804b0ac557cf0ce6b83775bb8804aa53da",
   "roe_ref": null,
   "repo_commit": "9b7e3d2",
   "owasp_llm_version": "2026",
@@ -86,7 +86,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+      "subject_hash": "sha256:03f99ccea66cb8b2579b8a19647322804b0ac557cf0ce6b83775bb8804aa53da",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"

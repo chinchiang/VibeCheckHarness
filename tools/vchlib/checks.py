@@ -759,7 +759,7 @@ def g_models(R: Report, c: Ctx):
         for fb in m.get("fallback", []):
             R.check(fb in models and models[fb].get("family") == m.get("family"), "E-MODEL-FALLBACK", where, f"fallback {fb!r} unknown or cross-family")
         lit = str(m.get("litellm", ""))
-        # placeholder model IDs (e.g. gpt_flagship, U-12 pending): marked, never silent
+        # placeholder model IDs (e.g. nemotron_cloud): marked, never silent
         looks_placeholder = PLACEHOLDER_ID.search(lit) is not None
         if m.get("placeholder") is True or looks_placeholder:
             users = sorted(reach.get(k, ()))

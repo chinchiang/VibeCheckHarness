@@ -83,7 +83,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：可達的佔�
 20. **工具包**：自動化帳號、逾時、保存期限欄位、`tool:mode` 命名、B4 模式在 Z3。
 21. **其他**：DFD 連線與 b1_diff、報告 verdict_counts（每叢集最新裁決）、自測（M1 需 ST-1／ST-3／ST-7 已執行且通過）、checkpoint。
 
-目前範例的預期警告有三個：`claude_haiku` 的 `earliest_retirement`（2026-10-15）落在委任期間內 [V][E:providers-49]；`gpt_flagship`（U-12 待確認）與 `nemotron_cloud` 的 litellm 是佔位模型 ID（`W-MODEL-PLACEHOLDER`）。
+目前範例的預期警告只有一個：`nemotron_cloud` 的 litellm 是佔位模型 ID（`W-MODEL-PLACEHOLDER`；沒有 agent 會用到，`--real-run` 也不報錯）。U-11 已把 `claude_haiku` 換成 `claude_opus_48`（最早 2027-05-28 退役，不在委任期間內 [V][E:providers-52]）；U-12 已把 `gpt_flagship` 換成 `gpt-6-sol` [V][E:providers-46]。
 
 ## 簽章與測試金鑰
 

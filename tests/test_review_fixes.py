@@ -198,6 +198,14 @@ def test_unparseable_target_host_is_s3(b):
 
 
 # ================================================================ 9 placeholder models / --real-run
+
+def make_placeholder(b, key="gpt_flagship"):
+    """U-12 is decided (gpt-6-sol), so tests that need a reachable placeholder create one."""
+    m = doc(b, "models.yaml").data[key]
+    m.update(litellm="openai/<GPT-6 model ID, TBD>", placeholder=True)
+    return m
+
+
 @pytest.mark.parametrize("lit", ["openai/TBD", "openai/{model-id}", "openai/<id>", "nvidia_nim/todo", "x/FIXME-later", "x/模型（實作時確認）"])
 def test_placeholder_pattern_matches(lit):
     assert checks.PLACEHOLDER_ID.search(lit)
@@ -210,7 +218,7 @@ def test_placeholder_pattern_ignores_real_ids(lit):
 
 @pytest.mark.parametrize("lit", ["openai/TBD", "openai/{model-id}"])
 def test_unmarked_widened_placeholder_is_an_error(b, lit):
-    m = doc(b, "models.yaml").data["gpt_flagship"]
+    m = make_placeholder(b)
     m["litellm"] = lit
     m.pop("placeholder")
     assert "E-MODEL-PLACEHOLDER" in codes(b)
@@ -219,6 +227,7 @@ def test_unmarked_widened_placeholder_is_an_error(b, lit):
 
 
 def test_real_run_escalates_reachable_placeholders(b):
+    make_placeholder(b)
     R = run_all(b, real_run=True)
     errs = [i for i in R.errors if i.code == "E-MODEL-PLACEHOLDER"]
     assert [i.where for i in errs] == ["models.yaml gpt_flagship"]          # rev_b, reporter fallback, ...
@@ -237,9 +246,10 @@ def test_real_run_follows_fallback_chains(b):
 
 
 def test_cli_real_run_flag(capsys):
+    # the examples have no agent-reachable placeholder model left (U-11/U-12 decided; nemotron_cloud is unreachable)
     assert cli.main(["--quiet"]) == 0
-    assert cli.main(["--quiet", "--real-run"]) == 1
-    assert "E-MODEL-PLACEHOLDER models.yaml gpt_flagship" in capsys.readouterr().out
+    assert cli.main(["--quiet", "--real-run"]) == 0
+    assert "E-MODEL-PLACEHOLDER" not in capsys.readouterr().out
 
 
 # ================================================================ 14 JSONL line splitting

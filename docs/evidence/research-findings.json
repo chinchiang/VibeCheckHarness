@@ -1805,6 +1805,21 @@
           ],
           "correction": "No correction.",
           "merged_from": "pending_d-80"
+        },
+        {
+          "id": "providers-52",
+          "claim": "As of 2026-09-25, Anthropic documents Claude Opus 4.8 with Claude API model ID claude-opus-4-8, released 2026-05-28, status Active (legacy; Claude Opus 5.5 is the current Opus model), tentative retirement not sooner than 2027-05-28, 1M-token context window, 128K max output, adaptive thinking, and base pricing of $5 input / $25 output per million tokens (Claude Haiku 4.5: $1 / $5, 200K context).",
+          "sources": [
+            "https://platform.claude.com/docs/en/models/opus-4-8/overview"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "U-11 replacement for claude_haiku (Claude Haiku 4.5, earliest retirement 2026-10-15) in models.yaml",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://platform.claude.com/docs/en/about-claude/model-deprecations",
+            "https://platform.claude.com/docs/en/docs/about-claude/models/overview"
+          ],
+          "correction": "Vendor documentation only (three separate Anthropic pages agree on ID, status, retirement date and pricing); retirement is a 'not sooner than' commitment for Anthropic-operated platforms, Bedrock and Google Cloud set their own dates."
         }
       ],
       "limitations": [

@@ -360,6 +360,8 @@ def test_safety_class_excludes_db_host(b):
 
 # ================================================================ 6 placeholder model IDs
 def test_placeholder_marked_model_warns(b):
+    m = doc(b, "models.yaml").data["gpt_flagship"]
+    m.update(litellm="openai/<GPT-6 model ID>", placeholder=True)
     R = run_all(b)
     hits = [w for w in R.warnings if w.code == "W-MODEL-PLACEHOLDER"]
     assert any("gpt_flagship" in f"{w.where} {w.msg}" for w in hits)
@@ -367,7 +369,7 @@ def test_placeholder_marked_model_warns(b):
 
 
 def test_unmarked_placeholder_is_an_error(b):
-    doc(b, "models.yaml").data["gpt_flagship"].pop("placeholder")
+    doc(b, "models.yaml").data["gpt_flagship"]["litellm"] = "openai/<GPT-6 model ID>"
     assert "E-MODEL-PLACEHOLDER" in codes(b)
 
 

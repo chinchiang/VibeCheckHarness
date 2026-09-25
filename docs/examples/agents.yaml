@@ -100,13 +100,13 @@ result_analyst:
   tools: [read_blackboard]
 
 reporter:
-  model: claude_haiku
+  model: claude_opus_48
   role: reporter
   fallback_models: [gpt_flagship]   # reporter 不參與裁決，可跨家族 fallback
   tools: [read_blackboard]
 
 lane_a:
-  model: claude_haiku          # 必須等於 engagement.yaml lane_a_model；單一家族 → 最高 UNCORROBORATED
+  model: claude_opus_48        # 必須等於 engagement.yaml lane_a_model；單一家族 → 最高 UNCORROBORATED
   role: lane_a_reviewer
   facets: [authz, injection, secrets_config]
   tools: [read_slice]

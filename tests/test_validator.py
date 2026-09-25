@@ -26,7 +26,7 @@ def fp_of(keys, name):
 def test_examples_pass(b):
     R = run_all(b)
     assert not R.errors, [f"{i.code} {i.where} {i.msg}" for i in R.errors]
-    assert {w.code for w in R.warnings} == {"W-MODEL-RETIREMENT", "W-MODEL-PLACEHOLDER"}
+    assert {w.code for w in R.warnings} == {"W-MODEL-PLACEHOLDER"}
 
 
 # ---------------------------------------------------------------- parsing
@@ -263,8 +263,15 @@ def test_openai_c_model_needs_store_false(b):
     assert "E-MODEL-STORE" in codes(b)
 
 
+def test_model_retiring_during_engagement_warns(b):
+    doc(b, "models.yaml").data["claude_opus_48"]["earliest_retirement"] = "2026-10-15"
+    R = run_all(b)
+    assert "W-MODEL-RETIREMENT" in {w.code for w in R.warnings}
+    assert "E-MODEL-RETIRED" not in {e.code for e in R.errors}
+
+
 def test_model_retired_before_engagement(b):
-    doc(b, "models.yaml").data["claude_haiku"]["earliest_retirement"] = "2026-09-01"
+    doc(b, "models.yaml").data["claude_opus_48"]["earliest_retirement"] = "2026-09-01"
     assert "E-MODEL-RETIRED" in codes(b)
 
 

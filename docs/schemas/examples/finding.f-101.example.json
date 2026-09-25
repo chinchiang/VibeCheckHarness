@@ -5,7 +5,7 @@
   "facet": "authz",
   "reporter": {
     "agent_id": "lane_a",
-    "model_key": "claude_haiku",
+    "model_key": "claude_opus_48",
     "family": "anthropic",
     "lineage": "claude",
     "round": 1

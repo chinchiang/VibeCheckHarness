@@ -30,14 +30,15 @@
 5. **撰寫後查核**：文件完成後，再由獨立代理把每個事實陳述逐條比對證據帳本的**查核結果與更正**（不是原始主張）。
 
 ### 1.2 結果統計
-- 證據帳本共 **445** 條發現（v0.1 的 321 條加上 v0.2 的 124 條）：
-  - 已查證 378 條（v0.1 273、v0.2 105）
+- 證據帳本共 **446** 條發現（v0.1 的 321 條加上 v0.2 的 125 條）：
+  - 已查證 379 條（v0.1 273、v0.2 106）
   - 部分查證 60 條（v0.1 43、v0.2 17）
   - 被推翻、已更正 7 條（v0.1 5、v0.2 2）
+  - v0.2 的第 125 條是 providers-52（Claude Opus 4.8，U-11 的替代模型，2026-09-25 加入）；只以三個 Anthropic 官方頁面互相核對，屬廠商來源 [單源]。
 - 完整內容見 [evidence/ledger.md](evidence/ledger.md)（英文原文＋查核意見＋來源），機器可讀版見 [evidence/research-findings.json](evidence/research-findings.json)。
 - **獨立性的限制**：不少條目只能以原始或廠商來源確認，例如「只查了 CrewAI 自己的文件」「只有 SoK 能確認」。審查代理以關鍵字比對估計，至少有 55 條屬於這類 [單源：審查代理估計]。文件中這類陳述另標 **[單源]**。
 - **連結檢查**：2026-09-23 以 curl 檢查約 670 個外部 URL，結果見 [evidence/link-check-2026-09-23.md](evidence/link-check-2026-09-23.md)。
-- **v0.2 新增**：v0.2 撰寫期間共 124 條新發現（本文件 §7 的 103 條，加上 04／05／08 與範例檔引用的 21 條），全部經獨立查核後併入帳本：已查證 105、部分查證 17、被推翻 2（reference_systems-51 FuzzingBrain 投票對象、reference_systems-54 Atlantis 授權，文中已依更正改寫）。帳本合計 **445** 條（見上）。另重查既有的 reference_systems-04（不是新發現，不計入 124 條）：5／7 隊使用 LiteLLM 屬實，但該表在 arXiv HTML 版為 Table 1、PDF 版為 Table 2。
+- **v0.2 新增**：v0.2 撰寫期間共 124 條新發現（本文件 §7 的 103 條，加上 04／05／08 與範例檔引用的 21 條），全部經獨立查核後併入帳本：已查證 105、部分查證 17、被推翻 2（reference_systems-51 FuzzingBrain 投票對象、reference_systems-54 Atlantis 授權，文中已依更正改寫）。帳本合計 **445** 條；之後因 U-11 再加入 providers-52，共 **446** 條（見上）。另重查既有的 reference_systems-04（不是新發現，不計入 124 條）：5／7 隊使用 LiteLLM 屬實，但該表在 arXiv HTML 版為 Table 1、PDF 版為 Table 2。
 - **工具限制**：GitHub API 在 v0.1 研究環境中被擋（v0.2 時已可用 license API）；部分 PDF 與網站無法直接讀取（openai.com、Springer、ACM 回傳 403；X 回傳 402）；WebFetch 以摘要模型轉述，引文可能被改寫；部分主題用完了 WebSearch 額度（見 ledger 各主題的「研究限制」）。
 
 ### 1.3 7 條被推翻的主張與更正
@@ -88,7 +89,8 @@
     - `claude-fable-5-1`：2027-09-01
     - `claude-opus-5-5`：2027-09-22
     - `claude-sonnet-5`：2027-06-30
-    - `claude-haiku-4-5-20251001`：**2026-10-15**。範例設定若用 Haiku 4.5，需要替換計畫（見 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事)）。
+    - `claude-haiku-4-5-20251001`：**2026-10-15**。範例設定已依使用者決定換成 Claude Opus 4.8（見 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事)、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-11）。
+    - `claude-opus-4-8`（legacy，仍為 Active）：2027-05-28；1M context，每百萬 token $5／$25（2026-09-25 查詢）[V][E:providers-52]
   - structured outputs 已 GA，schema 有限制 [V][E:providers-24][E:providers-25]。
   - Opus 5.5 拒絕強制 tool_choice [V][E:providers-26]。
   - 資料保留與 ZDR [V][E:providers-27][E:providers-28][E:providers-29]。

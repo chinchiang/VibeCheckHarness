@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "engagement",
-    "sha256": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89"
+    "sha256": "sha256:03f99ccea66cb8b2579b8a19647322804b0ac557cf0ce6b83775bb8804aa53da"
   },
   "job_id": null,
   "initiator": "alice",
@@ -26,7 +26,7 @@
   "decisions": [
     {
       "item_id": "eng-acme-invoices-2026q4",
-      "item_sha256": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+      "item_sha256": "sha256:03f99ccea66cb8b2579b8a19647322804b0ac557cf0ce6b83775bb8804aa53da",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -34,7 +34,7 @@
   ],
   "gb": null,
   "verification": {
-    "document_ref": "sha256:18cd1beeeaa73f0d7f1708f991ab94b58364f7a2acc710f7b7b19494ca270f89",
+    "document_ref": "sha256:03f99ccea66cb8b2579b8a19647322804b0ac557cf0ce6b83775bb8804aa53da",
     "key_registry_version": 4,
     "signer_results": [
       {

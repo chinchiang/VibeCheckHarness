@@ -27,10 +27,10 @@ code_ownership:
 data_class: C
 
 allowed_models:            # 每個資料等級允許的模型（對應 models.yaml 的 key）
-  P: [claude_sonnet, claude_haiku, gpt_flagship, gpt_oss_self, nemotron_self, nemotron_cloud]
-  C: [claude_sonnet, claude_haiku, gpt_flagship, gpt_oss_self, nemotron_self]
+  P: [claude_sonnet, claude_opus_48, gpt_flagship, gpt_oss_self, nemotron_self, nemotron_cloud]
+  C: [claude_sonnet, claude_opus_48, gpt_flagship, gpt_oss_self, nemotron_self]
 
-lane_a_model: claude_haiku    # Lane A 單一家族 diff 審查（結果最高 UNCORROBORATED）
+lane_a_model: claude_opus_48  # Lane A 單一家族 diff 審查（結果最高 UNCORROBORATED）
 owasp_llm_version: null       # null＝沿用 toolkit.yaml owasp_llm_default（2026）
 
 telemetry_disabled: true
@@ -66,8 +66,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "8i3dLbHTjZelaz7eRkURvuFuDI/9Rdm1xCRLe7m5VxeyECIjm1nk3MVrflXWUXWr5/ie2ufCnXp2BnuzBc7ZCQ=="
+    value: "Dcy2ukfDkVpbx7/gWxNTlLmmLcgxswbqZT39KCn3QbfAv1+njkAYFWkh0uwE+lElYHNfki1cgyy4PADOaZHHAQ=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "TdSbvDnsekDxCQK5EzWXlDnmRcxF8PbAoiVN9D/5lp8hKQjnHuxTADeA9gVTCv2GEPg0qkqUNuQNC2DCF//bDA=="
+    value: "V/hQ6pwpdL0CRdh588bcuSyOzNR6kuigxYFR5YgP1oQa+lH1w4kwyQuK696rSkqAUKdf2Q0ArwlaDZ/YxZdNCQ=="

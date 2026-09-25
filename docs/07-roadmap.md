@@ -148,7 +148,7 @@
 | M2-X6 | 預算：80% 發出事件；用盡時進 GB；沒有費用上限時 fail-closed（[03 §11](03-system-architecture.md#11-成本與延遲模型)） | 整合測試 | 超出上限仍繼續呼叫 |
 | M2-X7 | ASI09 抽查：每個 run 抽 G2 的 10%（最少 3 項）；複核者不是原核准者；5 個工作天內完成 | 抽查紀錄 | 抽樣率不足、複核者是原核准者，或逾期 |
 | M2-X8 | §3「M2 前」全部結案；研究缺口 G-02、G-03、G-04、G-05、G-06、G-09、G-13 都完成 01 §5 列出的動作（例如 G-02：找到 Lacrosse 的資料，或在 Calibration 報告中註明找不到） | 驗收包 | 有缺口沒有完成動作 |
-| M2-X9 | 模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已有替代模型，或已明確停用 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
+| M2-X9 | 模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已換成 `claude_opus_48`（U-11 已決定 [V][E:providers-52]），且替代模型已完成 05 §5.8 的最小重跑 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
 | M2-X10 | [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的最小重跑：`model_key` 改變後，完成重跑之前該模型的權重 w＝0 | 整合測試 | 重跑前 w≠0 |
 | M2-X11 | 每個 LLM 輸出都通過 schema 驗證，或有記錄在案的修復或缺票 | 稽核查核 | 有未驗證的輸出進入 Blackboard |
 
@@ -234,9 +234,9 @@
 ## 7. 每個里程碑都要做的事
 
 - **模型**：重新查證模型 ID、版本與退役日期。
-  - 旗艦模型「GPT-6 Astra／Sol」[P][E:providers-31] 以別名 `gpt_flagship` 引用；程式與設定檔只使用別名，不寫死模型 ID。
+  - 旗艦模型「GPT-6 Astra／Sol」[P][E:providers-31] 以別名 `gpt_flagship` 引用；程式與設定檔只使用別名，不寫死模型 ID（模型 ID 只寫在 `models.yaml`：U-12 已決定綁 `gpt-6-sol` [V][E:providers-46]）。
   - `models.yaml` 的每個別名都有 `earliest_retirement`；Gateway 在退役前 30 天發出警告 [H]。
-  - `claude_haiku`（Claude Haiku 4.5）最早在 2026-10-15 退役 [V][E:providers-49]。它目前是 `claude_sonnet` 的 fallback，也出現在範例中，所以 M2 前要決定替代模型（[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-11）。
+  - `claude_haiku`（Claude Haiku 4.5）最早在 2026-10-15 退役 [V][E:providers-49]。使用者已決定改用 Claude Opus 4.8（`claude_opus_48`，最早 2027-05-28 退役 [V][E:providers-52]；[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-11），範例已更新；M2 仍要完成替代模型的最小重跑。
   - 模型改變時，依 05 §5.8 重跑，並重跑全部自測。
 - **授權**：更新授權登錄表（[06 §2.3](06-security-legal-limitations.md#23-授權登錄表)）與 `licenses.yaml`，並結案下一個里程碑的入口閘門（§3）。
 - **威脅模型**：更新工具包自己的威脅模型（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
