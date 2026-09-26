@@ -5,7 +5,7 @@
 > 中文文件中的 `[E:<id>]` 指向本檔的條目。若查核欄有更正，**以更正為準**。
 > 每個條目的錨點只由證據 ID 決定，例如 `ledger.md#providers-10`。
 
-總計 454 條：C 已更正（原主張被推翻） 7、P 部分查證 60、V 已查證 387
+總計 456 條：C 已更正（原主張被推翻） 7、P 部分查證 60、V 已查證 389
 
 ## 目錄
 - [多代理編排框架與模型閘道（orchestration）](#orchestration)
@@ -1584,6 +1584,13 @@
 - **查核**：No correction. Covers the Python binding only, not the core library or individual grammars.
 - **來源**：<https://pypi.org/pypi/tree-sitter/json>
 
+### <a name="whitebox-59"></a>E:whitebox-59
+
+- **狀態**：V 已查證
+- **主張**：SARIF 2.1.0 (errata01) §3.27.9–3.27.10: 'If level has any value other than "none" and kind is present, then kind SHALL have the value "fail".' 'If kind has any value other than "fail", then if level is absent, it SHALL default to "none", and if it is present, it SHALL have the value "none".' If kind is fail and level is absent, level is derived from rule configuration overrides / the rule's defaultConfiguration.
+- **查核**：No correction. Read from the OASIS specification text on 2026-09-26.
+- **來源**：<https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/sarif-v2.1.0-errata01-os-complete.html>
+
 **本主題研究限制（研究代理自述）**
 
 - openai.com and help.openai.com returned HTTP 403, so the Aardvark and Codex Security figures (92% recall, 1.2M commits, the &gt;50% false-positive drop) come only from press coverage (CyberScoop, SecurityWeek, The Hacker News), not OpenAI's primary pages.
@@ -2161,6 +2168,13 @@
 - **主張**：Appendix A of the OWASP LLM Top 10 2026 PDF maps each entry to MITRE CWE 4.20, distinguishing primary CWEs (the definitional weakness) from supporting CWEs. Examples of primary mappings: LLM01 Prompt Injection → CWE-1427; LLM04 Supply Chain → CWE-494 and CWE-829; LLM05 Data and Model Poisoning → CWE-349 and CWE-829; LLM10 Improper Output Handling → CWE-1426, CWE-116 and CWE-79.
 - **查核**：No correction. Only the listed rows were read from the extracted text; the multi-column table is not reproduced in full.
 - **來源**：<https://genai.owasp.org/download/56857/?tmstv=1785822482>
+
+### <a name="threat_modeling-81"></a>E:threat_modeling-81
+
+- **狀態**：V 已查證
+- **主張**：OWASP WSTG v4.2 checklist (checklist/checklist.json at tag v4.2, commit dd33419e): WSTG-CLNT-04 Testing for Client-side URL Redirect; WSTG-CLNT-07 Testing Cross Origin Resource Sharing; WSTG-INPV-01 Testing for Reflected Cross Site Scripting; WSTG-INPV-02 Testing for Stored Cross Site Scripting; WSTG-BUSL-08 Test Upload of Unexpected File Types; WSTG-BUSL-09 Test Upload of Malicious Files; WSTG-CONF-04 Review Old Backup and Unreferenced Files for Sensitive Information; WSTG-CONF-05 Enumerate Infrastructure and Application Admin Interfaces.
+- **查核**：No correction.
+- **來源**：<https://github.com/OWASP/wstg/blob/v4.2/checklist/checklist.json>
 
 **本主題研究限制（研究代理自述）**
 
