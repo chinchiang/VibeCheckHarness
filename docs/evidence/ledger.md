@@ -4,7 +4,7 @@
 > 主張（claim）保留研究代理的英文原文；「查核」欄是獨立查核代理的結論與更正。
 > 中文文件中的 `[E:<id>]` 指向本檔的條目。若查核欄有更正，**以更正為準**。
 
-總計 446 條：C 已更正（原主張被推翻） 7、P 部分查證 60、V 已查證 379
+總計 454 條：C 已更正（原主張被推翻） 7、P 部分查證 60、V 已查證 387
 
 ## 目錄
 - [多代理編排框架與模型閘道（orchestration）](#orchestration)
@@ -1349,6 +1349,24 @@
 - **查核**：No correction. (Note: the GitHub license API reports NOASSERTION for spdx/spdx-spec. The claim relies on the LICENSE text, which matches.)
 - **來源**：<https://api.github.com/repos/CycloneDX/specification/license> ｜ <https://api.github.com/repos/spdx/spdx-spec/license> ｜ <https://raw.githubusercontent.com/spdx/spdx-spec/development/v3.0.1/LICENSE>
 
+### E:whitebox-56 — V 已查證
+
+- **主張**：The official SARIF 2.1.0 JSON schema (errata01) defines result.baselineState with the values new, unchanged, updated and absent ('The state of a result relative to a baseline of a previous run'); result.kind with notApplicable, pass, fail, review, open, informational (default fail); result.level with none, note, warning, error (default warning); and result properties webRequest, webResponse, partialFingerprints, fingerprints, suppressions (suppression.kind inSource/external, status accepted/underReview/rejected), rank and properties; location has logicalLocations.
+- **查核**：No correction. Enum values read directly from the schema file (sha256 c3b4bb2d…682e).
+- **來源**：<https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json>
+
+### E:whitebox-57 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-26): presidio-analyzer 2.2.364 has license expression MIT; its homepage link points to github.com/data-privacy-stack/presidio.
+- **查核**：No correction. The repository location differs from the older microsoft/presidio path; verify the maintainer before adoption.
+- **來源**：<https://pypi.org/pypi/presidio-analyzer/json>
+
+### E:whitebox-58 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-26): the Python binding tree-sitter 0.26.0 (py-tree-sitter) carries the classifier 'License :: OSI Approved :: MIT License'.
+- **查核**：No correction. Covers the Python binding only, not the core library or individual grammars.
+- **來源**：<https://pypi.org/pypi/tree-sitter/json>
+
 **本主題研究限制（研究代理自述）**
 
 - openai.com and help.openai.com returned HTTP 403, so the Aardvark and Codex Security figures (92% recall, 1.2M commits, the >50% false-positive drop) come only from press coverage (CyberScoop, SecurityWeek, The Hacker News), not OpenAI's primary pages.
@@ -1835,6 +1853,18 @@
 - **查核**：No correction. (The GitHub license API reports NOASSERTION for the AI Testing Guide repo, but LICENSE.md states CC BY-SA 4.0.)
 - **來源**：<https://api.github.com/repos/OWASP/www-project-ai-testing-guide/license> ｜ <https://api.github.com/repos/OWASP/OpenCRE/license> ｜ <https://raw.githubusercontent.com/OWASP/www-project-ai-testing-guide/main/LICENSE.md>
 
+### E:threat_modeling-79 — V 已查證
+
+- **主張**：The OWASP LLM Top 10 2026 PDF states the boundary with the Agentic Top 10: 'This list owns the risk when the model is a component inside your application. The moment that model becomes an actor, with tools it can call, memory it carries between sessions, and consequences it sets in motion downstream, the risk moves to the OWASP Agentic Top 10.' It advises pairing the two lists when the model acts on its own.
+- **查核**：No correction.
+- **來源**：<https://genai.owasp.org/download/56857/?tmstv=1785822482>
+
+### E:threat_modeling-80 — V 已查證
+
+- **主張**：Appendix A of the OWASP LLM Top 10 2026 PDF maps each entry to MITRE CWE 4.20, distinguishing primary CWEs (the definitional weakness) from supporting CWEs. Examples of primary mappings: LLM01 Prompt Injection → CWE-1427; LLM04 Supply Chain → CWE-494 and CWE-829; LLM05 Data and Model Poisoning → CWE-349 and CWE-829; LLM10 Improper Output Handling → CWE-1426, CWE-116 and CWE-79.
+- **查核**：No correction. Only the listed rows were read from the extracted text; the multi-column table is not reproduced in full.
+- **來源**：<https://genai.owasp.org/download/56857/?tmstv=1785822482>
+
 **本主題研究限制（研究代理自述）**
 
 - The GitHub REST API and Atom feeds were blocked in this session, so release dates for Threagile, pytm, STRIDE-GPT and Threat Dragon come from WebFetch summaries of GitHub HTML pages. Threagile's latest release year and maintenance status could not be confirmed (the releases page showed v0.9.x tags without years; the README mentioned 1.0.0).
@@ -2237,6 +2267,24 @@
 - **主張**：The GitHub license API reports Apache-2.0 for sigstore/cosign, OWASP/threat-dragon and moby/moby (Docker Engine).
 - **查核**：No correction.
 - **來源**：<https://api.github.com/repos/sigstore/cosign/license> ｜ <https://api.github.com/repos/OWASP/threat-dragon/license> ｜ <https://api.github.com/repos/moby/moby/license>
+
+### E:blackbox-65 — V 已查證
+
+- **主張**：The OWASP API Security Top 10 2023 lists: API1:2023 Broken Object Level Authorization, API2:2023 Broken Authentication, API3:2023 Broken Object Property Level Authorization (which combines API3:2019 Excessive Data Exposure and API6:2019 Mass Assignment), API4:2023 Unrestricted Resource Consumption, API5:2023 Broken Function Level Authorization, API6:2023 Unrestricted Access to Sensitive Business Flows, API7:2023 Server Side Request Forgery, API8:2023 Security Misconfiguration, API9:2023 Improper Inventory Management, API10:2023 Unsafe Consumption of APIs.
+- **查核**：No correction. Read from the official OWASP project page on 2026-09-26.
+- **來源**：<https://owasp.org/API-Security/editions/2023/en/0x11-t10/>
+
+### E:blackbox-66 — V 已查證
+
+- **主張**：Schemathesis ignored_auth: 'When an operation declares authentication, Schemathesis tests whether the API accepts requests without credentials or with invalid credentials. Either 401 or 403 counts as enforcement.' It sends two extra requests per operation (one without auth, one with invalid auth). use_after_free expects 404 Not Found after a successful DELETE; the stateful checks do not fire in a single case.call_and_validate() call.
+- **查核**：Refines E:blackbox-14: the check depends on the schema's authentication declaration.
+- **來源**：<https://schemathesis.readthedocs.io/en/stable/reference/checks/>
+
+### E:blackbox-67 — V 已查證
+
+- **主張**：PyPI metadata (checked 2026-09-26): mitmproxy 12.2.3 carries the classifier 'License :: OSI Approved :: MIT License'.
+- **查核**：No correction. Only PyPI metadata was checked, not the repository LICENSE file.
+- **來源**：<https://pypi.org/pypi/mitmproxy/json>
 
 **本主題研究限制（研究代理自述）**
 
