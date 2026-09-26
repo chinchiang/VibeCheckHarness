@@ -3,7 +3,7 @@
 > 本檔由 `tools/build_references.py` 依文件中實際引用的證據 ID 自動產生，請勿手動編輯。每條的 ID 連到 [evidence/ledger.md](evidence/ledger.md) 中的條目，那裡有完整主張、查核意見與所有來源。
 > 狀態：V＝已查證、P＝部分查證、C＝原主張被推翻（以更正為準）。
 
-文件共引用 391 條證據。
+文件共引用 399 條證據。
 
 ## 多代理編排框架與模型閘道
 
@@ -514,6 +514,12 @@
 - **[E:whitebox-55](evidence/ledger.md#whitebox-55)** [V] The CycloneDX specification repository is Apache-2.0 (GitHub license API). The SPDX specification LICENSE states it is provided under the Community Specification License 1.0, wi…
   - <https://api.github.com/repos/CycloneDX/specification/license>
   - <https://api.github.com/repos/spdx/spdx-spec/license>
+- **[E:whitebox-56](evidence/ledger.md#whitebox-56)** [V] The official SARIF 2.1.0 JSON schema (errata01) defines result.baselineState with the values new, unchanged, updated and absent…
+  - <https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json>
+- **[E:whitebox-57](evidence/ledger.md#whitebox-57)** [V] PyPI metadata (checked 2026-09-26): presidio-analyzer 2.2.364 has license expression MIT; its homepage link points to github.com/data-privacy-stack/presidio.
+  - <https://pypi.org/pypi/presidio-analyzer/json>
+- **[E:whitebox-58](evidence/ledger.md#whitebox-58)** [V] PyPI metadata (checked 2026-09-26): the Python binding tree-sitter 0.26.0 (py-tree-sitter) carries the classifier 'License :: OSI Approved :: MIT License'.
+  - <https://pypi.org/pypi/tree-sitter/json>
 
 ## 威脅建模方法與標準
 
@@ -722,6 +728,10 @@
 - **[E:threat_modeling-78](evidence/ledger.md#threat_modeling-78)** [V] The OWASP AI Testing Guide repository LICENSE.md states it is published under CC BY-SA 4.0, and the OWASP OpenCRE repository is CC0-1.0 according to the GitHub license API.
   - <https://api.github.com/repos/OWASP/www-project-ai-testing-guide/license>
   - <https://api.github.com/repos/OWASP/OpenCRE/license>
+- **[E:threat_modeling-79](evidence/ledger.md#threat_modeling-79)** [V] The OWASP LLM Top 10 2026 PDF states the boundary with the Agentic Top 10: 'This list owns the risk when the model is a component inside your application. The moment that model…
+  - <https://genai.owasp.org/download/56857/?tmstv=1785822482>
+- **[E:threat_modeling-80](evidence/ledger.md#threat_modeling-80)** [V] Appendix A of the OWASP LLM Top 10 2026 PDF maps each entry to MITRE CWE 4.20, distinguishing primary CWEs (the definitional weakness) from supporting CWEs. Examples of primary…
+  - <https://genai.owasp.org/download/56857/?tmstv=1785822482>
 
 ## 黑箱驗證工具與安全實務
 
@@ -898,6 +908,12 @@
   - <https://api.github.com/repos/sigstore/cosign/license>
   - <https://api.github.com/repos/OWASP/threat-dragon/license>
   - <https://api.github.com/repos/moby/moby/license>
+- **[E:blackbox-65](evidence/ledger.md#blackbox-65)** [V] The OWASP API Security Top 10 2023 lists: API1:2023 Broken Object Level Authorization, API2:2023 Broken Authentication, API3:2023 Broken Object Property Level Authorization…
+  - <https://owasp.org/API-Security/editions/2023/en/0x11-t10/>
+- **[E:blackbox-66](evidence/ledger.md#blackbox-66)** [V] Schemathesis ignored_auth: 'When an operation declares authentication, Schemathesis tests whether the API accepts requests without credentials or with invalid credentials. Eithe…
+  - <https://schemathesis.readthedocs.io/en/stable/reference/checks/>
+- **[E:blackbox-67](evidence/ledger.md#blackbox-67)** [V] PyPI metadata (checked 2026-09-26): mitmproxy 12.2.3 carries the classifier 'License :: OSI Approved :: MIT License'.
+  - <https://pypi.org/pypi/mitmproxy/json>
 
 ## Vibe coding 風險與事件
 
