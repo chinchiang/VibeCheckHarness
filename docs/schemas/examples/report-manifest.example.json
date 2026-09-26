@@ -146,8 +146,6 @@
     "results_invalid": 0,
     "control_pass_rate": 1.0
   },
-  "build_unverified_targets": [
-    "tgt-canary"
-  ],
+  "build_unverified_targets": [],
   "absent_fingerprints": []
 }

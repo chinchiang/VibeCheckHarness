@@ -210,11 +210,19 @@ def test_build_prefix_rule(b, obs, ok):
     assert ("E-RESULT-BUILD" not in codes(b)) is ok
 
 
-def test_unverified_targets_are_listed(b):
+def test_tester_controlled_targets_are_not_build_unverified(b):
     rm = doc(b, "report-manifest.example.json").data
-    assert rm["build_unverified_targets"] == ["tgt-canary"]
-    rm["build_unverified_targets"] = []
+    assert rm["build_unverified_targets"] == []          # tgt-canary is tester_controlled
+    rm["build_unverified_targets"] = ["tgt-canary"]
     assert "E-RESULT-BUILD" in codes(b)
+
+
+def test_unverified_staging_targets_are_listed(b):
+    roe = doc(b, "roe.yaml").data
+    next(t for t in roe["targets"] if t["id"] == "tgt-canary")["environment"] = "staging"
+    assert "E-RESULT-BUILD" in codes(b)                  # now it must be listed
+    doc(b, "report-manifest.example.json").data["build_unverified_targets"] = ["tgt-canary"]
+    assert "E-RESULT-BUILD" not in codes(b)
 
 
 def test_build_identity_shape(b):

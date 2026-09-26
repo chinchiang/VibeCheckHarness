@@ -76,7 +76,7 @@ targets:
     ownership_proof:
       method: dns_txt
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
-    build_identity: {method: none, header_name: null, path: null, json_pointer: null}   # 我方的 canary：沒有受測 build → 報告列入 build_unverified_targets
+    build_identity: {method: none, header_name: null, path: null, json_pointer: null}   # 我方的 canary（tester_controlled）：不是受測系統，不列入 build_unverified_targets
   - id: tgt-staging-db
     kind: database                   # 只給 Snapshot Service 與 oracle（TCP 轉送）；測試 job 不能直連
     base_url: null

@@ -1355,7 +1355,9 @@ def roe_target(c: Ctx, tid) -> dict:
 def unverified_build_targets(c: Ctx, run_id) -> list[str]:
     tids = {t for x in c.docs("testresult") if x.data.get("run_id") == run_id and x.data.get("phase") == "B4"
             for t in x.data.get("target_ids") or []}
-    return sorted(t for t in tids if (roe_target(c, t).get("build_identity") or {}).get("method") == "none")
+    # Tester-controlled targets (e.g. the canary server) are not the system under test: no build to verify.
+    return sorted(t for t in tids if (roe_target(c, t).get("build_identity") or {}).get("method") == "none"
+                  and roe_target(c, t).get("environment") != "tester_controlled")
 
 
 def result_build(R: Report, c: Ctx, x: Doc, run: dict):

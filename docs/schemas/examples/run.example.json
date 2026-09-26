@@ -301,7 +301,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:87f4c52654e9e766aa37f8b5fe91c545ed54f5c406bcc7415d29f85a6ae31182",
+  "report_manifest_ref": "sha256:cc6de0bd73011924cd3aa6f2fa59b2309ccd7712a3374c5f9d9b08921d541df7",
   "gate_records": [
     {
       "gate": "G0a",
