@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.3 adjudication: tool corroboration tiers (A1), deterministic proof without an LLM and black-box-origin
 clusters (A2), controls / INVALID (B5), the diversity flag (A3), fallback weights (A4), provisional verdicts (E5),
 the legal gate on SARIF refs (B12). Each rule has a positive and a negative case."""

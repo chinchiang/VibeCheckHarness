@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.2 hardening: derived verdict flags, strict JSON, audit tail anchors, retention precedence,
 DB target scope, placeholder model IDs. Each rule has a positive and a negative case."""
 import copy

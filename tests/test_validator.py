@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Negative tests: each mutation of the (valid) example bundle must be caught with a specific code."""
 import datetime as dt
 

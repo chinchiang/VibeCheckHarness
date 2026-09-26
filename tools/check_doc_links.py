@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Check relative links, reference-style links and #anchors in the Markdown documents.
 
 Links: inline links and images `[text](dest "title")`, full and collapsed

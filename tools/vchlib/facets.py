@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Review facets (E7, H-F1): the 12 facets, the CWE buckets each facet may produce, and the facets every
 commander plan must cover, derived deterministically from the W0 inventory."""
 from __future__ import annotations

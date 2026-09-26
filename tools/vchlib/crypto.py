@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Ed25519 detached signatures over canonical JSON (decisions D11).
 
 Fingerprint format [H]: "ed25519:SHA256:" + unpadded standard base64 of sha256(raw

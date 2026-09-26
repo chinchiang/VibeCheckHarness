@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Shared fixtures: load the example bundle once, hand each test a deep copy."""
 import pathlib
 import sys

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Evidence matching for findings (B1; docs/05 §4.2, H-A5 / L-16). Pure functions, no I/O.
 
   match_snippet(slice_text, ev) -> (match, line_start, line_end)   code_snippet evidence

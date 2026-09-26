@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.3 data model: evidence kinds and tolerant matching (B1), inventory (B2), invariants and level triggers (B3),
 DFD provenance / boundary kinds (B4), threat evidence kinds (L-05), facets (E7). Positive and negative cases."""
 import copy

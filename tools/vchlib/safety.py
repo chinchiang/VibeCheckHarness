@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Safety-class computation: the docs/04 §5 pseudo-code (v0.3, D13 tool IDs), verbatim in
 logic, plus a trace so the validator can explain its result.
 

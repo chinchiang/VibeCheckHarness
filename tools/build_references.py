@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Generate docs/references.md from the evidence IDs cited in the documents.
 
 Every `[E:<id>]` tag found in README.md and docs/**/*.md (recursively; the two

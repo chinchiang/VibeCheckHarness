@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Check the external http(s) links in README.md and docs/**/*.md (opt-in, not run in CI).
 
 Earlier reports (docs/**/link-check-YYYY-MM-DD.md) are not scanned. From the

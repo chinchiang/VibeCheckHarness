@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Timezone-aware datetime handling. Never compare timestamps as strings.
 
 Windows has no system IANA database: install the `tzdata` package (requirements.txt).

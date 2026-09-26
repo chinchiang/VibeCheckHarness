@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.3 gates and profiles: approver registries (B8), run/gate ownership (D8), threat review records (D9), G1-approved
 requirements (D10), assurance profiles and separation of duties (E1), shared platforms (E2), whoami (E3), scripted
 relay (E4), provider data handling (B13), cost caps with unpriced models (B14). Positive and negative cases."""

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.3 run manifest and provenance: baseline state (B9), agent tools and commander plans (B10, D16), run manifest
 (B11), model pricing fields (B14), slice identity (E6), provenance (D14), fallback data class (D15)."""
 import copy

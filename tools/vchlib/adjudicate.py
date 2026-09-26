@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Ordered adjudication rules of docs/05 §4.2 (decision table rows 1-13, R8/R11 modifiers,
 R12/R13 annotations). Pure function: the validator recomputes each example verdict and
 compares status, deciding rule and annotations.

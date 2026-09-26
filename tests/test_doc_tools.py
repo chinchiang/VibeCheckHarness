@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the documentation tools: the two generators, the link checker and the
 external-link checker (whose network code is never exercised here)."""
 import hashlib

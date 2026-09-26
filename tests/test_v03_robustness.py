@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.3 validator robustness (triage c): D4 result order, D5 input shapes and the context guard, D6 per-document
 guards / bad dates / gate records without artifact, D13 stale README. Each reproduces the original failure."""
 import shutil

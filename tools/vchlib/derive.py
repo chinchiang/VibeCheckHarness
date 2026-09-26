@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Derived values of the example bundle.
 
 Every hash, weight or copied field that is a pure function of other files is listed here as

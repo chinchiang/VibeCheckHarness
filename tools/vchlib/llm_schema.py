@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """LLM-facing output schemas (docs/03 §8.3; v0.3: H-A4, M-V1, D7).
 
 Every artifact an LLM produces is registered in LLM_OUTPUTS with its archival schema. The schema

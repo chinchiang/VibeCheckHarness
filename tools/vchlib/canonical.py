@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Canonical JSON (RFC 8785 JCS) for the JSON subset used by this repo, and content hashes.
 
 [H] This is a from-scratch implementation of the parts of RFC 8785 that the design

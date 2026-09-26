@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """VibeCheck Harness design-repo validation library (v0.3).
 
 Modules:

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.3 scope and safety: seed-bound mutations (B6), seed path binding (D11), seed lifecycle (E8), build identity (B7),
 path / host / URL hardening (D1-D3), request log (D16). Positive and negative cases; bugs D1-D3/D11 are regressions."""
 import copy

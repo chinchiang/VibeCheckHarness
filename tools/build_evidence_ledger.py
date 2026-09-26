@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Generate docs/evidence/ledger.md from docs/evidence/research-findings.json.
 
 The ledger keeps the original (English) research claims, the independent

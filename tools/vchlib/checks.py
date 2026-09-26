@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Semantic checks over the example bundle (v0.3).
 
 Every check reports through `Report`: errors fail the run, warnings are printed only.

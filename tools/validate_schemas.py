@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Validate the VibeCheck Harness schemas, examples and configuration (v0.3).
 
     python -m pip install -r requirements.txt

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Strict JSON loading for signed / hash-chained documents (the JSON twin of yamlstrict).
 
 Python's json module silently keeps the LAST value of a duplicated key, so two parsers can

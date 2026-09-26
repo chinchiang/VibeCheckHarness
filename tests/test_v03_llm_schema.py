@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.3 LLM-facing schemas (C, D7): projection of harness-owned fields, fail-closed degrading, round trip."""
 import copy
 

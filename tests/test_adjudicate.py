@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """docs/05 §4.2 rule-order details: R12/R13 on every row, W4 phase annotation."""
 import pytest
 
