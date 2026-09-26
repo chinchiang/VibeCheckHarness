@@ -166,7 +166,7 @@
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
 | M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish` | 整合測試 | inventory 沒有 `routes/invoices.ts:42`，或 `db.tables` 中 `invoices` 的 `rls_enabled` 不是 `false`<!-- SYNC-A: inventory field names -->；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
-| M1-X2 | 必須拒絕清單 N-01–N-31 全部通過 | `security` 線 | 任一項沒有拒絕，或沒有對應的稽核事件 |
+| M1-X2 | 必須拒絕清單 N-01–N-43 全部通過（N-32–N-43 為 v0.3 新增，見 [08 §8.2](08-implementation-spec.md#82-m1-必須拒絕清單負面安全測試)） | `security` 線 | 任一項沒有拒絕，或沒有對應的稽核事件 |
 | M1-X3 | ST-1＝0、ST-3＝0、ST-7＝0（[06 §1.2.1](06-security-legal-limitations.md#121-工具包自測計畫植入注入的-repo-h)）；M1 的每個注入向量 ≥3 個樣本；每個 twin ≥10 個已知漏洞 | [selftest-report](schemas/selftest-report.schema.json)：三項都是 `status: RUN`、`passed: true` | 任一個大於 0，或任一項為 `NOT_RUN` |
 | M1-X4 | 在每個 M1 節點的邊界 kill 行程後 resume | 整合測試 | 最終產物的 hash 與不中斷的 run 不同；Sandbox job 被重跑；稽核去重後有重複事件 |
 | M1-X5 | 稽核與 CAS 的竄改偵測 | 性質測試 ≥1,000 例 | 偵測率 < 100% |
