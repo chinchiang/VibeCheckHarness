@@ -201,6 +201,21 @@ def mutation_scope_problems(tc: dict, manifest) -> list[str]:
     return out
 
 
+# E2 (H-D3): shared-platform domains. A host under one of these suffixes belongs to the platform, not to the
+# customer: DNS TXT / well-known-path proofs do not show ownership of the project; platform_project does.
+SHARED_PLATFORM_SUFFIXES = {
+    "supabase.co": "supabase",
+    "vercel.app": "vercel",
+    "netlify.app": "netlify",
+    "firebaseapp.com": "firebase",
+    "web.app": "firebase",
+    "onrender.com": "render",
+    "pages.dev": "other",
+    "fly.dev": "other",
+    "herokuapp.com": "other",
+}
+
+
 # roe.schema.json targets[].endpoint / db_access.endpoint: 'host:port' or '[v6]:port'; no bare
 # host, no trailing dot, no empty label
 ENDPOINT_RE = re.compile(r"^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*):[0-9]{1,5}$")

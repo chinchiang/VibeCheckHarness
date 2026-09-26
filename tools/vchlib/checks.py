@@ -590,7 +590,42 @@ def g_engagement(R: Report, c: Ctx):
     roles = {s.get("role") for s in e.get("signatories") or []}
     R.check(GATE_ROLES["G0a"] <= roles, "E-ENG-SIGNATORIES", w, f"signatories must include {sorted(GATE_ROLES['G0a'])}")
     R.check(e.get("owasp_llm_version") in (None, "2025", "2026"), "E-ENG-OWASP", w, "owasp_llm_version must be null, 2025 or 2026")
+    rc = e.get("role_consolidation")
+    if e.get("assurance_profile") != "lite":
+        R.check(rc is None or rc.get("acknowledged") is not True, "E-ENG-PROFILE", w, "role_consolidation is only used with assurance_profile lite")
+    elif isinstance(rc, dict) and rc.get("acknowledged") is True:
+        R.check(rc.get("person_id") in c.persons and bool(rc.get("statement")), "E-ENG-PROFILE", w,
+                "an acknowledged role_consolidation needs a registry person_id and a statement")
+    provider_rules(R, c)
     R.check(e.get("telemetry_disabled") is True, "E-ENG-TELEMETRY", w, "telemetry_disabled must be true")
+
+
+Z4_HOST_PREFIX = "z4-"      # self-hosted model servers live in Z4 (models.yaml api_base http://z4-...)
+
+
+def self_hosted(m: dict) -> bool:
+    try:
+        host = urlsplit(m.get("api_base") or "").hostname or ""
+    except ValueError:
+        return False
+    return host.startswith(Z4_HOST_PREFIX)
+
+
+def provider_rules(R: Report, c: Ctx):
+    """B13 (H-E14): every model an agent can reach that may receive C data (engagement data class C and the model
+    takes C) is self-hosted in Z4, or its family has zdr confirmed and a signed DPA."""
+    e, w = c.engagement, "engagement.yaml"
+    if e.get("data_class") != "C":
+        return
+    prov = {p.get("family"): p for p in e.get("providers") or [] if isinstance(p, dict)}
+    for k, users in sorted(reachable_models(c).items()):
+        m = c.model(k)
+        if not m or "C" not in (m.get("data_classes") or []) or self_hosted(m):
+            continue
+        p = prov.get(m.get("family")) or {}
+        R.check(p.get("zdr") == "confirmed" and p.get("dpa_signed") is True, "E-ENG-PROVIDER", w,
+                f"{k} ({m.get('family')}) can receive C data (agents {sorted(users)}) but providers.{m.get('family')} is not "
+                f"zdr confirmed with a signed DPA (and the model is not self-hosted in Z4)")
 
 
 # ============================================================== 8 ROE (+ L-1..L-6)
@@ -618,6 +653,24 @@ def g_roe(R: Report, c: Ctx):
             R.error("E-ROE-WINDOW", w, f"windows[{i}]: {exc}")
     roles = {s.get("role") for s in r.get("signatories") or []}
     R.check(GATE_ROLES["G0b"] <= roles, "E-ROE-SIGNATORIES", w, f"signatories must include {sorted(GATE_ROLES['G0b'])}")
+    # E1 / L-13: one person signs the ROE in at most one required role (lite + acknowledged consolidation excepted)
+    holders: dict = {}
+    for s in r.get("signatories") or []:
+        if s.get("role") in GATE_ROLES["G0b"]:
+            holders.setdefault(s.get("person_id"), set()).add(s.get("role"))
+    for p, rs in holders.items():
+        if len(rs) > 1:
+            R.check(p == consolidation_person(c), "E-ROE-SOD", w,
+                    f"{p} signs the ROE as {sorted(rs)}: required ROE roles need distinct persons (assurance_profile {profile(c)})")
+    platform_rules(R, c)
+    used_roles = {x for d in c.docs("testcase") for x in (d.data.get("data_needed") or {}).get("roles") or []}
+    for tr_ in r.get("test_roles", []):
+        if tr_.get("role") in used_roles:
+            R.check(isinstance(tr_.get("whoami"), dict), "E-ROE-WHOAMI", w,
+                    f"test role {tr_.get('role')} is used by testcases but has no whoami check (E3)")
+    relay_ = r.get("relay") or {}
+    if relay_.get("mode") == "adaptive":
+        R.check(profile(c) == "full", "E-ROE-RELAY-MODE", w, f"relay mode adaptive is only allowed with assurance_profile full (got {profile(c)})")
     targets = {t.get("id"): t for t in r.get("targets", [])}
     R.check(len(targets) == len(r.get("targets", [])), "E-ROE-TARGETS", w, "duplicate target ids")
     for t in r.get("targets", []):
@@ -751,8 +804,13 @@ def legal(R: Report, c: Ctx):
     R.check(exp and na and exp >= na, "E-L4", w, "legal_review.expires_at must be on or after ROE not_after")
     # L-5
     leads = {s.get("person_id") for s in r.get("signatories") or [] if s.get("role") == "test_lead"}
-    R.check(att not in leads, "E-L5", w, f"legal_review.attested_by {att} must not be the ROE test_lead "
-            "(G0b -> VERIFY_FAILED, reason legal_attester_is_test_lead; the run is SUSPENDED until the ROE is fixed)")
+    if att in leads and att is not None and att == consolidation_person(c):
+        # lite + acknowledged role consolidation: allowed, but the report header must say the attestation is self-signed
+        R.warn("W-L5-LITE", w, f"legal_review.attested_by {att} is also the test_lead (lite role_consolidation): "
+               "the report header must state that the legal attestation was self-signed")
+    else:
+        R.check(att not in leads, "E-L5", w, f"legal_review.attested_by {att} must not be the ROE test_lead "
+                "(G0b -> VERIFY_FAILED, reason legal_attester_is_test_lead; the run is SUSPENDED until the ROE is fixed)")
     # L-6
     tools = c.tools.get("tools") or {}
     status = {x.get("component"): x.get("status") for x in c.licenses.get("components", [])}
@@ -760,6 +818,40 @@ def legal(R: Report, c: Ctx):
     if gated:
         R.check((lr.get("scope") or {}).get("component_licenses") is True, "E-L6", w,
                 f"enabled tools {gated} are 法務閘門 in licenses.yaml: legal_review.scope.component_licenses must be true")
+
+
+def platform_of(host: str | None) -> str | None:
+    """E2: the shared-platform suffix a host is under (safety.SHARED_PLATFORM_SUFFIXES), or None."""
+    h = safety.norm_host(host) if host else ""
+    for suffix, plat in safety.SHARED_PLATFORM_SUFFIXES.items():
+        if h == suffix or h.endswith("." + suffix):
+            return plat
+    return None
+
+
+def platform_rules(R: Report, c: Ctx):
+    """E2 (H-D3): a target on a shared-platform domain proves ownership with platform_project and has an accepted
+    platform_policies entry of the same platform; dns_txt / well_known_path are not accepted there."""
+    r, w = c.roe, "roe.yaml"
+    policies = {p.get("platform"): p for p in r.get("platform_policies") or [] if isinstance(p, dict)}
+    for p in policies.values():
+        R.check(p.get("accepted_by") in c.persons, "E-ROE-PLATFORM", w, f"platform_policies {p.get('platform')}: accepted_by must be a registry person")
+    for t in r.get("targets", []):
+        op = t.get("ownership_proof") or {}
+        if op.get("method") == "platform_project":
+            R.check(all(op.get(k) for k in ("platform", "project_ref", "evidence_ref")), "E-ROE-PLATFORM", w,
+                    f"{t.get('id')}: platform_project needs platform, project_ref and evidence_ref")
+        else:
+            R.check(bool(op.get("token_ref")), "E-ROE-TARGETS", w, f"{t.get('id')}: {op.get('method')} needs token_ref")
+        if t.get("kind") != "http":
+            continue
+        plat = platform_of(safety.host_of(t.get("base_url")))
+        if plat is None:
+            continue
+        R.check(op.get("method") == "platform_project" and op.get("platform") == plat, "E-ROE-PLATFORM", w,
+                f"{t.get('id')}: {t.get('base_url')} is on a shared {plat} domain: ownership_proof must be platform_project "
+                f"with platform {plat} (dns_txt / well_known_path prove nothing there)")
+        R.check(plat in policies, "E-ROE-PLATFORM", w, f"{t.get('id')}: no platform_policies entry for {plat}")
 
 
 # ============================================================== 9 models / agents
@@ -890,6 +982,33 @@ def g_models(R: Report, c: Ctx):
 
 
 # ============================================================== 10 gates
+ENGAGEMENT_GATES = ("G0a", "G1", "G2")
+ROE_GATES = ("G0b", "G3", "G4", "G5")
+
+
+def profile(c: Ctx) -> str:
+    return c.engagement.get("assurance_profile") or "team"
+
+
+def consolidation_person(c: Ctx) -> str | None:
+    """The one person allowed to hold several ROE / gate roles: only in lite, only when acknowledged."""
+    rc = c.engagement.get("role_consolidation") or {}
+    if profile(c) == "lite" and rc.get("acknowledged") is True:
+        return rc.get("person_id")
+    return None
+
+
+def gate_sod(R: Report, c: Ctx, rec: dict, w: str):
+    """E1: a person approves a gate in at most one of its required roles (lite + acknowledged consolidation excepted)."""
+    by_person: dict = {}
+    for a in rec.get("approvers", []):
+        by_person.setdefault(a.get("person_id"), set()).add(a.get("role"))
+    for p, roles in by_person.items():
+        if len(roles) > 1:
+            R.check(p == consolidation_person(c), "E-GATE-SOD", w,
+                    f"{p} approves {rec.get('gate')} in several roles {sorted(roles)} (only an acknowledged lite role_consolidation allows this)")
+
+
 def g_gates(R: Report, c: Ctx):
     e, r = c.engagement, c.roe
     tmo = e.get("gate_timeouts_hours") or {}
@@ -928,14 +1047,18 @@ def g_gates(R: Report, c: Ctx):
             want = {(s.get("person_id"), s.get("role"), s.get("key_fingerprint")) for s in r.get("signatories") or []}
             got = {(a.get("person_id"), a.get("role"), a.get("key_fingerprint")) for a in rec.get("approvers", [])}
             R.check(want == got, "E-GATE-G0-APPROVERS", w, "G0b approvers must be the ROE signatories")
-            R.check(rna and at <= rna, "E-GATE-ROE-VALIDITY", w, "G0b after the ROE expired")
-        # approvers after G0b come from the ROE
-        g0b = [x.data for x in c.ix.gate_records(rec.get("run_id"), "G0b")]
-        g0b_at = min((t for t in (ts(R, x.get("timestamp"), w) for x in g0b) if t), default=None)
-        if gate not in ("G0a", "G0b") and g0b_at and at >= g0b_at:
+        # B8 (H-D2): white-box gates are approved from the engagement registry, black-box gates from the ROE
+        if gate in ENGAGEMENT_GATES:
+            allowed_eng = set(((e.get("gate_approvers") or {}).get(gate)) or [])
+            for a in rec.get("approvers", []):
+                R.check(a.get("person_id") in allowed_eng, "E-GATE-APPROVER-ENG", w,
+                        f"{gate} approver {a.get('person_id')} is not in engagement.yaml gate_approvers.{gate} {sorted(allowed_eng)}")
+        if gate in ROE_GATES:
             for a in rec.get("approvers", []):
                 R.check((a.get("person_id"), a.get("key_fingerprint")) in roe_people, "E-GATE-ROE-APPROVER", w,
-                        f"{a.get('person_id')} approves after G0b but is not a ROE signatory or gate_approver")
+                        f"{gate} approver {a.get('person_id')} is not a ROE signatory or gate_approver")
+            R.check(rnb and rna and rnb <= at <= rna, "E-GATE-ROE-VALIDITY", w, f"{gate} decided outside the ROE validity")
+        gate_sod(R, c, rec, w)
         # timeouts
         limit = tmo.get(gate)
         if limit is not None and gate != "G5":
@@ -959,8 +1082,6 @@ def g_gates(R: Report, c: Ctx):
             allowed = {e.get("budget_approver") or e.get("run_owner"), e.get("run_owner")}
             for a in rec.get("approvers", []):
                 R.check(a.get("person_id") in allowed, "E-GB-APPROVER", w, f"GB approver {a.get('person_id')} is neither run_owner nor budget_approver")
-        if gate in ("G4", "G5"):
-            R.check(rnb and rna and rnb <= at <= rna, "E-GATE-ROE-VALIDITY", w, f"{gate} decided outside the ROE validity")
         if gate == "G4":
             for a in rec.get("approvers", []):
                 R.check(a.get("person_id") in run.get("initiators", []), "E-G4-INITIATOR", w,
@@ -969,6 +1090,9 @@ def g_gates(R: Report, c: Ctx):
             for a in rec.get("approvers", []):
                 R.check(a.get("person_id") not in run.get("initiators", []) and a.get("person_id") != rec.get("initiator"),
                         "E-G5-INITIATOR", w, f"G5 approver {a.get('person_id')} must not be a run initiator")
+            if profile(c) == "full":
+                revs = {a.get("person_id") for a in rec.get("approvers", []) if a.get("role") == "security_reviewer"}
+                R.check(len(revs) >= 2, "E-G5-TWO-PERSON", w, f"assurance_profile full: G5 needs two distinct security_reviewer approvers, got {sorted(revs)}")
             win_end = timeutil.window_end(opened, roe_windows(c))
             R.check(win_end is not None, "E-G5-WINDOW", w, "G5 opened outside every ROE time window")
             R.check(timeutil.in_any_window(at, roe_windows(c)), "E-G5-WINDOW", w, "G5 decided outside every ROE time window")
@@ -1047,7 +1171,11 @@ def g_runs(R: Report, c: Ctx):
         R.check(times == sorted(times), "E-RUN-GATES", w, "gate_records are not in opened_at order")
         for g in run.get("gate_records", []):
             if g.get("gate_record_id"):
-                R.check(c.record(g["gate_record_id"]) is not None, "E-RUN-GATES", w, f"gate record {g['gate_record_id']} not found")
+                grec = c.record(g["gate_record_id"])
+                if R.check(grec is not None, "E-RUN-GATES", w, f"gate record {g['gate_record_id']} not found"):
+                    # D8: a run may only list its own gate records
+                    R.check(grec.get("run_id") == rid, "E-GATE-RUN", w,
+                            f"gate record {g['gate_record_id']} belongs to run {grec.get('run_id')}, not {rid}")
         # G4 approved ids
         g4 = [x.data for x in c.ix.gate_records(rid, "G4")]
         if g4:
@@ -1081,6 +1209,9 @@ def g_runs(R: Report, c: Ctx):
             if not R.check(tc is not None, "E-RUN-JOB", jw, "testcase not found"):
                 continue
             R.check(job.get("testcase_id") in run.get("approved_testcase_ids", []), "E-RUN-JOB", jw, "job for a testcase not approved at G4")
+            if profile(c) == "lite":
+                R.check(job.get("safety_class") in ("S0", "S1"), "E-PROFILE-SAFETY", jw,
+                        f"assurance_profile lite allows only S0/S1 jobs, got {job.get('safety_class')}")
             R.check(job.get("safety_class") == tc.data.get("safety_class_computed"), "E-RUN-JOB", jw, "safety_class != testcase computed class")
             R.check(job.get("target_id") in tc.data.get("target_ids", []), "E-RUN-JOB", jw, "target not in the testcase")
             tr = next((x.data for x in c.docs("testresult") if x.data.get("job_id") == jid and x.data.get("run_id") == rid), None)
@@ -1273,8 +1404,19 @@ def g_testcases(R: Report, c: Ctx):
             R.check(bool(relay.get("models")), "E-TC-RELAY", w, "multi_turn needs a ROE relay")
             R.check(tr.get("multi_turn_max_turns") is not None and tr["multi_turn_max_turns"] <= relay.get("max_turns", 0), "E-TC-RELAY", w,
                     "multi_turn_max_turns exceeds ROE relay.max_turns")
+            st = tc.get("script_turns")
+            if relay.get("mode") == "scripted":
+                R.check(isinstance(st, list) and 1 <= len(st) <= min(tr.get("multi_turn_max_turns") or 0, relay.get("max_turns", 0)),
+                        "E-TC-SCRIPT", w, "relay mode scripted: script_turns must list 1..multi_turn_max_turns (<= ROE relay.max_turns) fixed user turns")
         else:
             R.check(tr.get("multi_turn_max_turns") is None, "E-TC-RELAY", w, "multi_turn_max_turns only for multi_turn testcases")
+            R.check(tc.get("script_turns") is None, "E-TC-SCRIPT", w, "script_turns only for multi_turn testcases")
+        if profile(c) == "lite" and tb.get("kind") != "MANUAL":
+            R.check(level in ("S0", "S1"), "E-PROFILE-SAFETY", w, f"assurance_profile lite allows only S0/S1 toolkit-executed testcases, got {level}")
+        approved = c.ix.approved_requirement_ids()
+        refs = set(tc.get("requirement_ids") or []) | set(o.get("requirement_refs") or [])
+        R.check(refs <= approved, "E-TC-REQ-UNAPPROVED", w,
+                f"requirements {sorted(refs - approved)} are not approved at G1 (REJECTED / NEEDS_INFO requirements are not testable)")
         R.check(1 <= tr.get("fail_k_min", 1) <= tr.get("n", 1), "E-TC-TRIALS", w, "fail_k_min must be 1..n")
         ctls = [x for x in tc.get("controls") or [] if isinstance(x, dict)]
         R.check(any(x.get("kind") == "reachability" for x in ctls), "E-TC-CONTROLS", w,
@@ -1835,6 +1977,17 @@ def g_trace(R: Report, c: Ctx):
                         f"verdict after G2 must reference the G2 record {lid} that decided this cluster")
     for d in c.docs("threat"):
         t, w = d.data, d.path
+        # D9: the review record must be a G3 record that decided this threat, and the status must be that decision
+        rv = t.get("review") or {}
+        if rv.get("gate_record_id") is not None:
+            g3 = c.record(rv.get("gate_record_id"))
+            dec = next((x.get("decision") for x in (g3 or {}).get("decisions") or [] if x.get("item_id") == t.get("threat_id")), None)
+            want = {"accept": "ACCEPTED", "reject": "REJECTED", "needs_info": "NEEDS_INFO"}.get(dec)
+            R.check(g3 is not None and g3.get("gate") == "G3" and dec is not None and rv.get("status") == want, "E-THREAT-REVIEW", w,
+                    f"review {rv.get('status')} by {rv.get('gate_record_id')!r} must be the decision of a G3 record that decides "
+                    f"{t.get('threat_id')} (found {dec!r})")
+        else:
+            R.check(rv.get("status") == "PENDING", "E-THREAT-REVIEW", w, "a threat without a G3 record must be PENDING")
         for ev in t.get("evidence") or []:
             kind, ref = ev.get("kind"), ev.get("ref")
             if kind == "cluster":
