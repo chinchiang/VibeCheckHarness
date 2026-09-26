@@ -3,6 +3,7 @@
   "engagement_id": "eng-acme-invoices-2026q4",
   "run_kind": "initial",
   "parent_run_id": null,
+  "baseline_run_id": null,
   "reuse": [],
   "trigger": "manual",
   "run_owner": "alice",
@@ -19,6 +20,92 @@
   "toolkit_config_ref": "sha256:0948a01e5864ec7f289f776ec38cfae57f8e87e652ef326c5f86ea1b69a81b48",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
   "engagement_ref": "sha256:1078ad184ebd428c04007dca51628ab67bcf5dda0eb4e814266120a1f17cc409",
+  "config_refs": {
+    "models": {
+      "path": "docs/examples/models.yaml",
+      "sha256": "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+    },
+    "agents": {
+      "path": "docs/examples/agents.yaml",
+      "sha256": "sha256:6b436102c1d67adc1b28d10a0772368bfe34acf9fbb1f20385134646dbb8807c"
+    },
+    "tools": {
+      "path": "docs/examples/tools.yaml",
+      "sha256": "sha256:312f04aace19149014ee420f44844b93cca29bc5c19259100c2126cea42bb145"
+    },
+    "calibration": {
+      "path": "docs/examples/calibration.yaml",
+      "sha256": "sha256:247a60dad44f2f1b4c98f3f0ceaf85f7fb3e3c7903adc6871ba305b95fd2478b"
+    },
+    "invariants": {
+      "path": "docs/examples/invariants.yaml",
+      "sha256": "sha256:5314c9aaf339cf4a7dd8aefff5a6d6bf367db2442683c2f7f76c0750de88cfab"
+    },
+    "seed_manifest": {
+      "path": "docs/examples/seed-manifest.yaml",
+      "sha256": "sha256:513c0a9d13b6fc049b077a8b86e08403a9758752d3de0d1615e74b3b143a4ef5"
+    }
+  },
+  "prompt_templates": [
+    {
+      "template_id": "w2-review",
+      "version": "2026.09.1",
+      "sha256": "sha256:bbbc8397f8bcbd354bf72eed13228d542c8b18e86513da6fe2c51d2ee25e6d89"
+    },
+    {
+      "template_id": "w3-verify",
+      "version": "2026.09.1",
+      "sha256": "sha256:e1dbf3925cf0b62a8509cf800d231c9930bcecd8b1ec8d08fde88839ea1b652b"
+    },
+    {
+      "template_id": "b2-threat-model",
+      "version": "2026.09.1",
+      "sha256": "sha256:e41644f742f6a08d77d16809d9365d74f6a01b11720b9279f57df256f03a4eca"
+    },
+    {
+      "template_id": "b3-testcase",
+      "version": "2026.09.1",
+      "sha256": "sha256:52855d5c770181237dda9aa889beb63557e2530187e0e0cbcc576c5becdb6f03"
+    },
+    {
+      "template_id": "result-analyst",
+      "version": "2026.09.1",
+      "sha256": "sha256:fe373423a62b5b6e053cd4d8b2f8228d36af7fa9369f0cd069b5d67335ea4001"
+    }
+  ],
+  "tool_versions": [
+    {
+      "adapter": "betterleaks:scan",
+      "version": "1.1.0",
+      "image_digest": "sha256:52d9d42220d03dbda42d4edd564f25c945f67ea89a41ddd965ce8e747a711507"
+    },
+    {
+      "adapter": "syft:sbom",
+      "version": "1.33.0",
+      "image_digest": "sha256:34752317b867e0177b6d9383757f60edfd3d9206aed1d8e42b5a4daccd0fa2a6"
+    },
+    {
+      "adapter": "opengrep:scan",
+      "version": "1.6.0",
+      "image_digest": "sha256:1e258df8ecd74dbdd562b48004a062673323a48c986c945049e63c119a346867"
+    },
+    {
+      "adapter": "playwright:api",
+      "version": "1.55.0",
+      "image_digest": "sha256:483a0d7d3d408064a4332ba9c55aadeba5f4e53d3bcd34b8472ed00e2f65b6ad"
+    },
+    {
+      "adapter": "promptfoo:eval",
+      "version": "0.118.0",
+      "image_digest": "sha256:5020ccb83b48c4f7d3e12c6892aa827969c0d4cbdc9b297c76aeefef64308389"
+    },
+    {
+      "adapter": "zap:active",
+      "version": "2.16.1",
+      "image_digest": "sha256:e2d8cec51f6bf7afe4163fff09ad5e4834df51b225b4018efd4d9fe69cd93878"
+    }
+  ],
+  "rule_version": "05-v0.3",
   "roe_ref": "sha256:8a81ad301655f2db960a718194805748e74041ededbd5b11fe71b5350beb4d90",
   "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "owasp_llm_version": "2026",
@@ -32,7 +119,7 @@
   "w1_sarif_ref": "sha256:ec3d31408b0d361ed7d343838dc9cba76123659054384e89bccf6962b50f92a1",
   "deps_check_ref": "sha256:8829c3257f45156f7f94e865aa84d4450302a9aab4246ea20988c42108b2b976",
   "slice_refs": [
-    "sha256:7c89b2e6ebcc47710044baf8e0c7322ce5cc23e7ddcd96ae9bb019aecc1d5c9e"
+    "sha256:ad186f2db02b15239aa533c2dc239cb9cccc23879ecc1589dc29486dc6264ee2"
   ],
   "plan_ids": [
     "plan-2026-09-23-001",
@@ -214,7 +301,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:a1ceeb182baf2659f504395827c6d45589ae5e836b2ce2d24e1b448dfb640b40",
+  "report_manifest_ref": "sha256:87f4c52654e9e766aa37f8b5fe91c545ed54f5c406bcc7415d29f85a6ae31182",
   "gate_records": [
     {
       "gate": "G0a",

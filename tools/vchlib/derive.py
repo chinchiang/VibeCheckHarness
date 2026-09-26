@@ -156,6 +156,16 @@ def independent_families(ix: Index, cluster: dict) -> list[str]:
     return sorted(f for f in fams if isinstance(f, str))
 
 
+def slice_identity(files, redaction_map_sha256, prompt_template_sha256) -> str:
+    """E6 (H-E3): slice_id = sha256(JCS({files, redaction_map_sha256, prompt_template_sha256}))."""
+    return sha256_ref(jcs({"files": files, "redaction_map_sha256": redaction_map_sha256,
+                           "prompt_template_sha256": prompt_template_sha256}))
+
+
+CONFIG_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "calibration": "calibration",
+                "invariants": "invariants", "seed_manifest": "seed-manifest"}
+
+
 def cluster_fingerprint(cluster: dict) -> str:
     """B9: stable cross-run fingerprint, no line numbers. white_box: {cwe_bucket, file, symbol};
     black_box: {cwe_bucket, target_id, method, path_template} of canonical_location.endpoint."""
@@ -418,11 +428,15 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
             return
         out.append(Expectation(doc.path, tuple(path), value, why))
 
-    # slices
+    # slices (E6: the identity covers the files, the redaction map and the prompt template)
     slice_by_run: dict[str, list[str]] = {}
     for d in ix.docs("slice"):
-        sid = sha256_ref(jcs(d.data.get("files", [])))
-        exp(d, ["slice_id"], sid, "sha256(JCS(files))")
+        rm = ix.first("redaction-map", run_id=d.data.get("run_id"))
+        if rm:
+            exp(d, ["redaction_map_sha256"], content_hash(rm.data), "content hash of the run's redaction map")
+        rm_sha = content_hash(rm.data) if rm else d.data.get("redaction_map_sha256")
+        sid = slice_identity(d.data.get("files", []), rm_sha, d.data.get("prompt_template_sha256"))
+        exp(d, ["slice_id"], sid, "sha256(JCS({files, redaction_map_sha256, prompt_template_sha256}))")
         slice_by_run.setdefault(d.data.get("run_id"), []).append(sid)
 
     # findings
@@ -573,6 +587,13 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     for field, kind in (("toolkit_config_ref", "toolkit-config"), ("key_registry_ref", "key-registry"), ("engagement_ref", "engagement")):
         if b.data(kind) is not None:
             exp(d, [field], content_hash(b.data(kind)), f"content hash of {kind}")
+    # B11: configuration files named by the run manifest (the kind is checked in checks.g_runs, E-RUN-CONFIG)
+    for key in CONFIG_KINDS:
+        ref = (r.get("config_refs") or {}).get(key)
+        if isinstance(ref, dict) and isinstance(ref.get("path"), str):
+            cd = next((x for x in b.docs if x.path == ref["path"] and x.data is not None), None)
+            if cd is not None:
+                exp(d, ["config_refs", key, "sha256"], content_hash(cd.data), f"content hash of {ref['path']}")
     has_g0b = any(g.get("gate") == "G0b" for g in r.get("gate_records", []))
     if b.data("roe") is not None:
         exp(d, ["roe_ref"], content_hash(b.data("roe")) if has_g0b else None, "content hash of roe.yaml when the run passed G0b")

@@ -17,6 +17,12 @@
         "CMD-5"
       ]
     },
+    "round": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2,
+      "description": "CMD-2 加派輪次；上限 max_extra_dispatch_rounds＝2（E-PLAN-ROUNDS）"
+    },
     "slices": {
       "type": "array",
       "items": {
@@ -54,7 +60,8 @@
             "items": {
               "type": "string"
             },
-            "minItems": 1
+            "minItems": 1,
+            "description": "agents.yaml 中 role reviewer 的代理（E-PLAN-AGENTS）"
           }
         },
         "required": [
@@ -71,14 +78,34 @@
         "additionalProperties": false,
         "properties": {
           "target": {
-            "type": "string"
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "cluster",
+                  "slice",
+                  "threat"
+                ]
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "description": "型別化目標：cluster＝K-…、slice＝sha256:…、threat＝T-…；validator 依 kind 檢查格式並解析（E-PLAN-TARGET）"
           },
           "agents": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "minItems": 1
+            "minItems": 1,
+            "description": "agents.yaml 中 role reviewer 或 verifier 的代理（E-PLAN-AGENTS）"
           },
           "reason": {
             "type": "string"
@@ -120,7 +147,8 @@
     },
     "budget_tokens": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "description": "≤ 該決策節點所屬階段（CMD-1／2→W、CMD-3／4→B、CMD-5→run_total）的 run 預算 max_input_tokens（E-PLAN-BUDGET）"
     },
     "rationale": {
       "type": "string"
@@ -171,6 +199,7 @@
   "required": [
     "plan_id",
     "decision_node",
+    "round",
     "slices",
     "extra_dispatch",
     "taxonomies",

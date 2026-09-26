@@ -3,6 +3,7 @@
   "engagement_id": "eng-acme-invoices-2026q4",
   "run_kind": "followup",
   "parent_run_id": "run-2026-09-23-001",
+  "baseline_run_id": "run-2026-09-23-001",
   "reuse": [
     "sha256:5314c9aaf339cf4a7dd8aefff5a6d6bf367db2442683c2f7f76c0750de88cfab",
     "sha256:481ba7a1714cd4b77a5c751e0472019b04a7a760dd5db52f1dfdab0edff1a11e"
@@ -21,6 +22,47 @@
   "toolkit_config_ref": "sha256:0948a01e5864ec7f289f776ec38cfae57f8e87e652ef326c5f86ea1b69a81b48",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
   "engagement_ref": "sha256:1078ad184ebd428c04007dca51628ab67bcf5dda0eb4e814266120a1f17cc409",
+  "config_refs": {
+    "models": {
+      "path": "docs/examples/models.yaml",
+      "sha256": "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+    },
+    "agents": {
+      "path": "docs/examples/agents.yaml",
+      "sha256": "sha256:6b436102c1d67adc1b28d10a0772368bfe34acf9fbb1f20385134646dbb8807c"
+    },
+    "tools": {
+      "path": "docs/examples/tools.yaml",
+      "sha256": "sha256:312f04aace19149014ee420f44844b93cca29bc5c19259100c2126cea42bb145"
+    },
+    "calibration": {
+      "path": "docs/examples/calibration.yaml",
+      "sha256": "sha256:247a60dad44f2f1b4c98f3f0ceaf85f7fb3e3c7903adc6871ba305b95fd2478b"
+    },
+    "invariants": {
+      "path": "docs/examples/invariants.yaml",
+      "sha256": "sha256:5314c9aaf339cf4a7dd8aefff5a6d6bf367db2442683c2f7f76c0750de88cfab"
+    },
+    "seed_manifest": {
+      "path": "docs/examples/seed-manifest.yaml",
+      "sha256": "sha256:513c0a9d13b6fc049b077a8b86e08403a9758752d3de0d1615e74b3b143a4ef5"
+    }
+  },
+  "prompt_templates": [
+    {
+      "template_id": "result-analyst",
+      "version": "2026.09.1",
+      "sha256": "sha256:fe373423a62b5b6e053cd4d8b2f8228d36af7fa9369f0cd069b5d67335ea4001"
+    }
+  ],
+  "tool_versions": [
+    {
+      "adapter": "playwright:api",
+      "version": "1.55.0",
+      "image_digest": "sha256:483a0d7d3d408064a4332ba9c55aadeba5f4e53d3bcd34b8472ed00e2f65b6ad"
+    }
+  ],
+  "rule_version": "05-v0.3",
   "roe_ref": "sha256:8a81ad301655f2db960a718194805748e74041ededbd5b11fe71b5350beb4d90",
   "repo_commit": "7d3e1a0",
   "owasp_llm_version": "2026",

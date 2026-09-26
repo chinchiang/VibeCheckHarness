@@ -31,6 +31,17 @@
       ],
       "description": "followup／regression 必填"
     },
+    "baseline_run_id": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/run_id"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "B9：比較叢集指紋的基準 run（SARIF baselineState）；null＝沒有基準，叢集的 baseline_state 為 null"
+    },
     "reuse": {
       "type": "array",
       "items": {
@@ -113,6 +124,183 @@
     },
     "engagement_ref": {
       "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "config_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "B11：本 run 使用的設定檔路徑與 content hash（validator 由檔案重算；E-DERIVED／E-RUN-CONFIG）",
+      "properties": {
+        "models": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ]
+        },
+        "agents": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ]
+        },
+        "tools": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ]
+        },
+        "calibration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ]
+        },
+        "invariants": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ]
+        },
+        "seed_manifest": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "$ref": "common.schema.json#/$defs/sha256"
+                }
+              },
+              "required": [
+                "path",
+                "sha256"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "models",
+        "agents",
+        "tools",
+        "calibration",
+        "invariants",
+        "seed_manifest"
+      ]
+    },
+    "prompt_templates": {
+      "type": "array",
+      "description": "本 run 使用的 prompt 範本版本；slice.prompt_template_sha256 必須是其中之一（E-SLICE-IDENTITY）",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "template_id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        },
+        "required": [
+          "template_id",
+          "version",
+          "sha256"
+        ]
+      }
+    },
+    "tool_versions": {
+      "type": "array",
+      "description": "本 run 使用的工具版本；adapter 必須在 tools.yaml，且與稽核 tool_invocation 的 payload.tool_version 一致（E-RUN-CONFIG）",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "adapter": {
+            "$ref": "common.schema.json#/$defs/tool_mode"
+          },
+          "version": {
+            "type": "string"
+          },
+          "image_digest": {
+            "anyOf": [
+              {
+                "$ref": "common.schema.json#/$defs/sha256"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "adapter",
+          "version",
+          "image_digest"
+        ]
+      }
+    },
+    "rule_version": {
+      "type": "string",
+      "description": "裁決規則版本（docs/05）；必須等於 vchlib.adjudicate.RULE_VERSION 與本 run 每個裁決的 rule_version（E-RUN-RULE-VERSION）"
     },
     "roe_ref": {
       "$ref": "common.schema.json#/$defs/sha256_or_null"
@@ -251,7 +439,9 @@
     },
     "cmd2_rounds": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 2,
+      "description": "CMD-2 加派輪數；上限 max_extra_dispatch_rounds＝2（E-PLAN-ROUNDS）"
     },
     "g2_queue": {
       "type": "array",
@@ -312,7 +502,8 @@
           "method": {
             "enum": [
               "dns_txt",
-              "well_known_path"
+              "well_known_path",
+              "platform_project"
             ]
           },
           "ok": {
@@ -652,6 +843,7 @@
     "engagement_id",
     "run_kind",
     "parent_run_id",
+    "baseline_run_id",
     "reuse",
     "trigger",
     "run_owner",
@@ -665,6 +857,10 @@
     "toolkit_config_ref",
     "key_registry_ref",
     "engagement_ref",
+    "config_refs",
+    "prompt_templates",
+    "tool_versions",
+    "rule_version",
     "roe_ref",
     "repo_commit",
     "owasp_llm_version",

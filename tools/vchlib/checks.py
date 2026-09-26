@@ -904,6 +904,32 @@ def g_models(R: Report, c: Ctx):
                 R.check(fb in models and fb in allowed, "E-AGENT-FALLBACK", where, f"fallback model {fb!r} unknown or not allowed")
     lane = agents.get("lane_a") or {}
     R.check(lane.get("model") == e.get("lane_a_model"), "E-AGENT-LANE-A", "agents.yaml lane_a", "lane_a model must equal engagement lane_a_model")
+    for name, a in agents.items():
+        if not isinstance(a, dict):
+            continue
+        tools_ = set(a.get("tools") or [])
+        role = a.get("role")
+        where = f"agents.yaml {name}"
+        # B10 (H-C1, H-C2, N-6): reviewers / verifiers see only their slice; the commander gets a typed view built by
+        # code (no tools); the invariant drafter reads the W0 inventory, never code slices
+        if role in ("reviewer", "verifier"):
+            R.check(tools_ <= {"read_slice"}, "E-AGENT-TOOLS", where, f"{role} may only use read_slice, has {sorted(tools_)}")
+        elif role == "commander":
+            R.check(not tools_, "E-AGENT-TOOLS", where, f"commander has no tools (typed input view), has {sorted(tools_)}")
+        elif role == "invariant_drafter":
+            R.check("read_slice" not in tools_, "E-AGENT-TOOLS", where, "invariant_drafter must not read code slices")
+        # D15 (M-V1): every model reachable through fallback must take the engagement's data class and be allowed for it
+        if a.get("model") and role not in DETERMINISTIC_ROLES:
+            todo, seen = list((c.model(a.get("model")) or {}).get("fallback") or []) + list(a.get("fallback_models") or []), set()
+            while todo:
+                k = todo.pop()
+                if k in seen or not isinstance(k, str):
+                    continue
+                seen.add(k)
+                m = c.model(k)
+                R.check(m is not None and dc in (m.get("data_classes") or []) and k in allowed, "E-MODEL-FALLBACK-CLASS", where,
+                        f"fallback model {k!r} (reachable from {a.get('model')}) cannot take {dc} data or is not in allowed_models.{dc}")
+                todo.extend((m or {}).get("fallback") or [])
     reach = reachable_models(c)
     for k, m in models.items():
         where = f"models.yaml {k}"
@@ -972,6 +998,21 @@ def g_models(R: Report, c: Ctx):
         if ib:
             m = c.ix.model_of_agent(ib.get("agent_id"))
             R.check(m is not None and m.get("family") == ib.get("family"), "E-RESULT-ANALYST", d.path, "interpreted_by family disagrees with the agent's model")
+    # D14 (H-A4): threat modellers and the invariant drafter resolve to registry agents of the right role and family
+    for d in c.docs("threat"):
+        for mb in d.data.get("modeled_by") or []:
+            a = agents.get(mb.get("agent_id")) if isinstance(mb.get("agent_id"), str) else None
+            m = c.ix.model_of_agent(mb.get("agent_id"))
+            R.check(isinstance(a, dict) and a.get("role") in ("threat_modeler", "threat_merger") and m is not None
+                    and m.get("family") == mb.get("family") and (a.get("viewpoint") in (None, mb.get("viewpoint"))),
+                    "E-PROVENANCE", d.path, f"modeled_by {mb.get('agent_id')!r} / {mb.get('family')!r} / {mb.get('viewpoint')!r} does not "
+                    "match an agents.yaml threat_modeler (role, registry family, viewpoint)")
+    db_ = c.invariants.get("drafted_by") or {}
+    if c.invariants:
+        a = agents.get(db_.get("agent_id")) if isinstance(db_.get("agent_id"), str) else None
+        m = c.ix.model_of_agent(db_.get("agent_id"))
+        R.check(isinstance(a, dict) and a.get("role") == "invariant_drafter" and m is not None and m.get("family") == db_.get("family"),
+                "E-PROVENANCE", "invariants.yaml", f"drafted_by {db_} does not match an agents.yaml invariant_drafter and its registry family")
     for d in c.docs("slice"):
         for x in d.data.get("excluded_models", []):
             R.check(x.get("model_key") in models, "E-MODEL-UNKNOWN", d.path, f"excluded model {x.get('model_key')!r} unknown")
@@ -1148,6 +1189,7 @@ def g_runs(R: Report, c: Ctx):
                 lim = (e.get("gate_timeouts_hours") or {}).get(g.get("gate"))
                 R.check(op and dl and lim is not None and dl == op + dt.timedelta(hours=lim), "E-RUN-DEADLINE", w,
                         f"resume_deadline must be opened_at + {lim} h")
+        run_manifest(R, c, d)
         kind = run.get("run_kind")
         gates = [g.get("gate") for g in run.get("gate_records", [])]
         if kind == "lane_a":
@@ -1343,6 +1385,126 @@ def result_controls(R: Report, c: Ctx, x: Doc, tc: dict):
         a = c.agents.get(ib.get("agent_id")) if isinstance(ib.get("agent_id"), str) else None
         R.check(isinstance(a, dict) and a.get("role") == "result_analyst", "E-RESULT-ANALYST-ROLE", w,
                 f"interpreted_by {ib.get('agent_id')!r} must be an agents.yaml agent with role result_analyst (got {(a or {}).get('role')!r})")
+
+
+MAX_EXTRA_DISPATCH_ROUNDS = 2
+
+
+def run_manifest(R: Report, c: Ctx, d: Doc):
+    """B11 (N-5, H-E13): config refs name the right files, tool versions are registered and agree with the audit
+    log, the rule version is the adjudicator's; B10 CMD-2 round bound; B9 baseline run."""
+    run, w = d.data, d.path
+    rid = run.get("run_id")
+    for key, kind in derive.CONFIG_KINDS.items():
+        ref = (run.get("config_refs") or {}).get(key)
+        if ref is None:
+            R.check(key == "seed_manifest" and run.get("run_kind") == "lane_a", "E-RUN-CONFIG", w,
+                    f"config_refs.{key} may only be null for seed_manifest in a Lane A run")
+            continue
+        cd = next((x for x in c.b.docs if x.path == ref.get("path") and x.data is not None), None)
+        R.check(cd is not None and cd.kind == kind, "E-RUN-CONFIG", w, f"config_refs.{key}.path {ref.get('path')!r} is not a {kind} file")
+    versions = {}
+    for tv in run.get("tool_versions") or []:
+        R.check(safety.registry_entry(c.tools, tv.get("adapter")) is not None, "E-RUN-CONFIG", w,
+                f"tool_versions: {tv.get('adapter')!r} is not a registered tools.yaml tool:mode")
+        versions[tv.get("adapter")] = tv.get("version")
+    audit = c.ix.audit_for(rid)
+    for e in (audit.data if audit else []):
+        p = e.get("payload") or {}
+        if e.get("event_type") == "tool_invocation_end" and p.get("adapter"):
+            R.check(versions.get(p.get("adapter")) is not None and versions.get(p.get("adapter")) == p.get("tool_version"), "E-RUN-CONFIG", w,
+                    f"audit seq {e.get('seq')}: {p.get('adapter')} ran as version {p.get('tool_version')!r} but run.tool_versions says "
+                    f"{versions.get(p.get('adapter'))!r}")
+    R.check(run.get("rule_version") == adj.RULE_VERSION, "E-RUN-RULE-VERSION", w,
+            f"rule_version {run.get('rule_version')!r} is not the adjudicator's {adj.RULE_VERSION!r}")
+    for vid in run.get("verdicts") or []:
+        v = c.ix.first("verdict", verdict_id=vid)
+        if v is not None:
+            R.check(v.data.get("rule_version") == run.get("rule_version"), "E-RUN-RULE-VERSION", w,
+                    f"verdict {vid} rule_version {v.data.get('rule_version')!r} != run rule_version {run.get('rule_version')!r}")
+    R.check((run.get("cmd2_rounds") or 0) <= MAX_EXTRA_DISPATCH_ROUNDS, "E-PLAN-ROUNDS", w,
+            f"cmd2_rounds {run.get('cmd2_rounds')} exceeds max_extra_dispatch_rounds {MAX_EXTRA_DISPATCH_ROUNDS}")
+    base = run.get("baseline_run_id")
+    if base is not None:
+        R.check(base in c.runs and base != rid, "E-CLUSTER-BASELINE", w, f"baseline_run_id {base!r} is not another run of the bundle")
+    # E6: slices of this run use one of its prompt templates and its redaction map
+    shas = {t.get("sha256") for t in run.get("prompt_templates") or []}
+    for s in c.docs("slice"):
+        if s.data.get("run_id") != rid:
+            continue
+        R.check(s.data.get("prompt_template_sha256") in shas, "E-SLICE-IDENTITY", s.path,
+                "prompt_template_sha256 is not one of the run's prompt_templates")
+        if run.get("redaction_map_ref") is not None:
+            R.check(s.data.get("redaction_map_sha256") == run.get("redaction_map_ref"), "E-SLICE-IDENTITY", s.path,
+                    "redaction_map_sha256 != run.redaction_map_ref")
+
+
+def evidence_digest(c: Ctx, cluster: dict) -> list[str]:
+    """B9: hashes of the member evidence (snippet hash, or JCS of the fact) used to tell unchanged from updated."""
+    out = []
+    for fid in cluster.get("member_finding_ids") or []:
+        f = c.ix.finding(fid) or {}
+        for e in f.get("evidence") or []:
+            if not isinstance(e, dict):
+                continue
+            out.append(e.get("snippet_sha256") or content_hash({k: e.get(k) for k in ("kind", "file", "fact_ref", "key_path", "asserted")}))
+    return sorted(out)
+
+
+def derived_baseline_state(c: Ctx, cluster: dict) -> str | None:
+    """B9 (SARIF 2.1.0 baselineState): None without a baseline run; new = fingerprint not in the baseline run;
+    unchanged = same fingerprint and member evidence; updated = same fingerprint, evidence changed."""
+    base = (c.runs.get(cluster.get("run_id")) or {}).get("baseline_run_id")
+    if base is None:
+        return None
+    fp = derive.cluster_fingerprint(cluster)
+    old = [k.data for k in c.docs("cluster") if k.data.get("run_id") == base and derive.cluster_fingerprint(k.data) == fp]
+    if not old:
+        return "new"
+    return "unchanged" if any(evidence_digest(c, o) == evidence_digest(c, cluster) for o in old) else "updated"
+
+
+def baseline_checks(R: Report, c: Ctx):
+    for d in c.docs("cluster"):
+        k = d.data
+        want = derived_baseline_state(c, k)
+        R.check(k.get("baseline_state") == want, "E-CLUSTER-BASELINE", d.path,
+                f"baseline_state {k.get('baseline_state')!r} != derived {want!r} (run baseline_run_id / fingerprints)")
+        R.check(not k.get("reopened") or k.get("baseline_state") == "new", "E-CLUSTER-BASELINE", d.path, "reopened only on a new cluster")
+    for d in c.docs("report-manifest"):
+        run = c.runs.get(d.data.get("run_id")) or {}
+        base = run.get("baseline_run_id")
+        cur = {derive.cluster_fingerprint(k.data) for k in c.docs("cluster") if k.data.get("run_id") == run.get("run_id")}
+        old = {derive.cluster_fingerprint(k.data) for k in c.docs("cluster") if base is not None and k.data.get("run_id") == base}
+        want = sorted(old - cur)
+        R.check(sorted(d.data.get("absent_fingerprints") or []) == want, "E-CLUSTER-BASELINE", d.path,
+                f"absent_fingerprints must be the baseline run's fingerprints missing from this run: {want}")
+
+
+def plan_checks(R: Report, c: Ctx, d: Doc):
+    """B10 / D16: typed extra-dispatch targets, round bound, agents with matching roles, budget within the run budget."""
+    p, w = d.data, d.path
+    patterns = {"cluster": r"^K-[0-9]{3,}$", "slice": r"^sha256:[0-9a-f]{64}$", "threat": r"^T-[0-9]{3,}$"}
+    for i, x in enumerate(p.get("extra_dispatch") or []):
+        t = x.get("target") or {}
+        ok = isinstance(t, dict) and isinstance(t.get("id"), str) and re.match(patterns.get(t.get("kind"), r"(?!)"), t.get("id")) is not None
+        found = ok and {"cluster": lambda i_: c.ix.first("cluster", cluster_id=i_), "slice": lambda i_: c.ix.first("slice", slice_id=i_),
+                        "threat": lambda i_: c.ix.first("threat", threat_id=i_)}[t["kind"]](t["id"]) is not None
+        R.check(ok and found, "E-PLAN-TARGET", w, f"extra_dispatch[{i}].target {t} is not an existing {t.get('kind') if isinstance(t, dict) else '?'}")
+        for a in x.get("agents") or []:
+            R.check((c.agents.get(a) or {}).get("role") in ("reviewer", "verifier"), "E-PLAN-AGENTS", w,
+                    f"extra_dispatch[{i}] agent {a!r} is not an agents.yaml reviewer / verifier")
+    R.check(isinstance(p.get("round"), int) and 1 <= p["round"] <= MAX_EXTRA_DISPATCH_ROUNDS, "E-PLAN-ROUNDS", w,
+            f"round {p.get('round')} must be 1..{MAX_EXTRA_DISPATCH_ROUNDS} (max_extra_dispatch_rounds)")
+    for i, s in enumerate(p.get("slices") or []):
+        for a in s.get("agents") or []:
+            R.check((c.agents.get(a) or {}).get("role") == "reviewer", "E-PLAN-AGENTS", w, f"slices[{i}] agent {a!r} is not an agents.yaml reviewer")
+    phase = {"CMD-1": "W", "CMD-2": "W", "CMD-3": "B", "CMD-4": "B", "CMD-5": "run_total"}.get(p.get("decision_node"))
+    for rid, run in c.runs.items():
+        if p.get("plan_id") in run.get("plan_ids", []) and phase:
+            cap = ((run.get("budgets") or {}).get(phase) or {}).get("max_input_tokens")
+            R.check(cap is not None and (p.get("budget_tokens") or 0) <= cap, "E-PLAN-BUDGET", w,
+                    f"budget_tokens {p.get('budget_tokens')} exceeds {rid} budgets.{phase}.max_input_tokens {cap}")
 
 
 # ============================================================== 12 testcases vs ROE
@@ -2067,8 +2229,10 @@ def g_trace(R: Report, c: Ctx):
             ok = cl is not None and v is not None and th is not None and v.data.get("cluster_id") == s.get("source_cluster_id") \
                 and v.data.get("status") == s.get("cluster_status") and cl.data.get("cwe_bucket") == s.get("cwe_bucket")
             R.check(ok, "E-TRACE-SEED", d.path, f"{s.get('seed_id')}: cluster/verdict/threat/status/bucket do not match")
+    baseline_checks(R, c)
     for d in c.docs("commander-plan"):
         plan_facets(R, c, d)
+        plan_checks(R, c, d)
         for tid in d.data.get("testcase_ids", []):
             R.check(ix.first("testcase", testcase_id=tid) is not None, "E-TRACE", d.path, f"testcase {tid} not found")
         for fd in d.data.get("followup_drafts", []):

@@ -1,7 +1,7 @@
 {
   "finding_id": "F-101",
   "run_id": "run-2026-09-25-pr-118",
-  "slice_id": "sha256:993c57c087955d4b434dd103ceaac590eed5bf5e0da31f8c7988fc572f82b7d1",
+  "slice_id": "sha256:17a9bc59e0dd2ed82e59d057d8b2f1531fbc008f5898ee82288235893227bb6a",
   "facet": "authz",
   "reporter": {
     "agent_id": "lane_a",

@@ -127,6 +127,7 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     rule = {"adapter": "opengrep:scan", "rule_id": "vc.authz.update-without-owner", "tool_version": "1.6.0", "cwe_bucket": "authz",
             "n": 120, "precision_lower95": 0.93}
     doc(b, "calibration.yaml").data["result"]["high_precision_rules"] = [rule]
+    rederive(b, keys)                                  # run.config_refs hashes calibration.yaml (v0.3, B11)
     v = doc(b, "verdict.k-014-w3.example.json").data
     ref = v["tool_signal"][0]
     assert codes(b) == {"E-VERDICT-TOOLCORR", "E-VERDICT-TOOLSIGNAL", "E-VERDICT-SOURCES", "E-VERDICT-STATUS", "E-VERDICT-TRACE"}
@@ -145,7 +146,8 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     rule.update(precision_lower95=0.93, tool_version="1.5.2")   # measured on another scanner version -> weak
     assert "E-VERDICT-TOOLCORR" in codes(b)
     rule["tool_version"] = "1.6.0"
-    assert "E-VERDICT-TOOLCORR" not in codes(b)
+    rederive(b, keys)
+    assert codes(b) == set()
     doc(b, "calibration.yaml").data["result"]["thresholds"]["high_precision_min"]["value"] = 0.95   # stricter policy
     assert "E-VERDICT-TOOLCORR" in codes(b)
 

@@ -1,6 +1,7 @@
 {
   "plan_id": "plan-2026-10-06-cmd5",
   "decision_node": "CMD-5",
+  "round": 1,
   "slices": [],
   "extra_dispatch": [],
   "taxonomies": [],
