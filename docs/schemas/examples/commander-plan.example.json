@@ -3,7 +3,7 @@
   "decision_node": "CMD-1",
   "slices": [
     {
-      "slice_id": "sha256:29c34c37a9617bceb0d741006798fb94dbf97a181c95ca73a101fb8bc025a09e",
+      "slice_id": "sha256:7c89b2e6ebcc47710044baf8e0c7322ce5cc23e7ddcd96ae9bb019aecc1d5c9e",
       "facets": [
         "authz",
         "data_access",

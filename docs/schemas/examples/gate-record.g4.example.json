@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "test_plan",
-    "sha256": "sha256:c0134516b8bd5ab24aef2d2341e06d6a8cd2d73568d6b3b9f605e3f2a195da6a"
+    "sha256": "sha256:c3035b585c73890ba30bfe0039eda48a4c3df8933b5ee2dda6decddcd8c47314"
   },
   "job_id": null,
   "initiator": "alice",
@@ -21,21 +21,28 @@
   "decisions": [
     {
       "item_id": "TC-012-01",
-      "item_sha256": "sha256:ea0109ae367634ff9490542045b037476ef7a71f71221d8842087ffef3fec804",
+      "item_sha256": "sha256:a1a307cd1031a1e3c44a50fff3a4c496386d6ec9cb5c43a6c8f21b0295cae68d",
       "decision": "accept",
       "risk_override": null,
       "note": null
     },
     {
       "item_id": "TC-027-01",
-      "item_sha256": "sha256:de5218d8d039830d3c0979177636e6fd0293a8ed80f6f1c5593eaa03d9a2cd4d",
+      "item_sha256": "sha256:32b0d4071807f7149b938e38bcfff3903750939b690329cd1ab1a318e03447f3",
       "decision": "accept",
       "risk_override": null,
       "note": "S2：每個 job 另需 G5"
     },
     {
       "item_id": "TC-031-01",
-      "item_sha256": "sha256:6a71c2daf253222c0201ed004fda6262e08535dcaab0c6a22a429567cfae3346",
+      "item_sha256": "sha256:3988d3b80ea088ab244c3a1114409c35b8d817557ab8b8ab1795c1c23ef57745",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null
+    },
+    {
+      "item_id": "TC-033-01",
+      "item_sha256": "sha256:620af89ee3c1ca1c12882cb788916a11830aea85a339acef04a62a9d4ba7a969",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -50,7 +57,7 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "+sAbfEHY4lZZr6dvM2uDEHKuNhTogGml5LAdBUjzWyyOnccc+uMa/jrrmr0voB8BtBIWj0E+VF8ObMq9B1pBBQ=="
+      "value": "6DuOVRTPFbKdgmc7j46O/ZLHCR2nP/0sWfqsp8tZelr7BUYDg30Vz2fequwphKjgppC+2yZWeiav/wtvECA0AA=="
     }
   ]
 }

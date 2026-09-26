@@ -5,13 +5,13 @@
   "parent_checkpoint_id": "ckpt-run-2026-10-07-001-0006",
   "node": "G4",
   "created_at": "2026-10-07T10:30:00+08:00",
-  "state_sha256": "sha256:0fd117498a6f5634559ee36b9e56b5073de17f77eced6dbf146d889b003105eb",
+  "state_sha256": "sha256:54659773612f9c4a5d415b733907fc657c0e51eb322c9703ee71e3538bfaf2ec",
   "schema_version": "0.2",
   "run_status": "WAITING_GATE",
   "pending_interrupt": {
     "kind": "gate",
     "gate": "G4",
-    "subject_hash": "sha256:72a4b39e1a92317743634d47d9a0877ea422ddd49837a5f2e246c80de774b10b",
+    "subject_hash": "sha256:56667827937a5f0224517cc69d0b1e296af6ea61c95a4889a80b860c13ef95c9",
     "deadline": "2026-10-10T10:30:00+08:00"
   },
   "encrypted": true,

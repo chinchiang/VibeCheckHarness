@@ -1,6 +1,6 @@
 {
   "run_id": "run-2026-09-23-001",
-  "repo_commit": "4f2a9c1",
+  "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "generated_at": "2026-09-23T10:10:00+08:00",
   "files": [
     {
@@ -20,10 +20,10 @@
       "exclude_reason": null
     },
     {
-      "path": "src/support/agent.ts",
+      "path": "app/support/agent.py",
       "sha256": "sha256:9f9bd26a811eb095a041053694a17adcfc7187f5f4abf9507aa0433a6f647c98",
-      "language": "typescript",
-      "bytes": 5120,
+      "language": "python",
+      "bytes": 4870,
       "excluded": false,
       "exclude_reason": null
     },
@@ -40,6 +40,14 @@
       "sha256": "sha256:a4588d1bb97f774a6ffe93793f8a6d29f52c193516b9e23d62e20a2968984e57",
       "language": "json",
       "bytes": 600,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "app/requirements.txt",
+      "sha256": "sha256:0f3a5c7e9b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a",
+      "language": null,
+      "bytes": 180,
       "excluded": false,
       "exclude_reason": null
     },
@@ -72,6 +80,10 @@
     {
       "path": "package.json",
       "ecosystem": "npm"
+    },
+    {
+      "path": "app/requirements.txt",
+      "ecosystem": "pypi"
     }
   ],
   "endpoints": [
@@ -102,28 +114,28 @@
     {
       "method": "POST",
       "path": "/api/chat/sessions",
-      "file": "src/support/agent.ts",
+      "file": "app/support/agent.py",
       "line": 20
     },
     {
       "method": "POST",
       "path": "/api/chat/sessions/{session}/messages",
-      "file": "src/support/agent.ts",
+      "file": "app/support/agent.py",
       "line": 31
     }
   ],
   "llm_integrations": [
     {
-      "file": "src/support/agent.ts",
+      "file": "app/support/agent.py",
       "line": 40,
       "kind": "llm_call"
     },
     {
-      "file": "src/support/agent.ts",
+      "file": "app/support/agent.py",
       "line": 57,
       "kind": "tool_definition"
     }
   ],
-  "redaction_map_ref": "sha256:9024b649e30bba09bb32183c48bbaea1c3e119b8e0c47a28cfea99fb581586ad",
+  "redaction_map_ref": "sha256:f1513e18bd39bade630c8a0c2defd46194d3d21ed8c828b7a4a47139f24b236f",
   "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f"
 }

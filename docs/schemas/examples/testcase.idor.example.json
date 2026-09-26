@@ -16,11 +16,35 @@
   ],
   "steps": [
     "以 tenantA_user 對 B 的發票送 GET",
-    "以 tenantA_user 對 B 的發票送 PUT（種子資料）",
+    "以 tenantA_user 對 B 的發票送 PUT（修改一個非關鍵欄位為合成值；種子資料）",
     "以 tenantA_user 對 B 的發票送 DELETE（僅種子 id）"
   ],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "kind": "reachability",
+      "description": "tenantA_user 讀自己的發票：證明認證有效、請求到達端點",
+      "steps": [
+        "以 tenantA_user GET /api/invoices/{seed:tenant_a_invoice}"
+      ],
+      "expected": "200，且 body 含 tenant_a_invoice 的欄位"
+    },
+    {
+      "control_id": "CTL-02",
+      "kind": "oracle_can_fail",
+      "description": "正對照：tenantB_user 讀自己的發票 B；把 oracle 的「body 含 B 的發票欄位」條件套在這個合法回應上必須判定命中，證明 oracle 看得到 B 的欄位",
+      "steps": [
+        "以 tenantB_user GET /api/invoices/{seed:tenant_b_invoice}",
+        "對回應套用 oracle 的 body 條件"
+      ],
+      "expected": "200，且 oracle 的 body 條件判定為「含 B 的發票欄位」"
+    }
+  ],
   "oracle": {
-    "type": "STATE_DIFF",
+    "types": [
+      "STATUS_AND_BODY",
+      "STATE_DIFF"
+    ],
     "conditions": [
       "status in {403, 404}",
       "response body 不含 B 的發票欄位",
@@ -48,23 +72,36 @@
   "safety_class_computed": "S1",
   "rate_limit": {
     "requests_per_second": 2,
-    "max_requests": 30
+    "max_requests": 10
   },
   "request_allowlist": [
     {
       "target_id": "tgt-staging-api",
       "method": "GET",
-      "path": "/api/invoices/{seed:tenant_b_invoice}"
+      "path": "/api/invoices/{seed:tenant_a_invoice}",
+      "step_id": null,
+      "graphql_operation": null
+    },
+    {
+      "target_id": "tgt-staging-api",
+      "method": "GET",
+      "path": "/api/invoices/{seed:tenant_b_invoice}",
+      "step_id": null,
+      "graphql_operation": null
     },
     {
       "target_id": "tgt-staging-api",
       "method": "PUT",
-      "path": "/api/invoices/{seed:tenant_b_invoice}"
+      "path": "/api/invoices/{seed:tenant_b_invoice}",
+      "step_id": null,
+      "graphql_operation": null
     },
     {
       "target_id": "tgt-staging-api",
       "method": "DELETE",
-      "path": "/api/invoices/{seed:tenant_b_invoice}"
+      "path": "/api/invoices/{seed:tenant_b_invoice}",
+      "step_id": null,
+      "graphql_operation": null
     }
   ],
   "seed_manifest_ref": "docs/examples/seed-manifest.yaml",
@@ -83,7 +120,7 @@
   },
   "trials": {
     "n": 1,
-    "pass_rule": "確定性測試；失敗時重播 2 次，結果相同才算可重現",
+    "pass_rule": "確定性測試；每個 job 5 個請求（2 個對照＋3 個測試請求）。FAIL 時另開重播 job 2 次（不計入 max_requests），結果相同才算可重現",
     "record": [
       "seed"
     ],
@@ -92,6 +129,7 @@
     "multi_turn_max_turns": null
   },
   "multi_turn": false,
+  "script_turns": null,
   "strategy_template_sha256": null,
   "artifact_sha256": "sha256:391007bf87c869892bccfff6bce2239f19da9479f2e5b669f4fe317550e6d78f"
 }

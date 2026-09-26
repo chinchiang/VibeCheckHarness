@@ -11,6 +11,9 @@
       "voter_lineage": "nemotron3",
       "stance": "SUPPORT",
       "rationale": "routes/invoices.ts:88 以 req.params.id 直接更新，沒有 tenant_id／擁有者條件。",
+      "cited_evidence": [
+        "routes/invoices.ts:88"
+      ],
       "fallback_used": null,
       "anonymized": true,
       "order_randomized": true,
@@ -25,6 +28,9 @@
       "voter_lineage": "gpt-oss",
       "stance": "SUPPORT",
       "rationale": "同意：update 的 where 只有 id。",
+      "cited_evidence": [
+        "routes/invoices.ts:88"
+      ],
       "fallback_used": null,
       "anonymized": true,
       "order_randomized": true,
@@ -34,29 +40,32 @@
     }
   ],
   "missing_votes": [],
-  "tool_corroboration": [
+  "tool_corroboration": [],
+  "tool_signal": [
     "sha256:67761fe063ffed49823942a63650ffa51c73f4610c0597169f0e5428ea3bb97e"
   ],
+  "independent_sources": 2,
   "executable_proof": null,
   "test_evidence": {
     "class": null,
     "results": []
   },
-  "diversity_degraded": false,
+  "diversity_degraded": true,
   "no_eligible_verifier": false,
   "calibration_version": 3,
   "theta_confirm": 1.2,
   "theta_reject": null,
+  "provisional": false,
   "score": 0.6933,
   "g2_decision_ref": null,
-  "status": "CONFIRMED_CORROBORATED",
+  "status": "LIKELY",
   "status_cap": null,
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.2",
+  "rule_version": "05-v0.3",
   "rule_trace": [
-    "R2:sarif_corroboration=semgrep:scan(audit seq 13),families=nvidia+openai",
-    "R5:tool_corroboration->CONFIRMED_CORROBORATED"
+    "R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=2",
+    "R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY"
   ]
 }

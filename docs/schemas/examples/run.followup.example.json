@@ -5,7 +5,7 @@
   "parent_run_id": "run-2026-09-23-001",
   "reuse": [
     "sha256:6c66cd1d11dec8793920aa80a50720fa284da19cb8c17c08af4546ac96ad065d",
-    "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a"
+    "sha256:4e3d63d232e2ba67c8adbf563cb9ca2b8bda8730f97b524ea479e1aa10466e29"
   ],
   "trigger": "manual",
   "run_owner": "alice",
@@ -63,12 +63,12 @@
   "threat_model_ref": null,
   "b1_diff_dispositions_ref": null,
   "g3_round": 0,
-  "testplan_ref": "sha256:72a4b39e1a92317743634d47d9a0877ea422ddd49837a5f2e246c80de774b10b",
+  "testplan_ref": "sha256:56667827937a5f0224517cc69d0b1e296af6ea61c95a4889a80b860c13ef95c9",
   "testcase_ids": [
     "TC-012-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:ea0109ae367634ff9490542045b037476ef7a71f71221d8842087ffef3fec804"
+    "TC-012-01": "sha256:a1a307cd1031a1e3c44a50fff3a4c496386d6ec9cb5c43a6c8f21b0295cae68d"
   },
   "g4_round": 1,
   "approved_testcase_ids": [],
@@ -107,7 +107,7 @@
       "gate_record_id": null,
       "outcome": null,
       "round": 1,
-      "subject_hash": "sha256:72a4b39e1a92317743634d47d9a0877ea422ddd49837a5f2e246c80de774b10b",
+      "subject_hash": "sha256:56667827937a5f0224517cc69d0b1e296af6ea61c95a4889a80b860c13ef95c9",
       "job_id": null,
       "opened_at": "2026-10-07T10:30:00+08:00",
       "decided_at": null

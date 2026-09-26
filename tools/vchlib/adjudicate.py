@@ -1,11 +1,21 @@
 """Ordered adjudication rules of docs/05 §4.2 (decision table rows 1-13, R8/R11 modifiers,
 R12/R13 annotations). Pure function: the validator recomputes each example verdict and
 compares status, deciding rule and annotations.
+
+v0.3 (rule_version 05-v0.3): tool evidence has two tiers (H-A1). Reviewers and verifiers never
+see W1 tool output; tools enter adjudication only through the deterministic Clusterer.
+  - strong_tool: a resolved SARIF result whose (adapter, rule_id) is a calibrated
+    high-precision rule for the cluster's CWE bucket -> R5 row 10 (not capped by R8);
+  - weak_sarif: any other resolved SARIF result; E_fail_u (reproduced FAIL without a
+    pre-registered interpretation or eligible analyst) stays in `evidence`.
+    Weak signals never confirm on their own: they count as one extra independent source
+    each (R6: sources >= 2 -> LIKELY) and turn a lone refutation into DISPUTED (R4 row 7).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+RULE_VERSION = "05-v0.3"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -13,12 +23,13 @@ EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 class Inputs:
     lane_a: bool = False
     g2_rejected: bool = False
-    all_snippets_fail: bool = False
+    all_snippets_fail: bool = False                       # every evidence item of every member is NOT_FOUND (False without members)
     evidence: set[str] = field(default_factory=set)       # classes present among linked results
     weighted_support: bool = False
     weighted_refute: bool = False
     score: float = 0.0                                    # S = sum(w * stance)
-    sarif_corroboration: bool = False
+    strong_tool: bool = False                             # resolved high-precision SARIF result (row 10)
+    weak_sarif: bool = False                              # any other resolved SARIF result (a signal, not corroboration)
     theta_confirm: float | None = None                    # None = +inf (disabled)
     theta_reject: float | None = None
     independent_families: int = 0
@@ -36,6 +47,7 @@ class Outcome:
     status_cap: str | None = None
     advisory: bool = False
     annotations: set[str] = field(default_factory=set)
+    sources: int = 0                                      # R2: independent families + weak SARIF + E_fail_u
 
 
 def strongest(evidence: set[str]) -> str | None:
@@ -43,6 +55,11 @@ def strongest(evidence: set[str]) -> str | None:
         if c in evidence:
             return c
     return None
+
+
+def independent_sources(x: Inputs) -> int:
+    """R2: independent families + (1 if a weak SARIF signal) + (1 if an E_fail_u result)."""
+    return x.independent_families + int(bool(x.weak_sarif)) + int("E_fail_u" in x.evidence)
 
 
 def _annotate(x: Inputs, out: Outcome) -> Outcome:
@@ -63,7 +80,9 @@ def _annotate(x: Inputs, out: Outcome) -> Outcome:
 
 def adjudicate(x: Inputs) -> Outcome:
     """Ordered rules; every rule that fires is listed in Outcome.rules in firing order."""
-    return _annotate(x, _decide(x))
+    out = _decide(x)
+    out.sources = independent_sources(x)
+    return _annotate(x, out)
 
 
 def _decide(x: Inputs) -> Outcome:
@@ -86,27 +105,29 @@ def _decide(x: Inputs) -> Outcome:
     if ev == "E_proof":
         return Outcome("CONFIRMED_EXECUTABLE", 5, ["R1"], None, False, notes)
 
-    tool = x.sarif_corroboration or "E_fail_u" in x.evidence            # R2 definition
+    # R2: S, the two tool tiers and the independent sources
+    signal = x.strong_tool or x.weak_sarif or "E_fail_u" in x.evidence   # row 7: any tool corroboration or signal
+    sources = independent_sources(x)
     sup, ref = x.weighted_support, x.weighted_refute
     if sup and ref:
         status, row, rule = "DISPUTED", 6, "R3"
-    elif ref and tool:
+    elif ref and signal:
         status, row, rule = "DISPUTED", 7, "R4"
     elif ref and x.score <= -t_rej:
         status, row, rule = "REJECTED", 8, "R4"
     elif ref:
         status, row, rule = "DISPUTED", 9, "R4"
-    elif tool:
+    elif x.strong_tool:
         status, row, rule = "CONFIRMED_CORROBORATED", 10, "R5"
     elif sup and x.score >= t_conf:
         status, row, rule = "CONFIRMED_CORROBORATED", 11, "R5"
-    elif x.independent_families >= 2:
+    elif sources >= 2:
         status, row, rule = "LIKELY", 12, "R6"
     else:
         status, row, rule = "UNCORROBORATED", 13, "R7"
     rules = ["R2", rule]
     cap = None
-    if x.diversity_degraded and row == 11:
+    if x.diversity_degraded and row == 11:                    # row 10 (strong tool) is never capped
         status, cap = "LIKELY", "LIKELY"
         rules.append("R8")
     if "E_pass" in x.evidence:

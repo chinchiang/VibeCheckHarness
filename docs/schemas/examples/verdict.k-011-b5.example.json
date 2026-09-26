@@ -10,7 +10,10 @@
       "voter_family": "nvidia",
       "voter_lineage": "nemotron3",
       "stance": "SUPPORT",
-      "rationale": "src/support/agent.ts:57 把 refund 直接交給 agent，前面沒有確認步驟，也沒有比對訂單擁有者。",
+      "rationale": "app/support/agent.py:57 把 refund 直接交給 agent，前面沒有確認步驟，也沒有比對訂單擁有者。",
+      "cited_evidence": [
+        "app/support/agent.py:57"
+      ],
       "fallback_used": null,
       "anonymized": true,
       "order_randomized": true,
@@ -21,15 +24,17 @@
   ],
   "missing_votes": [],
   "tool_corroboration": [],
+  "tool_signal": [],
+  "independent_sources": 1,
   "executable_proof": null,
   "test_evidence": {
     "class": "E_pass",
     "results": [
       {
-        "result_ref": "sha256:229e7b7fd188c43618f64a36f8c771092dc79c0050aeae50df06973a7775339e",
+        "result_ref": "sha256:af203c753f583181121a90bcac7637bdab15eda050f4bbc055956cc4e4c36d90",
         "class": "E_pass",
-        "positive_control": true,
-        "reason": "PASS，n′＝60、k＝0，前置條件已到達；result_analyst（nvidia）不在叢集家族中"
+        "positive_control": null,
+        "reason": "PASS，n′＝60、k＝0；reachability 對照 PASS；G4 預先登記解讀（沒有 oracle_can_fail 對照）"
       }
     ]
   },
@@ -38,6 +43,7 @@
   "calibration_version": 3,
   "theta_confirm": 1.2,
   "theta_reject": null,
+  "provisional": false,
   "score": 0.6222,
   "g2_decision_ref": "GR-G2-0001",
   "status": "UNCORROBORATED",
@@ -50,7 +56,7 @@
     }
   ],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.2",
+  "rule_version": "05-v0.3",
   "rule_trace": [
     "R2:weighted_support=1,score=0.6222<theta_confirm=1.2",
     "R7:independent_families=1->UNCORROBORATED",

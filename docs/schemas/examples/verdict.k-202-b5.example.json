@@ -1,0 +1,47 @@
+{
+  "verdict_id": "V-202-1",
+  "cluster_id": "K-202",
+  "readjudicated_by": "B5_readjudicate",
+  "supersedes_verdict_id": null,
+  "votes": [],
+  "missing_votes": [],
+  "tool_corroboration": [],
+  "tool_signal": [],
+  "independent_sources": 0,
+  "executable_proof": null,
+  "test_evidence": {
+    "class": "E_pass",
+    "results": [
+      {
+        "result_ref": "sha256:02352b779c01ff62b010668fabfabdf2701a70609ce020a67ecd2239ed3f3bcf",
+        "class": "E_pass",
+        "positive_control": null,
+        "reason": "PASS；reachability 對照 PASS；確定性 oracle（TOOL_CHECK、STATE_DIFF），G4 預先登記解讀"
+      }
+    ]
+  },
+  "diversity_degraded": true,
+  "no_eligible_verifier": false,
+  "calibration_version": 3,
+  "theta_confirm": 1.2,
+  "theta_reject": null,
+  "provisional": true,
+  "score": 0,
+  "g2_decision_ref": null,
+  "status": "UNCORROBORATED",
+  "status_cap": null,
+  "advisory": false,
+  "annotations": [
+    {
+      "kind": "test_not_reproduced",
+      "reason": "TC-027-01：ZAP 主動掃描（只啟用 SQL injection 規則）沒有 High／Medium 警示"
+    }
+  ],
+  "decided_by": "aggregator",
+  "rule_version": "05-v0.3",
+  "rule_trace": [
+    "R2:black_box cluster,no votes,no tool signal,independent_sources=0",
+    "R7:no independent source->UNCORROBORATED",
+    "R11:E_pass on UNCORROBORATED->annotate test_not_reproduced"
+  ]
+}

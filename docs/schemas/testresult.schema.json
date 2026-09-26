@@ -60,8 +60,56 @@
         "FAIL",
         "ERROR",
         "SKIPPED",
-        "STOPPED"
-      ]
+        "STOPPED",
+        "INVALID"
+      ],
+      "description": "任何對照組沒有 PASS → 必須是 INVALID（E-RESULT-INVALID）；INVALID 不是 PASS 也不是 FAIL，歸為 E_inc"
+    },
+    "fail_oracles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "STATUS_AND_BODY",
+          "STATE_DIFF",
+          "TOOL_CHECK",
+          "TOOL_CALL_LOG",
+          "CANARY",
+          "THRESHOLD",
+          "DOM_ASSERTION",
+          "HUMAN",
+          "LLM_GRADER"
+        ]
+      },
+      "description": "回報違反的 oracle 種類；outcome FAIL ⇔ 非空，且必須 ⊆ testcase oracle.types（E-RESULT-ORACLE）"
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "control_id": {
+            "type": "string",
+            "pattern": "^CTL-[0-9]{2}$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "ERROR",
+              "NOT_RUN"
+            ]
+          }
+        },
+        "required": [
+          "control_id",
+          "outcome"
+        ]
+      },
+      "description": "每個 testcase 對照組的結果，恰好涵蓋 testcase.controls（E-RESULT-CONTROLS）"
     },
     "trials": {
       "type": "object",
@@ -135,7 +183,7 @@
         "value",
         "evidence_ref"
       ],
-      "description": "測試確實到達要驗證的程式位置或端點（例如 sink 行被覆蓋、端點回應 200）；E_pass 的必要條件（docs/05 §4.2）"
+      "description": "推導值：所有 reachability 對照都 PASS（E-RESULT-PRECONDITION）；E_pass 的必要條件（docs/05 §4.2）"
     },
     "positive_control": {
       "type": "object",
@@ -167,11 +215,35 @@
         "value",
         "evidence_ref"
       ],
-      "description": "正對照（已知會觸發的變體）是否如預期失敗；null＝沒有正對照"
+      "description": "推導值：有 oracle_can_fail 對照時＝該對照 PASS；沒有時為 null（E-RESULT-CONTROLS）"
     },
     "artifact_sha256": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "observed_build_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,64}$",
+          "description": "執行時從目標讀到的 build ID（ROE targets[].build_identity）；必須等於 run.repo_commit（完整或 ≥12 字元前綴）；build_identity.method＝none 的目標列在 report-manifest build_unverified_targets（E-RESULT-BUILD）"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "request_log_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Scope Proxy 請求紀錄的 CAS hash；B4 結果必填（E-RESULT-REQUEST-LOG）"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "interpreted_by": {
       "anyOf": [
@@ -195,6 +267,32 @@
         {
           "type": "null"
         }
+      ],
+      "description": "Result Analyst（agents.yaml role result_analyst，家族與血統都不在叢集中）；預先登記解讀的確定性結果不需要（null）"
+    },
+    "interpretation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "agrees": {
+              "type": "boolean",
+              "description": "分析者是否同意 oracle 的解讀；false → E_inc"
+            },
+            "rationale": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "agrees",
+            "rationale"
+          ],
+          "description": "Result Analyst 的 LLM 輸出（interpreted_by 為 null 時也是 null）"
+        },
+        {
+          "type": "null"
+        }
       ]
     }
   },
@@ -208,6 +306,8 @@
     "target_ids",
     "cluster_ids",
     "outcome",
+    "fail_oracles",
+    "controls",
     "trials",
     "replays",
     "replay_k",
@@ -217,8 +317,11 @@
     "precondition_reached",
     "positive_control",
     "artifact_sha256",
-    "interpreted_by"
+    "observed_build_id",
+    "request_log_sha256",
+    "interpreted_by",
+    "interpretation"
   ],
   "title": "TestResult（測試結果）",
-  "description": "ERROR／SKIPPED／STOPPED 屬於執行失敗，列入「未能測試清單」，不代表需求未滿足；它們在 docs/05 §4.2 歸為 E_inc。"
+  "description": "ERROR／SKIPPED／STOPPED 屬於執行失敗，INVALID 表示對照組未通過；兩者都列入「未能測試清單」，不代表需求未滿足；它們在 docs/05 §4.2 歸為 E_inc。"
 }

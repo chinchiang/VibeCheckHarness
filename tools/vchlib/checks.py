@@ -1054,13 +1054,18 @@ def g_runs(R: Report, c: Ctx):
                 continue
             ex = ts(R, tr.get("executed_at"), x.path)
             tc = c.ix.first("testcase", testcase_id=tr.get("testcase_id"))
-            job = (run.get("jobs") or {}).get(tr.get("job_id"))
-            R.check(job is not None and job.get("testcase_id") == tr.get("testcase_id"), "E-RESULT-JOB", x.path, "job not in the run or for another testcase")
-            if ex:
+            black_box = tr.get("phase") == "B4"
+            if black_box:
+                job = (run.get("jobs") or {}).get(tr.get("job_id"))
+                R.check(job is not None and job.get("testcase_id") == tr.get("testcase_id"), "E-RESULT-JOB", x.path, "job not in the run or for another testcase")
+            else:                  # W4: Z2 sandbox test, no B4 job, no ROE window
+                R.check(tr.get("job_id") is None, "E-RESULT-JOB", x.path, "W4 results have no B4 job (job_id null)")
+            if ex and black_box:
                 R.check(timeutil.in_any_window(ex, roe_windows(c)) and rnb and rna and rnb <= ex <= rna, "E-RESULT-WINDOW", x.path,
                         "executed outside the ROE validity / time windows")
                 R.check(g4_at is not None and ex > g4_at, "E-RESULT-G4", x.path, "executed before G4 approval")
             if tc:
+                result_controls(R, c, x, tc.data)
                 R.check(tr.get("request_count", 0) <= (tc.data.get("rate_limit") or {}).get("max_requests", 0), "E-RESULT-REQUESTS", x.path,
                         "request_count exceeds the testcase max_requests")
                 n = (tc.data.get("trials") or {}).get("n")
@@ -1072,6 +1077,38 @@ def g_runs(R: Report, c: Ctx):
                 R.check(t.get("k", 0) >= 1, "E-RESULT-TRIALS", x.path, "FAIL needs k >= 1")
             R.check(0 <= tr.get("replay_k", 0) <= tr.get("replays", 0), "E-RESULT-TRIALS", x.path,
                     "replay_k (k_r) must be between 0 and replays (n_r)")
+
+
+def result_controls(R: Report, c: Ctx, x: Doc, tc: dict):
+    """B5 / A2: controls, INVALID, fail_oracles, derived precondition_reached / positive_control, analyst role."""
+    tr, w = x.data, x.path
+    ctl = derive.control_results(tc, tr)
+    want_ids = [cid for cid, _, _ in ctl]
+    got_ids = [y.get("control_id") for y in tr.get("controls") or [] if isinstance(y, dict)]
+    R.check(sorted(got_ids) == sorted(want_ids) and len(set(got_ids)) == len(got_ids), "E-RESULT-CONTROLS", w,
+            f"controls {got_ids} must cover exactly the testcase controls {want_ids}")
+    not_pass = [cid for cid, _, o in ctl if o != "PASS"]
+    if not_pass:
+        R.check(tr.get("outcome") == "INVALID", "E-RESULT-INVALID", w,
+                f"controls {not_pass} did not PASS: the outcome must be INVALID (never PASS/FAIL), got {tr.get('outcome')}")
+    else:
+        R.check(tr.get("outcome") != "INVALID", "E-RESULT-INVALID", w, "INVALID needs at least one control that did not PASS")
+    fo = tr.get("fail_oracles") or []
+    R.check((tr.get("outcome") == "FAIL") == bool(fo), "E-RESULT-ORACLE", w, "fail_oracles must be non-empty iff the outcome is FAIL")
+    R.check(set(fo) <= derive.oracle_types(tc), "E-RESULT-ORACLE", w,
+            f"fail_oracles {sorted(set(fo) - derive.oracle_types(tc))} are not oracle.types of {tc.get('testcase_id')}")
+    pr = (tr.get("precondition_reached") or {}).get("value")
+    R.check(pr is derive.reachability_reached(tc, tr), "E-RESULT-PRECONDITION", w,
+            f"precondition_reached {pr} != derived {derive.reachability_reached(tc, tr)} (every reachability control PASS)")
+    pc = (tr.get("positive_control") or {}).get("value")
+    R.check(pc is derive.positive_control_value(tc, tr), "E-RESULT-CONTROLS", w,
+            f"positive_control {pc} != derived {derive.positive_control_value(tc, tr)} (an oracle_can_fail control exists and PASSed)")
+    ib = tr.get("interpreted_by")
+    R.check((ib is None) == (tr.get("interpretation") is None), "E-RESULT-ANALYST", w, "interpretation is set iff interpreted_by is set")
+    if isinstance(ib, dict):
+        a = c.agents.get(ib.get("agent_id")) if isinstance(ib.get("agent_id"), str) else None
+        R.check(isinstance(a, dict) and a.get("role") == "result_analyst", "E-RESULT-ANALYST-ROLE", w,
+                f"interpreted_by {ib.get('agent_id')!r} must be an agents.yaml agent with role result_analyst (got {(a or {}).get('role')!r})")
 
 
 # ============================================================== 12 testcases vs ROE
@@ -1133,6 +1170,11 @@ def g_testcases(R: Report, c: Ctx):
         else:
             R.check(tr.get("multi_turn_max_turns") is None, "E-TC-RELAY", w, "multi_turn_max_turns only for multi_turn testcases")
         R.check(1 <= tr.get("fail_k_min", 1) <= tr.get("n", 1), "E-TC-TRIALS", w, "fail_k_min must be 1..n")
+        ctls = [x for x in tc.get("controls") or [] if isinstance(x, dict)]
+        R.check(any(x.get("kind") == "reachability" for x in ctls), "E-TC-CONTROLS", w,
+                "a testcase needs at least one reachability control (B5)")
+        ids = [x.get("control_id") for x in ctls]
+        R.check(len(ids) == len(set(ids)), "E-TC-CONTROLS", w, f"duplicate control_id in {ids}")
         R.check(tb.get("adapter") == "manual" or safety.registry_entry(c.tools, tb.get("adapter", "")) is not None, "E-TC-TOOL", w,
                 f"adapter {tb.get('adapter')} not registered")
 
@@ -1196,23 +1238,102 @@ def vote_model(c: Ctx, vt: dict) -> dict | None:
     return None
 
 
-def derived_diversity_degraded(c: Ctx, v: dict, cluster: dict) -> bool:
-    """docs/05 §3 rule 3 / §4.2 [H]: derived, never taken from the verdict itself.
+def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
+    """model key -> models.yaml entry of every agents.yaml `verifier` whose registry family is not in
+    cluster.families and whose registry lineage is not in cluster.lineages (never self-declared)."""
+    fams, lins = set(cluster.get("families") or []), set(cluster.get("lineages") or [])
+    out = {}
+    for a in (c.agents or {}).values():
+        if not isinstance(a, dict) or a.get("role") != "verifier":
+            continue
+        m = c.model(a.get("model"))
+        if m and m.get("family") not in fams and m.get("lineage") not in lins and isinstance(m.get("family"), str):
+            out[a.get("model")] = m
+    return out
 
-    The family of every valid vote is looked up in the registries (vote_model: voter_agent_id ->
-    agents.yaml model -> models.yaml family); fewer than 2 distinct families among the valid votes means the
-    verdict rests on degraded diversity. Lane A has no verifier round (R9 caps it anyway): False.
+
+def eligible_verifier_families(c: Ctx, cluster: dict) -> set[str]:
+    """E(cluster) (docs/05 §3, v0.3): the registry families of eligible_verifier_models."""
+    return {m.get("family") for m in eligible_verifier_models(c, cluster).values()}
+
+
+def derived_no_eligible_verifier(c: Ctx, cluster: dict) -> bool:
+    return not eligible_verifier_families(c, cluster)
+
+
+def derived_diversity_degraded(c: Ctx, v: dict, cluster: dict) -> bool:
+    """docs/05 §3 rule 3 / §4.2 [H] (v0.3, N-1): derived, never taken from the verdict itself.
+
+    diversity_degraded = not Lane A, and E(cluster) is non-empty, and the number of distinct families
+    among the WEIGHTED-valid verifier votes is below min(2, |E|). A vote's family comes from the
+    registries (vote_model: voter_agent_id -> agents.yaml model -> models.yaml family). A 2-family cluster
+    has |E| = 1, so one weighted vote of the third family is full diversity (v0.2 capped every such
+    cluster). No eligible verifier at all is `no_eligible_verifier`, not degraded diversity.
     """
     run = c.runs.get(cluster.get("run_id")) or {}
     if run.get("run_kind") == "lane_a":
+        return False
+    e = eligible_verifier_families(c, cluster)
+    if not e:
         return False
     fams = set()
     for x in v.get("votes", []):
         m = vote_model(c, x)
         # only verifier-role votes count (others: E-VERDICT-VOTER-ROLE, ignored)
-        if x.get("valid") and m is not None and derive.is_verifier_vote(c.ix, x):
+        if x.get("weighted_valid") and m is not None and derive.is_verifier_vote(c.ix, x):
             fams.add(m.get("family"))
-    return len(fams) < 2
+    return len(fams) < min(2, len(e))
+
+
+def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
+    """E5 (H-E11): calibration_version null, or theta_confirm null, or every eligible verifier model of the
+    cluster (E(cluster), from the registries, not from the votes present) has calibration weight 0 in the
+    cluster's CWE bucket. A verdict without votes is therefore provisional iff the pool is uncalibrated."""
+    if v.get("calibration_version") is None or v.get("theta_confirm") is None:
+        return True
+    return all(c.ix.weight(k, cluster.get("cwe_bucket"), v.get("calibration_version")) == 0
+               for k in eligible_verifier_models(c, cluster))
+
+
+LICENSE_CLEARED = ("OK", "注意")     # licenses.yaml statuses that may run; 法務閘門 / 不採用 / 待查 / 參考 may not (N-7)
+
+
+def license_status(c: Ctx, tool: str) -> str | None:
+    ref = ((c.tools.get("tools") or {}).get(tool) or {}).get("license_ref")
+    return next((x.get("status") for x in c.licenses.get("components") or [] if isinstance(x, dict) and x.get("component") == ref), None)
+
+
+def _resolving_event(c: Ctx, cluster: dict, ref) -> tuple[dict | None, str | None]:
+    """(tool_invocation_end event that backs a cluster.sarif_refs entry, None) or (None, problem)."""
+    rid = cluster.get("run_id")
+    audit = c.ix.audit_for(rid)
+    if audit is None:
+        return None, f"run {rid!r} has no (loadable) audit log, so SARIF ref {ref} cannot be resolved"
+    ends = [e for e in audit.data if isinstance(e, dict) and e.get("event_type") == "tool_invocation_end"
+            and ref in (e.get("payload_refs") or [])]
+    if not ends:
+        return None, f"SARIF ref {ref} is not in payload_refs of any tool_invocation_end event of run {rid}"
+    reasons = []
+    for e in ends:
+        p = e.get("payload") or {}
+        adapter = p.get("adapter")
+        entry = safety.registry_entry(c.tools, adapter)
+        tool_spec = ((c.tools.get("tools") or {}).get(entry["tool"]) or {}) if entry else {}
+        status = license_status(c, entry["tool"]) if entry else None
+        if entry is None:
+            reasons.append(f"seq {e.get('seq')}: adapter {adapter!r} is not a registered tools.yaml tool:mode")
+        elif tool_spec.get("zone") != "Z2" or entry.get("b4_executable") is not False:
+            reasons.append(f"seq {e.get('seq')}: {adapter} is not a white-box/static tool (zone Z2, b4_executable false)")
+        elif status not in LICENSE_CLEARED:
+            reasons.append(f"seq {e.get('seq')}: {adapter} is not legally cleared (licenses.yaml {tool_spec.get('license_ref')!r} "
+                           f"status {status!r}; only {'/'.join(LICENSE_CLEARED)} may run)")
+        elif e.get("zone") != "Z2":
+            reasons.append(f"seq {e.get('seq')}: event zone {e.get('zone')!r} is not Z2")
+        elif p.get("ok") is not True:
+            reasons.append(f"seq {e.get('seq')}: invocation of {adapter} failed (payload.ok is not true)")
+        else:
+            return e, None
+    return None, f"SARIF ref {ref}: " + "; ".join(reasons)
 
 
 def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
@@ -1220,54 +1341,98 @@ def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
 
     A SARIF ref counts only when the audit log of the cluster's run has a `tool_invocation_end`
     event that lists the ref in payload_refs, whose payload.adapter is a tools.yaml tool:mode of a
-    white-box tool (tool zone Z2, mode b4_executable false), with event zone Z2 and payload.ok true.
+    white-box tool (tool zone Z2, mode b4_executable false) whose licenses.yaml status is cleared
+    (OK / 注意; not 法務閘門, N-7), with event zone Z2 and payload.ok true.
     """
-    rid = cluster.get("run_id")
-    audit = c.ix.audit_for(rid)
-    if audit is None:
-        return f"run {rid!r} has no (loadable) audit log, so SARIF ref {ref} cannot be resolved"
-    ends = [e for e in audit.data if isinstance(e, dict) and e.get("event_type") == "tool_invocation_end"
-            and ref in (e.get("payload_refs") or [])]
-    if not ends:
-        return f"SARIF ref {ref} is not in payload_refs of any tool_invocation_end event of run {rid}"
-    reasons = []
-    for e in ends:
-        p = e.get("payload") or {}
-        adapter = p.get("adapter")
-        entry = safety.registry_entry(c.tools, adapter)
-        tool_spec = ((c.tools.get("tools") or {}).get(entry["tool"]) or {}) if entry else {}
-        if entry is None:
-            reasons.append(f"seq {e.get('seq')}: adapter {adapter!r} is not a registered tools.yaml tool:mode")
-        elif tool_spec.get("zone") != "Z2" or entry.get("b4_executable") is not False:
-            reasons.append(f"seq {e.get('seq')}: {adapter} is not a white-box/static tool (zone Z2, b4_executable false)")
-        elif e.get("zone") != "Z2":
-            reasons.append(f"seq {e.get('seq')}: event zone {e.get('zone')!r} is not Z2")
-        elif p.get("ok") is not True:
-            reasons.append(f"seq {e.get('seq')}: invocation of {adapter} failed (payload.ok is not true)")
-        else:
-            return None
-    return f"SARIF ref {ref}: " + "; ".join(reasons)
+    return _resolving_event(c, cluster, ref)[1]
 
 
 def resolved_sarif_refs(c: Ctx, cluster: dict) -> list[str]:
     return sorted({r for r in cluster.get("sarif_refs") or [] if sarif_ref_problem(c, cluster, r) is None})
 
 
+def sarif_rule(c: Ctx, cluster: dict, ref) -> tuple[str | None, str | None]:
+    """(adapter, rule_id) of a resolved SARIF ref: payload.adapter and the payload.sarif_results entry for the ref."""
+    e, _ = _resolving_event(c, cluster, ref)
+    if e is None:
+        return None, None
+    p = e.get("payload") or {}
+    rule = next((x.get("rule_id") for x in p.get("sarif_results") or [] if isinstance(x, dict) and x.get("ref") == ref), None)
+    return p.get("adapter"), rule
+
+
+HIGH_PRECISION_MIN_DEFAULT = 0.9
+
+
+def high_precision_min(c: Ctx) -> float:
+    """calibration.yaml result.thresholds.high_precision_min.value (default 0.90; null = disabled: nothing is strong)."""
+    th = ((c.calibration.get("result") or {}).get("thresholds") or {}).get("high_precision_min")
+    if not isinstance(th, dict):
+        return HIGH_PRECISION_MIN_DEFAULT
+    v = th.get("value")
+    if v is None:
+        return float("inf")
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else HIGH_PRECISION_MIN_DEFAULT
+
+
+def sarif_is_strong(c: Ctx, cluster: dict, ref) -> bool:
+    """H-A1: STRONG iff (adapter, rule_id, tool_version) of the resolving audit event is a calibration.yaml
+    result.high_precision_rules entry for the cluster's CWE bucket with precision_lower95 >= high_precision_min.
+    A scanner or rule-pack version other than the calibrated one is WEAK."""
+    e, _ = _resolving_event(c, cluster, ref)
+    adapter, rule = sarif_rule(c, cluster, ref)
+    if e is None or adapter is None or rule is None:
+        return False
+    version = (e.get("payload") or {}).get("tool_version")
+    lim = high_precision_min(c)
+    return any(isinstance(h, dict) and h.get("adapter") == adapter and h.get("rule_id") == rule and h.get("tool_version") == version
+               and h.get("cwe_bucket") == cluster.get("cwe_bucket") and (h.get("precision_lower95") or 0) >= lim
+               for h in (c.calibration.get("result") or {}).get("high_precision_rules") or [])
+
+
+def strong_sarif_refs(c: Ctx, cluster: dict) -> list[str]:
+    return [r for r in resolved_sarif_refs(c, cluster) if sarif_is_strong(c, cluster, r)]
+
+
+def weak_sarif_refs(c: Ctx, cluster: dict) -> list[str]:
+    return [r for r in resolved_sarif_refs(c, cluster) if not sarif_is_strong(c, cluster, r)]
+
+
+def e_fail_u_refs(v: dict) -> set[str]:
+    return {x.get("result_ref") for x in (v.get("test_evidence") or {}).get("results", [])
+            if isinstance(x, dict) and x.get("class") == "E_fail_u" and x.get("result_ref")}
+
+
 def derived_tool_corroboration(c: Ctx, v: dict, cluster: dict) -> list[str]:
-    """R2 definition [H]: SARIF results at the same canonical location and bucket (cluster.sarif_refs
-    that resolve to a successful white-box tool_invocation_end in the run's audit log, E-SARIF-REF)
-    plus test results classed E_fail_u. Sorted; compared as a sorted list with the verdict's own list."""
-    refs = set(resolved_sarif_refs(c, cluster))
-    refs |= {x.get("result_ref") for x in (v.get("test_evidence") or {}).get("results", [])
-             if x.get("class") == "E_fail_u" and x.get("result_ref")}
-    return sorted(refs)
+    """R2 (v0.3): STRONG tool corroboration only = resolved cluster.sarif_refs (E-SARIF-REF) whose
+    (adapter, rule_id) is a calibrated high-precision rule for the cluster's bucket. Sorted; compared
+    as a sorted list with the verdict's own list."""
+    return sorted(strong_sarif_refs(c, cluster))
+
+
+def derived_tool_signal(c: Ctx, v: dict, cluster: dict) -> list[str]:
+    """R2 (v0.3): WEAK tool signals = the other resolved SARIF refs + result_refs of E_fail_u results."""
+    return sorted(set(weak_sarif_refs(c, cluster)) | e_fail_u_refs(v))
+
+
+def derived_independent_sources(c: Ctx, v: dict, cluster: dict) -> int:
+    return (len(derive.independent_families(c.ix, cluster)) + (1 if weak_sarif_refs(c, cluster) else 0)
+            + (1 if e_fail_u_refs(v) else 0))
+
+
+def all_evidence_not_found(c: Ctx, cluster: dict) -> bool:
+    """R0 (v0.3): every evidence item of every member finding is NOT_FOUND; False when there are no members."""
+    members = [c.ix.finding(f) for f in cluster.get("member_finding_ids") or []]
+    if not members or any(m is None for m in members):
+        return False
+    items = [e for m in members for e in m.get("evidence") or [] if isinstance(e, dict)]
+    return bool(items) and all(e.get("match") == "NOT_FOUND" for e in items)
 
 
 def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
     run = c.runs.get(cluster.get("run_id")) or {}
     g2_rej = g2_latest(c, cluster)[1] == "reject"
-    members = [c.ix.first("finding", finding_id=f) for f in cluster.get("member_finding_ids", [])]
-    all_fail = bool(members) and all(m is not None and m.data.get("status") == "UNVERIFIED" for m in members)
+    all_fail = all_evidence_not_found(c, cluster)      # R0 (v0.3): every evidence item NOT_FOUND; False without members
     votes = [x for x in v.get("votes", []) if x.get("weighted_valid") and derive.is_verifier_vote(c.ix, x)]
     g3_rej = g3_rejected(c, v, cluster)
     prev = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"]) if v.get("supersedes_verdict_id") else None
@@ -1279,10 +1444,12 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         weighted_support=any(x.get("stance") == "SUPPORT" for x in votes),
         weighted_refute=any(x.get("stance") == "REFUTE" for x in votes),
         score=v.get("score") or 0.0,
-        sarif_corroboration=bool(resolved_sarif_refs(c, cluster)),   # audit-backed refs only (E-SARIF-REF), not v.tool_corroboration
+        # audit-backed refs only (E-SARIF-REF), tiered by calibration (H-A1); never v.tool_corroboration / v.tool_signal
+        strong_tool=bool(strong_sarif_refs(c, cluster)),
+        weak_sarif=bool(weak_sarif_refs(c, cluster)),
         theta_confirm=v.get("theta_confirm"),
         theta_reject=v.get("theta_reject"),
-        independent_families=len(cluster.get("independent_families", [])),
+        independent_families=len(derive.independent_families(c.ix, cluster)),   # recomputed (D14), not cluster.independent_families
         diversity_degraded=derived_diversity_degraded(c, v, cluster),   # derived, not self-declared
         g3_rejected=g3_rej,
         phase={"W3_adjudicate": "W3", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}.get(v.get("readjudicated_by")),
@@ -1303,10 +1470,26 @@ def g_verdicts(R: Report, c: Ctx):
         # self-declared rule inputs are cross-checked against the derived values (docs/05 §4.2) [H]
         dd = derived_diversity_degraded(c, v, cl.data)
         R.check(v.get("diversity_degraded") is dd, "E-VERDICT-DIVERSITY", w,
-                f"diversity_degraded {v.get('diversity_degraded')} but the valid votes' registry families give {dd}")
+                f"diversity_degraded {v.get('diversity_degraded')} but the weighted-valid votes' registry families give {dd} "
+                f"(eligible verifier families {sorted(eligible_verifier_families(c, cl.data))})")
+        ne = derived_no_eligible_verifier(c, cl.data)
+        R.check(v.get("no_eligible_verifier") is ne, "E-VERDICT-NOELIGIBLE", w,
+                f"no_eligible_verifier {v.get('no_eligible_verifier')} but agents.yaml verifiers outside the cluster's families/lineages give {ne}")
         tcx = derived_tool_corroboration(c, v, cl.data)
         R.check(sorted(v.get("tool_corroboration") or []) == tcx, "E-VERDICT-TOOLCORR", w,
-                f"tool_corroboration {v.get('tool_corroboration')} != derived {tcx} (audit-backed cluster.sarif_refs + E_fail_u results)")
+                f"tool_corroboration {v.get('tool_corroboration')} != derived {tcx} (audit-backed SARIF refs of calibrated high-precision rules)")
+        tsx = derived_tool_signal(c, v, cl.data)
+        R.check(sorted(v.get("tool_signal") or []) == tsx, "E-VERDICT-TOOLSIGNAL", w,
+                f"tool_signal {v.get('tool_signal')} != derived {tsx} (other audit-backed SARIF refs + E_fail_u results)")
+        srcx = derived_independent_sources(c, v, cl.data)
+        R.check(v.get("independent_sources") == srcx, "E-VERDICT-SOURCES", w,
+                f"independent_sources {v.get('independent_sources')} != derived {srcx} (independent families + weak SARIF + E_fail_u)")
+        pv = derived_provisional(c, v, cl.data)
+        R.check(v.get("provisional") is pv, "E-VERDICT-PROVISIONAL", w,
+                f"provisional {v.get('provisional')} != derived {pv} (no calibration version, theta_confirm null, or every eligible "
+                "verifier model has weight 0 in the cluster's bucket)")
+        R.check(v.get("rule_version") == adj.RULE_VERSION, "E-VERDICT-RULE-VERSION", w,
+                f"rule_version {v.get('rule_version')!r} is not the adjudicator's {adj.RULE_VERSION!r}")
         out = adj.adjudicate(verdict_inputs(c, v, cl.data))
         R.check(v.get("status") == out.status, "E-VERDICT-STATUS", w, f"status {v.get('status')} but the rules give {out.status} (row {out.row})")
         R.check(v.get("status_cap") == out.status_cap, "E-VERDICT-STATUS", w, f"status_cap {v.get('status_cap')} != {out.status_cap}")
@@ -1317,8 +1500,10 @@ def g_verdicts(R: Report, c: Ctx):
         R.check(rules == out.rules, "E-VERDICT-TRACE", w, f"rule_trace rules {rules} != {out.rules}")
         if v.get("status") == "CONFIRMED_EXECUTABLE":
             p = v.get("executable_proof") or {}
-            ib = p.get("interpretation_confirmed_by") or {}
-            R.check(ib.get("family") not in cl.data.get("families", []), "E-VERDICT-PROOF", w, "executable proof must be interpreted by another family")
+            ib = p.get("interpretation_confirmed_by")
+            # a pre-registered deterministic interpretation needs no analyst (v0.3); an analyst, if any, is cross-family
+            R.check(ib is None or (isinstance(ib, dict) and ib.get("family") not in cl.data.get("families", [])), "E-VERDICT-PROOF", w,
+                    "executable proof interpretation must come from another family")
         for vt in v.get("votes", []):
             a = c.agents.get(vt.get("voter_agent_id")) if isinstance(vt.get("voter_agent_id"), str) else None
             R.check(derive.is_verifier_vote(c.ix, vt), "E-VERDICT-VOTER-ROLE", w,
@@ -1340,6 +1525,29 @@ def g_verdicts(R: Report, c: Ctx):
 
 
 # ============================================================== 14 traceability
+def cluster_origin(R: Report, c: Ctx, d: Doc):
+    """E-CLUSTER-ORIGIN (A2): white_box clusters need members, a source-code location and no threat_id;
+    black_box clusters come from a threat without source cluster and use the endpoint as location."""
+    k, w = d.data, d.path
+    loc = k.get("canonical_location") or {}
+    if k.get("origin") == "black_box":
+        t = c.ix.first("threat", threat_id=k.get("threat_id")) if k.get("threat_id") else None
+        R.check(t is not None and t.data.get("source_cluster_id") is None, "E-CLUSTER-ORIGIN", w,
+                f"black_box cluster needs a threat_id of a threat without source_cluster_id (got {k.get('threat_id')!r})")
+        R.check(isinstance(loc.get("endpoint"), dict), "E-CLUSTER-ORIGIN", w, "black_box cluster needs canonical_location.endpoint")
+        ep = loc.get("endpoint") or {}
+        tc_ok = any(t2.data.get("threat_id") == k.get("threat_id") and any(
+            r.get("target_id") == ep.get("target_id") and r.get("method") == ep.get("method") and r.get("path") == ep.get("path_template")
+            for r in t2.data.get("request_allowlist") or []) for t2 in c.docs("testcase"))
+        R.check(tc_ok, "E-CLUSTER-ORIGIN", w, "canonical_location.endpoint must be a request of a testcase of the cluster's threat")
+    else:
+        R.check(bool(k.get("member_finding_ids")) and bool(k.get("families")) and bool(k.get("lineages")), "E-CLUSTER-ORIGIN", w,
+                "white_box cluster needs member findings, families and lineages")
+        R.check(k.get("threat_id") is None, "E-CLUSTER-ORIGIN", w, "threat_id is only set on black_box clusters")
+        R.check(all(isinstance(loc.get(x), (str, dict)) for x in ("file", "symbol", "sink")), "E-CLUSTER-ORIGIN", w,
+                "white_box cluster needs canonical_location file, symbol and sink")
+
+
 def g_trace(R: Report, c: Ctx):
     ix = c.ix
     inv_ids = {i.get("requirement_id") for i in c.invariants.get("invariants", [])}
@@ -1355,14 +1563,19 @@ def g_trace(R: Report, c: Ctx):
         k, w = d.data, d.path
         run = c.runs.get(k.get("run_id")) or {}
         R.check(k.get("cluster_id") in run.get("cluster_ids", []), "E-TRACE", w, "cluster not listed by its run")
+        cluster_origin(R, c, d)
         members = [ix.first("finding", finding_id=f) for f in k.get("member_finding_ids", [])]
         if R.check(all(members), "E-TRACE", w, "member finding not found"):
-            fams = {m.data["reporter"]["family"] for m in members}
-            lins = {m.data["reporter"]["lineage"] for m in members}
+            fams = {(m.data.get("reporter") or {}).get("family") for m in members}
+            lins = {(m.data.get("reporter") or {}).get("lineage") for m in members}
             R.check(set(k.get("families", [])) == fams and set(k.get("lineages", [])) == lins, "E-CLUSTER-FAMILIES", w,
                     "families/lineages must be those of the member findings' reporters")
             R.check(all(m.data.get("run_id") == k.get("run_id") for m in members), "E-TRACE", w, "member finding from another run")
-        R.check(set(k.get("independent_families", [])) <= set(k.get("families", [])), "E-CLUSTER-FAMILIES", w, "independent_families not in families")
+        indep = derive.independent_families(ix, k)
+        R.check(sorted(k.get("independent_families", [])) == indep, "E-CLUSTER-FAMILIES", w,
+                f"independent_families {k.get('independent_families')} != {indep} (families of round-1 members reported by a reviewer)")
+        fp = derive.cluster_fingerprint(k)
+        R.check(k.get("fingerprint") == fp, "E-CLUSTER-FINGERPRINT", w, f"fingerprint {k.get('fingerprint')} != {fp} (sha256(JCS(fingerprint key)))")
     for d in c.docs("verdict"):
         v = d.data
         cl = ix.first("cluster", cluster_id=v.get("cluster_id"))
@@ -1415,7 +1628,22 @@ def g_trace(R: Report, c: Ctx):
             R.check(ix.first("cluster", cluster_id=tc["source_cluster_id"]) is not None, "E-TRACE", w, "source cluster not found")
     for d in c.docs("testresult"):
         tr, w = d.data, d.path
-        R.check(ix.first("testcase", testcase_id=tr.get("testcase_id")) is not None, "E-TRACE", w, "testcase not found")
+        tcd = ix.first("testcase", testcase_id=tr.get("testcase_id"))
+        R.check(tcd is not None, "E-TRACE", w, "testcase not found")
+        th = ix.first("threat", threat_id=tcd.data.get("threat_id")) if tcd else None
+        if th is not None:
+            src = th.data.get("source_cluster_id")
+            if src is None:
+                # A2 (clarified): every result of a testcase whose threat has no source cluster is recorded on a
+                # black_box cluster of that threat (created at B5 for FAIL, PASS and INVALID alike)
+                bad = [k for k in tr.get("cluster_ids", []) if not ((ix.first("cluster", cluster_id=k) or Doc("", "", {})).data.get("origin") == "black_box"
+                                                                   and (ix.first("cluster", cluster_id=k)).data.get("threat_id") == th.data.get("threat_id"))]
+                R.check(bool(tr.get("cluster_ids")) and not bad, "E-CLUSTER-ORIGIN", w,
+                        f"result of {tcd.data.get('testcase_id')} (threat {th.data.get('threat_id')} has no source cluster) must be recorded "
+                        f"on black_box clusters of that threat (cluster_ids {tr.get('cluster_ids')})")
+            else:
+                R.check(src in tr.get("cluster_ids", []), "E-TRACE", w,
+                        f"cluster_ids {tr.get('cluster_ids')} must include the threat's source cluster {src}")
         for k in tr.get("cluster_ids", []):
             R.check(ix.first("cluster", cluster_id=k, run_id=tr.get("run_id")) is not None or
                     any(k in (r.get("cluster_ids") or []) for r in c.runs.values()), "E-TRACE", w, f"cluster {k} not found")
@@ -1715,6 +1943,14 @@ def g_toolkit(R: Report, c: Ctx):
 
 
 # ============================================================== 21 DFD, report, selftest, checkpoint
+def report_metrics(c: Ctx, run_id) -> dict:
+    """B5: results_total, results_invalid, control_pass_rate (PASS control outcomes / all control outcomes, 4 decimals)."""
+    results = [x.data for x in c.docs("testresult") if x.data.get("run_id") == run_id]
+    outs = [y.get("outcome") for r in results for y in r.get("controls") or [] if isinstance(y, dict)]
+    return {"results_total": len(results), "results_invalid": sum(1 for r in results if r.get("outcome") == "INVALID"),
+            "control_pass_rate": round(sum(1 for o in outs if o == "PASS") / len(outs), 4) if outs else None}
+
+
 def g_misc(R: Report, c: Ctx):
     for d in c.docs("dfd"):
         els = d.data.get("elements", [])
@@ -1742,6 +1978,9 @@ def g_misc(R: Report, c: Ctx):
         final = [c.ix.first("verdict", verdict_id=v).data for v in run.get("verdicts", []) if v not in superseded and c.ix.first("verdict", verdict_id=v)]
         counts = {s: sum(1 for v in final if v.get("status") == s) for s in FINAL_STATUSES}
         R.check(rm.get("verdict_counts") == counts, "E-REPORT", w, f"verdict_counts must be {counts} (latest verdict per cluster)")
+        want_m = report_metrics(c, rm.get("run_id"))
+        got_m = rm.get("metrics") or {}
+        R.check(derive._equal(got_m, want_m), "E-REPORT-METRICS", w, f"metrics {got_m} != recomputed {want_m} (the run's testresults and controls)")
         R.check(sorted(rm.get("manual_review_clusters", [])) == sorted(run.get("manual_review_clusters", [])), "E-REPORT", w, "manual_review_clusters differ from the run")
         for a in rm.get("artifacts", []):
             if a.get("kind") == "audit_log":

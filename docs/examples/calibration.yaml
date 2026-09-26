@@ -8,6 +8,9 @@
 #   - θ：value 為 null 時 feasible 必須是 false
 #   - arms：⑤（arm "5"）必須 exploratory: true，其他組為 false；result.exploratory.arm＝"5"
 #   - M-11 by_model：flag＝support_leaning ⇔ value＜0.5
+#   - high_precision_rules：只有 (adapter, rule_id, tool_version, cwe_bucket) 列在這裡、precision_lower95 ≥
+#     thresholds.high_precision_min.value，且稽核 tool_invocation_end 的 payload.tool_version 相同的 SARIF 結果
+#     是強工具佐證（R5 row 10）；其他 SARIF 結果都是弱訊號（docs/05 §4.2 R2，H-A1）
 # 本檔只節錄 corpus 的 3 筆（實際語料 ≥ 28 個應用，docs/05 §5.1）。
 
 calibration_id: cal-2026-09
@@ -68,6 +71,7 @@ result:
     - {model_key: claude_sonnet, cwe_bucket: llm_specific, n: 8, correct: 6, a: 0.7719, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min]}
     - {model_key: gpt_oss_self, cwe_bucket: authz, n: 25, correct: 15, a: 0.6139, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max]}
     - {model_key: gpt_oss_self, cwe_bucket: llm_specific, n: 12, correct: 9, a: 0.7039, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max]}
+  high_precision_rules: []       # 還沒有語料量到的高精準度 SARIF 規則 → 所有 SARIF 結果都只是弱訊號（R6 的獨立來源）
   thresholds:
     theta_confirm:
       value: 1.2
@@ -78,6 +82,12 @@ result:
     theta_reject:
       value: null                  # 找不到可行門檻 → 停用：反駁一律送 DISPUTED（人審）
       feasible: false
+      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
+      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
+      generalised: false
+    high_precision_min:            # SARIF 規則算「強工具佐證」的 precision 95% 下界門檻（docs/05 R5 row 10）
+      value: 0.9                   # 政策下限（預設 0.90），不是 θ 搜尋程序求得；分割統計不適用（n: 0）
+      feasible: true
       calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
       holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
       generalised: false

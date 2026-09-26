@@ -215,7 +215,8 @@ def test_s3_testcase_rejected(b):
 
 
 def test_delete_on_non_seed_is_s3(b):
-    doc(b, TC_IDOR).data["request_allowlist"][2]["path"] = "/api/invoices/{id}"
+    reqs = doc(b, TC_IDOR).data["request_allowlist"]
+    next(r for r in reqs if r["method"] == "DELETE")["path"] = "/api/invoices/{id}"
     assert "E-TC-ADMISSIBLE" in codes(b)
 
 

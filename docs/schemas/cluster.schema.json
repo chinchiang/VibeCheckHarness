@@ -11,16 +11,50 @@
     "run_id": {
       "type": "string"
     },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "white_box",
+        "black_box"
+      ],
+      "description": "white_box＝由 W2 發現項叢集化；black_box＝B5 由沒有 source_cluster_id 的威脅之測試結果建立（成員可為空，E-CLUSTER-ORIGIN）"
+    },
+    "threat_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^T-[0-9]{3,}$",
+          "description": "black_box 必填：來源威脅（其 source_cluster_id 為 null）；white_box 為 null"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "canonical_location": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "file": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "symbol": {
-          "type": "string",
-          "description": "sink 所在函式或 AST 節點的完整限定名"
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "sink 所在函式或 AST 節點的完整限定名"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "source": {
           "anyOf": [
@@ -46,19 +80,64 @@
           ]
         },
         "sink": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "file": {
-              "type": "string"
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "file",
+                "line"
+              ]
             },
-            "line": {
-              "type": "integer"
+            {
+              "type": "null"
             }
-          },
-          "required": [
-            "file",
-            "line"
+          ]
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "target_id": {
+                  "type": "string",
+                  "pattern": "^tgt-[a-z0-9-]+$"
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET",
+                    "HEAD",
+                    "OPTIONS",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE"
+                  ]
+                },
+                "path_template": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "target_id",
+                "method",
+                "path_template"
+              ],
+              "description": "black_box 叢集的正規位置（端點）；white_box 可省略"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
@@ -67,7 +146,8 @@
         "symbol",
         "source",
         "sink"
-      ]
+      ],
+      "description": "white_box：file、symbol、sink 必填；black_box：endpoint 必填，file／symbol／sink 可為 null（E-CLUSTER-ORIGIN）"
     },
     "cwe_bucket": {
       "type": "string",
@@ -99,22 +179,20 @@
         "type": "string",
         "pattern": "^F-[0-9]{3,}$"
       },
-      "minItems": 1
+      "description": "white_box 至少一個；black_box 可為空（E-CLUSTER-ORIGIN）"
     },
     "families": {
       "type": "array",
       "items": {
         "type": "string",
         "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
-      },
-      "minItems": 1
+      }
     },
     "lineages": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "minItems": 1,
       "description": "成員發現項的模型血統"
     },
     "independent_families": {
@@ -123,7 +201,7 @@
         "type": "string",
         "description": "模型家族（廠商或主要訓練者），例如 anthropic、openai、nvidia"
       },
-      "description": "第一輪中各自貢獻成員的家族"
+      "description": "推導值：第一輪（reporter.round＝1）由 reviewer 角色回報的成員家族（Lane A 與 CMD-2 加派不計入；E-CLUSTER-FAMILIES）"
     },
     "sarif_refs": {
       "type": "array",
@@ -138,11 +216,39 @@
       "items": {
         "type": "string"
       }
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "跨 run 穩定指紋：white_box＝sha256(JCS({cwe_bucket, file, symbol}))；black_box＝sha256(JCS({cwe_bucket, target_id, method, path_template}))；不含行號（E-CLUSTER-FINGERPRINT）"
+    },
+    "baseline_state": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "new",
+            "unchanged",
+            "updated",
+            "absent"
+          ],
+          "description": "SARIF 2.1.0 baselineState 語意；null＝本 run 沒有 baseline_run_id。new＝指紋不在基準 run；unchanged＝同指紋且成員證據 hash 相同；updated＝同指紋、證據改變；absent 只用於報告的 absent_fingerprints（E-CLUSTER-BASELINE）"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reopened": {
+      "type": "boolean",
+      "description": "資訊性：本 run 為 new，但在更早的 run 曾是 absent"
     }
   },
   "required": [
     "cluster_id",
     "run_id",
+    "origin",
+    "threat_id",
     "canonical_location",
     "cwe_bucket",
     "cwes",
@@ -151,7 +257,10 @@
     "lineages",
     "independent_families",
     "sarif_refs",
-    "linked_cluster_ids"
+    "linked_cluster_ids",
+    "fingerprint",
+    "baseline_state",
+    "reopened"
   ],
   "title": "Cluster（叢集）"
 }

@@ -59,6 +59,13 @@
           "rationale": {
             "type": "string"
           },
+          "cited_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "理由引用的證據（程式位置 file:line、inventory JSON Pointer 或工具結果 ref）；沒有可比對證據的票視為棄權"
+          },
           "fallback_used": {
             "anyOf": [
               {
@@ -96,6 +103,7 @@
           "voter_lineage",
           "stance",
           "rationale",
+          "cited_evidence",
           "fallback_used",
           "anonymized",
           "order_randomized",
@@ -139,7 +147,20 @@
       "items": {
         "type": "string"
       },
-      "description": "推導值（排序）：稽核可查的 cluster.sarif_refs ∪ E_fail_u 測試結果的 result_ref（E-VERDICT-TOOLCORR）"
+      "description": "推導值（排序）：強工具佐證＝已解析的 cluster.sarif_refs 中，(adapter, rule_id) 在 calibration.yaml high_precision_rules（同 CWE 桶、precision_lower95 ≥ high_precision_min）的項目（E-VERDICT-TOOLCORR）"
+    },
+    "tool_signal": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "description": "推導值（排序）：弱工具訊號＝其餘已解析的 SARIF ref ∪ E_fail_u 測試結果的 result_ref（E-VERDICT-TOOLSIGNAL）；不能單獨確認，只算獨立來源"
+    },
+    "independent_sources": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "推導值：len(叢集 independent_families) ＋（有弱 SARIF 訊號 ? 1 : 0）＋（有 E_fail_u ? 1 : 0）；R6 需 ≥ 2（E-VERDICT-SOURCES）"
     },
     "executable_proof": {
       "anyOf": [
@@ -285,11 +306,12 @@
       ]
     },
     "diversity_degraded": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "推導值：非 Lane A、合格驗證家族集合 E 非空，且計權合格票（weighted_valid）的不同家族數 ＜ min(2, |E|)（家族由 agents.yaml／models.yaml 解析；E-VERDICT-DIVERSITY）"
     },
     "no_eligible_verifier": {
       "type": "boolean",
-      "description": "沒有任何家族與血統都不在叢集中的驗證者"
+      "description": "推導值：E＝agents.yaml 中 role verifier、且解析出的家族不在叢集 families、血統不在 lineages 的家族集合；|E|＝0 ⇔ true（E-VERDICT-NOELIGIBLE）"
     },
     "calibration_version": {
       "anyOf": [
@@ -324,6 +346,10 @@
         }
       ],
       "description": "快照；null＝停用"
+    },
+    "provisional": {
+      "type": "boolean",
+      "description": "推導值：calibration_version 為 null，或本裁決每張票的 weight 都是 0（沒有票也算），或 theta_confirm 為 null（E-VERDICT-PROVISIONAL）"
     },
     "score": {
       "type": "number",
@@ -412,7 +438,7 @@
     },
     "rule_version": {
       "type": "string",
-      "description": "docs/05 版本，例如 05-v0.2"
+      "description": "docs/05 規則版本；必須等於 run.rule_version 與 vchlib.adjudicate.RULE_VERSION（目前 05-v0.3）"
     },
     "rule_trace": {
       "type": "array",
@@ -432,6 +458,8 @@
     "votes",
     "missing_votes",
     "tool_corroboration",
+    "tool_signal",
+    "independent_sources",
     "executable_proof",
     "test_evidence",
     "diversity_degraded",
@@ -439,6 +467,7 @@
     "calibration_version",
     "theta_confirm",
     "theta_reject",
+    "provisional",
     "score",
     "g2_decision_ref",
     "status",

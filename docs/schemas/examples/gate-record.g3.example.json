@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "threat_model",
-    "sha256": "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a"
+    "sha256": "sha256:4e3d63d232e2ba67c8adbf563cb9ca2b8bda8730f97b524ea479e1aa10466e29"
   },
   "job_id": null,
   "initiator": "alice",
@@ -47,10 +47,17 @@
     },
     {
       "item_id": "T-031",
-      "item_sha256": "sha256:4a6672300e1be94cb9f539ff9884849d7b5143f191b565c1f127e8031bdb1ad4",
+      "item_sha256": "sha256:7d41bc79c14697adb6e5869d99caf1b746b555760ad61b1416c8365b0bebbcd6",
       "decision": "accept",
       "risk_override": null,
       "note": null
+    },
+    {
+      "item_id": "T-033",
+      "item_sha256": "sha256:9d04292da18281744b1a8b10af72d681987c3a340bd5fa741f5a05dd6afbb128",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "外部視角提出；白箱沒有對應叢集"
     }
   ],
   "gb": null,
@@ -62,13 +69,13 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "IQdqLXi5oFnkuQHdz5f6sHyPS0a9/cLTEFu47RU0D6cl2EvYddjloN8rJPO6SEEkNyyKSlRiq09UDGvaofRNBQ=="
+      "value": "f365m11cn7/Z+xkJzW1v+tjF2Y3WYbwL0lvbv2+nmzb1Na9BwEdple98LpOdR89rlFamofdHDEtggR6Du81qBQ=="
     },
     {
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "VuHS02HxN/5pAnB6BrelfT80+3wjXry1piwCUXCkYFUd2bU5jveyByOGPKgsE7L+/WG+NVtj4pAgugegAYbWCg=="
+      "value": "eaHi/UhnudQ8hGJsdnkb0BJA8HOVo/5cwZAgR89jxQAwzE5aP1kDRbpNorTXrbC6O8T3pHoQU0MX0tcVsxqtDA=="
     }
   ]
 }
