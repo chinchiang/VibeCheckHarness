@@ -23,3 +23,18 @@
 | BL-10 | H-E15 | adaptive（LLM 產生下一輪）的多輪 relay | 本輪改以 G4 核准的腳本式多輪為預設，adaptive 只在 Full 模式允許；adaptive 的評估方法與上限需要 M5 的實測資料 | 延後（M5 之後） |
 | BL-11 | H-E11 | 校準語料的實際建立與標註 | 需要 U-10（標註人員與預算）；在那之前所有裁決標示 `provisional` | 延後（依 U-10） |
 | BL-12 | H-A1 | `high_precision_rules` 的實際內容 | 需要校準語料；在那之前白名單為空，SARIF 只算弱訊號 | 延後（依 BL-11） |
+
+## 3. 規格已寫、schema 尚未涵蓋的欄位
+
+[08 §11](08-implementation-spec.md#11-元件規格補充v03) 的元件規格提到下列欄位，但 v0.3 的 schema 與 validator 還沒有對應；實作對應元件時一併補上 schema、範例與正反向測試。
+
+| 編號 | 用在 | 缺少的欄位或檔案 | 暫行做法 | 狀態 |
+|---|---|---|---|---|
+| BL-13 | [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 純工具叢集 | `cluster.schema` 沒有表示「只有工具結果、沒有 LLM 成員」的方式（例如新的 `origin` 值） | 純工具叢集只在設計中描述；範例不含 | 待辦 |
+| BL-14 | [08 §11.12](08-implementation-spec.md#1112-成本模型與價格) 各家族上限 | engagement 的每家族 USD 上限欄位 | 只用現有的每 run／階段上限 | 待辦 |
+| BL-15 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) CDN | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | 目標若經 CDN，DNS 固定到第一次解析的位址；解析結果改變就停止該 job | 待辦 |
+| BL-16 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) B1 爬行預設 | `toolkit.yaml` 的 B1 爬行預設區塊（方法、排除樣式、請求上限） | 規則寫在程式碼常數，並記入 run manifest | 待辦 |
+| BL-17 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 回貼 PR／issue | engagement 啟用發佈的欄位與權杖範圍宣告 | 預設不發佈；報告只輸出檔案 | 待辦 |
+| BL-18 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 誤報回饋 | 回饋紀錄的 schema | 回饋先以人工整理進校準語料 | 待辦 |
+| BL-19 | [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣) 排程工作 | inventory `endpoints[].kind` 沒有排程工作（cron／job）的值 | 排程工作記為 `blind_spots`（`other`） | 待辦 |
+| BL-20 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 覆蓋指標 | report-manifest `metrics` 只有結果數、INVALID 數與對照通過率；沒有存取矩陣格與 entry point 的覆蓋率 | 覆蓋率先寫在報告正文 | 待辦 |
