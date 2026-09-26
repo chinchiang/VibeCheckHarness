@@ -209,7 +209,7 @@
   "b1_merged_ref": "sha256:66985305530c23a5e800b07a58d1275fd10b3c52ca334906e5067bef4cb10787",
   "b1_diff_ref": "sha256:d4ef4e92e2b26dccc1155986118d5a8fe98ca6bde2a561f2c275dfb536ba9123",
   "taxonomy_plan_id": "plan-2026-10-01-cmd3",
-  "threat_model_ref": "sha256:481ba7a1714cd4b77a5c751e0472019b04a7a760dd5db52f1dfdab0edff1a11e",
+  "threat_model_ref": "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441",
   "b1_diff_dispositions_ref": "sha256:5647a710ee3efacde3402733bd5692419bcf526667623df8c2954368d00087f4",
   "g3_round": 1,
   "testplan_ref": "sha256:de6d5e13717c7216e1227ef9f6ca489579ef190640816ea7cbecdec4caff189e",
@@ -301,7 +301,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:cc6de0bd73011924cd3aa6f2fa59b2309ccd7712a3374c5f9d9b08921d541df7",
+  "report_manifest_ref": "sha256:f3655860d7886513420e0bfb20bc97c906d19f5983219cd08ed1528df4aa70dc",
   "gate_records": [
     {
       "gate": "G0a",
@@ -358,7 +358,7 @@
       "gate_record_id": "GR-G3-0001",
       "outcome": "PARTIALLY_APPROVED",
       "round": 1,
-      "subject_hash": "sha256:481ba7a1714cd4b77a5c751e0472019b04a7a760dd5db52f1dfdab0edff1a11e",
+      "subject_hash": "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441",
       "job_id": null,
       "opened_at": "2026-10-01T18:00:00+08:00",
       "decided_at": "2026-10-02T10:15:00+08:00"

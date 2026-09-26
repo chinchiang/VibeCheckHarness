@@ -17,7 +17,7 @@
     {
       "kind": "threat_model",
       "ref": "GR-G3-0001",
-      "sha256": "sha256:481ba7a1714cd4b77a5c751e0472019b04a7a760dd5db52f1dfdab0edff1a11e"
+      "sha256": "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441"
     },
     {
       "kind": "test_plan",
@@ -107,7 +107,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G3-0001",
-      "sha256": "sha256:d8ab609ed7a555e0145bcf8db5bcb13f01837a8de625f0271c4c848e884cfc29"
+      "sha256": "sha256:1e6dd189a064d29e0c99e8ce218613cafaa6254b262a951fb62c2c5fce1fb30b"
     },
     {
       "kind": "gate_record",

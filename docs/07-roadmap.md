@@ -103,6 +103,7 @@
 | Sandbox Runner（Z2） | W0、W1 | W4（`hypothesis:property`、`fast_check:property`） | — | — | — |
 | Z3 Executor | 最小版（`verify_ownership`、`http_get`） | — | B1 | 完整版（`run_job`、停止條件） | Relay 用戶端 |
 | Commander | — | CMD-1、CMD-2 | CMD-3 | CMD-4、CMD-5 | — |
+| ToolResult 正規化（[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)） | W1 各工具輸出轉 SARIF | 轉成 ToolResult、區段對應函式、強／弱工具證據 | — | 黑箱證據的 ToolResult | — |
 | Slicer、Clusterer、Aggregator | — | ✓ | — | 黑箱證據（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)：`E_proof`→R1、`E_fail_u`→R2 的弱工具訊號（1 個獨立來源）→R4／R6、`E_pass`→R11、`E_inc` 與證據衝突→R12；黑箱起源叢集；B5 重新裁決） | 機率判定 |
 | Gate Service | 只有 G0a／G0b 的離線驗章 | G1、G2、GB、`claim_run`、ASI09 抽查 | G3 | G4、G5 | — |
 | Calibration Lab | — | ✓ | — | — | — |

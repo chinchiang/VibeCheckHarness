@@ -1186,7 +1186,7 @@ class InventoryExtractor(ABC):
 **最重要的一條**：W2 reviewer（含 CMD-2 加派的輪次）與 W3 verifier **都不會收到** `ToolResult`、SARIF 或它們的摘要。工具結果只經由確定性的 Clusterer 與 Aggregator 進入裁決（[05 §3](05-bias-calibration.md#3-設計規則) 規則 5）[H]。
 
 **輸入**：W1 各 adapter 的輸出（CAS ref）、對應的 `tool_invocation_end` 稽核事件、W0 的符號索引（§11.3）、CWE → 桶的對照表。
-**輸出**：ToolResult 清單，run 以 `tool_results_ref` 參照（[03 §5.1](03-system-architecture.md#51-statepydantic示意)）；只交給 `W3_cluster` 與 `W3_adjudicate`。
+**輸出**：ToolResult 清單，RunState 以 `tool_results_ref` 參照（[03 §5.1](03-system-architecture.md#51-statepydantic示意)；保存用的 `run.schema.json` 尚未有此欄位，見 [09 BL-13](09-backlog.md)）；只交給 `W3_cluster` 與 `W3_adjudicate`。
 
 ```python
 class ToolLocation(BaseModel):
@@ -1692,7 +1692,7 @@ class SessionProvider(Protocol):
 | W4 | 每條不變量 × ≤3 輪 × 2（生成＋critic） | — |
 | W5 | DFD 標籤＋報告敘事 | — |
 | B1 | System Modeler 的標籤 | — |
-| B2 | V_tm＋2（每個家族建模 1 次，加上 merger 與 critic） | L-03；與 [03 §11](03-system-architecture.md#11-成本與延遲模型) 相同 |
+| B2 | V_tm＋1（每個家族建模 1 次，加上 critic；merger 預設是確定性程式碼）；另設 LLM merger 時 V_tm＋2 | L-03；與 [02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)、[03 §11](03-system-architecture.md#11-成本與延遲模型) 相同 |
 | B3 | 每個已接受的威脅 1 次，修復 ≤2 次 | — |
 | B5 | 每個需要解讀的結果 1 次 | 事先登記的確定性 FAIL 不需要（05 §4.2） |
 | B6 | 報告敘事，linter 修復 ≤2 次（§11.17） | — |

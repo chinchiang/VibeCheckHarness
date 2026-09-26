@@ -10,6 +10,14 @@
     {
       "scheme": "owasp-llm@2026",
       "id": "LLM03"
+    },
+    {
+      "scheme": "owasp-asi@2026",
+      "id": "ASI01"
+    },
+    {
+      "scheme": "owasp-asi@2026",
+      "id": "ASI02"
     }
   ],
   "dfd_elements": [

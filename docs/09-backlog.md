@@ -14,10 +14,10 @@
 | BL-03 | L-20 | `docs/evidence/link-check-2026-09-23.md` | 外部連結檢查只做到 2026-09-23；v0.2／v0.3 新增的 URL 尚未重查；403 的來源未逐一人工確認 | 用本輪加入的 `tools/check_external_links.py` 重跑，並把結果存成新的日期檔；403 以瀏覽器人工抽查 | 待辦 |
 | BL-04 | H-D1 延伸 | `tools/vchlib/checks.py`、`gate-record.schema.json` | G4／G5 的職責分離只在同一個 run 內檢查；跟進 run 沿用前一個 run 的 G4 時，沒有 `g4_gate_record_id` 的跨 run 連結 | G5 紀錄加上 `g4_gate_record_id`，validator 跨 run 解析 | 待辦 |
 | BL-05 | M-G7 延伸 | docs 02／03／06／08 | 保留期限（03、06 §2.2、08 §7.5）、簽章（03 §6.1、06 §1.6）、稽核 tail（03 §13、06 §1.7、08 §7.4）仍在多處描述 | 各主題指定一個主頁，其他地方改為一句話加連結 | 待辦 |
+| BL-06 | H-E9 限制 | `docs/03` §6.1、`docs/06` §3 | 簽署時間由簽署者自填，沒有可信的時間來源 | 評估 RFC 3161 時間戳記服務或以 WORM 稽核錨點的時間為準；需要先決定 U-04 | 延後（依 U-04） |
 | BL-21 | H-B5 延伸 | `gate-record.schema.json`、`tools/vchlib/checks.py` | 跨 run 沿用 G1／G3 核准（未變更的項目）只是設計規則：`decisions[]` 沒有欄位標示「沿用自哪一份紀錄」，validator 也不檢查跨 run 的沿用 | `decisions[]` 加上 `carried_from`（前一個 run 的 gate record ID 與項目 hash），validator 核對 hash 相同、ROE 相同且在效期內；G4／G5 永遠不沿用 | 待辦 |
 | BL-22 | N-5 延伸 | `run.schema.json` | run manifest 的 `config_refs` 六個鍵都必填；G1 之前（還沒有 `invariants`）或 G0b 之前（還沒有 `seed_manifest`）的 run 紀錄無法表示「尚未產生」 | 允許 `null` 並記錄產生的節點；validator 依 run 已到達的節點檢查 | 待辦 |
 | BL-23 | N-5 延伸 | `tools/vchlib/checks.py` | 只做白箱的 Lane B run 也必須有 `seed_manifest` 參照（目前只有 Lane A 可為 `null`） | 沒有 B 階段的 run 允許 `seed_manifest: null` | 待辦 |
-| BL-06 | H-E9 限制 | `docs/03` §6.1、`docs/06` §3 | 簽署時間由簽署者自填，沒有可信的時間來源 | 評估 RFC 3161 時間戳記服務或以 WORM 稽核錨點的時間為準；需要先決定 U-04 | 延後（依 U-04） |
 
 ## 2. 延後的設計項目
 
@@ -33,7 +33,7 @@
 
 | 編號 | 用在 | 缺少的欄位或檔案 | 暫行做法 | 狀態 |
 |---|---|---|---|---|
-| BL-13 | [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 純工具叢集 | `cluster.schema` 沒有表示「只有工具結果、沒有 LLM 成員」的方式（例如新的 `origin` 值） | 純工具叢集只在設計中描述；範例不含 | 待辦 |
+| BL-13 | [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 純工具叢集 | `cluster.schema` 沒有表示「只有工具結果、沒有 LLM 成員」的方式（例如新的 `origin` 值）；`run.schema` 也沒有 ToolResult 清單的參照（`tool_results_ref`） | 純工具叢集只在設計中描述；範例不含 | 待辦 |
 | BL-14 | [08 §11.12](08-implementation-spec.md#1112-成本模型與價格) 各家族上限 | engagement 的每家族 USD 上限欄位 | 只用現有的每 run／階段上限 | 待辦 |
 | BL-15 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) CDN | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | 目標若經 CDN，DNS 固定到第一次解析的位址；解析結果改變就停止該 job | 待辦 |
 | BL-16 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) B1 爬行預設 | `toolkit.yaml` 的 B1 爬行預設區塊（方法、排除樣式、請求上限） | 規則寫在程式碼常數，並記入 run manifest | 待辦 |
@@ -41,3 +41,5 @@
 | BL-18 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 誤報回饋 | 回饋紀錄的 schema | 回饋先以人工整理進校準語料 | 待辦 |
 | BL-19 | [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣) 排程工作 | inventory `endpoints[].kind` 沒有排程工作（cron／job）的值 | 排程工作記為 `blind_spots`（`other`） | 待辦 |
 | BL-20 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 覆蓋指標 | report-manifest `metrics` 只有結果數、INVALID 數與對照通過率；沒有存取矩陣格與 entry point 的覆蓋率 | 覆蓋率先寫在報告正文 | 待辦 |
+| BL-24 | [04 §5](04-threat-to-testcase.md#5-安全等級計算規則) GraphQL mutation | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | 送到固定 `/graphql` 端點的 mutation 一律 S3，除非該端點列為 create-only（保守，會漏測） | 待辦 |
+| BL-25 | [04 §4.3](04-threat-to-testcase.md#43-binding-表) BaaS RPC | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | 非 GraphQL 的 POST 一律視為寫入：未列為 create-only 就是 S3（保守，會漏測） | 待辦 |
