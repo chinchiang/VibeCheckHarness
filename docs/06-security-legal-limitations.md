@@ -2,6 +2,28 @@
 
 > 一個會讀不可信程式碼、呼叫多家 LLM、還會對網路送出測試請求的工具包，本身就是高風險的 agentic 系統。本文件把威脅建模套用在工具包自己身上，並列出法遵事項與做不到的事。標記說明見 [README](../README.md#標記說明)。
 
+## v0.3 變更摘要
+
+- **§3 做不到**：
+  - 補上 #26–#41，共 16 條。內容包括：單人無法職責分離、staging 不等於正式環境、PASS 不代表沒有漏洞、平台後台設定、W0 完整度、目標內部的 LLM 設定、0/n 的上界、目標回應中的注入、靜態抽取與 WebSocket／SSE、kill switch、快照依平台、共享網域、校準前暫定、簽章不代表仔細審、成本與重現性、CAPTCHA 與第三方 IdP。
+  - 全部 41 條分成四類，並附索引。
+  - 既有編號不變。
+  - （M-G1）
+- **指揮官的輸入**（§1.1 ASI01）：指揮官沒有任何工具，只收到程式碼產生的型別化視圖，與 agents.yaml 一致。（N-6）
+- **ASI09 抽查**（§1.1）：
+  - 抽查母體改為所有 `CONFIRMED_*` 裁決。G2 佇列只有爭議與高嚴重度未佐證的叢集，原本的母體永遠是空的。
+  - G2 的決定另外抽查。
+  - G5 的升級方式改為「下一個 run 起改用 Full 模式」，由 validator 強制兩人核准。
+  - （N-3、N-11）
+- **保證等級**（§1.6）：職責分離依 Lite／Team／Full 而不同，定義見 [02 §1.7](02-methodology.md#17-保證等級liteteamfull)；安全底線不變。（M-G3）
+- **共享平台網域**（§2.1）：`*.supabase.co`、`*.vercel.app` 這類主機改用平台專案證明與 `platform_policies`。（H-D3）
+- **授權登錄表**（§2.3）：
+  - 新增候選工具：tree-sitter、Presidio、mitmproxy。
+  - 新增 OWASP API Security Top 10 2023，授權待查。
+  - BaxBench 的用途與 05 §5.1 一致，只作輔助資料。
+  - （M-R2、N-11）
+- **本 repo 自己的 CI** 也改為鎖 commit SHA（§1.5）。（M-R1）
+
 ## v0.2 變更摘要
 
 - **自測計畫**（§1.2.1）：以植入 prompt injection 的 repo 語料，在 M1–M5 每個里程碑，以及每次換模型或換 prompt 時，量測工具包本身；有可量測的通過條件。
@@ -29,7 +51,7 @@
 
 | ID | 對工具包的威脅 | 緩解措施（程式碼強制） |
 |---|---|---|
-| ASI01 Agent Goal Hijack | 受測 repo 的註解、README、PR metadata 內嵌文字，影響 reviewer、Commander、Test Designer 的判斷 | 指揮官只讀確定性 inventory；覆蓋下限不可減；reviewer 系統提示區分指令與資料；發現項必須通過片段比對；跨家族驗證；以 §1.2.1 自測量測 |
+| ASI01 Agent Goal Hijack | 受測 repo 的註解、README、PR metadata 內嵌文字，影響 reviewer、Commander、Test Designer 的判斷 | 指揮官沒有任何工具，只收到程式碼產生的型別化視圖（ID、狀態、桶、嚴重度、家族、數量），不含 LLM 輸出或 repo 的自由文字（[03 §4](03-system-architecture.md#4-harness指揮官如何滿足需求)）；覆蓋下限不可減；reviewer 系統提示區分指令與資料；發現項必須通過片段比對；跨家族驗證；以 §1.2.1 自測量測 |
 | ASI02 Tool Misuse and Exploitation | 產生的 ZAP、Playwright、promptfoo 設定被引導去打 ROE 以外的主機，或開啟危險模式 | 目標只能寫 ROE 目標 ID；執行前以確定性方法抽取所有 host、URL、method、旗標並比對；安全等級由程式碼計算；G4 綁定 hash |
 | ASI03 Identity and Privilege Abuse | agent 持有過多憑證；工具包在沒有授權的情況下處理程式碼 | LLM 金鑰只在 Gateway；測試帳號只在 Z3 secret store、永不進 LLM context；reviewer 無 shell、無網路；G0a 委任設定驗章前，任何程式碼都不送往 LLM、不在 Z2 執行 |
 | ASI04 Agentic Supply Chain Vulnerabilities | 工具包依賴的套件或掃描器被植入惡意程式 | 鎖版本＋hash；Actions 鎖 SHA；cosign 驗證；掃描器在沒有 CI secrets 的環境執行（見 §1.5） |
@@ -44,9 +66,10 @@
 
 | 對象 | 抽樣 | 期限 | 觸發升級 |
 |---|---|---|---|
-| G2 已核准（CONFIRMED_*）的發現項 | 每個 run 抽 10%，至少 3 筆（不足 3 筆則全抽） | run 結束後 5 個工作天內 | 抽查推翻率 >20%，或任一筆 High 以上被推翻 → 該核准人接下來 2 個 run 全數複審 |
+| 所有 `CONFIRMED_*` 裁決（W3、W4、B5 產生的最新版；多數不經過 G2） | 每個 run 抽 10%，至少 3 筆（不足 3 筆則全抽） | run 結束後 5 個工作天內 | 抽查推翻率 >20%，或任一筆 High 以上被推翻 → 該 run 的所有 `CONFIRMED_CORROBORATED` 全數複審，並檢查對應的校準權重 |
+| G2 的決定（accept／reject） | 每個 run 抽 10%，至少 2 筆 | 同上 | 抽查推翻率 >20% → 該核准人接下來 2 個 run 全數複審 |
 | G3 已核准的威脅、G4 已核准的測試案例 | 每個 run 各抽 10%，至少 2 筆 | 同上 | 發現超出 ROE 的測試案例 → 立即 `policy_violation`，停止該 engagement 的 B4 |
-| G5 已核准的 S2 job | 全數（S2 數量少） | 執行後 2 個工作天內 | 任一筆不符 → 下一個 run 的 G5 需兩人核准 |
+| G5 已核准的 S2 job | 全數（S2 數量少） | 執行後 2 個工作天內 | 任一筆不符 → 該 engagement 從下一個 run 起改用 Full 模式：G5 需兩位不同的資安審查者核准（validator 強制，`E-G5-TWO-PERSON`；[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 
 - 抽查結果寫入稽核（`gate_decision`，`actor.kind = human`，`payload.review_kind = spot_check`）。
 - 每季彙整推翻率，納入 [05](05-bias-calibration.md) 的校準資料。
@@ -145,7 +168,7 @@
 ### 1.5 供應鏈
 - **工具包自己**：
   - 所有依賴鎖版本＋hash，並產出 SBOM。
-  - GitHub Actions 鎖 commit SHA；binary 用 cosign 驗證。
+  - GitHub Actions 鎖 commit SHA；binary 用 cosign 驗證。本 repo 自己的 CI（`.github/workflows/validate.yml`）自 v0.3 起也鎖 commit SHA，並只給 `contents: read` 權限。
   - Trivy 在 2026-03-19 發布管道遭入侵（CVE-2026-33634）：v0.69.4 binary、以及 v0.69.5／v0.69.6 Docker image、trivy-action < 0.35.0、setup-trivy < 0.2.6 帶有竊密程式 [V][E:whitebox-13]。
   - LiteLLM 1.82.7／1.82.8 同樣遭入侵 [V][E:orchestration-31]。
   - 小型、發布頻率低的依賴（例如 JCS 實作 `rfc8785` 0.1.4 [V][E:orchestration-45]）要固定版本，並以 RFC 8785 附錄的測試向量做回歸測試 [H]。
@@ -176,6 +199,11 @@
   - 攻擊情境：同一份 ROE 寫兩個 `targets` 鍵。核准者用的檢視工具與驗章程式可能各取不同的值，於是簽的內容和執行的內容不同。
   - 因此驗章前必須用**嚴格 loader**：拒絕重複鍵、anchor／alias、自訂 tag，關閉隱式型別，整數限 ±2^53。違反一律視為驗章失敗 [H]（已納入 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) 與 [08 §4.1](08-implementation-spec.md#41-共用選項與結束碼)：簽署文件 → `signature_invalid`，結束碼 4）。JSON 格式的文件（例如 GateRecord、稽核事件）同樣拒絕重複鍵、NaN／Infinity、溢位的浮點數（例如 `1e400`）、絕對值超過 2^53 的整數與整數欄位的浮點數字面值（`E-JSON-STRICT`，對應 YAML 的 `E-YAML-STRICT`；該文件連同簽章與 hash chain 一律拒絕，validator 強制）[H]。
 - G5 的核准者不能是發起者。自動觸發的 run 在任何 G1 決定或 B 階段節點之前，必須由人以 `initiator_claim` 認領（D7）。
+- **職責分離依保證等級而定** [H]（定義見 [02 §1.7](02-methodology.md#17-保證等級liteteamfull)）：
+  - **Team**：ROE 的每個簽署角色必須由不同的人擔任（`E-ROE-SOD`）；G4／G5 的分離同上。
+  - **Full**：在 Team 之上，G5 需要兩位不同的資安審查者（`E-G5-TWO-PERSON`）。
+  - **Lite（單人）**：一人可以兼任多個角色，但必須在 engagement 中明確聲明（`role_consolidation`）；只允許 S0／S1，所以沒有 G5。報告首頁標示「單人模式，未經職責分離」。這是已知的限制（§3 #26），不是替代方案。
+  - 各模式的**安全底線相同**：ROE 與所有權證明、Scope Proxy、排除清單、kill switch、先遮罩再送 LLM、只測 staging。
 - 限制 checkpoint 與 audit 儲存庫的存取權。Microsoft Agent Framework 也警告不要從不可信來源載入 checkpoint [V][E:orchestration-09]。
 
 ### 1.7 稽核鏈（D12）
@@ -195,6 +223,7 @@
 
 ### 2.1 授權範圍
 - **擁有程式碼≠擁有基礎設施**。vibe-coded 應用常架在第三方平台（BaaS、PaaS、託管 DB、CDN）上。需要基礎設施擁有者的書面授權，並確認平台的安全測試政策。
+  - 共享平台網域（例如 `*.supabase.co`、`*.vercel.app`）由平台控制 DNS 與網站根目錄，無法用 DNS TXT 或 well-known path 證明所有權。這類主機必須改用**平台專案證明**（`ownership_proof.method: platform_project`），並在 ROE 的 `platform_policies` 記錄平台安全測試政策的連結、接受者與接受時間；validator 對這類主機拒絕 DNS／well-known 證明（`E-ROE-PLATFORM`）[H]。規格見 [08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)，限制見 §3 #37。
   - CVE-2025-48757 被標記為 disputed，Lovable 主張資料保護是客戶的責任 [V][E:vibe_risks-23]，可見平台與使用者的責任劃分並不單純。
 - **staging 也會碰到第三方**：email、SMS、金流、LLM API 等整合必須在 sandbox／test 模式，並列入 ROE，否則在出站層封鎖。
 - **LLM 供應商條款可能限制測試**：
@@ -326,7 +355,8 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | Pynguin | MIT（v0.30.0 起）[V][E:whitebox-38] | 會執行受測模組 | 選用（Z2） | OK |
 | Qodo Cover | AGPL-3.0，已停止維護 [V][E:whitebox-37] | — | — | 不採用 |
 | Vulnhuntr | AGPL-3.0，僅 Python [V][E:whitebox-19] | — | — | 參考 |
-| SARIF 2.1.0 | OASIS 標準 [V][E:whitebox-17] | 只實作格式，不散布規格文字 | 輸出格式 | OK |
+| SARIF 2.1.0 | OASIS 標準 [V][E:whitebox-17]；`baselineState` 等列舉值取自官方 schema [V][E:whitebox-56] | 只實作格式，不散布規格文字 | 輸出格式 | OK |
+| tree-sitter（Python binding） | MIT（PyPI 0.26.0 的 classifier）[V][E:whitebox-58] | 各語言的 grammar 套件另有授權，採用時逐一登錄 | W0 抽取器、Slicer（**候選**，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)） | 待查：採用前逐一查 grammar 授權 |
 | CycloneDX、SPDX | CycloneDX 規格 Apache-2.0；SPDX 規格 Community-Spec-1.0（舊內容 CC-BY-3.0）[V][E:whitebox-55] | 只產出該格式的 SBOM | SBOM | OK |
 
 #### 2.3.3 黑箱工具與沙箱
@@ -349,6 +379,8 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | Docker Sandboxes | sbx CLI 可免費商用；集中管理的網路、檔案系統、MCP 政策需付費訂閱 [V][單源：Docker 自家來源][E:blackbox-39] | — | Z2（選用） | 注意 |
 | E2B | repo（e2b-dev/E2B）的 LICENSE 為 Apache-2.0，PyPI／npm 2.51.0 的 metadata 為 MIT [V][E:blackbox-36]，2026-09-24 仍不一致 [V][E:blackbox-57]；自架後端 e2b-dev/infra 已改名為 e2b-dev/runtime，為 Apache-2.0 [V][E:blackbox-58] | **兩者都是寬鬆授權**：依兩者中較嚴格的一方遵守（保留 Apache-2.0 的 NOTICE 與聲明），並在 `licenses.yaml` 記錄依據與查詢日期 | 選用 | 注意（不再需要詢問上游） |
 | sandbox-runtime | Apache-2.0（research preview）[V][E:blackbox-40] | — | 選用 | OK |
+| mitmproxy | MIT（PyPI 12.2.3 的 classifier）[V][E:blackbox-67] | 只查了 PyPI metadata，未讀 repo 的 LICENSE | Z3 攔截式 proxy（**候選**，U-13 未決） | 待查：U-13 決定前讀 LICENSE |
+| Presidio（presidio-analyzer） | MIT（PyPI 2.2.364 的 license expression）[V][E:whitebox-57] | 首頁連結指向 `data-privacy-stack/presidio`，與舊的 `microsoft/presidio` 不同；採用前確認維護者 | B5 回應中的 PII 偵測（**候選**，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)） | 待查：採用前確認維護者 |
 | nftables | 未查 | 系統套件，不散布 | Z3 出站控制 | 待查：M1 前補查 |
 
 #### 2.3.4 威脅建模工具與標準
@@ -362,6 +394,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | OWASP ASVS、WSTG、AISVS | CC BY-SA 4.0 [V][E:threat_modeling-67] | 報告或 crosswalk 引用、改寫條文時要**標示來源**；散布改作內容時要**以相同授權釋出** | 需求 ID 與測試 ID | **法務閘門**：M5 前由法務確認報告中引用條文的方式，未確認則報告只列 ID 與連結、不引用條文 |
 | OWASP LLM Top 10、Agentic Top 10 | CC BY-SA 4.0（網站 footer；repo 的 LICENSE.md 只是授權摘要）[P][E:threat_modeling-68] | 同上 | 威脅分類 | 同上（M5） |
 | OWASP AI Testing Guide（AITG） | CC BY-SA 4.0 [V][E:threat_modeling-78] | 同上 | 測試 ID | 同上（M5） |
+| OWASP API Security Top 10 2023 | 未查（條目已查證 [V][E:blackbox-65]） | 只引用 ID 與名稱 | binding 表的分類（[04 §4.3](04-threat-to-testcase.md#43-binding-表)） | 待查：M4 前補查授權；查證前只列 ID |
 | OpenCRE | CC0-1.0（repo）[V][E:threat_modeling-78] | 無條件；REST API 的服務條款未查 | crosswalk 參考 | OK |
 | CWE、CAPEC | MITRE Terms of Use：可免費用於研究、開發與商業用途，但要重製 MITRE 的版權聲明 [V][E:threat_modeling-69][E:threat_modeling-70] | 報告附版權聲明 | 分類 ID | 注意 |
 | MITRE ATLAS | 資料 repo 為 Apache-2.0 [V][E:threat_modeling-71] | 保留 NOTICE | 分類 ID | OK |
@@ -371,7 +404,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 
 | 元件 | 授權 | 義務／風險 | 本設計的用法 | 狀態 |
 |---|---|---|---|---|
-| BaxBench | 程式碼與 Hugging Face 資料集皆為 MIT [V][E:vibe_risks-34] | — | Calibration 語料種子 | OK |
+| BaxBench | 程式碼與 Hugging Face 資料集皆為 MIT [V][E:vibe_risks-34] | — | Calibration 輔助資料（不用於權重與門檻，見 [05 §5.1](05-bias-calibration.md#51-語料)） | OK |
 | OWASP Benchmark（Java） | **GPL-2.0** [V][E:whitebox-50] | 當作獨立的受測目標執行，不併入工具包；**散布**修改後的 Benchmark 時才有 GPL 義務 | Calibration 對照 | 注意（只在 Z2 執行，不散布） |
 | PrimeVul | repo 為 MIT；資料集經 Google Drive 發布，README 沒有另外寫資料集授權；內容是取自真實世界 C/C++ 專案的函式（README 未明說皆為開源）[P][E:vibe_risks-35] | 內容的授權依原專案而定 | 只用於內部評估 | **法務閘門**：M2 前由法務確認（若要在報告中公開重製樣本），未確認則只用於內部評估、不重製樣本 |
 
@@ -402,6 +435,15 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 
 ## 3. 做不到／不承諾的事
 
+下表共 41 條，編號固定（其他文件以「§3 #n」引用）。依原因分成四類：
+
+| 類別 | 意思 | 條目 |
+|---|---|---|
+| A. LLM 與方法的本質限制 | 換更好的實作也改不了，只能量測與降低 | #1、#2、#6、#7、#8、#9、#11、#13、#14、#28、#30、#31、#32、#33、#34、#38 |
+| B. 環境與平台 | 取決於受測應用架在哪裡、平台開放什麼 | #3、#4、#17、#18、#20、#21、#22、#23、#27、#29、#35、#36、#37、#41 |
+| C. 組織與法務前提 | 需要人、授權或法律判斷，工具包無法代替 | #12、#24、#25、#26、#39、#40 |
+| D. 本版範圍與設計界線 | 刻意不做，或目前的設計只能做到這裡 | #5、#10、#15、#16、#19 |
+
 | # | 做不到的事 | 原因（證據） | 替代做法 |
 |---|---|---|---|
 | 1 | **無法消除模型偏誤**，只能降低與量測；也可能打不贏「單一最佳模型多次取樣」 | 錯誤相關跨供應商存在 [V][E:multi_llm_bias-01]；Self-MoA 勝過混合 MoA [V][E:multi_llm_bias-19]；沒有研究量測過 Claude／GPT／Nemotron 在此任務的錯誤相關 [P][E:multi_llm_bias-38]；評審有同意偏誤（TNR 低於 25%）[P][E:multi_llm_bias-43]，但也有研究在可驗證任務上未測到自我偏好 [V][E:multi_llm_bias-47] | Calibration Lab 用 Self-MoA 對照組實測，並量測 TNR（[05 §5](05-bias-calibration.md#5-calibration--bias-lab)） |
@@ -429,6 +471,22 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 23 | **NVIDIA 託管 API 不能用於客戶工作或安全測試本身** | 只限內部測試與評估；禁止測試其服務 [V][E:providers-41] | 只用於工具包開發期的評估；客戶工作用自架 |
 | 24 | **工具包不能判斷法律問題**（AGPL 的適用、NIM 的「測試」用途、跨境傳輸是否合法） | 屬法律判斷；FSF 也說界線最終由法院決定 [V][E:blackbox-61] | §2.1.1 的 `legal_review` 聲明＋§2.3 的法務閘門；工具包只檢查聲明存在且簽章有效 |
 | 25 | **簽署時間是簽署者自己宣告的，沒有時間戳記機構** | `issued_at`、關卡 `timestamp`、稽核 `ts` 都由簽署端寫入 [H]；金鑰以非 `compromised` 原因撤銷後，持有私鑰的人仍可倒填時間，簽出「撤銷前」的有效簽章 | 撤銷後盡快把金鑰改標為 `compromised`（若有疑慮）；以稽核鏈錨點（§1.7）交叉比對時間；需要更強保證的 engagement 另接外部時間戳記服務 [H] |
+| 26 | **單人使用（Lite 模式）無法提供職責分離** | 同一個人同時是發起者、核准者與測試負責人時，關卡只剩「自己確認自己」[H] | 必須在 engagement 明確聲明一人兼多角色（`role_consolidation`）；只允許 S0／S1；報告首頁標示「單人模式，未經職責分離」；需要 S2 或對外交付的結果，改用 Team 模式（[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
+| 27 | **staging 的結果不等於正式環境的結果** | 設定、資料、secrets、WAF、feature flag、平台方案都可能不同；版本識別只證明跑的是同一個 commit，不證明設定相同 [H] | B0 以 `build_identity` 確認 commit（不一致就不執行）；G1 宣告已知的環境差異；報告寫明「只代表 staging 在測試時的狀態」 |
+| 28 | **PASS 不代表沒有漏洞** | 測試只覆蓋有限的條件；PASS 永遠不會單獨讓叢集變成 `REJECTED`（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）[H] | 報告一律寫「在測試條件下未重現」；報告敘事 linter 禁止「沒有漏洞」等說法（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）；沒有正對照的 PASS 另行標示 |
+| 29 | **只存在於平台後台的設定看不到**（例如 BaaS 的認證設定、託管平台的環境變數、主控台上的安全規則） | W0 只讀 repo；這些設定不在程式碼裡 [H] | 在 G1 以問卷宣告為輸入，或在 inventory 記為盲點（`blind_spots`）；黑箱測試只能驗證看得到的效果（[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)） |
+| 30 | **W0 盤點的完整度無法證明** | 動態路由、產生的程式碼、不支援的框架都可能漏掉 [H] | 支援矩陣與 `blind_spots` 明列不支援的部分；W0 與 B1 的端點比對（inventory drift）找出漏掉的入口（[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)） |
+| 31 | **從外部看不到受測應用內部的 LLM 設定**（system prompt、取樣參數、工具定義、上游模型版本） | 黑箱只看得到輸入與輸出；上游模型可能在測試期間改版 [H] | G1 宣告 LLM 工具與權限（`llm_tools`）；白箱的 `llm_integration` 面向審查程式碼中的設定；結果以「在測試當時的設定下」陳述 |
+| 32 | **n 次試驗 0 次違反，只能給出違反率的上界，不能證明違反率為 0** | 單側 95% 上界 p_u＝1 − 0.05^(1/n)：n＝20 時約 13.9%，n＝30 時約 9.5%（[04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界)）[H] | 報告列出上界；高風險項目提高 n；不寫「已修正」 |
+| 33 | **受測應用的回應可能對工具包的 LLM 造成 prompt injection**（B5 結果分析、relay） | 回應內容來自不可信的目標 [H]；§1.2 的注入風險同樣適用 | 裁決優先依確定性 oracle：事先登記解讀的確定性 FAIL 不需要 LLM 就能成為可執行證明（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）；回應遮罩後才以「資料」的形式交給 LLM；Result Analyst 的輸出不能推翻確定性 oracle 的結果 |
+| 34 | **靜態抽取與呼叫圖一定不完整；WebSocket、SSE 的內容只能部分檢查** | 動態分派、反射、框架慣例；長連線的訊息內容不一定能逐則比對 [H] | 限制與盲點寫進切片與 inventory（[08 §11.3](08-implementation-spec.md#113-slicer)）；經 WebSocket／SSE 的測試限 S0／S1，並列入人工複核（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
+| 35 | **kill switch 撤不回已經送出的請求** | 停止只能阻止下一個請求；已送出的請求可能已被處理 [H] | 每個 job 的請求白名單與預算、限速；S2 只在可快照還原時執行；外部整合一律 sandbox（#17） |
+| 36 | **快照與還原的能力依平台而定** | 託管 DB 或 BaaS 可能不開放快照，或還原很慢 [H] | `snapshot_method: none` 時不執行 S2（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）；需要 DB oracle 的測試改用只看 API 回應的 oracle |
+| 37 | **共享平台網域無法以 DNS 或 well-known path 證明所有權**（例如 `*.supabase.co`、`*.vercel.app`） | 平台控制這些網域的 DNS 與網站根目錄 [H] | 改用平台專案證明＋`platform_policies`（§2.1、[08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)）；報告標示「所有權以平台專案證明，未以 DNS 驗證」 |
+| 38 | **校準完成前，所有裁決都是暫定的** | 權重全部為 0、θ＝+∞、高精準規則白名單為空，所以投票與工具結果都不能單獨確認（[05 §4.3](05-bias-calibration.md#43-投票加權)、[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）[H] | 裁決標示 `provisional`；確認只來自可執行證明；報告首頁說明 |
+| 39 | **簽章只證明「誰核准」，不證明「有仔細審過」** | 人可能照單全收（ASI09，§1.1）[H] | 關卡顯示證據而非只有敘事；可以部分核准；§1.1 的定期抽查與升級規則 |
+| 40 | **成本與結果都無法完全重現** | LLM 輸出有隨機性 [V][E:multi_llm_bias-11]；供應商會更新模型與價格 [H] | run manifest 記錄帶日期的模型 ID、prompt 範本 hash、工具版本與設定 hash（[08 §11.13](08-implementation-spec.md#1113-run-manifest-與-prompt-範本登錄)）；執行前估算成本並設上限（[08 §11.12](08-implementation-spec.md#1112-成本模型與價格)）；重跑只保證「分布相近」，不保證逐字相同 |
+| 41 | **CAPTCHA、第三方 IdP、MFA 可能讓某些角色無法自動登入** | 工具包不繞過 CAPTCHA，也不能控制第三方 IdP [H] | staging 提供 CAPTCHA bypass token 或測試用 IdP 租戶；MFA 只用測試帳號的 TOTP；都沒有時，該角色的測試標 `SKIPPED` 並列入 B6（[08 §11.8](08-implementation-spec.md#118-session-provider)） |
 
 ## 4. 開放的法務與查證項目
 
@@ -455,3 +513,5 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | OWASP LLM Top 10 2026 官方 PDF | **已結案**：ID 與 S-01 一致 [V][E:threat_modeling-73]；頁面標題與日期細節 [P][E:threat_modeling-72] | 已完成：新委任預設切到 `owasp-llm@2026`（[04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照)） | toolkit_maintainer | —（已結案） |
 | E2B 授權不一致 | 仍不一致，但兩者都是寬鬆授權 [V][E:blackbox-57] | 在 `licenses.yaml` 記錄依據；不再阻擋 | toolkit_maintainer | M1（登錄） |
 | Hypothesis、fast-check、PyRIT、garak 的授權 | **已結案**：已查並經獨立查核 [V][E:whitebox-47]～[E:reference_systems-56] | 無；已登錄於 §2.3 與 `licenses.yaml` | — | — |
+| OWASP API Security Top 10 2023 的授權 | 條目已查 [V][E:blackbox-65]；授權未查 | 補查；查證前只列 ID 與名稱 | toolkit_maintainer | M4 前 |
+| 候選工具 tree-sitter、mitmproxy、Presidio | 只查了 PyPI metadata [V][E:whitebox-58][E:blackbox-67][E:whitebox-57] | 採用前讀 repo 的 LICENSE、確認 grammar 授權與 Presidio 的維護者 | toolkit_maintainer | 採用前（mitmproxy 依 U-13） |

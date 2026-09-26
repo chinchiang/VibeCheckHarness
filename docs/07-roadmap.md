@@ -11,6 +11,22 @@
 >
 > 里程碑的切分與出口準則都是設計選擇 [H]。
 
+## v0.3 變更摘要
+
+- **分段 MVP**（§1.1）：
+  - 開發與交付的順序改為四個可用的縱向切片：
+    - **MVP-0**：白箱、不連網，先支援 Next.js＋Supabase
+    - **MVP-1**：本地拋棄式目標
+    - **MVP-2**：staging，只跑 S0／S1
+    - **MVP-3 以後**：S2＋G5、LLM 功能測試、校準等
+  - 每段都有可量測的出場條件，並列出沿用哪些 M 準則。
+  - 里程碑 M1–M5 保留，作為元件的歸屬與出口準則。
+  - （M-G2）
+- **保證等級**：每個 MVP 標示可用的模式（Lite／Team／Full，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)）。（M-G3）
+- **指揮官的加值要量測**（M2-X12）：指揮官維持為核心元件，但它的計畫必須包含確定性的覆蓋下限；它額外加派的內容是否產生有效叢集，要記錄並報告。（M-G4）
+- **ASI09 抽查**（M2-X7）：抽查對象改為所有 `CONFIRMED_*` 裁決與 G2 的決定。（N-3）
+- **法務閘門與工具佐證**（§3）：法務閘門未結案的 adapter（例如 `semgrep:scan`）產生的 SARIF，validator 不算佐證（`E-SARIF-REF`）。（N-7）
+
 ## v0.2 變更摘要
 
 - **歸屬**：[03 §1](03-system-architecture.md#1-元件總覽) 的每個元件、[03 §5.7](03-system-architecture.md#57-節點規格表) 的每個節點，都指定了里程碑（§2）。
@@ -38,6 +54,38 @@
 
 - 進入每個里程碑之前，§3 的入口閘門都要結案；
 - 離開之前，§4 的出口準則全部通過，而且達到 [08 §9.1](08-implementation-spec.md#91-各里程碑) 的完成定義。
+
+### 1.1 分段 MVP
+
+里程碑 M1–M5 是依元件分層切的；只完成 M1 時，使用者還拿不到任何可用的結果。因此 v0.3 把**開發與交付的順序**改成下列四段縱向切片 [H]：
+- 每一段都能獨立交付，並有自己的出場條件（`MVPn-Xk`）。
+- 每一段也沿用部分 M 準則。一個 M 里程碑的全部準則，要等它的元件都完成後才整體驗收。
+- 已經寫在 M 準則裡的，不在這裡重複。
+
+| 階段 | 交付什麼 | 不包含 | 可用的模式 | 沿用的 M 準則 |
+|---|---|---|---|---|
+| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W1：secrets、SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`NEXT_PUBLIC_`、`VITE_`）<br>• W0.5／G1<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11 |
+| **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`），跑 B0–B6：<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M3-X1、X5；M4-X2～X5、X7 |
+| **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• G0b 與 `legal_review`<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X1～X3、X8、X9；M4-X3、X8 |
+| **MVP-3 以後** | 依序加入：<br>• staging 的 S2＋G5（Full 模式需兩人核准）<br>• LLM 功能測試，先做 G4 核准的腳本式多輪（M5）<br>• Calibration Lab 與 `high_precision_rules`（M2-X1）<br>• CI Lane B 完整版<br>• 靜態 HTML 報告<br>• adaptive relay（只限 Full，[09 BL-10](09-backlog.md)） | — | 依功能而定 | M2-X1～X3、X5、X7～X9、X12；M4 其餘；M5 全部 |
+
+**出場條件**：
+
+| # | 準則 | 如何量測 | 不通過的判斷 |
+|---|---|---|---|
+| MVP0-X1 | 在 `notes-rls-app`（Next.js＋Supabase 型的範例，[08 §8.3](08-implementation-spec.md#83-範例應用整合測試的目標)）上找出下列三個植入問題：<br>• 沒有 RLS 的資料表：以 `inventory_fact` 證據支撐<br>• bundle 中的公開前綴金鑰<br>• 幻覺套件名稱 | 整合測試（CI 用錄製的 LLM 回應） | 任一個沒有找到，或 RLS 問題因為交不出程式片段而被判 `REJECTED` |
+| MVP0-X2 | 遮罩之前沒有任何 LLM 呼叫；除了 Model Gateway 與套件鏡像，沒有任何出站連線 | 稽核檔＋Z2 出站紀錄 | 有任何一例 |
+| MVP0-X3 | SARIF 通過 SARIF 2.1.0 schema 驗證；在同一個 commit 上重跑時，所有叢集的 `baseline_state` 都是 `unchanged` | `fast` 線＋整合測試 | 驗證失敗，或指紋不穩定 |
+| MVP0-X4 | 沒有校準資料時，每個裁決都是 `provisional`；沒有可執行證明的叢集不會是 `CONFIRMED_*` | 性質測試 | 有任何一例 |
+| MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator＋報告測試 | 缺少聲明卻通過，或報告沒有標示 |
+| MVP1-X1 | 範例 A 在本地目標上：<br>• 植入版的 TC-012-01 FAIL，並且**不經 LLM 分析者**就裁決為 `CONFIRMED_EXECUTABLE`（G4 已事先登記解讀）<br>• 修正版 PASS，且所有 control 都通過 | 整合測試 | 任一步不符 |
+| MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點 | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
+| MVP1-X3 | 故障注入（session 過期、路徑錯誤、種子遺失）時，結果是 `INVALID`，不是 PASS；報告列出 control 通過率 | 整合測試 | 有任何一例被當成 PASS |
+| MVP1-X4 | 沒有來源叢集的黑箱威脅，結果寫進 `origin: black_box` 的叢集並有裁決 | 整合測試 | 結果沒有裁決路徑 |
+| MVP2-X1 | 部署的版本與 `repo_commit` 不一致時，job 不執行，並列入 B6；`build_identity.method: none` 的目標在報告中列為「版本未驗證」 | 整合測試 | 不一致仍執行，或報告沒有列出 |
+| MVP2-X2 | 共享平台網域的目標沒有 `platform_project` 證明與 `platform_policies` 時，G0b 拒絕 | `security` 線 | 被接受 |
+| MVP2-X3 | 每一批測試前，每個角色都先通過 whoami；需要 CAPTCHA 或第三方 IdP、卻沒有 staging 旁路的角色，其測試標 `SKIPPED` 並列入 B6 | 整合測試 | 未驗證身分就執行，或沒有列出略過的測試 |
+| MVP2-X4 | ST-1＝0：canary-server 的「ROE 以外」接收器沒有任何命中 | `selftest-report.json` | 大於 0 |
 
 ## 2. 元件與節點的歸屬
 
@@ -87,7 +135,7 @@
 | **M1 前** | Anthropic API 條款 [V][E:providers-43][E:providers-44] | legal_reviewer | M1 不受影響；M2 的 `claude_*` 別名不啟用 |
 | | TruffleHog（AGPL，`trufflehog:scan`）[V][E:whitebox-51]～[E:blackbox-61] | legal_reviewer | `trufflehog:scan` 不註冊；W0 只用 `betterleaks:scan`／`gitleaks:scan` |
 | | psycopg（LGPL-3.0）的散布形式 [V][E:orchestration-42] | legal_reviewer | 只做內部部署，不對外散布 `vibecheck-z1` 映像 |
-| | Semgrep 官方規則（`semgrep:scan`）、CodeQL CLI（`codeql:analyze`）用於私有碼。CodeQL 條款允許在 GitHub.com 上託管與維護的開源碼庫做 CI／CD 的資料庫產生，限制只及於其他情境 [P][E:whitebox-04][E:whitebox-07][E:whitebox-53] | legal_reviewer | 兩者不註冊（`tools.yaml` 已登錄、受 `licenses.yaml` 法務閘門控制）；W1 只用 Opengrep＋自有規則。CodeQL 只可用於符合上述條件的開源 repo |
+| | Semgrep 官方規則（`semgrep:scan`）、CodeQL CLI（`codeql:analyze`）用於私有碼（閘門未結案時，這兩個 adapter 的 SARIF 也不算佐證：validator 回報 `E-SARIF-REF`）。CodeQL 條款允許在 GitHub.com 上託管與維護的開源碼庫做 CI／CD 的資料庫產生，限制只及於其他情境 [P][E:whitebox-04][E:whitebox-07][E:whitebox-53] | legal_reviewer | 兩者不註冊（`tools.yaml` 已登錄、受 `licenses.yaml` 法務閘門控制）；W1 只用 Opengrep＋自有規則。CodeQL 只可用於符合上述條件的開源 repo |
 | | nftables 授權（未查） | toolkit_maintainer | 補查完成前，Z2／Z3 的出站規則由容器執行環境的網路政策負責 |
 | | E2B 的授權依據 [V][E:blackbox-57] | toolkit_maintainer | 寫進 `licenses.yaml`（不阻擋） |
 | | G-11：固定 runsc／Firecracker 的版本、訂閱 CVE；逃逸測試列入 ST-7 | toolkit_maintainer | 不啟用 Z2 |
@@ -117,7 +165,7 @@
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish` | 整合測試 | inventory 沒有 `routes/invoices.ts:42` 或 `invoices` 的 RLS 不是「無」；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
+| M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish` | 整合測試 | inventory 沒有 `routes/invoices.ts:42`，或 `db.tables` 中 `invoices` 的 `rls_enabled` 不是 `false`<!-- SYNC-A: inventory field names -->；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
 | M1-X2 | 必須拒絕清單 N-01–N-31 全部通過 | `security` 線 | 任一項沒有拒絕，或沒有對應的稽核事件 |
 | M1-X3 | ST-1＝0、ST-3＝0、ST-7＝0（[06 §1.2.1](06-security-legal-limitations.md#121-工具包自測計畫植入注入的-repo-h)）；M1 的每個注入向量 ≥3 個樣本；每個 twin ≥10 個已知漏洞 | [selftest-report](schemas/selftest-report.schema.json)：三項都是 `status: RUN`、`passed: true` | 任一個大於 0，或任一項為 `NOT_RUN` |
 | M1-X4 | 在每個 M1 節點的邊界 kill 行程後 resume | 整合測試 | 最終產物的 hash 與不中斷的 run 不同；Sandbox job 被重跑；稽核去重後有重複事件 |
@@ -146,11 +194,12 @@
 | M2-X4 | Lane A 的結果永遠不會是 `CONFIRMED_*`（R9） | 性質測試＋ST | 出現任何一例 |
 | M2-X5 | 關卡行為：[03 §6.2](03-system-architecture.md#62-關卡逾時預設值) 的逾時；G2 未決定的項目視為 `NEEDS_INFO`；職責分離；偽造或重送的 GateRecord 被拒絕 | `security` 線 | 任一項不符 |
 | M2-X6 | 預算：80% 發出事件；用盡時進 GB；沒有費用上限時 fail-closed（[03 §11](03-system-architecture.md#11-成本與延遲模型)） | 整合測試 | 超出上限仍繼續呼叫 |
-| M2-X7 | ASI09 抽查：每個 run 抽 G2 的 10%（最少 3 項）；複核者不是原核准者；5 個工作天內完成 | 抽查紀錄 | 抽樣率不足、複核者是原核准者，或逾期 |
+| M2-X7 | ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）：每個 run 抽所有 `CONFIRMED_*` 裁決的 10%（最少 3 項）與 G2 決定的 10%（最少 2 項）；複核者不是原核准者或發起者；5 個工作天內完成 | 抽查紀錄 | 抽樣率不足、複核者是原核准者，或逾期 |
 | M2-X8 | §3「M2 前」全部結案；研究缺口 G-02、G-03、G-04、G-05、G-06、G-09、G-13 都完成 01 §5 列出的動作（例如 G-02：找到 Lacrosse 的資料，或在 Calibration 報告中註明找不到） | 驗收包 | 有缺口沒有完成動作 |
-| M2-X9 | 模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已換成 `claude_opus_48`（U-11 已決定 [V][E:providers-52]），且替代模型已完成 05 §5.8 的最小重跑 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
+| M2-X9 | 模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已換成 `claude_opus_48`（U-11 已決定 [V][單源][E:providers-52]），且替代模型已完成 05 §5.8 的最小重跑 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
 | M2-X10 | [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的最小重跑：`model_key` 改變後，完成重跑之前該模型的權重 w＝0 | 整合測試 | 重跑前 w≠0 |
 | M2-X11 | 每個 LLM 輸出都通過 schema 驗證，或有記錄在案的修復或缺票 | 稽核查核 | 有未驗證的輸出進入 Blackboard |
+| M2-X12 | 指揮官的加值：每份計畫都包含確定性的覆蓋下限（必要面向，`E-PLAN-FACETS`）；報告列出指揮官在下限之外加派的切片、面向與 CMD-2 輪次，以及其中產生有效叢集（`LIKELY` 以上）的比例 | 計畫檔＋報告 | 有計畫少於覆蓋下限；沒有報告加派結果（只量測、不設門檻） |
 
 ### M3 威脅建模
 
@@ -236,7 +285,7 @@
 - **模型**：重新查證模型 ID、版本與退役日期。
   - 旗艦模型「GPT-6 Astra／Sol」[P][E:providers-31] 以別名 `gpt_flagship` 引用；程式與設定檔只使用別名，不寫死模型 ID（模型 ID 只寫在 `models.yaml`：U-12 已決定綁 `gpt-6-sol` [V][E:providers-46]）。
   - `models.yaml` 的每個別名都有 `earliest_retirement`；Gateway 在退役前 30 天發出警告 [H]。
-  - `claude_haiku`（Claude Haiku 4.5）最早在 2026-10-15 退役 [V][E:providers-49]。使用者已決定改用 Claude Opus 4.8（`claude_opus_48`，最早 2027-05-28 退役 [V][E:providers-52]；[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-11），範例已更新；M2 仍要完成替代模型的最小重跑。
+  - `claude_haiku`（Claude Haiku 4.5）最早在 2026-10-15 退役 [V][E:providers-49]。使用者已決定改用 Claude Opus 4.8（`claude_opus_48`，最早 2027-05-28 退役 [V][單源][E:providers-52]；[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-11），範例已更新；M2 仍要完成替代模型的最小重跑。
   - 模型改變時，依 05 §5.8 重跑，並重跑全部自測。
 - **授權**：更新授權登錄表（[06 §2.3](06-security-legal-limitations.md#23-授權登錄表)）與 `licenses.yaml`，並結案下一個里程碑的入口閘門（§3）。
 - **威脅模型**：更新工具包自己的威脅模型（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。

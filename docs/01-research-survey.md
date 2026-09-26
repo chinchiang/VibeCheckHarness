@@ -1,6 +1,11 @@
 # 01 研究調查：查證方法、參考專案與文獻
 
-> 研究日期：2026-09-23（v0.1）；2026-09-24（v0.2 補充研究，見 [§7](#7-v02-補充研究2026-09-24)）。範圍限定在**防禦性**的程式審查、測試生成、威脅建模與驗證測試；**刻意不研究**攻擊技術細節（例如 CAPEC／ATLAS 的執行流程）。標記說明見 [README](../README.md#標記說明)。
+> 研究日期：2026-09-23（v0.1）；2026-09-24（v0.2 補充研究，見 [§7](#7-v02-補充研究2026-09-24)）；2026-09-26（v0.3 補充查證，見 [§8](#8-v03-補充查證2026-09-26)）。範圍限定在**防禦性**的程式審查、測試生成、威脅建模與驗證測試；**刻意不研究**攻擊技術細節（例如 CAPEC／ATLAS 的執行流程）。標記說明見 [README](../README.md#標記說明)。
+
+## v0.3 變更摘要
+
+- **新增 §8 補充查證**（2026-09-26）：深度審查（[review-2026-09-26](evidence/review-2026-09-26.md)）需要的 8 條事實，逐條對照一手來源查證後併入帳本（全部已查證；帳本欄位 `merged_from` 為 `review-2026-09-26-NN`）。帳本合計 **454** 條。（M-R2）
+- **標記一致**（§1.2）：providers-52 同時標 [V] 與 [單源]：已查證，但來源只有 Anthropic 官方頁面。（N-11）
 
 ## v0.2 變更摘要
 
@@ -30,11 +35,11 @@
 5. **撰寫後查核**：文件完成後，再由獨立代理把每個事實陳述逐條比對證據帳本的**查核結果與更正**（不是原始主張）。
 
 ### 1.2 結果統計
-- 證據帳本共 **446** 條發現（v0.1 的 321 條加上 v0.2 的 125 條）：
-  - 已查證 379 條（v0.1 273、v0.2 106）
+- 證據帳本共 **454** 條發現（v0.1 的 321 條、v0.2 的 125 條、v0.3 的 8 條）：
+  - 已查證 387 條（v0.1 273、v0.2 106、v0.3 8）
   - 部分查證 60 條（v0.1 43、v0.2 17）
   - 被推翻、已更正 7 條（v0.1 5、v0.2 2）
-  - v0.2 的第 125 條是 providers-52（Claude Opus 4.8，U-11 的替代模型，2026-09-25 加入）；只以三個 Anthropic 官方頁面互相核對，屬廠商來源 [單源]。
+  - v0.2 的第 125 條是 providers-52（Claude Opus 4.8，U-11 的替代模型，2026-09-25 加入）；只以三個 Anthropic 官方頁面互相核對：已查證，但屬廠商來源，因此標 [V][單源]。
 - 完整內容見 [evidence/ledger.md](evidence/ledger.md)（英文原文＋查核意見＋來源），機器可讀版見 [evidence/research-findings.json](evidence/research-findings.json)。
 - **獨立性的限制**：不少條目只能以原始或廠商來源確認，例如「只查了 CrewAI 自己的文件」「只有 SoK 能確認」。審查代理以關鍵字比對估計，至少有 55 條屬於這類 [單源：審查代理估計]。文件中這類陳述另標 **[單源]**。
 - **連結檢查**：2026-09-23 以 curl 檢查約 670 個外部 URL，結果見 [evidence/link-check-2026-09-23.md](evidence/link-check-2026-09-23.md)。
@@ -394,3 +399,23 @@ v0.1 寫「只找到廠商自述」；v0.2 找到下列非廠商來源，但**�
 | OWASP Agentic Top 10 2026 | 官方 PDF 的正式名稱：ASI02 為「Tool Misuse and Exploitation」、ASI05 為「Unexpected Code Execution (RCE)」 | [V][E:threat_modeling-76] |
 | WSTG | v4.2 為穩定版、v5.0 開發中；網址見 S-06 | [V][E:threat_modeling-77] |
 | MITRE ATLAS | 2026.09（2026-09-14）仍是最新版 | [V][E:threat_modeling-37] |
+
+## 8. v0.3 補充查證（2026-09-26）
+
+2026-09-26 的深度審查（[review-2026-09-26](evidence/review-2026-09-26.md)）指出，修正內容需要下列事實。每一條都直接讀一手來源查證（官方專案頁、官方 schema 檔、官方文件、官方 PDF、PyPI metadata），全部標 [V]。
+
+| 證據 ID | 內容 | 用在 |
+|---|---|---|
+| [E:blackbox-65] | OWASP API Security Top 10 2023 的 10 個條目；API3:2023 合併了 2019 年的 Excessive Data Exposure 與 Mass Assignment | [04 §4.3](04-threat-to-testcase.md#43-binding-表) 的分類 |
+| [E:blackbox-66] | Schemathesis `ignored_auth` 只對 schema 宣告了認證的操作執行（401 或 403 算有強制）；`use_after_free` 在成功 DELETE 之後預期 404 | 04 binding 表、[08 §11.10](08-implementation-spec.md#1110-沒有-openapi-的應用) |
+| [E:blackbox-67] | mitmproxy 12.2.3 在 PyPI 的授權 classifier 為 MIT | U-13 的候選（未選定） |
+| [E:whitebox-56] | SARIF 2.1.0 官方 schema 中，`baselineState`、`kind`、`level`、`suppressions` 的列舉值，以及 `webRequest`、`partialFingerprints`、`logicalLocations` 等欄位 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) |
+| [E:whitebox-57] | presidio-analyzer 2.2.364 在 PyPI 的授權為 MIT；首頁連結指向 `data-privacy-stack/presidio` | PII 偵測器的候選（未選定） |
+| [E:whitebox-58] | tree-sitter 的 Python binding 0.26.0 在 PyPI 的授權 classifier 為 MIT（各語言 grammar 另計） | W0 抽取器與 Slicer 的候選（未選定） |
+| [E:threat_modeling-79] | OWASP LLM Top 10 2026 PDF 的版本界線：模型是應用中的元件時用 LLM 清單；模型成為能呼叫工具、帶記憶、造成下游後果的行動者時，改用 Agentic Top 10，並建議兩者搭配 | [04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照) |
+| [E:threat_modeling-80] | 同一份 PDF 的附錄 A 把每個條目對應到 CWE 4.20（分主要與輔助），例如 LLM01→CWE-1427、LLM10→CWE-1426、CWE-116、CWE-79 | 叢集的 CWE 桶、威脅紀錄 |
+
+**限制**：
+- PyPI 的授權欄位是發布者自填的 metadata。三個候選工具都要在採用前讀 repo 的 LICENSE（[06 §4](06-security-legal-limitations.md#4-開放的法務與查證項目)）。
+- 本環境的 GitHub API 只對已附加的 repo 開放，所以這次沒有使用 GitHub license API。
+- 附錄 A 是多欄表格，這次只讀了表中列出的幾列，沒有完整轉錄。
