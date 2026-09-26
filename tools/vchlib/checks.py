@@ -2465,22 +2465,35 @@ def g_crosswalk(R: Report, c: Ctx):
 
 # ============================================================== 19 LLM-facing schemas
 def g_llm_schemas(R: Report, c: Ctx):
-    for name in ("finding", "threat", "testcase", "commander-plan"):
-        s = c.b.schemas.get(name)
-        if not R.check(s is not None, "E-LLM-SCHEMA", name, "schema missing"):
+    """C / D7: for every LLM_OUTPUTS entry, project (harness-owned fields removed) and degrade the archival schema;
+    the result uses only the cross-vendor subset, contains no harness-owned field, and every example's LLM part
+    validates against it (round trip: the LLM part plus the harness fields is the archival example)."""
+    schemas = c.b.schemas
+    for out_name, spec in llm_schema.LLM_OUTPUTS.items():
+        where = f"LLM output {out_name} ({spec['schema']}.schema.json)"
+        s = schemas.get(spec["schema"])
+        if not R.check(s is not None, "E-LLM-SCHEMA", where, "schema missing"):
             continue
-        deg = llm_schema.degrade_for_llm(s)
+        try:
+            deg = llm_schema.degrade_for_llm(llm_schema.project(s, spec, schemas), schemas)
+        except llm_schema.DegradeError as exc:
+            R.error("E-LLM-SCHEMA", where, f"cannot be degraded: {exc}")
+            continue
         hits = llm_schema.find_forbidden(deg)
-        R.check(not hits, "E-LLM-SCHEMA", f"{name} (degraded)", f"outside the common subset: {hits[:5]}")
+        R.check(not hits, "E-LLM-SCHEMA", where, f"outside the common subset: {hits[:5]}")
+        owned = llm_schema.owned_paths_present(deg, spec)
+        R.check(not owned, "E-LLM-SCHEMA", where, f"harness-owned fields are still in the LLM schema: {owned}")
         try:
             Draft202012Validator.check_schema(deg)
         except SchemaError as exc:
-            R.error("E-LLM-SCHEMA", f"{name} (degraded)", exc.message)
+            R.error("E-LLM-SCHEMA", where, exc.message)
             continue
         v = Draft202012Validator(deg)
-        for d in c.docs(name):
-            errs = list(v.iter_errors(d.data))
-            R.check(not errs, "E-LLM-SCHEMA", d.path, f"does not validate against the degraded schema: {errs[0].message[:200] if errs else ''}")
+        for d in c.docs(spec["schema"]):
+            for part in llm_schema.project_instance(d.data, spec):
+                errs = list(v.iter_errors(part))
+                R.check(not errs, "E-LLM-SCHEMA", d.path,
+                        f"{out_name}: the LLM part does not validate against the degraded schema: {errs[0].message[:200] if errs else ''}")
 
 
 # ============================================================== 20 toolkit

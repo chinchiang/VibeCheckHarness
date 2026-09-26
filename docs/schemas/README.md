@@ -1,6 +1,22 @@
-# 資料模型（JSON Schema 2020-12，v0.2）
+# 資料模型（JSON Schema 2020-12，v0.3）
 
-這裡的 schema 是**存檔與交換用**的完整版本。送給 LLM 的「輸出用 schema」由程式自動**降級**為跨廠商的最小公約數：去除數值與長度限制、`pattern`、`format`、`multipleOf`、`$ref`；所有物件設 `additionalProperties: false` 並把所有欄位列為 required；`minItems` 最大為 1。LLM 輸出取得後，再以這裡的完整 schema 驗證（見 [03 §8.3](../03-system-architecture.md#83-結構化輸出跨廠商最小公約數)）。降級程式在 [tools/vchlib/llm_schema.py](../../tools/vchlib/llm_schema.py)，目前套用在 finding、threat、testcase、commander-plan。
+這裡的 schema 是**存檔與交換用**的完整版本。送給 LLM 的「輸出用 schema」由程式自動產生（見 [03 §8.3](../03-system-architecture.md#83-結構化輸出跨廠商最小公約數)；程式在 [tools/vchlib/llm_schema.py](../../tools/vchlib/llm_schema.py)），分兩步：
+
+1. **投影**（`project`）：解析所有 `$ref`（含跨檔的 `common.schema.json#/$defs/...`、`requirement.schema.json`），取出 LLM 要寫的部分，並**移除 Harness 自己填的欄位**（ID、hash、run_id、家族、狀態、比對結果、安全等級、核准）。登錄表 `LLM_OUTPUTS`：
+   - `finding`：移除 `finding_id`、`run_id`、`slice_id`、`reporter`、`status`、`evidence[].snippet_sha256`、`evidence[].match`
+   - `vote`（verdict 的 `votes[]`）：只留 `stance`、`rationale`、`cited_evidence`
+   - `threat`：移除 `threat_id`、`source_cluster_id`、`source_finding_ids`、`modeled_by`、`review`、`evidence[].match`、`crosswalk[].provenance／source_ref／reviewed_by`
+   - `testcase`：移除 `testcase_id`、`threat_id`、`source_cluster_id`、`safety_class_computed`、`seed_manifest_ref`、`oracle.oracle_query_sha256`、`tool_binding.params`（自由格式，由 adapter 範本填）、`strategy_template_sha256`、`artifact_sha256`
+   - `commander-plan`：移除 `plan_id`、`decision_node`、`round`、`followup_drafts[].draft_id`
+   - `invariants`：移除 `engagement_id`、`run_id`、`round`、`drafted_by`、`signoff`、`invariants[].requirement_id／ref／signoff`
+   - `dfd`：移除 `dfd_id`、`run_id`、`viewpoint`、`elements[].provenance`、`b1_diff`
+   - `result-interpretation`（testresult 的 `interpretation`）：只留 `agrees`、`rationale`
+2. **降級**（`degrade_for_llm`）成 Claude／OpenAI strict 的共通子集：
+   - 直接移除（完整 schema 事後再驗）：`contains` `default` `exclusiveMaximum` `exclusiveMinimum` `format` `maxLength` `maxProperties` `maximum` `minLength` `minProperties` `minimum` `multipleOf` `pattern` `propertyNames` `uniqueItems`
+   - 改寫：`const` → 單值 `enum`；`$ref` 內嵌、`$defs` 移除；無法解析的 `$ref` 是錯誤（不會變成 `{}`）
+   - 拒絕（`DegradeError`，列出路徑；必須在投影中移除或改 schema）：`additionalItems` `allOf` `dependentRequired` `dependentSchemas` `else` `if` `not` `oneOf` `patternProperties` `prefixItems` `then` `unevaluatedItems` `unevaluatedProperties`，以及自由格式物件（沒有 `properties`，或 `additionalProperties` 為 true／schema）
+   - 不在完整 schema `required` 中的欄位先改成可為 null，再把所有欄位列為 required；每個物件（含 `type: ["object","null"]`）設 `additionalProperties: false`；型別陣列保留；`minItems` 最大為 1
+   - 降級結果不得含 `FORBIDDEN_FOR_LLM`（上面三組的聯集）中的任何關鍵字，也不得含 Harness 欄位（`E-LLM-SCHEMA`）。LLM 輸出取得後，Harness 填回自己的欄位，再以這裡的完整 schema 驗證。
 
 每個 schema 的 `$id` 等於檔名；跨檔引用只用 `common.schema.json#/$defs/...`。
 
