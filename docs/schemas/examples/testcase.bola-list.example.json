@@ -1,0 +1,109 @@
+{
+  "testcase_id": "TC-033-01",
+  "threat_id": "T-033",
+  "requirement_ids": [
+    "REQ-ASVS-8.2.2",
+    "INV-AC-007"
+  ],
+  "abuse_case_id": null,
+  "source_cluster_id": null,
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "preconditions": [
+    "種子資料：合成租戶 A、B 各一張發票",
+    "角色 tenantA_user、tenantB_user 的 storageState 由 Session Provider 提供"
+  ],
+  "steps": [
+    "以 tenantA_user GET /api/invoices（發票列表）",
+    "檢查列表中沒有 tenant_b_invoice 的 id"
+  ],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "kind": "reachability",
+      "description": "tenantA_user 讀發票列表：認證有效、請求到達列表端點",
+      "steps": [
+        "以 tenantA_user GET /api/invoices"
+      ],
+      "expected": "200，且列表含 tenant_a_invoice 的 id"
+    },
+    {
+      "control_id": "CTL-02",
+      "kind": "oracle_can_fail",
+      "description": "正對照：tenantB_user 讀發票列表；oracle 的「列表含 tenant_b_invoice 的 id」條件必須判定命中",
+      "steps": [
+        "以 tenantB_user GET /api/invoices",
+        "對回應套用 oracle 條件"
+      ],
+      "expected": "200，且 oracle 判定列表含 tenant_b_invoice 的 id"
+    }
+  ],
+  "oracle": {
+    "types": [
+      "STATUS_AND_BODY"
+    ],
+    "conditions": [
+      "status 200",
+      "tenantA_user 的列表回應不含 tenant_b_invoice 的 id（inv-b-0001）"
+    ],
+    "requirement_refs": [
+      "REQ-ASVS-8.2.2",
+      "INV-AC-007"
+    ],
+    "oracle_query_id": null,
+    "oracle_query_sha256": null
+  },
+  "tool_binding": {
+    "kind": "GENERATED_SCRIPT",
+    "adapter": "playwright:api",
+    "params": {
+      "contexts": [
+        "tenantA_user",
+        "tenantB_user"
+      ]
+    },
+    "manual_reason": null
+  },
+  "safety_class_proposed": "S0",
+  "safety_class_computed": "S0",
+  "rate_limit": {
+    "requests_per_second": 1,
+    "max_requests": 6
+  },
+  "request_allowlist": [
+    {
+      "target_id": "tgt-staging-api",
+      "method": "GET",
+      "path": "/api/invoices",
+      "step_id": null,
+      "graphql_operation": null
+    }
+  ],
+  "seed_manifest_ref": "docs/examples/seed-manifest.yaml",
+  "data_needed": {
+    "seed_data": [
+      "tenant_a_invoice",
+      "tenant_b_invoice"
+    ],
+    "roles": [
+      "tenantA_user",
+      "tenantB_user"
+    ],
+    "db_tables": []
+  },
+  "trials": {
+    "n": 1,
+    "pass_rule": "確定性測試；每個 job 3 個請求（2 個對照＋1 個測試請求）；FAIL 時另開重播 job 2 次，結果相同才算可重現",
+    "record": [
+      "seed"
+    ],
+    "fail_k_min": 1,
+    "replay_n": 2,
+    "multi_turn_max_turns": null
+  },
+  "multi_turn": false,
+  "script_turns": null,
+  "strategy_template_sha256": null,
+  "artifact_sha256": "sha256:6d1f0c3b5a7e9d2f4b6a8c0e1d3f5a7b9c2e4d6f8a0b1c3e5d7f9a2b4c6e8d0f"
+}

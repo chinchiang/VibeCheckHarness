@@ -15,6 +15,9 @@ claude_sonnet:
   data_classes: [P, C]         # C 級前提：組織層級保留/ZDR 設定已宣告並比對
   purpose: [production, evaluation]
   earliest_retirement: null
+  pricing: null                # 價格未列出（實作時查證）；engagement 的 max_cost_usd 仍必填（fail-closed）
+  rate_limits: null
+  tokenizer: null
   fallback: [claude_opus_48]
   api: messages
 
@@ -28,6 +31,9 @@ claude_opus_48:
   data_classes: [P, C]
   purpose: [production, evaluation]
   earliest_retirement: "2027-05-28"        # 最早退役日 [V][E:providers-52]
+  pricing: null
+  rate_limits: null
+  tokenizer: null
   fallback: []
   api: messages
 
@@ -41,6 +47,9 @@ gpt_flagship:
   data_classes: [P, C]
   purpose: [production, evaluation]
   earliest_retirement: null
+  pricing: null
+  rate_limits: null
+  tokenizer: null
   fallback: []
   api: responses               # Sol 在 Chat Completions 只有 reasoning_effort=none 才能 function calling；Responses 無此限制（[P] E:providers-47）
   store: false                 # C 級強制 store=false（[V] E:providers-34）
@@ -55,6 +64,9 @@ gpt_oss_self:
   data_classes: [P, C]
   purpose: [production, evaluation]
   earliest_retirement: null
+  pricing: null
+  rate_limits: null
+  tokenizer: null
   fallback: []
   api: chat_completions
 
@@ -68,6 +80,9 @@ nemotron_self:
   data_classes: [P, C]
   purpose: [production, evaluation]
   earliest_retirement: null
+  pricing: null
+  rate_limits: null
+  tokenizer: null
   fallback: []
   api: chat_completions
 
@@ -81,6 +96,9 @@ nemotron_cloud:
   data_classes: [P]            # NVIDIA API Trial Terms：禁止機密資訊（[V] E:providers-10）
   purpose: [evaluation, prototyping]   # 禁止正式用途；不當成常駐預設驗證者
   earliest_retirement: null
+  pricing: null
+  rate_limits: null
+  tokenizer: null
   fallback: []
   api: chat_completions
   notes: "只用於評估與原型，且只限公開或合成程式碼"

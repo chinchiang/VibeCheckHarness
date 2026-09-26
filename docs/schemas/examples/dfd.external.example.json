@@ -6,19 +6,23 @@
     {
       "element_id": "ext-tenant-user",
       "type": "external_entity",
+      "kind": null,
       "name": "租戶使用者（瀏覽器）",
       "from": null,
       "to": null,
       "crosses": [],
+      "provenance": "llm_proposed",
       "evidence_refs": []
     },
     {
       "element_id": "proc-invoices-api",
       "type": "process",
+      "kind": null,
       "name": "發票 API",
       "from": null,
       "to": null,
       "crosses": [],
+      "provenance": "deterministic",
       "evidence_refs": [
         "endpoint:GET /api/invoices/{id}"
       ]
@@ -26,10 +30,12 @@
     {
       "element_id": "proc-support-agent",
       "type": "process",
+      "kind": null,
       "name": "客服 agent",
       "from": null,
       "to": null,
       "crosses": [],
+      "provenance": "deterministic",
       "evidence_refs": [
         "endpoint:POST /api/chat/sessions"
       ]
@@ -37,21 +43,25 @@
     {
       "element_id": "flow-user-api",
       "type": "data_flow",
+      "kind": null,
       "name": "HTTPS 請求",
       "from": "ext-tenant-user",
       "to": "proc-invoices-api",
       "crosses": [
         "tb-internet"
       ],
+      "provenance": "llm_proposed",
       "evidence_refs": []
     },
     {
       "element_id": "tb-internet",
       "type": "trust_boundary",
+      "kind": "network",
       "name": "網際網路／staging 邊界",
       "from": null,
       "to": null,
       "crosses": [],
+      "provenance": "llm_proposed",
       "evidence_refs": []
     }
   ],

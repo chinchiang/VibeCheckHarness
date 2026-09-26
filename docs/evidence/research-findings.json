@@ -1,5 +1,5 @@
 {
-  "generated_from": "research workflow wf_562478be-1da (2026-09-23); v0.2 additions merged 2026-09-24 from 124 work-package claims, each independently re-verified (field merged_from keeps the provisional ID)",
+  "generated_from": "research workflow wf_562478be-1da (2026-09-23); v0.2 additions merged 2026-09-24 from 124 work-package claims, each independently re-verified (field merged_from keeps the provisional ID); review additions merged 2026-09-26 (merged_from review-2026-09-26-NN), verified against the primary source listed",
   "topics": [
     {
       "topic": "orchestration",
@@ -3472,6 +3472,66 @@
           ],
           "correction": "No correction. (Note: the GitHub license API reports NOASSERTION for spdx/spdx-spec. The claim relies on the LICENSE text, which matches.)",
           "merged_from": "pending_d-101"
+        },
+        {
+          "id": "whitebox-56",
+          "claim": "The official SARIF 2.1.0 JSON schema (errata01) defines result.baselineState with the values new, unchanged, updated and absent ('The state of a result relative to a baseline of a previous run'); result.kind with notApplicable, pass, fail, review, open, informational (default fail); result.level with none, note, warning, error (default warning); and result properties webRequest, webResponse, partialFingerprints, fingerprints, suppressions (suppression.kind inSource/external, status accepted/underReview/rejected), rank and properties; location has logicalLocations.",
+          "sources": [
+            "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "Basis of the SARIF mapping spec in docs/08 (baselineState for cross-run cluster fingerprints, webRequest/webResponse for black-box evidence, logicalLocations for endpoints).",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
+          ],
+          "correction": "No correction. Enum values read directly from the schema file (sha256 c3b4bb2d…682e).",
+          "merged_from": "review-2026-09-26-01"
+        },
+        {
+          "id": "whitebox-57",
+          "claim": "PyPI metadata (checked 2026-09-26): presidio-analyzer 2.2.364 has license expression MIT; its homepage link points to github.com/data-privacy-stack/presidio.",
+          "sources": [
+            "https://pypi.org/pypi/presidio-analyzer/json"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "Candidate named PII detector for B5 response redaction (docs/08); candidate only, not selected.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://pypi.org/pypi/presidio-analyzer/json"
+          ],
+          "correction": "No correction. The repository location differs from the older microsoft/presidio path; verify the maintainer before adoption.",
+          "merged_from": "review-2026-09-26-02"
+        },
+        {
+          "id": "whitebox-58",
+          "claim": "PyPI metadata (checked 2026-09-26): the Python binding tree-sitter 0.26.0 (py-tree-sitter) carries the classifier 'License :: OSI Approved :: MIT License'.",
+          "sources": [
+            "https://pypi.org/pypi/tree-sitter/json"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "Candidate parser for W0 extractors and the Slicer (docs/08); grammar packages have their own licenses and are not covered by this entry.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://pypi.org/pypi/tree-sitter/json"
+          ],
+          "correction": "No correction. Covers the Python binding only, not the core library or individual grammars.",
+          "merged_from": "review-2026-09-26-03"
+        },
+        {
+          "id": "whitebox-59",
+          "claim": "SARIF 2.1.0 (errata01) §3.27.9–3.27.10: 'If level has any value other than \"none\" and kind is present, then kind SHALL have the value \"fail\".' 'If kind has any value other than \"fail\", then if level is absent, it SHALL default to \"none\", and if it is present, it SHALL have the value \"none\".' If kind is fail and level is absent, level is derived from rule configuration overrides / the rule's defaultConfiguration.",
+          "sources": [
+            "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/sarif-v2.1.0-errata01-os-complete.html"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "The SARIF export (docs/08 §11.16) must set level none for pass/review/open/informational results and keep severity elsewhere; schema validation alone does not catch this.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/sarif-v2.1.0-errata01-os-complete.html"
+          ],
+          "correction": "No correction. Read from the OASIS specification text on 2026-09-26.",
+          "merged_from": "review-2026-09-26-09"
         }
       ],
       "limitations": [
@@ -4740,6 +4800,51 @@
           ],
           "correction": "No correction. (The GitHub license API reports NOASSERTION for the AI Testing Guide repo, but LICENSE.md states CC BY-SA 4.0.)",
           "merged_from": "pending_d-102"
+        },
+        {
+          "id": "threat_modeling-79",
+          "claim": "The OWASP LLM Top 10 2026 PDF states the boundary with the Agentic Top 10: 'This list owns the risk when the model is a component inside your application. The moment that model becomes an actor, with tools it can call, memory it carries between sessions, and consequences it sets in motion downstream, the risk moves to the OWASP Agentic Top 10.' It advises pairing the two lists when the model acts on its own.",
+          "sources": [
+            "https://genai.owasp.org/download/56857/?tmstv=1785822482"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "Rule for choosing LLMxx@2026 vs ASIxx IDs in the docs/04 binding table and threat taxonomies.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://genai.owasp.org/download/56857/?tmstv=1785822482"
+          ],
+          "correction": "No correction.",
+          "merged_from": "review-2026-09-26-04"
+        },
+        {
+          "id": "threat_modeling-80",
+          "claim": "Appendix A of the OWASP LLM Top 10 2026 PDF maps each entry to MITRE CWE 4.20, distinguishing primary CWEs (the definitional weakness) from supporting CWEs. Examples of primary mappings: LLM01 Prompt Injection → CWE-1427; LLM04 Supply Chain → CWE-494 and CWE-829; LLM05 Data and Model Poisoning → CWE-349 and CWE-829; LLM10 Improper Output Handling → CWE-1426, CWE-116 and CWE-79.",
+          "sources": [
+            "https://genai.owasp.org/download/56857/?tmstv=1785822482"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "CWE bucket assignment for LLM-specific clusters (docs/05 §4.1) and threat records.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://genai.owasp.org/download/56857/?tmstv=1785822482"
+          ],
+          "correction": "No correction. Only the listed rows were read from the extracted text; the multi-column table is not reproduced in full.",
+          "merged_from": "review-2026-09-26-05"
+        },
+        {
+          "id": "threat_modeling-81",
+          "claim": "OWASP WSTG v4.2 checklist (checklist/checklist.json at tag v4.2, commit dd33419e): WSTG-CLNT-04 Testing for Client-side URL Redirect; WSTG-CLNT-07 Testing Cross Origin Resource Sharing; WSTG-INPV-01 Testing for Reflected Cross Site Scripting; WSTG-INPV-02 Testing for Stored Cross Site Scripting; WSTG-BUSL-08 Test Upload of Unexpected File Types; WSTG-BUSL-09 Test Upload of Malicious Files; WSTG-CONF-04 Review Old Backup and Unreferenced Files for Sensitive Information; WSTG-CONF-05 Enumerate Infrastructure and Application Admin Interfaces.",
+          "sources": [
+            "https://github.com/OWASP/wstg/blob/v4.2/checklist/checklist.json"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "Test IDs for the v0.3 binding-table rows (open redirect, CORS, XSS, file upload, exposed files, admin interfaces) in docs/04 §4.3.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://github.com/OWASP/wstg/blob/v4.2/checklist/checklist.json"
+          ],
+          "correction": "No correction.",
+          "merged_from": "review-2026-09-26-10"
         }
       ],
       "limitations": [
@@ -5829,6 +5934,51 @@
           ],
           "correction": "No correction.",
           "merged_from": "pending_d-103"
+        },
+        {
+          "id": "blackbox-65",
+          "claim": "The OWASP API Security Top 10 2023 lists: API1:2023 Broken Object Level Authorization, API2:2023 Broken Authentication, API3:2023 Broken Object Property Level Authorization (which combines API3:2019 Excessive Data Exposure and API6:2019 Mass Assignment), API4:2023 Unrestricted Resource Consumption, API5:2023 Broken Function Level Authorization, API6:2023 Unrestricted Access to Sensitive Business Flows, API7:2023 Server Side Request Forgery, API8:2023 Security Misconfiguration, API9:2023 Improper Inventory Management, API10:2023 Unsafe Consumption of APIs.",
+          "sources": [
+            "https://owasp.org/API-Security/editions/2023/en/0x11-t10/"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "Taxonomy for the REST/GraphQL rows of the docs/04 binding table (BFLA, mass assignment, excessive data exposure, inventory drift, unsafe consumption).",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://owasp.org/API-Security/editions/2023/en/0x11-t10/"
+          ],
+          "correction": "No correction. Read from the official OWASP project page on 2026-09-26.",
+          "merged_from": "review-2026-09-26-06"
+        },
+        {
+          "id": "blackbox-66",
+          "claim": "Schemathesis ignored_auth: 'When an operation declares authentication, Schemathesis tests whether the API accepts requests without credentials or with invalid credentials. Either 401 or 403 counts as enforcement.' It sends two extra requests per operation (one without auth, one with invalid auth). use_after_free expects 404 Not Found after a successful DELETE; the stateful checks do not fire in a single case.call_and_validate() call.",
+          "sources": [
+            "https://schemathesis.readthedocs.io/en/stable/reference/checks/"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "ignored_auth only covers operations whose API schema declares security, so apps without an accurate OpenAPI security section need a drafted spec (docs/08, H-E10); use_after_free deletes generated IDs, which the docs/04 §5 safety algorithm classifies S3 unless seed-bound.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://schemathesis.readthedocs.io/en/stable/reference/checks/"
+          ],
+          "correction": "Refines E:blackbox-14: the check depends on the schema's authentication declaration.",
+          "merged_from": "review-2026-09-26-07"
+        },
+        {
+          "id": "blackbox-67",
+          "claim": "PyPI metadata (checked 2026-09-26): mitmproxy 12.2.3 carries the classifier 'License :: OSI Approved :: MIT License'.",
+          "sources": [
+            "https://pypi.org/pypi/mitmproxy/json"
+          ],
+          "researcher_confidence": "high",
+          "relevance": "Candidate for the intercepting proxy decision U-13 (docs/08 §10); still a candidate, not selected.",
+          "verification_status": "verified",
+          "independent_sources": [
+            "https://pypi.org/pypi/mitmproxy/json"
+          ],
+          "correction": "No correction. Only PyPI metadata was checked, not the repository LICENSE file.",
+          "merged_from": "review-2026-09-26-08"
         }
       ],
       "limitations": [

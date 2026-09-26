@@ -62,12 +62,25 @@ signatories:
     role: management
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
 
+gate_approvers:               # 白箱關卡（ROE 生效前）的核准者；G0b／G3／G4／G5 的核准者來自 roe.yaml
+  G0a: [frank, carol]
+  G1: [frank]
+  G2: [erin, heidi]
+
+providers:                    # 能收到 C 級資料的雲端模型：ZDR 已確認且 DPA 已簽；自架模型（Z4）不需要（E-ENG-PROVIDER）
+  - {family: anthropic, zdr: confirmed, zdr_evidence_ref: "doc:zdr-anthropic-2026-09", dpa_signed: true, retention_days: null, region: null}
+  - {family: openai, zdr: confirmed, zdr_evidence_ref: "doc:zdr-openai-2026-09", dpa_signed: true, retention_days: null, region: null}
+  - {family: nvidia, zdr: not_available, zdr_evidence_ref: null, dpa_signed: false, retention_days: null, region: null}   # 只用自架 Nemotron；雲端 NIM 只收 P
+
+assurance_profile: team       # lite／team／full（docs/03 §6）；team：ROE 每個簽署角色由不同人擔任
+role_consolidation: null      # 只在 lite 使用：同一人兼任多個角色時的聲明
+
 signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "Dcy2ukfDkVpbx7/gWxNTlLmmLcgxswbqZT39KCn3QbfAv1+njkAYFWkh0uwE+lElYHNfki1cgyy4PADOaZHHAQ=="
+    value: "yl0DK+Zr+EYv2tqPEO8S/Uz2rtIro2FrG5Y+TPyzD2qoi7yDgcep/meG/LN1qVxGeBwegt9rECyOaq/fWls6Aw=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "V/hQ6pwpdL0CRdh588bcuSyOzNR6kuigxYFR5YgP1oQa+lH1w4kwyQuK696rSkqAUKdf2Q0ArwlaDZ/YxZdNCQ=="
+    value: "OgdBFxH/RMgEiRW5Pkm6T5svF22Q2WjfG+4GexdbKYlJp5L+HGtzUfxFbTkhyQhZl3C4slrQiED0NvqFKoEXAw=="

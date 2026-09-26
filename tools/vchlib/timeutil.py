@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Timezone-aware datetime handling. Never compare timestamps as strings.
 
 Windows has no system IANA database: install the `tzdata` package (requirements.txt).
@@ -76,14 +77,26 @@ def in_window(ts: dt.datetime, window: dict) -> bool:
     return (today in window["days"] and minute >= start) or (yesterday in window["days"] and minute < end)
 
 
+def valid_window(window) -> bool:
+    """A window whose tz, start and end parse (invalid ones are reported once as E-ROE-WINDOW and then ignored)."""
+    try:
+        zone(window["tz"])
+        hhmm(window["start"])
+        hhmm(window["end"])
+        return isinstance(window.get("days"), list)
+    except (TimeError, KeyError, TypeError, AttributeError):
+        return False
+
+
 def in_any_window(ts: dt.datetime, windows: list[dict]) -> bool:
-    return any(in_window(ts, w) for w in windows)
+    """D6: invalid windows are skipped (never raise), so one bad window does not abort other checks."""
+    return any(in_window(ts, w) for w in windows or [] if valid_window(w))
 
 
 def window_end(ts: dt.datetime, windows: list[dict]) -> dt.datetime | None:
-    """End of the window containing `ts` (used for the G5 timeout), or None."""
-    for w in windows:
-        if not in_window(ts, w):
+    """End of the window containing `ts` (used for the G5 timeout), or None. Invalid windows are skipped."""
+    for w in windows or []:
+        if not valid_window(w) or not in_window(ts, w):
             continue
         tz = zone(w["tz"])
         local = ts.astimezone(tz)

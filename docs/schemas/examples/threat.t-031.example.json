@@ -10,6 +10,14 @@
     {
       "scheme": "owasp-llm@2026",
       "id": "LLM03"
+    },
+    {
+      "scheme": "owasp-asi@2026",
+      "id": "ASI01"
+    },
+    {
+      "scheme": "owasp-asi@2026",
+      "id": "ASI02"
     }
   ],
   "dfd_elements": [
@@ -29,11 +37,11 @@
   "evidence": [
     {
       "kind": "code_location",
-      "ref": "src/support/agent.ts:57",
+      "ref": "app/support/agent.py:57",
       "match": "MATCHED"
     },
     {
-      "kind": "finding",
+      "kind": "cluster",
       "ref": "K-011",
       "match": "MATCHED"
     }

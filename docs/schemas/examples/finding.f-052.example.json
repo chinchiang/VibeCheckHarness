@@ -1,7 +1,7 @@
 {
   "finding_id": "F-052",
   "run_id": "run-2026-09-23-001",
-  "slice_id": "sha256:29c34c37a9617bceb0d741006798fb94dbf97a181c95ca73a101fb8bc025a09e",
+  "slice_id": "sha256:ad186f2db02b15239aa533c2dc239cb9cccc23879ecc1589dc29486dc6264ee2",
   "facet": "authz",
   "reporter": {
     "agent_id": "rev_a",
@@ -18,15 +18,19 @@
   "confidence": "medium",
   "evidence": [
     {
+      "kind": "code_snippet",
       "file": "routes/invoices.ts",
       "line_start": 88,
       "line_end": 88,
       "snippet": "await db.invoice.update({ where: { id: req.params.id }, data: req.body });",
       "snippet_sha256": "sha256:1ec6de3e8ab31b71d365a1cb27fde67a0f2bb9cef9e45c2a21504cf4e9b27d06",
+      "fact_ref": null,
+      "key_path": null,
+      "asserted": null,
       "match": "MATCHED"
     }
   ],
-  "reasoning": "PUT /api/invoices/{id} 只以路徑參數 id 更新資料，沒有比對目前使用者的 tenant_id 或擁有者；W1 的 semgrep 規則在同一行也有結果。對照 INV-AC-007。",
+  "reasoning": "PUT /api/invoices/{id} 只以路徑參數 id 更新資料，沒有比對目前使用者的 tenant_id 或擁有者；W1 的 opengrep 規則在同一行也有結果（弱工具訊號）。對照 INV-AC-007。",
   "invariant_refs": [
     "INV-AC-007"
   ],

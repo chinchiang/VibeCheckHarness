@@ -1,3 +1,23 @@
+# Python
 __pycache__/
 *.pyc
 .venv/
+.pytest_cache/
+
+# Node (sample targets, future adapters)
+node_modules/
+
+# Secrets and session material: never commit (docs/06 §1.3, docs/08 §11.8)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# TEST ONLY fixture keys are deliberately tracked (they sign the examples; docs/06 §1.6)
+!tests/fixtures/TEST_ONLY_private_keys/*.TEST_ONLY.pem
+playwright/.auth/
+*.storageState.json
+storageState*.json
+
+# Local agent worktrees
+.claude/worktrees/

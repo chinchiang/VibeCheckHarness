@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Regenerate every derived value and TEST ONLY signature in the example bundle.
 
     python tools/sign_examples.py

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Derived values of the example bundle.
 
 Every hash, weight or copied field that is a pure function of other files is listed here as
@@ -112,48 +113,217 @@ class Index:
         th = ((self.calibration.get("result") or {}).get("thresholds") or {})
         return (th.get("theta_confirm") or {}).get("value"), (th.get("theta_reject") or {}).get("value")
 
+    def approved_requirement_ids(self) -> set[str]:
+        """Requirements approved at G1 (D10): invariants whose signoff is ACCEPTED by the G1 record named in
+        invariants.yaml and whose decision there is accept; baseline items when that G1 record is APPROVED
+        and the file-level signoff is ACCEPTED. REJECTED / NEEDS_INFO items are not testable."""
+        inv = self.b.data("invariants") or {}
+        so = inv.get("signoff") or {}
+        rec = self.first("gate-record", gate_record_id=so.get("gate_record_id")) if so.get("gate_record_id") else None
+        if rec is None or rec.data.get("gate") != "G1":
+            return set()
+        accepted = {x.get("item_id") for x in rec.data.get("decisions") or [] if isinstance(x, dict) and x.get("decision") == "accept"}
+        out = {i.get("requirement_id") for i in inv.get("invariants") or [] if isinstance(i, dict)
+               and (i.get("signoff") or {}).get("status") == "ACCEPTED"
+               and (i.get("signoff") or {}).get("gate_record_id") == rec.data.get("gate_record_id")
+               and i.get("requirement_id") in accepted}
+        if rec.data.get("outcome") == "APPROVED" and so.get("status") == "ACCEPTED":
+            out |= {x.get("requirement_id") for x in inv.get("baseline") or [] if isinstance(x, dict)}
+        return out
+
+    def finding(self, fid) -> dict | None:
+        d = self.first("finding", finding_id=fid)
+        return d.data if d else None
+
+
+def has_supporting_evidence(f: dict) -> bool:
+    """At least one evidence item is not NOT_FOUND (docs/05 §4.2: findings whose evidence all failed to match
+    do not support the cluster)."""
+    return any(isinstance(e, dict) and e.get("match") != "NOT_FOUND" for e in f.get("evidence") or [])
+
+
+def independent_families(ix: Index, cluster: dict) -> list[str]:
+    """docs/05 §4.1 (D14): families that contributed a member in the first round of this run, reported by an
+    agents.yaml `reviewer` (Lane A advisories and CMD-2 extra rounds do not count), whose finding has at least
+    one evidence item that is not NOT_FOUND (UNVERIFIED findings do not count). Sorted."""
+    fams = set()
+    for fid in cluster.get("member_finding_ids") or []:
+        f = ix.finding(fid)
+        rep = (f or {}).get("reporter") or {}
+        a = ix.agents.get(rep.get("agent_id")) if isinstance(rep.get("agent_id"), str) else None
+        if (f and rep.get("round") == 1 and isinstance(a, dict) and a.get("role") == "reviewer"
+                and f.get("run_id") == cluster.get("run_id") and has_supporting_evidence(f)):
+            fams.add(rep.get("family"))
+    return sorted(f for f in fams if isinstance(f, str))
+
+
+def slice_identity(files, redaction_map_sha256, prompt_template_sha256) -> str:
+    """E6 (H-E3): slice_id = sha256(JCS({files, redaction_map_sha256, prompt_template_sha256}))."""
+    return sha256_ref(jcs({"files": files, "redaction_map_sha256": redaction_map_sha256,
+                           "prompt_template_sha256": prompt_template_sha256}))
+
+
+CONFIG_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "calibration": "calibration",
+                "invariants": "invariants", "seed_manifest": "seed-manifest"}
+
+
+def artifact_sha(rec: dict):
+    """artifact.sha256 of a gate record; MISSING when the record has no artifact (reported as E-GATE-ARTIFACT, D6)."""
+    a = rec.get("artifact") if isinstance(rec, dict) else None
+    return a.get("sha256", MISSING) if isinstance(a, dict) else MISSING
+
+
+def cluster_fingerprint(cluster: dict) -> str:
+    """B9: stable cross-run fingerprint, no line numbers. white_box: {cwe_bucket, file, symbol};
+    black_box: {cwe_bucket, target_id, method, path_template} of canonical_location.endpoint."""
+    loc = cluster.get("canonical_location") or {}
+    if cluster.get("origin") == "black_box":
+        ep = loc.get("endpoint") or {}
+        key = {"cwe_bucket": cluster.get("cwe_bucket"), "target_id": ep.get("target_id"), "method": ep.get("method"),
+               "path_template": ep.get("path_template")}
+    else:
+        key = {"cwe_bucket": cluster.get("cwe_bucket"), "file": loc.get("file"), "symbol": loc.get("symbol")}
+    return sha256_ref(jcs(key))
+
 
 # ---------------------------------------------------------------- test evidence (docs/05 §4.2)
+ORACLE_TYPES = ("STATUS_AND_BODY", "STATE_DIFF", "TOOL_CHECK", "TOOL_CALL_LOG", "CANARY", "THRESHOLD", "DOM_ASSERTION",
+                "HUMAN", "LLM_GRADER")
+NON_DETERMINISTIC_ORACLES = frozenset({"HUMAN", "LLM_GRADER"})
+DETERMINISTIC_ORACLES = frozenset(ORACLE_TYPES) - NON_DETERMINISTIC_ORACLES
+
+
+def oracle_types(tc: dict) -> set[str]:
+    """testcase oracle.types (v0.3); a list-valued field that is missing or malformed gives the empty set."""
+    types = (tc.get("oracle") or {}).get("types")
+    return {t for t in types if isinstance(t, str)} if isinstance(types, list) else set()
+
+
+def control_results(tc: dict, tr: dict) -> list[tuple[str, str, str | None]]:
+    """[(control_id, kind, outcome or None)] for every control of the testcase, in testcase order."""
+    got = {x.get("control_id"): x.get("outcome") for x in tr.get("controls") or [] if isinstance(x, dict)}
+    return [(c.get("control_id"), c.get("kind"), got.get(c.get("control_id")))
+            for c in tc.get("controls") or [] if isinstance(c, dict)]
+
+
+def controls_of_kind_pass(tc: dict, tr: dict, kind: str) -> bool | None:
+    """None when the testcase has no control of `kind`; else True iff every such control PASSed."""
+    outs = [o for _, k, o in control_results(tc, tr) if k == kind]
+    return None if not outs else all(o == "PASS" for o in outs)
+
+
+def reachability_reached(tc: dict, tr: dict) -> bool:
+    """The derived precondition_reached: at least one reachability control, and all of them PASS."""
+    return controls_of_kind_pass(tc, tr, "reachability") is True
+
+
+def positive_control_value(tc: dict, tr: dict) -> bool | None:
+    """The derived positive_control.value: an oracle_can_fail control exists and PASSed (None: no such control)."""
+    return controls_of_kind_pass(tc, tr, "oracle_can_fail")
+
+
+def fail_reproduced(tc: dict, tr: dict) -> tuple[bool, str]:
+    """docs/04 §4.4: the first batch reaches fail_k_min and a separate replay job reproduces it: a
+    deterministic test fails on every replay (k_r = n_r); a probabilistic test needs k_r >= fail_k_min."""
+    trials = tc.get("trials") or {}
+    probabilistic = (trials.get("n") or 1) > 1
+    k = (tr.get("trials") or {}).get("k", 0)
+    fail_k_min = trials.get("fail_k_min", 1)
+    n_r, k_r = tr.get("replays", 0), tr.get("replay_k", 0)
+    if k < fail_k_min:
+        return False, "FAIL below fail_k_min"
+    if n_r < 1:
+        return False, "FAIL not replayed"
+    if not (k_r >= fail_k_min if probabilistic else k_r == n_r):
+        return False, "FAIL not reproduced by the replay job"
+    return True, ""
+
+
+def g4_approved(ix: "Index", tr: dict) -> bool:
+    """The latest G4 record of the result's run accepts the testcase (black-box pre-registration)."""
+    recs = ix.gate_records(tr.get("run_id"), "G4")
+    if not recs or recs[-1].data.get("outcome") not in ("APPROVED", "PARTIALLY_APPROVED"):
+        return False
+    return any(x.get("item_id") == tr.get("testcase_id") and x.get("decision") == "accept"
+               for x in recs[-1].data.get("decisions") or [] if isinstance(x, dict))
+
+
+def preregistered(ix: "Index", tc: dict, tr: dict, control_kind: str) -> bool:
+    """docs/05 §4.2 (v0.3): the oracle's interpretation was fixed before the test ran.
+    B4: the testcase has an accepting G4 decision. W4: every requirement_id is approved at G1 and the
+    testcase has a PASSed control of `control_kind` (oracle_can_pass for a FAIL, oracle_can_fail for a PASS)."""
+    if tr.get("phase") == "B4":
+        return g4_approved(ix, tr)
+    if tr.get("phase") == "W4":
+        reqs = set(tc.get("requirement_ids") or [])
+        return bool(reqs) and reqs <= ix.approved_requirement_ids() and controls_of_kind_pass(tc, tr, control_kind) is True
+    return False
+
+
+def analyst_check(ix: "Index", tr: dict, cluster: dict) -> tuple[bool, str | None]:
+    """(eligible, disagreement): the Result Analyst is an agents.yaml result_analyst whose registry
+    family and lineage are not in the cluster; eligible only when its interpretation agrees."""
+    ib = tr.get("interpreted_by")
+    if not isinstance(ib, dict):
+        return False, None
+    a = ix.agents.get(ib.get("agent_id")) if isinstance(ib.get("agent_id"), str) else None
+    m = ix.model_of_agent(ib.get("agent_id"))
+    if not isinstance(a, dict) or a.get("role") != "result_analyst" or m is None:
+        return False, None
+    if m.get("family") in set(cluster.get("families") or []) or m.get("lineage") in set(cluster.get("lineages") or []):
+        return False, None
+    agrees = (tr.get("interpretation") or {}).get("agrees")
+    if agrees is True:
+        return True, None
+    return False, "eligible analyst does not agree with the interpretation"
+
+
 def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
-    """Return (class, reason) for one testresult linked to `cluster`."""
+    """Return (class, reason) for one testresult linked to `cluster` (docs/05 §4.2, v0.3).
+
+    1. outcome not PASS / FAIL (ERROR, SKIPPED, STOPPED, INVALID) -> E_inc.
+    2. FAIL: fail_k_min and the replay rules, else E_inc; a violation reported only by HUMAN /
+       LLM_GRADER oracles is E_inc; a pre-registered interpretation (G4 for B4; G1-signed
+       requirements and a PASSed oracle_can_pass control for W4) -> E_proof without any LLM;
+       else an eligible cross-family Result Analyst that agrees -> E_proof; else E_fail_u.
+    3. PASS: every reachability control PASSed, probabilistic k=0 and n' >= 30, a deterministic
+       oracle, and a pre-registered interpretation (oracle_can_fail for W4) or an eligible analyst
+       -> E_pass; else E_inc.
+    """
     tc_doc = ix.first("testcase", testcase_id=tr.get("testcase_id"))
     tc = tc_doc.data if tc_doc else {}
     trials = tc.get("trials") or {}
     probabilistic = (trials.get("n") or 1) > 1
     got = tr.get("trials") or {}
     n, k = got.get("n", 0), got.get("k", 0)
-    fams, lins = set(cluster.get("families", [])), set(cluster.get("lineages", []))
-    analyst = tr.get("interpreted_by")
-    eligible = False
-    if analyst:
-        m = ix.model_of_agent(analyst.get("agent_id"))
-        lineage = m.get("lineage") if m else None
-        eligible = analyst.get("family") not in fams and lineage is not None and lineage not in lins
-    if (tc.get("oracle") or {}).get("type") == "HUMAN":
-        return "E_inc", "oracle is not deterministic"
     outcome = tr.get("outcome")
+    if outcome not in ("FAIL", "PASS"):
+        return "E_inc", f"outcome {outcome}"
+    eligible, disagreement = analyst_check(ix, tr, cluster)
     if outcome == "FAIL":
-        # docs/04 §4.4: the first batch must reach fail_k_min, and a separate replay job must
-        # reproduce it: a deterministic test must fail on every replay (k_r = n_r); a probabilistic
-        # test needs k_r >= fail_k_min. k_r = 0, or no replay at all, is E_inc (docs/05 §4.2).
-        fail_k_min = trials.get("fail_k_min", 1)
-        n_r, k_r = tr.get("replays", 0), tr.get("replay_k", 0)
-        if k < fail_k_min:
-            return "E_inc", "FAIL below fail_k_min"
-        if n_r < 1:
-            return "E_inc", "FAIL not replayed"
-        if not (k_r >= fail_k_min if probabilistic else k_r == n_r):
-            return "E_inc", "FAIL not reproduced by the replay job"
-        return ("E_proof", "reproduced FAIL, cross-family analyst") if eligible else ("E_fail_u", "reproduced FAIL, no eligible analyst")
-    if outcome == "PASS":
-        if not (tr.get("precondition_reached") or {}).get("value"):
-            return "E_inc", "precondition not reached"
-        if probabilistic and not (k == 0 and n >= 30):
-            return "E_inc", "probabilistic PASS needs k=0 and n'>=30"
-        if not eligible:
-            return "E_inc", "no eligible analyst"
-        return "E_pass", "qualified PASS"
-    return "E_inc", f"outcome {outcome}"
+        ok, why = fail_reproduced(tc, tr)
+        if not ok:
+            return "E_inc", why
+        if not (set(tr.get("fail_oracles") or []) & DETERMINISTIC_ORACLES):
+            return "E_inc", "violation judged only by a non-deterministic oracle"
+        if preregistered(ix, tc, tr, "oracle_can_pass"):
+            return "E_proof", "reproduced FAIL, deterministic oracle, pre-registered interpretation"
+        if eligible:
+            return "E_proof", "reproduced FAIL, cross-family analyst"
+        if disagreement:
+            return "E_inc", disagreement
+        return "E_fail_u", "reproduced FAIL, no pre-registered interpretation or eligible analyst"
+    if not reachability_reached(tc, tr):
+        return "E_inc", "reachability control not passed"
+    if probabilistic and not (k == 0 and n >= 30):
+        return "E_inc", "probabilistic PASS needs k=0 and n'>=30"
+    if not (oracle_types(tc) & DETERMINISTIC_ORACLES):
+        return "E_inc", "no deterministic oracle"
+    if preregistered(ix, tc, tr, "oracle_can_fail"):
+        return "E_pass", "qualified PASS, pre-registered interpretation"
+    if eligible:
+        return "E_pass", "qualified PASS, cross-family analyst"
+    return "E_inc", disagreement or "no pre-registered interpretation or eligible analyst"
 
 
 def strongest(classes) -> str | None:
@@ -265,11 +435,15 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
             return
         out.append(Expectation(doc.path, tuple(path), value, why))
 
-    # slices
+    # slices (E6: the identity covers the files, the redaction map and the prompt template)
     slice_by_run: dict[str, list[str]] = {}
     for d in ix.docs("slice"):
-        sid = sha256_ref(jcs(d.data.get("files", [])))
-        exp(d, ["slice_id"], sid, "sha256(JCS(files))")
+        rm = ix.first("redaction-map", run_id=d.data.get("run_id"))
+        if rm:
+            exp(d, ["redaction_map_sha256"], content_hash(rm.data), "content hash of the run's redaction map")
+        rm_sha = content_hash(rm.data) if rm else d.data.get("redaction_map_sha256")
+        sid = slice_identity(d.data.get("files", []), rm_sha, d.data.get("prompt_template_sha256"))
+        exp(d, ["slice_id"], sid, "sha256(JCS({files, redaction_map_sha256, prompt_template_sha256}))")
         slice_by_run.setdefault(d.data.get("run_id"), []).append(sid)
 
     # findings
@@ -280,6 +454,17 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
         sl = slice_by_run.get(d.data.get("run_id"), [])
         if len(sl) == 1:
             exp(d, ["slice_id"], sl[0], "the slice of the same run")
+
+    if for_writer:
+        # writer-only: the reader checks these with dedicated codes (E-CLUSTER-FINGERPRINT,
+        # E-RESULT-PRECONDITION, E-RESULT-CONTROLS) so a tampered value is reported by its rule
+        for d in ix.docs("cluster"):
+            exp(d, ["fingerprint"], cluster_fingerprint(d.data), "sha256(JCS(fingerprint key))")
+        for d in ix.docs("testresult"):
+            tc = ix.first("testcase", testcase_id=d.data.get("testcase_id"))
+            if tc:
+                exp(d, ["precondition_reached", "value"], reachability_reached(tc.data, d.data), "all reachability controls PASS")
+                exp(d, ["positive_control", "value"], positive_control_value(tc.data, d.data), "oracle_can_fail control PASSed")
 
     # inventory -> redaction map
     for d in ix.docs("inventory"):
@@ -409,6 +594,13 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     for field, kind in (("toolkit_config_ref", "toolkit-config"), ("key_registry_ref", "key-registry"), ("engagement_ref", "engagement")):
         if b.data(kind) is not None:
             exp(d, [field], content_hash(b.data(kind)), f"content hash of {kind}")
+    # B11: configuration files named by the run manifest (the kind is checked in checks.g_runs, E-RUN-CONFIG)
+    for key in CONFIG_KINDS:
+        ref = (r.get("config_refs") or {}).get(key)
+        if isinstance(ref, dict) and isinstance(ref.get("path"), str):
+            cd = next((x for x in b.docs if x.path == ref["path"] and x.data is not None), None)
+            if cd is not None:
+                exp(d, ["config_refs", key, "sha256"], content_hash(cd.data), f"content hash of {ref['path']}")
     has_g0b = any(g.get("gate") == "G0b" for g in r.get("gate_records", []))
     if b.data("roe") is not None:
         exp(d, ["roe_ref"], content_hash(b.data("roe")) if has_g0b else None, "content hash of roe.yaml when the run passed G0b")
@@ -433,14 +625,14 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     exp(d, ["slice_refs"], slice_by_run.get(rid, []), "slices of this run")
 
     g3 = ix.gate_records(rid, "G3")
-    exp(d, ["threat_model_ref"], g3[-1].data["artifact"]["sha256"] if g3 else None, "G3 artifact")
+    exp(d, ["threat_model_ref"], artifact_sha(g3[-1].data) if g3 else None, "G3 artifact")
     tcs = {tid: ix.first("testcase", testcase_id=tid) for tid in r.get("testcase_ids", [])}
     if all(tcs.values()):
         exp(d, ["artifact_hashes"], {k: approval_hash(v.data) for k, v in tcs.items()}, "approval hash of each testcase")
         exp(d, ["testplan_ref"], set_digest([{"id": k, "sha256": approval_hash(v.data)} for k, v in tcs.items()]) if tcs else None,
             "set digest of the run's testcases (= G4 artifact)")
     trs = sorted((x.data for x in ix.docs("testresult") if x.data.get("run_id") == rid),
-                 key=lambda t: (str(t.get("executed_at")), str(t.get("result_id"))))
+                 key=lambda t: (timeutil.sort_key(t.get("executed_at")), str(t.get("result_id"))))   # D4: by instant, not by text
     exp(d, ["testresults"], [content_hash(t) for t in trs], "content hash of each testresult (execution order)")
     for jid in (r.get("jobs") or {}):
         tr = next((t for t in trs if t.get("job_id") == jid), None)
@@ -453,7 +645,7 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
                 exp(d, ["gate_records", i, "subject_hash"], get_path(r, ["testplan_ref"]), "pending G4 subject = testplan_ref")
             continue
         for field, val in (("gate", rec.get("gate")), ("outcome", rec.get("outcome")), ("round", rec.get("round")),
-                           ("subject_hash", (rec.get("artifact") or {}).get("sha256")), ("job_id", rec.get("job_id")),
+                           ("subject_hash", artifact_sha(rec)), ("job_id", rec.get("job_id")),
                            ("opened_at", rec.get("opened_at")), ("decided_at", rec.get("timestamp"))):
             exp(d, ["gate_records", i, field], val, f"mirror of {rec.get('gate_record_id')}")
     parent = ix.first("run", run_id=r.get("parent_run_id")) if r.get("parent_run_id") else None
@@ -482,7 +674,7 @@ def _report_expectations(ix: Index, d: Doc, exp):
         if kind in ("threat_model", "test_plan", "gate_record"):
             rec = ix.first("gate-record", gate_record_id=ref)
             if rec:
-                val = rec.data["artifact"]["sha256"] if kind != "gate_record" else content_hash(rec.data)
+                val = artifact_sha(rec.data) if kind != "gate_record" else content_hash(rec.data)
         elif kind == "testresult":
             x = ix.first("testresult", result_id=ref)
             val = content_hash(x.data) if x else MISSING

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Review fixes (v0.2.1): audit-backed SARIF refs, strict JSON numbers, audit anchor completeness,
 host normalisation, unparseable endpoints, placeholder models / --real-run, JSONL line splitting,
 verifier-only votes. Each rule has a positive and a negative case."""
@@ -45,8 +46,9 @@ def test_sarif_ref_needs_a_successful_whitebox_invocation(b, mutate, why):
     R = run_all(b)
     hits = [i for i in R.errors if i.code == "E-SARIF-REF"]
     assert hits and why in hits[0].msg and hits[0].where.endswith(K014)
-    # the unresolved ref no longer corroborates: V-014-1 is re-derived as UNCORROBORATED (R7)
-    assert {"E-VERDICT-TOOLCORR", "E-VERDICT-STATUS"} <= R.codes()
+    # the unresolved ref is not even a weak signal any more: V-014-1 loses its second independent
+    # source and is re-derived as UNCORROBORATED (R7) instead of LIKELY (R6) (v0.3, H-A1)
+    assert {"E-VERDICT-TOOLSIGNAL", "E-VERDICT-SOURCES", "E-VERDICT-STATUS"} <= R.codes()
 
 
 def test_sarif_ref_without_audit_log(b):
@@ -58,7 +60,7 @@ def test_sarif_ref_without_audit_log(b):
 def test_sarif_refs_and_tool_corroboration_are_unique(b):
     cl, v = doc(b, K014).data, doc(b, V014).data
     cl["sarif_refs"] = cl["sarif_refs"] * 2
-    v["tool_corroboration"] = v["tool_corroboration"] * 2
+    v["tool_signal"] = v["tool_signal"] * 2            # v0.3: K-014's SARIF result is a weak signal (H-A1)
     errs = [i for i in run_all(b).errors if i.code == "E-SCHEMA"]
     assert {i.where.rsplit("/", 1)[-1] for i in errs} >= {K014, V014}
     assert all("non-unique" in i.msg for i in errs)
@@ -66,7 +68,10 @@ def test_sarif_refs_and_tool_corroboration_are_unique(b):
 
 def test_tool_corroboration_is_compared_as_a_list(b):
     v = doc(b, V014).data
-    v["tool_corroboration"] = v["tool_corroboration"] * 2      # a set compare would accept this
+    v["tool_signal"] = v["tool_signal"] * 2      # a set compare would accept this
+    assert "E-VERDICT-TOOLSIGNAL" in codes(b)
+    v["tool_signal"] = v["tool_signal"][:1]
+    v["tool_corroboration"] = v["tool_signal"] * 2
     assert "E-VERDICT-TOOLCORR" in codes(b)
 
 
@@ -277,10 +282,10 @@ def test_non_verifier_vote_is_ignored_and_reported(b, keys):
     rederive(b, keys)
     assert v["votes"][0]["weighted_valid"] is False and v["score"] == 0.0
     R = run_all(b)
-    assert R.codes() == {"E-VERDICT-VOTER-ROLE", "E-VERDICT-DIVERSITY"}   # only openai left -> degraded
+    # v0.3 (A3): V-014-1 is already diversity_degraded (the gpt_oss vote has weight 0), so ignoring the
+    # rev_c vote changes neither the flag nor the status (LIKELY via R6): only the role error remains
+    assert R.codes() == {"E-VERDICT-VOTER-ROLE"}
     assert any("rev_c" in i.msg and "'reviewer'" in i.msg for i in R.errors if i.code == "E-VERDICT-VOTER-ROLE")
-    v["diversity_degraded"] = True
-    assert codes(b) == {"E-VERDICT-VOTER-ROLE"}
 
 
 def test_verifier_votes_have_no_role_error(b):

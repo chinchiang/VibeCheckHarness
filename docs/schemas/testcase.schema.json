@@ -63,22 +63,73 @@
       },
       "minItems": 1
     },
+    "controls": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "control_id": {
+            "type": "string",
+            "pattern": "^CTL-[0-9]{2}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "reachability",
+              "oracle_can_pass",
+              "oracle_can_fail"
+            ],
+            "description": "reachability＝請求確實到達受測端點／程式位置並通過認證（取代 precondition_reached 的依據）；oracle_can_pass＝已知良好的變體讓 oracle 判定通過；oracle_can_fail＝已知違反的變體讓 oracle 判定違反（正對照）"
+          },
+          "description": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "expected": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "control_id",
+          "kind",
+          "description",
+          "steps",
+          "expected"
+        ]
+      },
+      "description": "對照組（B5，H-B1）：至少一個 reachability 對照（E-TC-CONTROLS）。對照必須在有漏洞的版本上也能成立；任何對照沒有 PASS → testresult.outcome 必須是 INVALID"
+    },
     "oracle": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "STATUS_AND_BODY",
-            "STATE_DIFF",
-            "TOOL_CHECK",
-            "TOOL_CALL_LOG",
-            "CANARY",
-            "THRESHOLD",
-            "DOM_ASSERTION",
-            "HUMAN"
-          ]
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "STATUS_AND_BODY",
+              "STATE_DIFF",
+              "TOOL_CHECK",
+              "TOOL_CALL_LOG",
+              "CANARY",
+              "THRESHOLD",
+              "DOM_ASSERTION",
+              "HUMAN",
+              "LLM_GRADER"
+            ]
+          },
+          "description": "此測試使用的 oracle 種類（可多個）。確定性 oracle＝HUMAN 與 LLM_GRADER 以外的全部；只有 HUMAN／LLM_GRADER 判定的違反不算 FAIL 證據（E_inc，docs/05 §4.2）"
         },
         "conditions": {
           "type": "array",
@@ -120,7 +171,7 @@
         }
       },
       "required": [
-        "type",
+        "types",
         "conditions",
         "requirement_refs",
         "oracle_query_id",
@@ -201,7 +252,8 @@
         },
         "max_requests": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "單一 job 的請求上限（含對照組與 canary 紀錄讀取；重播 job 另計）"
         }
       },
       "required": [
@@ -233,17 +285,47 @@
           },
           "path": {
             "type": "string",
-            "description": "路徑樣板（以 / 開頭、已正規化）；變數段用 {name}；DELETE 的每個變數段都必須是 {seed:key}"
+            "description": "路徑樣板（以 / 開頭、已正規化）；變數段用 {name}。變更請求（POST／PUT／PATCH／DELETE 與 GraphQL mutation）的每個變數段都必須是 {seed:key}（key 在 seed manifest，且路徑是該種子宣告的 path_templates 之一）或 {created:step_id}（同一 job 中較早、打到 seed manifest create_only_endpoints 的建立請求）；否則 S3（E-TC-MUTATION-SCOPE）"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "此請求的步驟 ID；{created:step_id} 以它引用這一步建立的物件"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "graphql_operation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "query",
+                  "mutation",
+                  "introspection"
+                ],
+                "description": "GraphQL 請求的操作種類（Scope Proxy 強制）；query／introspection 不算變更請求，但 POST 仍使等級 ≥ S1"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "target_id",
           "method",
-          "path"
+          "path",
+          "step_id",
+          "graphql_operation"
         ]
       },
       "minItems": 1,
-      "description": "Scope Proxy 以此逐一放行；不在清單中的請求一律阻擋"
+      "description": "Scope Proxy 以此逐一放行；不在清單中的請求一律阻擋。對照組與 canary 紀錄讀取的請求也必須列入；重播是另開的 job，不計入 rate_limit.max_requests"
     },
     "seed_manifest_ref": {
       "anyOf": [
@@ -345,6 +427,21 @@
       "type": "boolean",
       "description": "多輪 LLM 功能測試；true 時經 Z3→Z1 relay（docs/03 §7.5），ROE relay 必須非 null"
     },
+    "script_turns": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "ROE relay.mode＝scripted 時多輪測試的固定使用者輪次（長度 ≤ trials.multi_turn_max_turns ≤ ROE relay.max_turns）；multi_turn false 時為 null"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "strategy_template_sha256": {
       "anyOf": [
         {
@@ -378,6 +475,7 @@
     "target_ids",
     "preconditions",
     "steps",
+    "controls",
     "oracle",
     "tool_binding",
     "safety_class_proposed",
@@ -388,6 +486,7 @@
     "data_needed",
     "trials",
     "multi_turn",
+    "script_turns",
     "strategy_template_sha256",
     "artifact_sha256"
   ],

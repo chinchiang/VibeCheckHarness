@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """`python tools/validate_schemas.py [--root DIR] [--quiet] [--real-run]` — validate the design bundle."""
 from __future__ import annotations
 

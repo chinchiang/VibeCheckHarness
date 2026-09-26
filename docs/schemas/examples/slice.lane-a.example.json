@@ -1,5 +1,5 @@
 {
-  "slice_id": "sha256:993c57c087955d4b434dd103ceaac590eed5bf5e0da31f8c7988fc572f82b7d1",
+  "slice_id": "sha256:17a9bc59e0dd2ed82e59d057d8b2f1531fbc008f5898ee82288235893227bb6a",
   "run_id": "run-2026-09-25-pr-118",
   "files": [
     {
@@ -9,6 +9,8 @@
       "line_end": 60
     }
   ],
+  "redaction_map_sha256": "sha256:7cee5e0633f1a8ae6d39da59c83abd63f62e12e60b07b83f799761ca6219405e",
+  "prompt_template_sha256": "sha256:e5e612d1aa2a91a2bbd5c2866288958eaa0867fe8bc42147ab08fe56621b1456",
   "entry_points": [
     "GET /api/exports/{id}"
   ],

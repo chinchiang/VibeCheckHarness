@@ -10,7 +10,10 @@
       "voter_family": "nvidia",
       "voter_lineage": "nemotron3",
       "stance": "SUPPORT",
-      "rationale": "src/support/agent.ts:57 把 refund 直接交給 agent，前面沒有確認步驟，也沒有比對訂單擁有者。",
+      "rationale": "app/support/agent.py:57 把 refund 直接交給 agent，前面沒有確認步驟，也沒有比對訂單擁有者。",
+      "cited_evidence": [
+        "app/support/agent.py:57"
+      ],
       "fallback_used": null,
       "anonymized": true,
       "order_randomized": true,
@@ -21,6 +24,8 @@
   ],
   "missing_votes": [],
   "tool_corroboration": [],
+  "tool_signal": [],
+  "independent_sources": 1,
   "executable_proof": null,
   "test_evidence": {
     "class": null,
@@ -31,6 +36,7 @@
   "calibration_version": 3,
   "theta_confirm": 1.2,
   "theta_reject": null,
+  "provisional": false,
   "score": 0.6222,
   "g2_decision_ref": null,
   "status": "UNCORROBORATED",
@@ -38,7 +44,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.2",
+  "rule_version": "05-v0.3",
   "rule_trace": [
     "R2:weighted_support=1,score=0.6222<theta_confirm=1.2",
     "R7:independent_families=1->UNCORROBORATED"

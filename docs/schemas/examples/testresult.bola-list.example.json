@@ -1,0 +1,54 @@
+{
+  "result_id": "R-TC-033-01-1",
+  "testcase_id": "TC-033-01",
+  "run_id": "run-2026-09-23-001",
+  "phase": "B4",
+  "job_id": "job-list-001",
+  "executed_at": "2026-10-05T20:41:00+08:00",
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "cluster_ids": [
+    "K-201"
+  ],
+  "outcome": "FAIL",
+  "fail_oracles": [
+    "STATUS_AND_BODY"
+  ],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "outcome": "PASS"
+    },
+    {
+      "control_id": "CTL-02",
+      "outcome": "PASS"
+    }
+  ],
+  "trials": {
+    "n": 1,
+    "k": 1
+  },
+  "replays": 2,
+  "replay_k": 2,
+  "oracle_observations": [
+    "對照 CTL-01、CTL-02 都 PASS",
+    "tenantA_user 的 GET /api/invoices 回應 200，列表含 tenant_b_invoice 的 id（違反 REQ-ASVS-8.2.2、INV-AC-007）",
+    "重播 job 2 次結果相同"
+  ],
+  "request_count": 3,
+  "stop_reason": null,
+  "precondition_reached": {
+    "value": true,
+    "evidence_ref": "sha256:b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4"
+  },
+  "positive_control": {
+    "value": true,
+    "evidence_ref": "sha256:c3e5b7d9f1a3c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6"
+  },
+  "artifact_sha256": "sha256:6d1f0c3b5a7e9d2f4b6a8c0e1d3f5a7b9c2e4d6f8a0b1c3e5d7f9a2b4c6e8d0f",
+  "observed_build_id": "4f2a9c1e8b3d",
+  "request_log_sha256": "sha256:d4f6a8c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d1f3a5c7e9b2d4f6a8c0e1b3d5f8",
+  "interpreted_by": null,
+  "interpretation": null
+}

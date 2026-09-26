@@ -120,6 +120,91 @@
           }
         ],
         "description": "供應商公告的最早退役日（docs/08 §7；E:providers-49）。日期已過 → 驗證失敗；run 期間會到期 → 警告。未公告寫 null"
+      },
+      "pricing": {
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "input_usd_per_mtok": {
+                "type": "number",
+                "minimum": 0
+              },
+              "output_usd_per_mtok": {
+                "type": "number",
+                "minimum": 0
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date"
+              },
+              "source": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "input_usd_per_mtok",
+              "output_usd_per_mtok",
+              "as_of",
+              "source"
+            ],
+            "description": "價格快照（實作時查證）；null＝未列出，engagement 的 max_cost_usd 仍必填（fail-closed）"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "rate_limits": {
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rpm": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "tpm": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "rpm",
+              "tpm"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "tokenizer": {
+        "anyOf": [
+          {
+            "type": "string",
+            "description": "計算 token 的 tokenizer；null＝未知"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """JSON-compatible YAML subset for signed documents (D11, docs/03 §6.1).
 
 PyYAML is a YAML 1.1 parser and silently accepts duplicated keys (which value wins is not

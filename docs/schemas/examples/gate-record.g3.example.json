@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "threat_model",
-    "sha256": "sha256:5bbd08bc321dd0559d8fcbbe5b2817061adbd6a4a73cfd6788b4d9ae215f1b9a"
+    "sha256": "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441"
   },
   "job_id": null,
   "initiator": "alice",
@@ -26,7 +26,7 @@
   "decisions": [
     {
       "item_id": "T-012",
-      "item_sha256": "sha256:99bee658d90475ebebdce30734529840e0f35682d4ef6789b5fc9cd6c279c836",
+      "item_sha256": "sha256:79cf9db22cad2d79238fa46833c9076d0770f16fe48cd546d72810e5fc76ef4d",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -47,10 +47,17 @@
     },
     {
       "item_id": "T-031",
-      "item_sha256": "sha256:4a6672300e1be94cb9f539ff9884849d7b5143f191b565c1f127e8031bdb1ad4",
+      "item_sha256": "sha256:0df8dbe1b8f43ce0a4fcf7d0b9d848e409e7e21f1a938ac332520e657cb81e23",
       "decision": "accept",
       "risk_override": null,
       "note": null
+    },
+    {
+      "item_id": "T-033",
+      "item_sha256": "sha256:9d04292da18281744b1a8b10af72d681987c3a340bd5fa741f5a05dd6afbb128",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "外部視角提出；白箱沒有對應叢集"
     }
   ],
   "gb": null,
@@ -62,13 +69,13 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "IQdqLXi5oFnkuQHdz5f6sHyPS0a9/cLTEFu47RU0D6cl2EvYddjloN8rJPO6SEEkNyyKSlRiq09UDGvaofRNBQ=="
+      "value": "Bs0p3BOIgtIt2oCT5bbyjniIiKExGwiC8c98xu+Y5Q9RTmOGletOBJG7YTXi+HhCdLmXsSProY76db+WdbikBg=="
     },
     {
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "VuHS02HxN/5pAnB6BrelfT80+3wjXry1piwCUXCkYFUd2bU5jveyByOGPKgsE7L+/WG+NVtj4pAgugegAYbWCg=="
+      "value": "EhfShbmI4ttHwbP2HOfMao4LE8WT+HdatrS/dxadtUwYAuXcVXVCZVkWB4QEbwz9nU9UMeE7EXK8VNnOecibCw=="
     }
   ]
 }

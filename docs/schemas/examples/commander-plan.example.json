@@ -1,13 +1,19 @@
 {
   "plan_id": "plan-2026-09-23-001",
   "decision_node": "CMD-1",
+  "round": 1,
   "slices": [
     {
-      "slice_id": "sha256:29c34c37a9617bceb0d741006798fb94dbf97a181c95ca73a101fb8bc025a09e",
+      "slice_id": "sha256:ad186f2db02b15239aa533c2dc239cb9cccc23879ecc1589dc29486dc6264ee2",
       "facets": [
         "authz",
+        "authn_session",
+        "injection",
         "data_access",
-        "llm_integration"
+        "secrets_config",
+        "business_logic",
+        "llm_integration",
+        "file_handling"
       ],
       "agents": [
         "rev_a",
@@ -21,6 +27,6 @@
   "testcase_ids": [],
   "target_ids": [],
   "budget_tokens": 2000000,
-  "rationale": "路由 /api/invoices/* 的查詢沒有 owner 條件，加重 authz 與 data_access 面向",
+  "rationale": "路由 /api/invoices/* 的查詢沒有 owner 條件，加重 authz 與 data_access 面向；W0 inventory 的面向下限另含 llm_integration、file_handling",
   "followup_drafts": []
 }

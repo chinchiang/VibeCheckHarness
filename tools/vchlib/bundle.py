@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Load every schema, example instance and configuration file of the design repo.
 
 Layout:

@@ -1,6 +1,22 @@
-# 資料模型（JSON Schema 2020-12，v0.2）
+# 資料模型（JSON Schema 2020-12，v0.3）
 
-這裡的 schema 是**存檔與交換用**的完整版本。送給 LLM 的「輸出用 schema」由程式自動**降級**為跨廠商的最小公約數：去除數值與長度限制、`pattern`、`format`、`multipleOf`、`$ref`；所有物件設 `additionalProperties: false` 並把所有欄位列為 required；`minItems` 最大為 1。LLM 輸出取得後，再以這裡的完整 schema 驗證（見 [03 §8.3](../03-system-architecture.md#83-結構化輸出跨廠商最小公約數)）。降級程式在 [tools/vchlib/llm_schema.py](../../tools/vchlib/llm_schema.py)，目前套用在 finding、threat、testcase、commander-plan。
+這裡的 schema 是**存檔與交換用**的完整版本。送給 LLM 的「輸出用 schema」由程式自動產生（見 [03 §8.3](../03-system-architecture.md#83-結構化輸出跨廠商最小公約數)；程式在 [tools/vchlib/llm_schema.py](../../tools/vchlib/llm_schema.py)），分兩步：
+
+1. **投影**（`project`）：解析所有 `$ref`（含跨檔的 `common.schema.json#/$defs/...`、`requirement.schema.json`），取出 LLM 要寫的部分，並**移除 Harness 自己填的欄位**（ID、hash、run_id、家族、狀態、比對結果、安全等級、核准）。登錄表 `LLM_OUTPUTS`：
+   - `finding`：移除 `finding_id`、`run_id`、`slice_id`、`reporter`、`status`、`evidence[].snippet_sha256`、`evidence[].match`
+   - `vote`（verdict 的 `votes[]`）：只留 `stance`、`rationale`、`cited_evidence`
+   - `threat`：移除 `threat_id`、`source_cluster_id`、`source_finding_ids`、`modeled_by`、`review`、`evidence[].match`、`crosswalk[].provenance／source_ref／reviewed_by`
+   - `testcase`：移除 `testcase_id`、`threat_id`、`source_cluster_id`、`safety_class_computed`、`seed_manifest_ref`、`oracle.oracle_query_sha256`、`tool_binding.params`（自由格式，由 adapter 範本填）、`strategy_template_sha256`、`artifact_sha256`
+   - `commander-plan`：移除 `plan_id`、`decision_node`、`round`、`followup_drafts[].draft_id`
+   - `invariants`：移除 `engagement_id`、`run_id`、`round`、`drafted_by`、`signoff`、`invariants[].requirement_id／ref／signoff`
+   - `dfd`：移除 `dfd_id`、`run_id`、`viewpoint`、`elements[].provenance`、`b1_diff`
+   - `result-interpretation`（testresult 的 `interpretation`）：只留 `agrees`、`rationale`
+2. **降級**（`degrade_for_llm`）成 Claude／OpenAI strict 的共通子集：
+   - 直接移除（完整 schema 事後再驗）：`contains` `default` `exclusiveMaximum` `exclusiveMinimum` `format` `maxLength` `maxProperties` `maximum` `minLength` `minProperties` `minimum` `multipleOf` `pattern` `propertyNames` `uniqueItems`
+   - 改寫：`const` → 單值 `enum`；`$ref` 內嵌、`$defs` 移除；無法解析的 `$ref` 是錯誤（不會變成 `{}`）
+   - 拒絕（`DegradeError`，列出路徑；必須在投影中移除或改 schema）：`additionalItems` `allOf` `dependentRequired` `dependentSchemas` `else` `if` `not` `oneOf` `patternProperties` `prefixItems` `then` `unevaluatedItems` `unevaluatedProperties`，以及自由格式物件（沒有 `properties`，或 `additionalProperties` 為 true／schema）
+   - 不在完整 schema `required` 中的欄位先改成可為 null，再把所有欄位列為 required；每個物件（含 `type: ["object","null"]`）設 `additionalProperties: false`；型別陣列保留；`minItems` 最大為 1
+   - 降級結果不得含 `FORBIDDEN_FOR_LLM`（上面三組的聯集）中的任何關鍵字，也不得含 Harness 欄位（`E-LLM-SCHEMA`）。LLM 輸出取得後，Harness 填回自己的欄位，再以這裡的完整 schema 驗證。
 
 每個 schema 的 `$id` 等於檔名；跨檔引用只用 `common.schema.json#/$defs/...`。
 
@@ -27,17 +43,17 @@
 | [inventory](inventory.schema.json) | W0 盤點 | [inventory.example.json](examples/inventory.example.json) |
 | [redaction-map](redaction-map.schema.json) | secrets 遮罩對照 | [redaction-map.example.json](examples/redaction-map.example.json) |
 | [slice](slice.schema.json) | 切片 | [slice.example.json](examples/slice.example.json)、[Lane A](examples/slice.lane-a.example.json) |
-| [finding](finding.schema.json) | 發現項（含程式證據） | [F-001](examples/finding.example.json)、[F-021](examples/finding.f-021.example.json)、[F-044](examples/finding.f-044.example.json)、[F-052](examples/finding.f-052.example.json)、[F-101](examples/finding.f-101.example.json) |
-| [cluster](cluster.schema.json) | 叢集鍵、成員、家族 | [K-005](examples/cluster.example.json)、[K-011](examples/cluster.k-011.example.json)、[K-014](examples/cluster.k-014.example.json)（SARIF 佐證）、[K-101](examples/cluster.k-101.example.json) |
-| [verdict](verdict.schema.json) | 驗證票、裁決狀態、rule_trace | [V-005-1](examples/verdict.example.json)、[V-005-2](examples/verdict.executable.example.json)、[V-011-1](examples/verdict.k-011-w3.example.json)、[V-011-2](examples/verdict.k-011-b5.example.json)、[V-014-1](examples/verdict.k-014-w3.example.json)（CONFIRMED_CORROBORATED）、[V-101-1](examples/verdict.lane-a.example.json) |
-| [dfd](dfd.schema.json) | 資料流程圖（外部觀點／合併觀點） | [external](examples/dfd.external.example.json)、[merged](examples/dfd.merged.example.json) |
-| [threat](threat.schema.json) | 威脅、分類版本、簽核、對照連結 | [T-005](examples/threat.example.json)、[T-019](examples/threat.t-019.example.json)、[T-027](examples/threat.t-027.example.json)、[T-031](examples/threat.t-031.example.json) |
+| [finding](finding.schema.json) | 發現項（證據 kind：code_snippet／inventory_fact／config_fact） | [F-017](examples/finding.example.json)、[F-021](examples/finding.f-021.example.json)、[F-044](examples/finding.f-044.example.json)、[F-052](examples/finding.f-052.example.json)、[F-061](examples/finding.f-061.example.json)（inventory_fact：invoices 沒有 RLS）、[F-101](examples/finding.f-101.example.json) |
+| [cluster](cluster.schema.json) | 叢集鍵、來源（white_box／black_box）、成員、家族、指紋、baseline_state | [K-005](examples/cluster.example.json)、[K-011](examples/cluster.k-011.example.json)、[K-014](examples/cluster.k-014.example.json)（弱 SARIF 訊號）、[K-015](examples/cluster.k-015.example.json)、[K-101](examples/cluster.k-101.example.json)、[K-201](examples/cluster.k-201.example.json)（black_box，T-033）、[K-202](examples/cluster.k-202.example.json)（black_box，T-027） |
+| [verdict](verdict.schema.json) | 驗證票、裁決狀態、rule_trace、工具佐證／訊號、provisional | [V-005-1](examples/verdict.example.json)、[V-005-2](examples/verdict.executable.example.json)、[V-011-1](examples/verdict.k-011-w3.example.json)、[V-011-2](examples/verdict.k-011-b5.example.json)、[V-014-1](examples/verdict.k-014-w3.example.json)（LIKELY，R6）、[V-015-1](examples/verdict.k-015-w3.example.json)、[V-101-1](examples/verdict.lane-a.example.json)、[V-201-1](examples/verdict.k-201-b5.example.json)（CONFIRMED_EXECUTABLE，不需 LLM 分析者）、[V-202-1](examples/verdict.k-202-b5.example.json) |
+| [dfd](dfd.schema.json) | 資料流程圖（外部觀點／合併觀點；元件來源與邊界種類） | [external](examples/dfd.external.example.json)、[merged](examples/dfd.merged.example.json) |
+| [threat](threat.schema.json) | 威脅、分類版本、簽核、對照連結 | [T-012](examples/threat.example.json)、[T-019](examples/threat.t-019.example.json)、[T-027](examples/threat.t-027.example.json)、[T-031](examples/threat.t-031.example.json)、[T-033](examples/threat.t-033.example.json)（外部視角，沒有來源叢集） |
 | [seed-threats](seed-threats.schema.json) | W3→B1 種子威脅 | [seed-threats.example.json](examples/seed-threats.example.json) |
 | [requirement](requirement.schema.json) | ASVS／AISVS 需求與 G1 安全不變量 | [asvs](examples/requirement.asvs.example.json)、[invariant](examples/requirement.invariant.example.json)、[invariant-llm](examples/requirement.invariant-llm.example.json) |
-| [commander-plan](commander-plan.schema.json) | 指揮官計畫與後續草稿 | [CMD-4](examples/commander-plan.example.json)、[CMD-5](examples/commander-plan.cmd5.example.json) |
-| [testcase](testcase.schema.json) | 測試案例 | [IDOR（S1）](examples/testcase.idor.example.json)、[LLM（S1）](examples/testcase.llm.example.json)、[ZAP active（S2）](examples/testcase.zap-active.example.json) |
-| [testresult](testresult.schema.json) | 測試結果 | [IDOR](examples/testresult.example.json)、[LLM](examples/testresult.llm-pass.example.json)、[ZAP](examples/testresult.zap-active.example.json) |
-| [report-manifest](report-manifest.schema.json) | 報告清單與雜湊 | [report-manifest.example.json](examples/report-manifest.example.json) |
+| [commander-plan](commander-plan.schema.json) | 指揮官計畫與後續草稿 | [CMD-1](examples/commander-plan.example.json)、[CMD-5](examples/commander-plan.cmd5.example.json) |
+| [testcase](testcase.schema.json) | 測試案例（oracle.types、controls） | [IDOR（S1）](examples/testcase.idor.example.json)、[LLM（S1）](examples/testcase.llm.example.json)、[ZAP active（S2）](examples/testcase.zap-active.example.json)、[發票列表 BOLA（S0）](examples/testcase.bola-list.example.json) |
+| [testresult](testresult.schema.json) | 測試結果（fail_oracles、controls、observed_build_id） | [IDOR](examples/testresult.example.json)、[LLM](examples/testresult.llm-pass.example.json)、[ZAP](examples/testresult.zap-active.example.json)、[發票列表](examples/testresult.bola-list.example.json) |
+| [report-manifest](report-manifest.schema.json) | 報告清單與雜湊、metrics、build_unverified_targets、absent_fingerprints | [report-manifest.example.json](examples/report-manifest.example.json) |
 | [selftest-report](selftest-report.schema.json) | 工具包自測結果 | [selftest-report.m1.example.json](examples/selftest-report.m1.example.json) |
 | [checkpoint-metadata](checkpoint-metadata.schema.json) | checkpoint 中繼資料 | [checkpoint-metadata.followup.example.json](examples/checkpoint-metadata.followup.example.json) |
 
@@ -47,7 +63,7 @@
 python -m pip install -r requirements.txt      # 或 python -m pip install --user -r requirements.txt
 python tools/validate_schemas.py               # 最後一行應為 "all checks passed (...)"
 python -m pytest -q tests                      # 負向測試：每個竄改都要被對應的錯誤碼抓到
-python tools/validate_schemas.py --real-run    # 正式執行前：可達的佔位模型 ID 變成錯誤（目前範例會失敗：gpt_flagship）
+python tools/validate_schemas.py --real-run    # 正式執行前：代理可達的佔位模型 ID 變成錯誤（目前範例通過：唯一的佔位模型 nemotron_cloud 沒有代理可達）
 ```
 
 `tools/validate_schemas.py` 只是入口；檢查都在 [tools/vchlib](../../tools/vchlib/)。CI（`.github/workflows/validate.yml`）在 ubuntu 與 windows 上跑上面兩個命令與 `tools/check_doc_links.py`。
@@ -61,7 +77,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：可達的佔�
 
 ### 檢查項目（21 組）
 
-1. **schema 與範例**：每個 schema 是合法 2020-12、`$id`＝檔名；每個範例（含 `docs/examples/*.yaml`）通過 schema，`date-time` 必須帶時區；除 `common` 外每個 schema 都有範例；YAML 以嚴格載入器讀取（重複鍵、anchor、tag → `E-YAML-STRICT`）；無對應 schema 的 YAML → `E-KIND`。
+1. **schema 與範例**：每個 schema 是合法 2020-12、`$id`＝檔名；每個範例（含 `docs/examples/*.yaml`）通過 schema，`date-time` 必須帶時區、`uri` 必須是有 scheme 與主機的絕對 URI；schema 用到沒有檢查器的 `format` → `E-SCHEMA-FORMAT`（啟動即失敗，不會默默略過）；除 `common` 外每個 schema 都有範例；YAML 以嚴格載入器讀取（重複鍵、anchor、tag → `E-YAML-STRICT`）；無對應 schema 的 YAML → `E-KIND`；頂層形狀錯誤（該是 mapping 卻是 list、該是 list 卻是整數…）→ 每個檔案一個 `E-INPUT-SHAPE`，該文件不進語意檢查，驗證程式不會丟出 traceback。
 2. **RFC 8785 JCS**：自寫的 `canonical.jcs` 對 RFC 8785 測試向量，並對每份文件與參考套件 `rfc8785==0.1.4` 比對。
 3. **衍生值**：片段 hash、關卡項目 hash、artifact hash、報告清單 hash、票權重、分數、合格票等由 `vchlib.derive` 重算；稽核雜湊鏈由原始行重算。
 4. **金鑰登錄**：根公鑰指紋＝toolkit 釘選值、根簽章有效、`version ≥ min_version`（防回滾）、`registry_id`＝toolkit `location`＝engagement／ROE `key_registry_ref`、指紋＝公鑰計算值、撤銷欄位一致、自動化帳號不得持有金鑰。
@@ -73,15 +89,50 @@ python tools/validate_schemas.py --real-run    # 正式執行前：可達的佔�
 10. **關卡**：每關必要角色、登錄一致、G0b 之後的核准者來自 ROE、發起者、逾時、有效期間、G4 核准者 ∈ run.initiators、G5 核准者 ∉ run.initiators 且在同一 ROE 時間窗內決定、GB 核准者、outcome 與 decisions 一致、G3 決定寫回威脅、G1 決定寫回不變量。
 11. **run**：狀態／current_node／resume_deadline、jobs、S2 需要 G5＋快照＋還原驗證＋7 天內的還原演練（稽核日誌無法載入時不重複回報 `E-RUN-RESTORE-DRILL`）、測試結果在時間窗內且在 G4／G5 之後、請求數 ≤ 上限、k ≤ n、GB 延長後的預算、Lane A 與後續 run 規則。
 12. **測試案例 vs ROE**：以 docs/04 §5 演算法（`vchlib.safety`）重算安全等級、可否進入 G4、db_tables ⊆ oracle_tables、種子都在 manifest、ZAP `delayInMs`／`maxScanDurationInMins` 限制、多輪對話需要 relay、角色。
-13. **裁決重算**：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；`diversity_degraded` 由合格票在 agents.yaml／models.yaml 的家族推導（少於 2 個家族 → true；Lane A 為 false），`tool_corroboration` ＝ 已解析的 cluster.sarif_refs ∪ E_fail_u 測試結果（排序後以清單比對，重複項目也算不符；schema 另以 `uniqueItems` 拒絕重複），與裁決宣告值不符 → `E-VERDICT-DIVERSITY`／`E-VERDICT-TOOLCORR`，重算時只用推導值。每個 `sarif_refs` 項目必須對應到該 run 稽核日誌中一個 `tool_invocation_end` 事件的 `payload_refs`，且該事件 `payload.adapter` 是 tools.yaml 中白箱工具的 `tool:mode`（工具 zone Z2、`b4_executable: false`）、事件 zone Z2、`payload.ok: true`；否則 → `E-SARIF-REF`，該 ref 不算工具佐證（不能用自己宣稱的 ref 繞過 R8）。只有 agents.yaml 中 role 為 `verifier` 的代理可以投票；其他角色的票 → `E-VERDICT-VOTER-ROLE`，且不計入 weighted_valid、score、支持／反對與家族多樣性。
+13. **裁決重算**（rule_version `05-v0.3`）：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；自我宣告的輸入一律由 validator 推導、重算時只用推導值：
+    - `tool_corroboration`＝**強**工具佐證：已解析的 SARIF ref 中，(adapter, rule_id, tool_version) 列在 calibration.yaml `result.high_precision_rules`（同 CWE 桶、`precision_lower95` ≥ `result.thresholds.high_precision_min.value`，預設 0.90）者 → R5 row 10（不受 R8 限制）；`E-VERDICT-TOOLCORR`
+    - `tool_signal`＝**弱**工具訊號：其他已解析的 SARIF ref ∪ E_fail_u 結果；不能單獨確認；`E-VERDICT-TOOLSIGNAL`
+    - `independent_sources`＝len(叢集 independent_families) ＋（有弱 SARIF 訊號 ? 1 : 0）＋（有 E_fail_u ? 1 : 0）；R6 需 ≥ 2；`E-VERDICT-SOURCES`
+    - E(cluster)＝agents.yaml 中 role verifier、家族與血統都不在叢集中的家族；`no_eligible_verifier`＝E 為空（`E-VERDICT-NOELIGIBLE`）；`diversity_degraded`＝非 Lane A、E 非空、且**計權合格票**的不同家族數 ＜ min(2, |E|)（`E-VERDICT-DIVERSITY`）
+    - `provisional`＝calibration_version 為 null，或 theta_confirm 為 null，或 E(cluster) 每個模型在該叢集 CWE 桶的權重都是 0（`E-VERDICT-PROVISIONAL`）
+    - 每個 `sarif_refs` 項目必須對應到該 run 稽核日誌中一個 `tool_invocation_end` 事件的 `payload_refs`，該事件 `payload.adapter` 是 tools.yaml 中白箱工具的 `tool:mode`（工具 zone Z2、`b4_executable: false`）、其 licenses.yaml 狀態已放行（`OK`／`注意`；`法務閘門` 不算）、事件 zone Z2、`payload.ok: true`；否則 → `E-SARIF-REF`，該 ref 不算任何工具證據。rule_id 取自 `payload.sarif_results[]`
+    - 只有 agents.yaml 中 role 為 `verifier` 的代理可以投票；其他角色的票 → `E-VERDICT-VOTER-ROLE`，且不計入 weighted_valid、score、支持／反對與家族多樣性
+    - R0＝每個成員的每一項證據都是 NOT_FOUND（沒有成員時不成立）；independent_families＝第一輪、reviewer 角色、至少一項證據不是 NOT_FOUND 的成員家族（`E-CLUSTER-FAMILIES`）
+    - 測試證據分類（`derive.classify_result`）：非 PASS／FAIL（ERROR、SKIPPED、STOPPED、INVALID）→ E_inc；重現的 FAIL 若只有 HUMAN／LLM_GRADER oracle 判定違反 → E_inc；解讀已預先登記（B4：G4 核准；W4：需求都經 G1 核准且 oracle_can_pass 對照 PASS）→ E_proof，不需要 LLM；否則由家族與血統都不在叢集中、且同意解讀的 Result Analyst → E_proof；否則 E_fail_u。PASS 需要所有 reachability 對照 PASS、機率型 k＝0 且 n′ ≥ 30、有確定性 oracle，以及預先登記（W4 用 oracle_can_fail）或合格分析者 → E_pass
 14. **追溯鏈**：finding → cluster → verdict → threat → testcase → testresult → report；requirement 範例與 invariants.yaml 一致；種子威脅、DFD 元件、G2 參照。
 15. **稽核紀錄結構**：seq 是整數且連號（`3e0` 之類 → `E-AUDIT-SEQ`）、時間不倒退、每個 gate_decision 後緊接 audit_anchor、`run.audit_anchors` 的 `{seq, line_sha256}` 與日誌行一致（`E-AUDIT-ANCHOR`／`-MISMATCH`／`-TRUNCATED`），而且必須依序列出日誌中**每一個** audit_anchor 事件（漏列任何一個，包括最後一個 → `E-AUDIT-ANCHOR`，不論 run 狀態）、最後錨點之後的尾段（非終止 → `W-AUDIT-UNANCHORED-TAIL`；終止狀態的 run 必須以 `run_end` anchor 結尾，所有原因合併成**一個** `E-AUDIT-TAIL`）、每份關卡紀錄都有事件。
 16. **校準**：重算 a、w、near_zero 與原因（±0.0005）、θ 可行性、arms（只有 ⑤ 探索性）、M-11 flag、κ。
 17. **授權**：`tools.yaml` 的 license_ref 與 requirements.txt 的套件都在 licenses.yaml。
 18. **對照表**：curated 必須有 reviewed_by、llm-suggested 不得有；OWASP 預設版本＝toolkit。
-19. **LLM 輸出 schema**：降級後只用共通子集，且範例仍通過降級 schema。
+19. **LLM 輸出 schema**：`LLM_OUTPUTS` 每一項投影並降級後只用共通子集、不含 Harness 欄位，且每個範例的 LLM 部分通過降級 schema（`E-LLM-SCHEMA`；見本頁開頭）。
 20. **工具包**：自動化帳號、逾時、保存期限欄位、`tool:mode` 命名、B4 模式在 Z3。
 21. **其他**：DFD 連線與 b1_diff、報告 verdict_counts（每叢集最新裁決）、自測（M1 需 ST-1／ST-3／ST-7 已執行且通過）、checkpoint。
+
+### v0.3 新增的錯誤碼
+
+| 錯誤碼 | 規則 |
+|---|---|
+| `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-RULE-VERSION` | 裁決的推導欄位（第 13 組） |
+| `E-RESULT-ORACLE` | `fail_oracles` 非空 ⇔ outcome FAIL，且 ⊆ testcase `oracle.types` |
+| `E-TC-CONTROLS`、`E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-PRECONDITION` | testcase 至少一個 reachability 對照；結果恰好涵蓋所有對照；任何對照沒有 PASS → outcome 必須是 INVALID；`precondition_reached`＝所有 reachability 對照 PASS；`positive_control`＝oracle_can_fail 對照 PASS（沒有時為 null） |
+| `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate）由 run 的測試結果重算 |
+| `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |
+| `E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | 指紋＝sha256(JCS({cwe_bucket, file, symbol}))（black_box：{cwe_bucket, target_id, method, path_template}）；`baseline_state` 依 run `baseline_run_id` 推導；report `absent_fingerprints` |
+| `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-FINDING-FACET` | 證據 kind 的欄位；inventory_fact 由 inventory 重算 match；status 由 match 推導；facet 與叢集 CWE 桶（`FACET_BUCKETS`） |
+| `E-INVENTORY`、`E-INVENTORY-REF` | inventory 內部參照（middleware、來源檔、public_prefix）；finding／threat／DFD 的 inventory JSON Pointer 必須可解析 |
+| `E-INVARIANT-LEVEL`、`E-INVARIANT-REF` | L2 以上的 ASVS／AISVS 需求由 baseline_levels 或 level_triggers 涵蓋；llm_tools 的資料分級、access_matrix.ownership |
+| `E-PLAN-FACETS`、`E-PLAN-TARGET`、`E-PLAN-ROUNDS`、`E-PLAN-AGENTS`、`E-PLAN-BUDGET` | 計畫每個切片涵蓋 `MANDATORY_FACETS`；型別化目標；輪次 ≤ 2；代理角色；token 預算 ≤ run 階段預算 |
+| `E-AGENT-TOOLS` | reviewer／verifier 只能 read_slice；commander 沒有工具；invariant_drafter 不能 read_slice |
+| `E-TC-MUTATION-SCOPE` | 變更請求只能經 `{seed:key}`（種子的 path_templates）或 create_only_endpoints＋`{created:step_id}`（同時 S3） |
+| `E-SEED-MANIFEST` | create_only_endpoints 的目標必須是 ROE 的 http 目標 |
+| `E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG` | observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash |
+| `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
+| `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
+| `E-ENG-PROVIDER`、`E-ENG-PROFILE`、`E-PROFILE-SAFETY` | 能收 C 級資料的雲端模型需 ZDR confirmed＋DPA；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 |
+| `E-THREAT-REVIEW`、`E-TC-REQ-UNAPPROVED`、`E-TC-SCRIPT` | 威脅的 review 必須是決定它的 G3 紀錄；testcase 只能引用 G1 核准的需求；scripted relay 需要 script_turns |
+| `E-RUN-CONFIG`、`E-RUN-RULE-VERSION`、`E-SLICE-IDENTITY` | run config_refs 指向正確種類的檔案、tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.3`；切片的 prompt 範本與 redaction map 屬於本 run |
+| `E-PROVENANCE`、`E-MODEL-FALLBACK-CLASS`、`E-MODEL-RETIREMENT-DATE`、`E-RESULT-ANALYST-ROLE` | threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 |
+| `E-SCHEMA-FORMAT`、`E-INPUT-SHAPE` | 見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查 |
 
 目前範例的預期警告只有一個：`nemotron_cloud` 的 litellm 是佔位模型 ID（`W-MODEL-PLACEHOLDER`；沒有 agent 會用到，`--real-run` 也不報錯）。U-11 已把 `claude_haiku` 換成 `claude_opus_48`（最早 2027-05-28 退役，不在委任期間內 [V][E:providers-52]）；U-12 已把 `gpt_flagship` 換成 `gpt-6-sol` [V][E:providers-46]。
 

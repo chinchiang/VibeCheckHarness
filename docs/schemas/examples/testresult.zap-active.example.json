@@ -8,8 +8,17 @@
   "target_ids": [
     "tgt-staging-api"
   ],
-  "cluster_ids": [],
+  "cluster_ids": [
+    "K-202"
+  ],
   "outcome": "PASS",
+  "fail_oracles": [],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "outcome": "PASS"
+    }
+  ],
   "trials": {
     "n": 1,
     "k": 0
@@ -31,8 +40,14 @@
     "evidence_ref": null
   },
   "artifact_sha256": "sha256:082cdaa2f50d7bac98650daa3314d5ce72b3d3a7c5be0a405368d1bf3d551ebd",
+  "observed_build_id": "4f2a9c1e8b3d",
+  "request_log_sha256": "sha256:9e4b6d8f0a2c4e6b8d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c3e5b",
   "interpreted_by": {
     "agent_id": "result_analyst",
     "family": "nvidia"
+  },
+  "interpretation": {
+    "agrees": true,
+    "rationale": "掃描到達已認證的列表端點；SQL injection 規則沒有 High／Medium 警示"
   }
 }

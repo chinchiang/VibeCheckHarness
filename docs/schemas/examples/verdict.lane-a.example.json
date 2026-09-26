@@ -6,6 +6,8 @@
   "votes": [],
   "missing_votes": [],
   "tool_corroboration": [],
+  "tool_signal": [],
+  "independent_sources": 0,
   "executable_proof": null,
   "test_evidence": {
     "class": null,
@@ -16,6 +18,7 @@
   "calibration_version": 3,
   "theta_confirm": 1.2,
   "theta_reject": null,
+  "provisional": false,
   "score": 0,
   "g2_decision_ref": null,
   "status": "UNCORROBORATED",
@@ -23,7 +26,7 @@
   "advisory": true,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.2",
+  "rule_version": "05-v0.3",
   "rule_trace": [
     "R9:lane_a->cap UNCORROBORATED,advisory"
   ]

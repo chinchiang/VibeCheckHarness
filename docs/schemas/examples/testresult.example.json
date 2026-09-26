@@ -12,6 +12,19 @@
     "K-005"
   ],
   "outcome": "FAIL",
+  "fail_oracles": [
+    "STATUS_AND_BODY"
+  ],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "outcome": "PASS"
+    },
+    {
+      "control_id": "CTL-02",
+      "outcome": "PASS"
+    }
+  ],
   "trials": {
     "n": 1,
     "k": 1
@@ -19,10 +32,11 @@
   "replays": 2,
   "replay_k": 2,
   "oracle_observations": [
+    "對照 CTL-01（A 讀自己的發票）與 CTL-02（oracle 在 B 的合法回應上判定命中）都 PASS",
     "GET 回應 200 且 body 含 B 的發票欄位（違反 REQ-ASVS-8.2.2、INV-AC-007）",
-    "重播 2 次結果相同"
+    "重播 job 2 次結果相同"
   ],
-  "request_count": 9,
+  "request_count": 5,
   "stop_reason": null,
   "precondition_reached": {
     "value": true,
@@ -33,8 +47,14 @@
     "evidence_ref": "sha256:a5447905a77d65e8bd14456c6fe4940fe14f0c244c1c942b1b6cbfcddbc95574"
   },
   "artifact_sha256": "sha256:391007bf87c869892bccfff6bce2239f19da9479f2e5b669f4fe317550e6d78f",
+  "observed_build_id": "4f2a9c1e8b3d",
+  "request_log_sha256": "sha256:3c9e1a7b5d2f4e6a8c0b1d3f5e7a9c2b4d6f8e0a1c3b5d7f9e2a4c6b8d0f1e3a",
   "interpreted_by": {
     "agent_id": "result_analyst",
     "family": "nvidia"
+  },
+  "interpretation": {
+    "agrees": true,
+    "rationale": "tenantA_user 的 GET 回應含 tenant_b_invoice 的欄位，兩次重播相同；不是對照組的請求"
   }
 }

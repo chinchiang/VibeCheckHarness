@@ -1,0 +1,30 @@
+{
+  "cluster_id": "K-202",
+  "run_id": "run-2026-09-23-001",
+  "origin": "black_box",
+  "threat_id": "T-027",
+  "canonical_location": {
+    "file": null,
+    "symbol": null,
+    "source": null,
+    "sink": null,
+    "endpoint": {
+      "target_id": "tgt-staging-api",
+      "method": "GET",
+      "path_template": "/api/invoices"
+    }
+  },
+  "cwe_bucket": "injection",
+  "cwes": [
+    "CWE-89"
+  ],
+  "member_finding_ids": [],
+  "families": [],
+  "lineages": [],
+  "independent_families": [],
+  "sarif_refs": [],
+  "linked_cluster_ids": [],
+  "fingerprint": "sha256:31cff5afd7062ce07b2ae529c5578fe5965bf0ed8e1665c22c3a37ff9e87c865",
+  "baseline_state": null,
+  "reopened": false
+}
