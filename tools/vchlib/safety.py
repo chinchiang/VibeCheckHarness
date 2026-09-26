@@ -1,27 +1,43 @@
-"""Safety-class computation: the docs/04 §5 pseudo-code (v0.2, D13 tool IDs), verbatim in
+"""Safety-class computation: the docs/04 §5 pseudo-code (v0.3, D13 tool IDs), verbatim in
 logic, plus a trace so the validator can explain its result.
 
-Source: requests/c2-to-b.md (pkg c2). Differences from v0.1: unregistered or malformed
-adapter -> S3; registered mode with base_class null -> >= S2; white-box-only mode
-(b4_executable false) -> S3; excluded host (compared after norm_host: trailing dot, case,
-IDNA), unparseable target host, non-normalised path template, rps above the
-ROE, empty allow-list, request target outside tc.target_ids, MANUAL kind/adapter
+Differences from v0.1: unregistered or malformed adapter -> S3; registered mode with base_class
+null -> >= S2; white-box-only mode (b4_executable false) -> S3; excluded host (compared after
+norm_host: trailing dot, case, IDNA; `*.example.com` covers every subdomain but not the apex),
+unparseable target host (also any scheme other than http/https), non-normalised path template,
+rps above the ROE, empty allow-list, request target outside tc.target_ids, MANUAL kind/adapter
 mismatch -> S3. `admissible()` is a separate check against allowed_safety_classes.
+
+v0.3 (H-B3, L-11, D1, D11):
+  - exclusion paths are matched after normalisation (percent-decode once, strip `;params` from
+    every segment, collapse `//`, resolve `.` / `..`, lower-case on both sides), fail closed;
+  - every mutation (POST / PUT / PATCH / DELETE and GraphQL mutations; a POST whose
+    graphql_operation is query / introspection is a read) must address an existing object only
+    through {seed:<key>} of the seed manifest, or be a request to a seed-manifest
+    create_only_endpoints entry; objects created that way are addressed only through
+    {created:<step_id>} of an earlier create request in the same allow-list; otherwise S3
+    ("mutation scope", E-TC-MUTATION-SCOPE);
+  - a {seed:<key>} segment is only valid at a variable position of one of the seed's declared
+    path_templates (a DELETE on an invoices seed under /api/users/... is S3).
 """
 from __future__ import annotations
 
 import fnmatch
+import posixpath
 import re
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 ORDER = ("S0", "S1", "S2", "S3")
 STATE_CHANGING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+READ_ONLY_GRAPHQL = frozenset({"query", "introspection"})
 
 # Modes the toolkit never runs. ROE denied_modes can only add to this set.
 TOOLKIT_DENYLIST = frozenset({"nuclei:code_protocol", "restler:fuzz"})
 
 ADAPTER_RE = re.compile(r"^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$")   # D13: tool:mode
 SEED_SEG_RE = re.compile(r"^\{seed:([a-z0-9_]+)\}$")            # whole segment is {seed:key}
+CREATED_SEG_RE = re.compile(r"^\{created:([a-z][a-z0-9_]*)\}$")  # whole segment is {created:step_id}
+MUTATION_SCOPE = "mutation scope"                                # trace prefix -> E-TC-MUTATION-SCOPE
 
 
 def hi(a: str, b: str) -> str:
@@ -51,9 +67,21 @@ def is_placeholder(seg: str) -> bool:
     return "{" in seg
 
 
+def normalize_for_match(path: str) -> str:
+    """D1: the form an exclusion is compared against: percent-decode once, strip `;params` from every
+    segment, collapse `//`, resolve `.` / `..`, lower-case. Placeholder segments are kept."""
+    p = unquote(path or "")
+    segs = [s.split(";", 1)[0] if not is_placeholder(s) else s for s in p.split("/")]
+    p = "/".join(segs)
+    p = re.sub(r"/{2,}", "/", p)
+    p = posixpath.normpath("/" + p.lstrip("/")) if p else "/"
+    return p.lower()
+
+
 def path_may_match(template: str, pattern: str) -> bool:
-    """Conservative: True if the template *may* expand to a path matching `pattern`."""
-    t, p = segments(template), segments(pattern)
+    """Conservative: True if the template *may* expand to a path matching `pattern` (both normalised,
+    case-insensitive: case-insensitive routers and servlet `;params` cannot bypass an exclusion)."""
+    t, p = segments(normalize_for_match(template)), segments(normalize_for_match(pattern))
     open_tail = bool(p) and p[-1] == "*"
     if open_tail:
         p = p[:-1]
@@ -73,18 +101,104 @@ def seed_keys(template: str) -> list[str]:
     return [m.group(1) for s in segments(template) if (m := SEED_SEG_RE.match(s))]
 
 
-def is_seed_path(template: str, manifest_keys: set[str] | None) -> bool:
-    """Every variable segment of a DELETE template must be {seed:key} with key in the manifest."""
-    if manifest_keys is None:
+def created_refs(template: str) -> list[str]:
+    return [m.group(1) for s in segments(template) if (m := CREATED_SEG_RE.match(s))]
+
+
+def _manifest_seeds(manifest) -> dict:
+    return ((manifest or {}).get("seeds") or {}) if isinstance(manifest, dict) else {}
+
+
+def is_seed_path(template: str, manifest) -> bool:
+    """Every variable segment is {seed:key} with key in the manifest (at least one variable segment)."""
+    seeds = _manifest_seeds(manifest)
+    if not seeds:
         return False
     var_segs = [s for s in segments(template) if is_placeholder(s)]
     if not var_segs:
         return False
     for s in var_segs:
         m = SEED_SEG_RE.match(s)
-        if m is None or m.group(1) not in manifest_keys:
+        if m is None or m.group(1) not in seeds:
             return False
     return True
+
+
+def _shape_matches(request_segs: list[str], template: str) -> bool:
+    """Same length; literal segments equal; every variable segment of the request is a variable segment of the template."""
+    t = segments(template)
+    if len(t) != len(request_segs):
+        return False
+    for rs, ts in zip(request_segs, t):
+        if is_placeholder(rs):
+            if not is_placeholder(ts):
+                return False
+        elif is_placeholder(ts) or rs != ts:
+            return False
+    return True
+
+
+def seed_path_problem(path: str, manifest) -> str | None:
+    """D11: each {seed:key} must be a manifest seed whose path_templates contain this request path shape."""
+    seeds = _manifest_seeds(manifest)
+    segs = segments(path)
+    for k in seed_keys(path):
+        spec = seeds.get(k)
+        if not isinstance(spec, dict):
+            return f"{{seed:{k}}} is not a seed-manifest key"
+        if not any(_shape_matches(segs, t) for t in spec.get("path_templates") or [] if isinstance(t, str)):
+            return f"{{seed:{k}}} is not declared for {path} (seed path_templates {spec.get('path_templates')})"
+    return None
+
+
+def is_mutation(r: dict) -> bool:
+    """POST / PUT / PATCH / DELETE and GraphQL mutations; a GraphQL query / introspection is a read."""
+    op = r.get("graphql_operation")
+    if op == "mutation":
+        return True
+    if op in READ_ONLY_GRAPHQL:
+        return False
+    return r.get("method") in STATE_CHANGING
+
+
+def _create_endpoint(manifest, r: dict) -> dict | None:
+    segs = segments(r.get("path", ""))
+    for e in (manifest or {}).get("create_only_endpoints") or [] if isinstance(manifest, dict) else []:
+        if isinstance(e, dict) and e.get("target_id") == r.get("target_id") and e.get("method") == r.get("method") \
+                and _shape_matches(segs, e.get("path_template", "")):
+            return e
+    return None
+
+
+def mutation_scope_problems(tc: dict, manifest) -> list[str]:
+    """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope)."""
+    out = []
+    creates: dict[str, dict] = {}                   # step_id -> earlier create request
+    for i, r in enumerate(tc.get("request_allowlist") or []):
+        if not isinstance(r, dict):
+            continue
+        path = r.get("path", "")
+        where = f"{r.get('method')} {path}"
+        for s in created_refs(path):
+            src = creates.get(s)
+            if src is None:
+                out.append(f"{where}: {{created:{s}}} is not an earlier create request of this allow-list")
+            elif src.get("target_id") != r.get("target_id"):
+                out.append(f"{where}: {{created:{s}}} was created on another target")
+        prob = seed_path_problem(path, manifest)
+        if prob:
+            out.append(f"{where}: {prob}")
+        if is_mutation(r):
+            var = [s for s in segments(path) if is_placeholder(s)]
+            unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
+            create = _create_endpoint(manifest, r)
+            if unbound:
+                out.append(f"{where}: mutation addresses {unbound} that are neither {{seed:key}} nor {{created:step_id}}")
+            elif create is None and not var:
+                out.append(f"{where}: mutation of a non-seed object (not a seed-manifest create_only_endpoints entry)")
+            if create is not None and r.get("step_id"):
+                creates[r["step_id"]] = r
+    return out
 
 
 # roe.schema.json targets[].endpoint / db_access.endpoint: 'host:port' or '[v6]:port'; no bare
@@ -107,10 +221,13 @@ def norm_host(host) -> str:
 
 
 def host_of(base_url: str | None) -> str | None:
-    """Normalised host of an http(s) base_url; None when the URL is unparseable or has no host."""
+    """Normalised host of an http(s) base_url; None when the URL is unparseable, has no host or is not http(s)."""
     try:
-        h = urlsplit(base_url or "").hostname
+        u = urlsplit(base_url or "")
+        h = u.hostname
     except ValueError:            # e.g. 'http://[::1' (invalid IPv6 literal)
+        return None
+    if u.scheme.lower() not in ("http", "https"):
         return None
     return (norm_host(h) or None) if h else None
 
@@ -138,10 +255,22 @@ def target_host(target: dict) -> str | None:
     return host_of(target.get("base_url"))
 
 
-def host_excluded(host: str | None, excluded_hosts) -> bool:
-    """ROE exclusions.hosts match: exact after norm_host on both sides (an empty host never matches)."""
+def host_matches(host: str | None, pattern) -> bool:
+    """D2: exact match after norm_host, or a leading-wildcard pattern `*.example.com` that matches every
+    subdomain of example.com (at any depth) but not example.com itself."""
     h = norm_host(host) if host else ""
-    return bool(h) and h in {norm_host(x) for x in excluded_hosts or [] if isinstance(x, str) and norm_host(x)}
+    if not h or not isinstance(pattern, str):
+        return False
+    p = pattern.strip()
+    if p.startswith("*."):
+        base = norm_host(p[2:])
+        return bool(base) and h.endswith("." + base)
+    return bool(norm_host(p)) and h == norm_host(p)
+
+
+def host_excluded(host: str | None, excluded_hosts) -> bool:
+    """ROE exclusions.hosts match (an empty host never matches)."""
+    return any(host_matches(host, x) for x in excluded_hosts or [])
 
 
 def registry_entry(tools: dict, adapter: str) -> dict | None:
@@ -154,8 +283,8 @@ def registry_entry(tools: dict, adapter: str) -> dict | None:
     return None if spec is None else {"tool": tool, "mode": mode, **spec}
 
 
-def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest_keys: set[str] | None) -> tuple[str, list[str]]:
-    """Return (class, trace). `manifest_keys` = seed keys of tc.seed_manifest_ref, or None."""
+def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None) -> tuple[str, list[str]]:
+    """Return (class, trace). `manifest` = the seed manifest named by tc.seed_manifest_ref (dict), or None."""
     tb = tc["tool_binding"]
     acts = roe["activities"]
 
@@ -207,8 +336,10 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest_keys: set[st
         hits = [p for p in roe["exclusions"]["paths"] if path_may_match(r["path"], p)]
         if hits:
             return "S3", [f"{r['method']} {r['path']}: may match ROE exclusion {hits}"]
-        if r["method"] == "DELETE" and not is_seed_path(r["path"], manifest_keys):
-            return "S3", [f"DELETE {r['path']}: not a seed-manifest object"]
+    # every mutation is seed-bound or a create in the run namespace; seeds only on their own resources
+    scope = mutation_scope_problems(tc, manifest)
+    if scope:
+        return "S3", [f"{MUTATION_SCOPE}: {p}" for p in scope]
 
     # 6. rate above the ROE is a rejection, not an upgrade
     if tc["rate_limit"]["requests_per_second"] > roe["rate_limits"]["per_host_rps"]:

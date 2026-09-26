@@ -18,6 +18,7 @@ import traceback
 from dataclasses import dataclass, field
 
 import rfc8785
+from urllib.parse import urlsplit
 from jsonschema import Draft202012Validator, FormatChecker, validators
 from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
@@ -119,11 +120,53 @@ def is_date(value) -> bool:
         return False
 
 
+def is_uri(value) -> bool:
+    """D3: an absolute URI with a scheme and a host (no whitespace)."""
+    if not isinstance(value, str) or not value or any(ch.isspace() for ch in value):
+        return False
+    try:
+        u = urlsplit(value)
+        return bool(re.match(r"^[A-Za-z][A-Za-z0-9+.-]*$", u.scheme or "")) and bool(u.hostname)
+    except ValueError:
+        return False
+
+
+FORMATS = {"date-time", "date", "uri"}     # every `format` a schema uses must have a checker (E-SCHEMA-FORMAT)
+LOCAL_HTTP_HOSTS = ("localhost", "127.0.0.1", "::1")
+
+
 def format_checker() -> FormatChecker:
     fc = FormatChecker(formats=())
     fc.checks("date-time")(lambda v: not isinstance(v, str) or timeutil.is_datetime(v))
     fc.checks("date")(lambda v: not isinstance(v, str) or is_date(v))
+    fc.checks("uri")(lambda v: not isinstance(v, str) or is_uri(v))
     return fc
+
+
+def schema_formats(node, path="") -> list[tuple[str, str]]:
+    """[(json path, format)] of every `format` keyword in a schema."""
+    out = []
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "format" and isinstance(v, str):
+                out.append((path, v))
+            out += schema_formats(v, f"{path}/{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            out += schema_formats(v, f"{path}[{i}]")
+    return out
+
+
+def url_problem(url) -> str | None:
+    """D3: ROE URLs must be https://; http:// only for localhost / 127.0.0.1 / [::1] (MVP-1 local targets)."""
+    if not is_uri(url):
+        return f"{url!r} is not an absolute URI"
+    u = urlsplit(url)
+    if u.scheme.lower() == "https":
+        return None
+    if u.scheme.lower() == "http" and (u.hostname or "").lower() in LOCAL_HTTP_HOSTS:
+        return None
+    return f"{url!r} must be https:// (http:// only for localhost, 127.0.0.1 or [::1])"
 
 
 def _strict_integer(checker, instance) -> bool:
@@ -271,6 +314,9 @@ def g_schemas(R: Report, c: Ctx):
         R.check(s.get("$schema") == "https://json-schema.org/draft/2020-12/schema", "E-SCHEMA-META", f"{name}.schema.json", "$schema must be 2020-12")
         resources.append((s.get("$id") or f"{name}.schema.json", Resource.from_contents(s)))
     registry = Registry().with_resources(resources)
+    for name, s in b.schemas.items():
+        for where, fmt in schema_formats(s):
+            R.check(fmt in FORMATS, "E-SCHEMA-FORMAT", f"{name}.schema.json", f"{where}: format {fmt!r} has no checker (known: {sorted(FORMATS)})")
     fc = format_checker()
     seen = set()
     for d in b.docs:
@@ -590,6 +636,8 @@ def g_roe(R: Report, c: Ctx):
             R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-DB-SCOPE", w,
                     f"{t.get('id')}: database host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
         elif t.get("kind") == "http" and t.get("base_url"):
+            prob = url_problem(t.get("base_url"))
+            R.check(prob is None, "E-ROE-URL", w, f"{t.get('id')}: base_url {prob}")
             h = safety.host_of(t.get("base_url"))
             R.check(h is not None, "E-ROE-TARGETS", w, f"{t.get('id')}: unparseable base_url {t.get('base_url')!r} (no host)")
             R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-TARGETS", w,
@@ -637,6 +685,20 @@ def g_roe(R: Report, c: Ctx):
             stricter = val >= defaults[k] if k.startswith("min_") else val <= defaults[k]
             R.check(stricter, "E-ROE-STOP", w, f"stop_conditions.{k}={val} is looser than the toolkit default {defaults[k]}")
     R.check(bool((r.get("stop_conditions") or {}).get("contacts")), "E-ROE-STOP", w, "stop_conditions.contacts must not be empty")
+    hu = (r.get("stop_conditions") or {}).get("health_url")
+    if hu is not None:
+        prob = url_problem(hu)
+        R.check(prob is None, "E-ROE-URL", w, f"stop_conditions.health_url {prob}")
+    for t in r.get("targets", []):
+        bi = t.get("build_identity") or {}
+        need = {"header": ("header_name",), "endpoint": ("path", "json_pointer"), "none": ()}.get(bi.get("method"), ())
+        extra = [k for k in ("header_name", "path", "json_pointer") if k not in need and bi.get(k) is not None]
+        missing = [k for k in need if bi.get(k) is None]
+        R.check(not extra and not missing, "E-ROE-TARGETS", w,
+                f"{t.get('id')}: build_identity method {bi.get('method')!r} needs {list(need)} and null {extra or 'others'}")
+    for ce in c.manifest.get("create_only_endpoints") or []:
+        R.check(ce.get("target_id") in targets and (targets.get(ce.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST",
+                "seed-manifest.yaml", f"create_only_endpoints: {ce.get('target_id')} is not an http target of the ROE")
     relay, trelay = r.get("relay") or {}, tk.get("relay") or {}
     for k in ("max_turns", "max_spend_usd_per_job", "max_spend_usd_per_run"):
         if k in relay:
@@ -1071,12 +1133,53 @@ def g_runs(R: Report, c: Ctx):
                 n = (tc.data.get("trials") or {}).get("n")
                 R.check((tr.get("trials") or {}).get("n") == n, "E-RESULT-TRIALS", x.path, f"trials.n must equal the testcase n={n}")
                 R.check(set(tr.get("target_ids", [])) <= set(tc.data.get("target_ids", [])), "E-RESULT-TARGETS", x.path, "targets outside the testcase")
+            if black_box:
+                result_build(R, c, x, run)
+                R.check(tr.get("request_log_sha256") is not None, "E-RESULT-REQUEST-LOG", x.path,
+                        "black-box (B4) results need request_log_sha256 (the Scope Proxy request log)")
             t = tr.get("trials") or {}
             R.check(0 <= t.get("k", 0) <= t.get("n", 0), "E-RESULT-TRIALS", x.path, "k must be between 0 and n")
             if tr.get("outcome") == "FAIL":
                 R.check(t.get("k", 0) >= 1, "E-RESULT-TRIALS", x.path, "FAIL needs k >= 1")
             R.check(0 <= tr.get("replay_k", 0) <= tr.get("replays", 0), "E-RESULT-TRIALS", x.path,
                     "replay_k (k_r) must be between 0 and replays (n_r)")
+        rm = c.ix.first("report-manifest", run_id=rid)
+        if rm is not None:
+            want = unverified_build_targets(c, rid)
+            R.check(sorted(rm.data.get("build_unverified_targets") or []) == want, "E-RESULT-BUILD", rm.path,
+                    f"build_unverified_targets {rm.data.get('build_unverified_targets')} must list exactly the tested targets whose "
+                    f"ROE build_identity.method is none: {want}")
+
+
+def build_matches(observed, commit) -> bool:
+    """B7: observed build id == run.repo_commit, or one is a prefix of the other and the shorter has >= 12 hex chars."""
+    if not isinstance(observed, str) or not isinstance(commit, str):
+        return False
+    if observed == commit:
+        return True
+    short, long_ = sorted((observed, commit), key=len)
+    return len(short) >= 12 and long_.startswith(short)
+
+
+def roe_target(c: Ctx, tid) -> dict:
+    return next((t for t in c.roe.get("targets") or [] if isinstance(t, dict) and t.get("id") == tid), {})
+
+
+def unverified_build_targets(c: Ctx, run_id) -> list[str]:
+    tids = {t for x in c.docs("testresult") if x.data.get("run_id") == run_id and x.data.get("phase") == "B4"
+            for t in x.data.get("target_ids") or []}
+    return sorted(t for t in tids if (roe_target(c, t).get("build_identity") or {}).get("method") == "none")
+
+
+def result_build(R: Report, c: Ctx, x: Doc, run: dict):
+    """B7 (H-B4): targets with a build identity must have served the run's repo_commit."""
+    tr = x.data
+    for t in tr.get("target_ids") or []:
+        method = (roe_target(c, t).get("build_identity") or {}).get("method")
+        if method in ("header", "endpoint"):
+            R.check(build_matches(tr.get("observed_build_id"), run.get("repo_commit")), "E-RESULT-BUILD", x.path,
+                    f"{t}: observed_build_id {tr.get('observed_build_id')!r} is not the run's repo_commit {run.get('repo_commit')!r} "
+                    "(full, or a prefix of at least 12 characters)")
 
 
 def result_controls(R: Report, c: Ctx, x: Doc, tc: dict):
@@ -1124,7 +1227,7 @@ def g_testcases(R: Report, c: Ctx):
     for d in c.docs("testcase"):
         tc, w = d.data, d.path
         ref = tc.get("seed_manifest_ref")
-        mk = keys if ref and ref == c.manifest.get("manifest_ref") else None
+        mk = c.manifest if ref and ref == c.manifest.get("manifest_ref") else None
         R.check(ref is None or ref == (r.get("db_access") or {}).get("seed_manifest_ref"), "E-TC-SEEDS", w, "seed_manifest_ref must be the ROE's seed manifest")
         try:
             level, trace = safety.compute_safety_class(tc, r, c.tools, mk)
@@ -1136,6 +1239,9 @@ def g_testcases(R: Report, c: Ctx):
         prop = tc.get("safety_class_proposed") or "S0"
         R.check(safety.ORDER.index(level) >= safety.ORDER.index(prop), "E-TC-SAFETY", w, "computed class below the LLM proposal")
         R.check(safety.admissible(level, r), "E-TC-ADMISSIBLE", w, f"class {level} cannot enter G4 ({'; '.join(trace)})")
+        scope = safety.mutation_scope_problems(tc, mk)
+        R.check(not scope, "E-TC-MUTATION-SCOPE", w, "every mutation must be seed-bound or a create in the run namespace (B6): "
+                + "; ".join(scope))
         dn = tc.get("data_needed") or {}
         R.check(set(dn.get("roles", [])) <= roe_roles, "E-TC-ROLES", w, f"roles not in ROE test_roles: {sorted(set(dn.get('roles', [])) - roe_roles)}")
         R.check(set(dn.get("db_tables", [])) <= oracle_tables, "E-TC-DB", w, f"db_tables not in ROE oracle_tables: {sorted(set(dn.get('db_tables', [])) - oracle_tables)}")

@@ -58,6 +58,7 @@ targets:
     ownership_proof:
       method: dns_txt
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+    build_identity: {method: header, header_name: x-build-sha, path: null, json_pointer: null}   # 回應標頭帶 git commit（H-B4）
   - id: tgt-staging-app
     kind: http
     base_url: "https://app.staging.example.com"
@@ -66,6 +67,7 @@ targets:
     ownership_proof:
       method: well_known_path
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+    build_identity: {method: header, header_name: x-build-sha, path: null, json_pointer: null}   # 回應標頭帶 git commit（H-B4）
   - id: tgt-canary
     kind: http
     base_url: "https://canary.example.net"
@@ -74,6 +76,7 @@ targets:
     ownership_proof:
       method: dns_txt
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+    build_identity: {method: none, header_name: null, path: null, json_pointer: null}   # 我方的 canary：沒有受測 build → 報告列入 build_unverified_targets
   - id: tgt-staging-db
     kind: database                   # 只給 Snapshot Service 與 oracle（TCP 轉送）；測試 job 不能直連
     base_url: null
@@ -82,20 +85,31 @@ targets:
     ownership_proof:
       method: dns_txt
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+    build_identity: {method: none, header_name: null, path: null, json_pointer: null}
+
+platform_policies: []            # 沒有目標在共用平台網域（*.supabase.co、*.vercel.app 等）上；有的話需 platform_project 與條款接受紀錄（E-ROE-PLATFORM）
 
 test_roles:                  # 測試帳號只存在 Z3 secret store，永不進 LLM context
+  # login.mfa／captcha_bypass／idp：captcha_bypass blocked 或第三方 OAuth IdP（沒有 staging 測試 IdP）→ 該角色的 job 一律 SKIPPED
+  # whoami：Session Provider 登入後確認 session 身分（E-ROE-WHOAMI）；storageState 只以加密形式存在 Z3
   - role: tenantA_user
     description: "合成租戶 A 的一般使用者"
     credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/tenantA_user"
-    login: {method: api_token, target_id: tgt-staging-api, login_path: null, recipe_ref: null}
+    login: {method: api_token, target_id: tgt-staging-api, login_path: null, recipe_ref: null, mfa: none, captcha_bypass: not_needed, idp: local}
+    whoami: {path: "/api/me", expect_json_pointer: "/user_id", expect_value_from_role: user_id}
+    storage_state_encrypted: true
   - role: tenantB_user
     description: "合成租戶 B 的一般使用者"
     credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/tenantB_user"
-    login: {method: api_token, target_id: tgt-staging-api, login_path: null, recipe_ref: null}
+    login: {method: api_token, target_id: tgt-staging-api, login_path: null, recipe_ref: null, mfa: none, captcha_bypass: not_needed, idp: local}
+    whoami: {path: "/api/me", expect_json_pointer: "/user_id", expect_value_from_role: user_id}
+    storage_state_encrypted: true
   - role: U1
     description: "LLM 客服功能的合成使用者"
     credential_ref: "vault://engagements/eng-acme-invoices-2026q4/roles/U1"
-    login: {method: form, target_id: tgt-staging-app, login_path: "/login", recipe_ref: null}
+    login: {method: form, target_id: tgt-staging-app, login_path: "/login", recipe_ref: null, mfa: totp, captcha_bypass: staging_bypass_token, idp: local}
+    whoami: {path: "/api/chat/me", expect_json_pointer: "/user/id", expect_value_from_role: user_id}
+    storage_state_encrypted: true
 
 exclusions:
   paths: ["/admin/billing/*", "/api/payments/*"]
@@ -137,6 +151,7 @@ upstream_llm_providers:
     spend_cap_usd: 20
 
 relay:                           # docs/03 §7.5；只能比 toolkit.yaml relay 更低
+  mode: scripted                 # 固定的 script_turns；adaptive 只允許 assurance_profile full
   models: [nemotron_self]
   max_turns: 6
   max_spend_usd_per_job: 1
@@ -176,16 +191,16 @@ signatures:                      # 每位 signatory 與 legal_review.attested_by
   - signer: alice
     key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    value: "038hiQIYMuPG6lkE/FAu1aGMkwS06D+VpiVevEX7ZkWsrtnSCa5hiU4g9y26HFEMAYQY3VQvbfG6KZz2mIw+DA=="
+    value: "f0PK1kU+k2pH+DaVF+LMZ6Gq9kPEaF/4LWK+5FVUJVDPwaXqVJcBcxJGuQgSO/UU4Us+O7/bMADWAZN69y8iDQ=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "ZlF/J4IWYWdlle55AnoZ+/hrGHn2LtRnFRqDEuCWjwaNgCFhqGnt624xjeQASpjovIZWiygMxJFccMJGk+ivAQ=="
+    value: "P9wrrOZKYj/6HeOZeMDLPfGeTSzy+yXjn7wyl37En9b1DS2e8P6XGjXmSWz4Gk182pXDFlonHz1gt48Pr+vwDg=="
   - signer: dave
     key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    value: "MzCGdKDfZDC7s26WaKBtHBgWqOSPKKqBw72kKoqbvmGkqtjsFdJawseMdj3Fny35e/PvFtQuYADUITgz+rnKCw=="
+    value: "F+ZqbZTi5WGYaMJGQS5Mvqug/EhSj8A0baJpU8IhiIdNoeb6/oVFxd+sPSxDgoId1rMGobJHPD1sfo3OOTzfAw=="
   - signer: grace
     key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
     alg: ed25519
-    value: "K/hESJ7gPMVOEPCSlfrHat9RZQMjxiDXnmKTsPrQIdnhfYIsrX6sRhpj+pwRR0gNmdcbr5MH+fxQCQrSuISqBg=="
+    value: "l4wwlcilWdYlw1hCNSfxal6p3/PLfWHRhF1buqY7CEbK5I0w7et5gqw79CHI62duz8W6juAP+EDEGRS8p9KsBQ=="
