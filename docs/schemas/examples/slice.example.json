@@ -28,8 +28,13 @@
   ],
   "facets": [
     "authz",
+    "authn_session",
+    "injection",
     "data_access",
-    "llm_integration"
+    "secrets_config",
+    "business_logic",
+    "llm_integration",
+    "file_handling"
   ],
   "token_count": 18450,
   "tokenizer": "o200k_base（估算；各模型以自身 tokenizer 重算）",

@@ -17,12 +17,12 @@
     {
       "kind": "threat_model",
       "ref": "GR-G3-0001",
-      "sha256": "sha256:4e3d63d232e2ba67c8adbf563cb9ca2b8bda8730f97b524ea479e1aa10466e29"
+      "sha256": "sha256:481ba7a1714cd4b77a5c751e0472019b04a7a760dd5db52f1dfdab0edff1a11e"
     },
     {
       "kind": "test_plan",
       "ref": "GR-G4-0001",
-      "sha256": "sha256:c3035b585c73890ba30bfe0039eda48a4c3df8933b5ee2dda6decddcd8c47314"
+      "sha256": "sha256:de6d5e13717c7216e1227ef9f6ca489579ef190640816ea7cbecdec4caff189e"
     },
     {
       "kind": "testresult",
@@ -66,6 +66,11 @@
     },
     {
       "kind": "verdict",
+      "ref": "V-015-1",
+      "sha256": "sha256:3cc1501576a0915799fa68a7bc789257e31b7a5027a42f6fe417caead9ab48e8"
+    },
+    {
+      "kind": "verdict",
       "ref": "V-201-1",
       "sha256": "sha256:42dd3ded56afdb53e3f332f628815b6bdd990d76016cd561d23b9bab4b88f57b"
     },
@@ -82,7 +87,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G1-0001",
-      "sha256": "sha256:e837e787bd0f5bf20fbf8710adcf3ca922acefe87c9384b3fb076586e93a004f"
+      "sha256": "sha256:fbec3d72058e887f2042767d23310384feca81636c86c2a98fdc68b4508c97b4"
     },
     {
       "kind": "gate_record",
@@ -102,12 +107,12 @@
     {
       "kind": "gate_record",
       "ref": "GR-G3-0001",
-      "sha256": "sha256:bea15c317d2939cde20b4ec3975e72cf98c0014f67b4f916c8e102ed6d17baff"
+      "sha256": "sha256:d8ab609ed7a555e0145bcf8db5bcb13f01837a8de625f0271c4c848e884cfc29"
     },
     {
       "kind": "gate_record",
       "ref": "GR-G4-0001",
-      "sha256": "sha256:c9bc283d87f27e41ef981eee47c0dc3380a7383d9f771c26cf69093b5fd901b5"
+      "sha256": "sha256:f5026a4e6b2f6335c0a1cbf7b2219b7ecf6ee5b723863b2354f75469e0a30f00"
     },
     {
       "kind": "gate_record",
@@ -117,7 +122,7 @@
     {
       "kind": "audit_log",
       "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
-      "sha256": "sha256:5611e1132b64a32945d9a39d2efbecb6eed993c7441c82669ee727543b6c8c94"
+      "sha256": "sha256:bca0e284b78d4c38fff4331ead514f111b67e67f5edb6ead1c5bed2d7eb04737"
     },
     {
       "kind": "followup_draft",
@@ -129,7 +134,7 @@
     "CONFIRMED_EXECUTABLE": 2,
     "CONFIRMED_CORROBORATED": 0,
     "LIKELY": 1,
-    "UNCORROBORATED": 2,
+    "UNCORROBORATED": 3,
     "DISPUTED": 0,
     "REJECTED": 0
   },

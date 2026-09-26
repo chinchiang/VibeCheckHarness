@@ -5,6 +5,10 @@
 #   - GR-G1-0001 的 decisions[] 逐項對應 invariants[]，item_sha256＝該項的 approval hash
 #   - invariants[] 的每一項與 docs/schemas/examples/requirement.invariant*.example.json 完全相同
 #   - baseline[] 只列 ID 與層級，不複製標準原文
+#   - L2 以上的 ASVS／AISVS 需求（baseline 本身與 testcase 引用的）必須由 baseline_levels 或 level_triggers 涵蓋
+#     （E-INVARIANT-LEVEL）；level_triggers 的 feature 必須是 invariants[].applies_to_features 或 W0 inventory features
+#   - llm_tools[].data_class_ids 必須是 data_classification 的 ID；access_matrix.ownership 可機械檢查（E-INVARIANT-REF）
+#   - drafted_by 必須是 agents.yaml 中 role invariant_drafter 的代理，family 與登錄一致（E-PROVENANCE）
 # ASVS 5.0.0 1.2.4 的層級與主旨見 [V][E:whitebox-46]。
 
 engagement_id: eng-acme-invoices-2026q4
@@ -14,19 +18,48 @@ drafted_by:
   agent_id: invariant_drafter
   family: openai
 
+baseline_levels: {asvs: 1, aisvs: 1}   # 整體採用 L1
+
+level_triggers:                        # 特定功能提高特定章節的層級
+  - {feature: invoices, standard: asvs, level: 2, sections: ["8.2"]}          # 發票是機密資料、跨租戶 → V8.2 取 L2（含 8.2.3 欄位層級）
+  - {feature: support_agent, standard: aisvs, level: 2, sections: ["9.5"]}    # agent 代使用者呼叫有副作用的工具 → C9.5 取 L2
+
 baseline:
   - {requirement_id: REQ-ASVS-8.2.2, source: asvs-5.0.0, ref: v5.0.0-8.2.2, level: L1}
+  - {requirement_id: REQ-ASVS-8.2.3, source: asvs-5.0.0, ref: v5.0.0-8.2.3, level: L2}
   - {requirement_id: REQ-ASVS-1.2.4, source: asvs-5.0.0, ref: v5.0.0-1.2.4, level: L1}
+  - {requirement_id: REQ-AISVS-9.2.1, source: aisvs-1.0, ref: v1.0-9.2.1, level: L1}
+  - {requirement_id: REQ-AISVS-9.5.2, source: aisvs-1.0, ref: v1.0-9.5.2, level: L2}
+  - {requirement_id: REQ-AISVS-9.5.3, source: aisvs-1.0, ref: v1.0-9.5.3, level: L2}
 
 access_matrix:
   - role: tenant_user
     resource: invoice
     actions: [read, update, delete]
+    ownership: {kind: tenant_field, field: invoice.tenant_id, via: session.tenant_id}
     condition: "invoice.tenant_id == user.tenant_id"
   - role: support_agent
     resource: refund_tool
     actions: [invoke]
+    ownership: {kind: owner_field, field: order.owner_id, via: session.user_id}
     condition: "已經人工確認，且 order.owner == session.user"
+
+data_classification:                   # 受測應用的資料分級（不是工具包的 P／C）
+  - {data_class_id: DC-INVOICE, name: 發票, level: confidential, fields: [invoices.amount, invoices.customer_name, invoices.tenant_id], pii: true}
+  - {data_class_id: DC-ORDER, name: 訂單, level: internal, fields: [orders.amount, orders.status, orders.owner_id], pii: false}
+  - {data_class_id: DC-SUPPORT-DOC, name: 客服上傳文件, level: confidential, fields: [documents.content], pii: true}
+
+llm_tools:                             # 客服 agent 的工具權限矩陣
+  - {tool_name: refund, side_effect: write, requires_human_confirmation: true, allowed_roles: [customer], data_class_ids: [DC-ORDER]}
+  - {tool_name: summarize_document, side_effect: read, requires_human_confirmation: false, allowed_roles: [customer], data_class_ids: [DC-SUPPORT-DOC]}
+
+limits:
+  - {limit_id: LIM-001, subject: refund, metric: calls_per_hour, value: 5, scope: per_user}
+  - {limit_id: LIM-002, subject: "POST /api/chat/sessions", metric: requests_per_minute, value: 30, scope: per_user}
+
+policies:
+  - {policy_id: POL-001, kind: upload_types, values: [application/pdf]}
+  - {policy_id: POL-002, kind: cors_allowlist, values: ["https://app.staging.example.com"]}
 
 invariants:
   - requirement_id: INV-AC-007

@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "threat_model",
-    "sha256": "sha256:4e3d63d232e2ba67c8adbf563cb9ca2b8bda8730f97b524ea479e1aa10466e29"
+    "sha256": "sha256:481ba7a1714cd4b77a5c751e0472019b04a7a760dd5db52f1dfdab0edff1a11e"
   },
   "job_id": null,
   "initiator": "alice",
@@ -26,7 +26,7 @@
   "decisions": [
     {
       "item_id": "T-012",
-      "item_sha256": "sha256:99bee658d90475ebebdce30734529840e0f35682d4ef6789b5fc9cd6c279c836",
+      "item_sha256": "sha256:79cf9db22cad2d79238fa46833c9076d0770f16fe48cd546d72810e5fc76ef4d",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -47,7 +47,7 @@
     },
     {
       "item_id": "T-031",
-      "item_sha256": "sha256:7d41bc79c14697adb6e5869d99caf1b746b555760ad61b1416c8365b0bebbcd6",
+      "item_sha256": "sha256:2c866673e37597dcd8555d581f1f497d17a3095d495ccc437374afb84ef22999",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -69,13 +69,13 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "f365m11cn7/Z+xkJzW1v+tjF2Y3WYbwL0lvbv2+nmzb1Na9BwEdple98LpOdR89rlFamofdHDEtggR6Du81qBQ=="
+      "value": "N+ctPTB3Z4X9TOycC5A/FU40rL8AsBWa6ALvvjXy7hNKEIclfnST6E06LmrLATplkvDudNF5LfF/en5h7PibAw=="
     },
     {
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "eaHi/UhnudQ8hGJsdnkb0BJA8HOVo/5cwZAgR89jxQAwzE5aP1kDRbpNorTXrbC6O8T3pHoQU0MX0tcVsxqtDA=="
+      "value": "cew4UHBrm1W5+Gd6pdFuurcxaOTPtYWWTV/5wRtlTnlxFbne9f2lz0SIe0aBkobkaKocLbnz2f/OI5937OmdCQ=="
     }
   ]
 }

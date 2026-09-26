@@ -21,6 +21,16 @@
       "threat_id": "T-031",
       "disputed_after_g2": false,
       "reason": "G2 保留：高嚴重度的 LLM 工具濫用"
+    },
+    {
+      "seed_id": "ST-003",
+      "source_cluster_id": "K-015",
+      "verdict_id": "V-015-1",
+      "cluster_status": "UNCORROBORATED",
+      "cwe_bucket": "authz",
+      "threat_id": "T-012",
+      "disputed_after_g2": false,
+      "reason": "UNCORROBORATED、嚴重度 medium：不進 G2，直接成為種子威脅；與 K-005 同屬 T-012（資料層缺少租戶隔離）"
     }
   ]
 }

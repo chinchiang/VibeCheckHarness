@@ -23,7 +23,7 @@ from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
 
 from . import adjudicate as adj
-from . import crypto, derive, llm_schema, safety, timeutil
+from . import crypto, derive, evidence, facets, llm_schema, safety, timeutil
 from .bundle import Bundle, Doc, read_jsonl_lines
 from .canonical import CanonicalizationError, content_hash, jcs, sha256_hex, signing_payload
 
@@ -1548,10 +1548,141 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
                 "white_box cluster needs canonical_location file, symbol and sink")
 
 
+def inventory_of_run(c: Ctx, run_id) -> dict | None:
+    d = c.ix.first("inventory", run_id=run_id)
+    return d.data if d else None
+
+
+def finding_evidence(R: Report, c: Ctx, d: Doc):
+    """B1: evidence kinds, inventory facts recomputed against the run's W0 inventory, status from matches."""
+    f, w = d.data, d.path
+    inv = inventory_of_run(c, f.get("run_id"))
+    for i, ev in enumerate(f.get("evidence") or []):
+        if not isinstance(ev, dict):
+            continue
+        probs = evidence.shape_problems(ev)
+        R.check(not probs, "E-FINDING-EVIDENCE", w, f"evidence[{i}]: {'; '.join(probs)}")
+        if ev.get("kind") == "inventory_fact":
+            if not R.check(inv is not None and evidence.resolves(inv, ev.get("fact_ref")), "E-INVENTORY-REF", w,
+                           f"evidence[{i}].fact_ref {ev.get('fact_ref')!r} does not resolve in the W0 inventory of {f.get('run_id')}"):
+                continue
+            want = evidence.match_fact(inv, ev)
+            R.check(ev.get("match") == want, "E-FINDING-MATCH", w,
+                    f"evidence[{i}].match {ev.get('match')} but the inventory fact gives {want}")
+        if ev.get("kind") == "config_fact" and inv is not None:
+            R.check(ev.get("file") in {x.get("path") for x in inv.get("files") or []}, "E-INVENTORY-REF", w,
+                    f"evidence[{i}].file {ev.get('file')!r} is not an inventory file")
+    want = evidence.finding_status(f.get("evidence") or [])
+    R.check(f.get("status") == want, "E-FINDING-STATUS", w, f"status {f.get('status')} but the evidence matches give {want}")
+    for k in c.docs("cluster"):
+        if f.get("finding_id") in (k.data.get("member_finding_ids") or []):
+            allowed = facets.FACET_BUCKETS.get(f.get("facet"), frozenset())
+            R.check(k.data.get("cwe_bucket") in allowed, "E-FINDING-FACET", w,
+                    f"facet {f.get('facet')} may produce buckets {sorted(allowed)}, but cluster {k.data.get('cluster_id')} is {k.data.get('cwe_bucket')}")
+
+
+def inventory_checks(R: Report, c: Ctx):
+    """B2: internal references of every W0 inventory (middleware refs, source files)."""
+    for d in c.docs("inventory"):
+        inv, w = d.data, d.path
+        paths = {x.get("path") for x in inv.get("files") or [] if isinstance(x, dict)}
+        mws = {m.get("middleware_id") for m in (inv.get("auth") or {}).get("middleware") or [] if isinstance(m, dict)}
+        for e in inv.get("endpoints") or []:
+            bad = sorted(set(e.get("middleware_refs") or []) - mws)
+            R.check(not bad, "E-INVENTORY", w, f"endpoint {e.get('method')} {e.get('path')}: unknown middleware_refs {bad}")
+        srcs = [("endpoint", e.get("file")) for e in inv.get("endpoints") or []]
+        srcs += [("llm_integration", x.get("file")) for x in inv.get("llm_integrations") or []]
+        srcs += [("middleware", m.get("file")) for m in (inv.get("auth") or {}).get("middleware") or []]
+        db = inv.get("db") or {}
+        for t in db.get("tables") or []:
+            srcs.append((f"table {t.get('name')}", (t.get("source") or {}).get("file")))
+            srcs += [(f"policy {p.get('name')}", (p.get("source") or {}).get("file")) for p in t.get("policies") or []]
+        srcs += [(f"function {x.get('name')}", (x.get("source") or {}).get("file")) for x in db.get("functions") or []]
+        srcs += [(f"bucket {x.get('name')}", (x.get("source") or {}).get("file")) for x in db.get("storage_buckets") or [] if x.get("source")]
+        srcs += [(f"env {x.get('name')}", r.get("file")) for x in inv.get("env_vars") or [] for r in x.get("referenced_in") or []]
+        for what, fpath in srcs:
+            R.check(fpath in paths, "E-INVENTORY", w, f"{what}: source file {fpath!r} is not in files")
+        ids = [t.get("table_id") for t in db.get("tables") or []]
+        R.check(len(ids) == len(set(ids)), "E-INVENTORY", w, "duplicate table_id")
+        for x in inv.get("env_vars") or []:
+            want = str(x.get("name", "")).startswith(PUBLIC_ENV_PREFIXES)
+            R.check(x.get("public_prefix") is want, "E-INVENTORY", w, f"env var {x.get('name')}: public_prefix must be {want}")
+
+
+PUBLIC_ENV_PREFIXES = ("NEXT_PUBLIC_", "VITE_", "EXPO_PUBLIC_", "PUBLIC_")
+LEVELS = {"L1": 1, "L2": 2, "L3": 3}
+
+
+def requirement_level(c: Ctx, rid) -> tuple[str | None, str | None, int | None]:
+    """(standard asvs|aisvs, number like 8.2.3, level) of a baseline ASVS/AISVS requirement, else (None, None, None)."""
+    x = next((b for b in c.invariants.get("baseline") or [] if isinstance(b, dict) and b.get("requirement_id") == rid), None)
+    if not x:
+        return None, None, None
+    std = {"asvs-5.0.0": "asvs", "aisvs-1.0": "aisvs"}.get(x.get("source"))
+    return std, str(x.get("ref", "")).rsplit("-", 1)[-1], LEVELS.get(x.get("level"))
+
+
+def level_covered(c: Ctx, std: str, number: str, level: int) -> bool:
+    inv = c.invariants
+    if ((inv.get("baseline_levels") or {}).get(std) or 0) >= level:
+        return True
+    for t in inv.get("level_triggers") or []:
+        if not isinstance(t, dict) or t.get("standard") != std or (t.get("level") or 0) < level:
+            continue
+        if any(number == s or number.startswith(s + ".") for s in t.get("sections") or []):
+            return True
+    return False
+
+
+def invariants_checks(R: Report, c: Ctx):
+    """B3: level triggers cover every cited L2+ ASVS/AISVS requirement; llm_tools refer to data classes."""
+    inv, w = c.invariants, "invariants.yaml"
+    if not inv:
+        return
+    features = {f for i in inv.get("invariants") or [] for f in i.get("applies_to_features") or []}
+    run_inv = inventory_of_run(c, inv.get("run_id")) or {}
+    features |= set(run_inv.get("features") or [])
+    for t in inv.get("level_triggers") or []:
+        R.check(t.get("feature") in features, "E-INVARIANT-LEVEL", w,
+                f"level trigger feature {t.get('feature')!r} is neither an invariant applies_to_features value nor a W0 inventory feature")
+    cited = [(w, x.get("requirement_id")) for x in inv.get("baseline") or []]
+    cited += [(d.path, r) for d in c.docs("testcase") for r in set(d.data.get("requirement_ids") or [])
+              | set((d.data.get("oracle") or {}).get("requirement_refs") or [])]
+    for where, rid in cited:
+        std, number, level = requirement_level(c, rid)
+        if std and level and level >= 2:
+            R.check(level_covered(c, std, number, level), "E-INVARIANT-LEVEL", where,
+                    f"{rid} is {std.upper()} L{level} but neither baseline_levels.{std} nor a level trigger covers section {number}")
+    dcs = {x.get("data_class_id") for x in inv.get("data_classification") or []}
+    for t in inv.get("llm_tools") or []:
+        bad = sorted(set(t.get("data_class_ids") or []) - dcs)
+        R.check(not bad, "E-INVARIANT-REF", w, f"llm_tools {t.get('tool_name')}: unknown data_class_ids {bad}")
+    for a in inv.get("access_matrix") or []:
+        o = a.get("ownership") or {}
+        R.check((o.get("kind") == "none") == (o.get("field") is None), "E-INVARIANT-REF", w,
+                f"access_matrix {a.get('role')}/{a.get('resource')}: ownership.field is required unless kind is none")
+
+
+def plan_facets(R: Report, c: Ctx, d: Doc):
+    """E7: every slice of a commander plan covers the MANDATORY_FACETS of the W0 inventory of each run listing the plan."""
+    for rid, run in c.runs.items():
+        if d.data.get("plan_id") not in run.get("plan_ids", []):
+            continue
+        inv = inventory_of_run(c, rid)
+        if inv is None:
+            continue
+        need = facets.mandatory_facets(inv)
+        for i, s in enumerate(d.data.get("slices") or []):
+            miss = sorted(need - set(s.get("facets") or []))
+            R.check(not miss, "E-PLAN-FACETS", d.path, f"slices[{i}] misses mandatory facets {miss} (W0 inventory of {rid})")
+
+
 def g_trace(R: Report, c: Ctx):
     ix = c.ix
     inv_ids = {i.get("requirement_id") for i in c.invariants.get("invariants", [])}
     req_ids = inv_ids | {x.get("requirement_id") for x in c.invariants.get("baseline", [])}
+    inventory_checks(R, c)
+    invariants_checks(R, c)
     for d in c.docs("finding"):
         f, w = d.data, d.path
         run = c.runs.get(f.get("run_id")) or {}
@@ -1559,6 +1690,7 @@ def g_trace(R: Report, c: Ctx):
         R.check(ix.first("slice", slice_id=f.get("slice_id")) is not None, "E-TRACE", w, "slice not found")
         if run.get("run_kind") != "lane_a":
             R.check(set(f.get("invariant_refs", [])) <= inv_ids, "E-TRACE", w, "invariant_refs not in invariants.yaml")
+        finding_evidence(R, c, d)
     for d in c.docs("cluster"):
         k, w = d.data, d.path
         run = c.runs.get(k.get("run_id")) or {}
@@ -1597,6 +1729,18 @@ def g_trace(R: Report, c: Ctx):
                         f"verdict after G2 must reference the G2 record {lid} that decided this cluster")
     for d in c.docs("threat"):
         t, w = d.data, d.path
+        for ev in t.get("evidence") or []:
+            kind, ref = ev.get("kind"), ev.get("ref")
+            if kind == "cluster":
+                R.check(isinstance(ref, str) and ref.startswith("K-") and ix.first("cluster", cluster_id=ref) is not None, "E-TRACE", w,
+                        f"evidence cluster {ref!r} not found")
+            elif kind == "finding":
+                R.check(isinstance(ref, str) and ref.startswith("F-") and ix.first("finding", finding_id=ref) is not None, "E-TRACE", w,
+                        f"evidence finding {ref!r} not found (cluster refs use kind cluster)")
+            elif kind == "inventory":
+                invs = [x.data for x in c.docs("inventory")]
+                R.check(any(evidence.resolves(inv, ref) for inv in invs), "E-INVENTORY-REF", w,
+                        f"inventory evidence {ref!r} is not a JSON Pointer that resolves in a W0 inventory")
         if t.get("source_cluster_id"):
             cl = ix.first("cluster", cluster_id=t["source_cluster_id"])
             if R.check(cl is not None, "E-TRACE", w, "source cluster not found"):
@@ -1665,6 +1809,7 @@ def g_trace(R: Report, c: Ctx):
                 and v.data.get("status") == s.get("cluster_status") and cl.data.get("cwe_bucket") == s.get("cwe_bucket")
             R.check(ok, "E-TRACE-SEED", d.path, f"{s.get('seed_id')}: cluster/verdict/threat/status/bucket do not match")
     for d in c.docs("commander-plan"):
+        plan_facets(R, c, d)
         for tid in d.data.get("testcase_ids", []):
             R.check(ix.first("testcase", testcase_id=tid) is not None, "E-TRACE", d.path, f"testcase {tid} not found")
         for fd in d.data.get("followup_drafts", []):
@@ -1956,7 +2101,14 @@ def g_misc(R: Report, c: Ctx):
         els = d.data.get("elements", [])
         ids = [e.get("element_id") for e in els]
         R.check(len(ids) == len(set(ids)), "E-DFD", d.path, "duplicate element ids")
+        inv = inventory_of_run(c, d.data.get("run_id"))
         for e in els:
+            R.check((e.get("type") == "trust_boundary") == (e.get("kind") is not None), "E-DFD", d.path,
+                    f"{e.get('element_id')}: kind is required on trust boundaries and null on other elements")
+            for r in e.get("evidence_refs") or []:
+                if str(r).startswith("inventory:"):
+                    R.check(inv is not None and evidence.resolves(inv, str(r)[len("inventory:"):]), "E-INVENTORY-REF", d.path,
+                            f"{e.get('element_id')}: {r} does not resolve in the W0 inventory of {d.data.get('run_id')}")
             if e.get("type") == "data_flow":
                 R.check(e.get("from") in ids and e.get("to") in ids, "E-DFD", d.path, f"{e.get('element_id')}: flow endpoints missing")
                 R.check(all(x in ids for x in e.get("crosses", [])), "E-DFD", d.path, f"{e.get('element_id')}: unknown trust boundary")

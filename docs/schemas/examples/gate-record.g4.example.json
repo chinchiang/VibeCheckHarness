@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "test_plan",
-    "sha256": "sha256:c3035b585c73890ba30bfe0039eda48a4c3df8933b5ee2dda6decddcd8c47314"
+    "sha256": "sha256:de6d5e13717c7216e1227ef9f6ca489579ef190640816ea7cbecdec4caff189e"
   },
   "job_id": null,
   "initiator": "alice",
@@ -35,7 +35,7 @@
     },
     {
       "item_id": "TC-031-01",
-      "item_sha256": "sha256:3988d3b80ea088ab244c3a1114409c35b8d817557ab8b8ab1795c1c23ef57745",
+      "item_sha256": "sha256:b33d8b722a653214cafcc3942a2858007b4d378910303a93b2effb55195ba7c5",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -57,7 +57,7 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "6DuOVRTPFbKdgmc7j46O/ZLHCR2nP/0sWfqsp8tZelr7BUYDg30Vz2fequwphKjgppC+2yZWeiav/wtvECA0AA=="
+      "value": "VqTgUo7Apobga74xvlSGNCbm2iGYy1v/qvo3LHWivW1K7gXyMu9TPpFKYks7ODkjqREGDox4L8Xn553LSkciBQ=="
     }
   ]
 }

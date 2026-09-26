@@ -18,11 +18,15 @@
   "confidence": "medium",
   "evidence": [
     {
+      "kind": "code_snippet",
       "file": "routes/invoices.ts",
       "line_start": 42,
       "line_end": 42,
       "snippet": "const invoice = await db.invoice.findUnique({ where: { id: req.params.id } });",
       "snippet_sha256": "sha256:b1fe5aa5b0e98d22b0042d64476b2d52eb0b6b02bb1f7035bcce9decefd01f9a",
+      "fact_ref": null,
+      "key_path": null,
+      "asserted": null,
       "match": "MATCHED"
     }
   ],

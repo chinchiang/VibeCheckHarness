@@ -33,7 +33,7 @@
       "match": "MATCHED"
     },
     {
-      "kind": "finding",
+      "kind": "cluster",
       "ref": "K-011",
       "match": "MATCHED"
     }

@@ -19,11 +19,15 @@
   "confidence": "medium",
   "evidence": [
     {
+      "kind": "code_snippet",
       "file": "app/support/agent.py",
       "line_start": 57,
       "line_end": 57,
       "snippet": "tools=[summarize_document, refund],",
       "snippet_sha256": "sha256:e9e7fa02e762bebdfb34175c0847572b6934a6a513dde74fa412df747df9a7e7",
+      "fact_ref": null,
+      "key_path": null,
+      "asserted": null,
       "match": "MATCHED"
     }
   ],

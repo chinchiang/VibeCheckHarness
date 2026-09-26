@@ -2,7 +2,9 @@
   "testcase_id": "TC-031-01",
   "threat_id": "T-031",
   "requirement_ids": [
-    "INV-LLM-003"
+    "INV-LLM-003",
+    "REQ-AISVS-9.2.1",
+    "REQ-AISVS-9.5.2"
   ],
   "abuse_case_id": "ABUSE_CASE_031",
   "source_cluster_id": "K-011",

@@ -1,0 +1,38 @@
+{
+  "finding_id": "F-061",
+  "run_id": "run-2026-09-23-001",
+  "slice_id": "sha256:7c89b2e6ebcc47710044baf8e0c7322ce5cc23e7ddcd96ae9bb019aecc1d5c9e",
+  "facet": "data_access",
+  "reporter": {
+    "agent_id": "rev_c",
+    "model_key": "nemotron_self",
+    "family": "nvidia",
+    "lineage": "nemotron3",
+    "round": 1
+  },
+  "title": "invoices 表沒有啟用 RLS（缺少資料層的租戶隔離）",
+  "cwe": [
+    "CWE-862"
+  ],
+  "severity": "medium",
+  "confidence": "high",
+  "evidence": [
+    {
+      "kind": "inventory_fact",
+      "file": null,
+      "line_start": null,
+      "line_end": null,
+      "snippet": null,
+      "snippet_sha256": null,
+      "fact_ref": "/db/tables/0/rls_enabled",
+      "key_path": null,
+      "asserted": false,
+      "match": "MATCHED"
+    }
+  ],
+  "reasoning": "W0 inventory 顯示 public.invoices 的 rls_enabled 為 false、沒有任何 policy；應用層只要漏掉一次租戶條件（例如 K-005）就會跨租戶。這是「不存在」的發現，沒有可引用的程式片段，所以用 inventory_fact 證據。對照 INV-AC-007。",
+  "invariant_refs": [
+    "INV-AC-007"
+  ],
+  "status": "VERIFIED_SNIPPET"
+}

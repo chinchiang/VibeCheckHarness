@@ -44,6 +44,54 @@
       "exclude_reason": null
     },
     {
+      "path": "routes/middleware/auth.ts",
+      "sha256": "sha256:1a3c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c",
+      "language": "typescript",
+      "bytes": 1100,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "db/migrations/0001_init.sql",
+      "sha256": "sha256:2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d",
+      "language": "sql",
+      "bytes": 2600,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "db/migrations/0003_orders.sql",
+      "sha256": "sha256:3c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e",
+      "language": "sql",
+      "bytes": 1900,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "app/support/deps.py",
+      "sha256": "sha256:4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f",
+      "language": "python",
+      "bytes": 900,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "app/support/models.py",
+      "sha256": "sha256:5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b",
+      "language": "python",
+      "bytes": 1700,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
+      "path": "app/support/storage.py",
+      "sha256": "sha256:6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f8a",
+      "language": "python",
+      "bytes": 800,
+      "excluded": false,
+      "exclude_reason": null
+    },
+    {
       "path": "app/requirements.txt",
       "sha256": "sha256:0f3a5c7e9b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a",
       "language": null,
@@ -86,42 +134,92 @@
       "ecosystem": "pypi"
     }
   ],
+  "frameworks": [
+    {
+      "name": "express",
+      "version": "4.21.2",
+      "extractor": "inventory:express",
+      "support": "full"
+    },
+    {
+      "name": "prisma",
+      "version": null,
+      "extractor": "inventory:sql_rls",
+      "support": "partial"
+    },
+    {
+      "name": "fastapi",
+      "version": "0.115.6",
+      "extractor": "inventory:fastapi",
+      "support": "full"
+    }
+  ],
   "endpoints": [
     {
       "method": "GET",
       "path": "/api/invoices/{id}",
       "file": "routes/invoices.ts",
-      "line": 40
+      "line": 40,
+      "kind": "http",
+      "auth_required": true,
+      "middleware_refs": [
+        "MW-001"
+      ]
     },
     {
       "method": "PUT",
       "path": "/api/invoices/{id}",
       "file": "routes/invoices.ts",
-      "line": 61
+      "line": 61,
+      "kind": "http",
+      "auth_required": true,
+      "middleware_refs": [
+        "MW-001"
+      ]
     },
     {
       "method": "DELETE",
       "path": "/api/invoices/{id}",
       "file": "routes/invoices.ts",
-      "line": 80
+      "line": 80,
+      "kind": "http",
+      "auth_required": true,
+      "middleware_refs": [
+        "MW-001"
+      ]
     },
     {
       "method": "GET",
       "path": "/api/invoices",
       "file": "routes/invoices.ts",
-      "line": 20
+      "line": 20,
+      "kind": "http",
+      "auth_required": true,
+      "middleware_refs": [
+        "MW-001"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/chat/sessions",
       "file": "app/support/agent.py",
-      "line": 20
+      "line": 20,
+      "kind": "http",
+      "auth_required": true,
+      "middleware_refs": [
+        "MW-002"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/chat/sessions/{session}/messages",
       "file": "app/support/agent.py",
-      "line": 31
+      "line": 31,
+      "kind": "http",
+      "auth_required": true,
+      "middleware_refs": [
+        "MW-002"
+      ]
     }
   ],
   "llm_integrations": [
@@ -135,6 +233,158 @@
       "line": 57,
       "kind": "tool_definition"
     }
+  ],
+  "db": {
+    "engine": "postgresql",
+    "tables": [
+      {
+        "table_id": "TBL-001",
+        "schema": "public",
+        "name": "invoices",
+        "rls_enabled": false,
+        "policies": [],
+        "source": {
+          "file": "db/migrations/0001_init.sql",
+          "line": 12
+        }
+      },
+      {
+        "table_id": "TBL-002",
+        "schema": "public",
+        "name": "orders",
+        "rls_enabled": true,
+        "policies": [
+          {
+            "name": "orders_owner_only",
+            "command": "ALL",
+            "roles": [
+              "authenticated"
+            ],
+            "source": {
+              "file": "db/migrations/0003_orders.sql",
+              "line": 20
+            }
+          }
+        ],
+        "source": {
+          "file": "db/migrations/0003_orders.sql",
+          "line": 5
+        }
+      },
+      {
+        "table_id": "TBL-003",
+        "schema": "public",
+        "name": "agent_tool_calls",
+        "rls_enabled": null,
+        "policies": [],
+        "source": {
+          "file": "app/support/models.py",
+          "line": 30
+        }
+      },
+      {
+        "table_id": "TBL-004",
+        "schema": "public",
+        "name": "documents",
+        "rls_enabled": null,
+        "policies": [],
+        "source": {
+          "file": "app/support/models.py",
+          "line": 52
+        }
+      }
+    ],
+    "functions": [
+      {
+        "name": "refund_order",
+        "security_definer": true,
+        "source": {
+          "file": "db/migrations/0003_orders.sql",
+          "line": 41
+        }
+      }
+    ],
+    "storage_buckets": [
+      {
+        "name": "support-uploads",
+        "public": false,
+        "source": {
+          "file": "app/support/storage.py",
+          "line": 12
+        }
+      }
+    ]
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "api_token"
+    ],
+    "middleware": [
+      {
+        "middleware_id": "MW-001",
+        "name": "requireAuth",
+        "file": "routes/middleware/auth.ts",
+        "line": 8
+      },
+      {
+        "middleware_id": "MW-002",
+        "name": "require_session",
+        "file": "app/support/deps.py",
+        "line": 14
+      }
+    ],
+    "roles": [
+      "tenant_user",
+      "customer"
+    ]
+  },
+  "env_vars": [
+    {
+      "name": "DATABASE_URL",
+      "public_prefix": false,
+      "referenced_in": [
+        {
+          "file": "config/default.ts",
+          "line": 8
+        }
+      ]
+    },
+    {
+      "name": "STRIPE_SECRET_KEY",
+      "public_prefix": false,
+      "referenced_in": [
+        {
+          "file": "config/default.ts",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "name": "SUPPORT_LLM_API_KEY",
+      "public_prefix": false,
+      "referenced_in": [
+        {
+          "file": "app/support/agent.py",
+          "line": 18
+        }
+      ]
+    }
+  ],
+  "blind_spots": [
+    {
+      "kind": "dashboard_only_setting",
+      "description": "資料庫 RLS 與 storage bucket 政策若只在管理介面設定，repo 看不到；rls_enabled 為 null 的表需在 G1 由應用擁有者確認"
+    },
+    {
+      "kind": "dynamic_route",
+      "description": "app/support 以設定檔載入的工具清單在 W0 只能靜態近似"
+    }
+  ],
+  "features": [
+    "file_upload",
+    "llm_tools",
+    "payments"
   ],
   "redaction_map_ref": "sha256:f1513e18bd39bade630c8a0c2defd46194d3d21ed8c828b7a4a47139f24b236f",
   "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f"

@@ -33,14 +33,21 @@
               "type": "string",
               "enum": [
                 "authz",
+                "authn_session",
                 "injection",
                 "data_access",
                 "secrets_config",
                 "business_logic",
-                "llm_integration"
+                "llm_integration",
+                "file_handling",
+                "ssrf_outbound",
+                "frontend_client",
+                "webhooks_integrations",
+                "crypto"
               ]
             },
-            "minItems": 1
+            "minItems": 1,
+            "description": "必須涵蓋 W0 inventory 推導的 MANDATORY_FACETS（E-PLAN-FACETS）"
           },
           "agents": {
             "type": "array",

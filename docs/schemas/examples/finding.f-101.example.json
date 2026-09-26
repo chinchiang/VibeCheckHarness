@@ -18,11 +18,15 @@
   "confidence": "low",
   "evidence": [
     {
+      "kind": "code_snippet",
       "file": "routes/exports.ts",
       "line_start": 18,
       "line_end": 18,
       "snippet": "const job = await db.exportJob.findUnique({ where: { id } });",
       "snippet_sha256": "sha256:1ce9deedd0e3d736b6326d531a2db398c3504c957fef789722b1c22c98334a38",
+      "fact_ref": null,
+      "key_path": null,
+      "asserted": null,
       "match": "MATCHED"
     }
   ],

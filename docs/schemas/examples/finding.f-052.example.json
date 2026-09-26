@@ -18,11 +18,15 @@
   "confidence": "medium",
   "evidence": [
     {
+      "kind": "code_snippet",
       "file": "routes/invoices.ts",
       "line_start": 88,
       "line_end": 88,
       "snippet": "await db.invoice.update({ where: { id: req.params.id }, data: req.body });",
       "snippet_sha256": "sha256:1ec6de3e8ab31b71d365a1cb27fde67a0f2bb9cef9e45c2a21504cf4e9b27d06",
+      "fact_ref": null,
+      "key_path": null,
+      "asserted": null,
       "match": "MATCHED"
     }
   ],

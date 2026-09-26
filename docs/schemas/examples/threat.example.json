@@ -33,13 +33,18 @@
       "match": "MATCHED"
     },
     {
-      "kind": "finding",
+      "kind": "cluster",
       "ref": "K-005",
       "match": "MATCHED"
     },
     {
+      "kind": "cluster",
+      "ref": "K-015",
+      "match": "MATCHED"
+    },
+    {
       "kind": "inventory",
-      "ref": "rls:invoices=none",
+      "ref": "/db/tables/0/rls_enabled",
       "match": "MATCHED"
     }
   ],

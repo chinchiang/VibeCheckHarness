@@ -19,12 +19,19 @@
       "type": "string",
       "enum": [
         "authz",
+        "authn_session",
         "injection",
         "data_access",
         "secrets_config",
         "business_logic",
-        "llm_integration"
-      ]
+        "llm_integration",
+        "file_handling",
+        "ssrf_outbound",
+        "frontend_client",
+        "webhooks_integrations",
+        "crypto"
+      ],
+      "description": "審查面向（E7）；發現項所屬叢集的 cwe_bucket 必須在 vchlib FACET_BUCKETS[facet] 中（E-FINDING-FACET）"
     },
     "reporter": {
       "type": "object",
@@ -108,7 +115,7 @@
         "VERIFIED_SNIPPET",
         "UNVERIFIED"
       ],
-      "description": "片段比對結果；UNVERIFIED 不刪除"
+      "description": "由證據比對推導：任一項 MATCHED／MATCHED_SHIFTED → VERIFIED_SNIPPET；全部 NOT_FOUND → UNVERIFIED（不刪除）；其他 → PENDING（E-FINDING-STATUS）"
     }
   },
   "required": [
@@ -132,44 +139,128 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "code_snippet",
+            "inventory_fact",
+            "config_fact"
+          ],
+          "description": "code_snippet＝程式片段；inventory_fact＝W0 inventory 中的事實（例如缺少 RLS 這類「不存在」的發現）；config_fact＝設定檔中的鍵值"
+        },
         "file": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "code_snippet、config_fact 必填"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "line_start": {
-          "type": "integer",
-          "minimum": 1
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "line_end": {
-          "type": "integer",
-          "minimum": 1
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "snippet": {
-          "type": "string",
-          "description": "逐字程式片段；secrets 已遮罩"
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "code_snippet：遮罩後（redacted）的程式片段"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "snippet_sha256": {
-          "type": "string",
-          "pattern": "^sha256:[0-9a-f]{64}$"
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "description": "Harness 計算：sha256(snippet UTF-8)"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fact_ref": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(/[^/]*)+$",
+              "description": "inventory_fact：指向本 run W0 inventory 的 JSON Pointer，例如 /db/tables/0/rls_enabled（E-INVENTORY-REF）"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key_path": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(/[^/]*)+$",
+              "description": "config_fact：指向解析並遮罩後設定檔的 JSON Pointer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "asserted": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ],
+          "description": "inventory_fact／config_fact 宣稱的值（純量）；config_fact 可寫字串 \"<absent>\" 表示該鍵不存在；code_snippet 為 null"
         },
         "match": {
           "type": "string",
           "enum": [
             "MATCHED",
+            "MATCHED_SHIFTED",
             "NOT_FOUND",
             "NOT_CHECKED"
           ],
-          "description": "Harness 以程式碼比對片段是否在該位置"
+          "description": "Harness 以程式碼比對（vchlib.evidence）。code_snippet：與遮罩後的切片文字比對，先做空白正規化（每行去頭尾空白、連續空白與 tab 縮成一個空白、統一換行），在 [line_start−3, line_end+3] 視窗內尋找；在原行號找到 → MATCHED，在位移後的行找到 → MATCHED_SHIFTED 並改寫 line_start／line_end。inventory_fact：pointer 可解析且值等於 asserted → MATCHED。config_fact：同理，asserted 為 \"<absent>\" 時鍵不存在才 MATCHED"
         }
       },
       "required": [
+        "kind",
         "file",
         "line_start",
         "line_end",
         "snippet",
         "snippet_sha256",
+        "fact_ref",
+        "key_path",
+        "asserted",
         "match"
       ],
-      "description": "發現項的程式證據"
+      "description": "發現項的證據；各 kind 不用的欄位為 null（E-FINDING-EVIDENCE）"
     }
   }
 }
