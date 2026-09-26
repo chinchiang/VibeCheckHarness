@@ -127,7 +127,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-SEED-MANIFEST` | create_only_endpoints 的目標必須是 ROE 的 http 目標 |
 | `E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG` | observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash |
 | `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
-| `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE，並在 ROE 有效期間內決定：`E-GATE-ROE-APPROVER`／`E-GATE-ROE-VALIDITY`）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
+| `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
 | `E-ENG-PROVIDER`、`E-ENG-PROFILE`、`E-PROFILE-SAFETY` | 能收 C 級資料的雲端模型需 ZDR confirmed＋DPA；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 |
 | `E-THREAT-REVIEW`、`E-TC-REQ-UNAPPROVED`、`E-TC-SCRIPT` | 威脅的 review 必須是決定它的 G3 紀錄；testcase 只能引用 G1 核准的需求；scripted relay 需要 script_turns |
 | `E-RUN-CONFIG`、`E-RUN-RULE-VERSION`、`E-SLICE-IDENTITY` | run config_refs 指向正確種類的檔案、tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.3`；切片的 prompt 範本與 redaction map 屬於本 run |
