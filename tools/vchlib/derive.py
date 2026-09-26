@@ -166,6 +166,12 @@ CONFIG_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools":
                 "invariants": "invariants", "seed_manifest": "seed-manifest"}
 
 
+def artifact_sha(rec: dict):
+    """artifact.sha256 of a gate record; MISSING when the record has no artifact (reported as E-GATE-ARTIFACT, D6)."""
+    a = rec.get("artifact") if isinstance(rec, dict) else None
+    return a.get("sha256", MISSING) if isinstance(a, dict) else MISSING
+
+
 def cluster_fingerprint(cluster: dict) -> str:
     """B9: stable cross-run fingerprint, no line numbers. white_box: {cwe_bucket, file, symbol};
     black_box: {cwe_bucket, target_id, method, path_template} of canonical_location.endpoint."""
@@ -618,14 +624,14 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     exp(d, ["slice_refs"], slice_by_run.get(rid, []), "slices of this run")
 
     g3 = ix.gate_records(rid, "G3")
-    exp(d, ["threat_model_ref"], g3[-1].data["artifact"]["sha256"] if g3 else None, "G3 artifact")
+    exp(d, ["threat_model_ref"], artifact_sha(g3[-1].data) if g3 else None, "G3 artifact")
     tcs = {tid: ix.first("testcase", testcase_id=tid) for tid in r.get("testcase_ids", [])}
     if all(tcs.values()):
         exp(d, ["artifact_hashes"], {k: approval_hash(v.data) for k, v in tcs.items()}, "approval hash of each testcase")
         exp(d, ["testplan_ref"], set_digest([{"id": k, "sha256": approval_hash(v.data)} for k, v in tcs.items()]) if tcs else None,
             "set digest of the run's testcases (= G4 artifact)")
     trs = sorted((x.data for x in ix.docs("testresult") if x.data.get("run_id") == rid),
-                 key=lambda t: (str(t.get("executed_at")), str(t.get("result_id"))))
+                 key=lambda t: (timeutil.sort_key(t.get("executed_at")), str(t.get("result_id"))))   # D4: by instant, not by text
     exp(d, ["testresults"], [content_hash(t) for t in trs], "content hash of each testresult (execution order)")
     for jid in (r.get("jobs") or {}):
         tr = next((t for t in trs if t.get("job_id") == jid), None)
@@ -638,7 +644,7 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
                 exp(d, ["gate_records", i, "subject_hash"], get_path(r, ["testplan_ref"]), "pending G4 subject = testplan_ref")
             continue
         for field, val in (("gate", rec.get("gate")), ("outcome", rec.get("outcome")), ("round", rec.get("round")),
-                           ("subject_hash", (rec.get("artifact") or {}).get("sha256")), ("job_id", rec.get("job_id")),
+                           ("subject_hash", artifact_sha(rec)), ("job_id", rec.get("job_id")),
                            ("opened_at", rec.get("opened_at")), ("decided_at", rec.get("timestamp"))):
             exp(d, ["gate_records", i, field], val, f"mirror of {rec.get('gate_record_id')}")
     parent = ix.first("run", run_id=r.get("parent_run_id")) if r.get("parent_run_id") else None
@@ -667,7 +673,7 @@ def _report_expectations(ix: Index, d: Doc, exp):
         if kind in ("threat_model", "test_plan", "gate_record"):
             rec = ix.first("gate-record", gate_record_id=ref)
             if rec:
-                val = rec.data["artifact"]["sha256"] if kind != "gate_record" else content_hash(rec.data)
+                val = artifact_sha(rec.data) if kind != "gate_record" else content_hash(rec.data)
         elif kind == "testresult":
             x = ix.first("testresult", result_id=ref)
             val = content_hash(x.data) if x else MISSING
