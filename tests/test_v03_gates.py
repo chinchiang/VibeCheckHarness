@@ -41,7 +41,9 @@ def test_g3_decided_before_roe_validity(b):
     """triage: moving the ROE not_before after G0b and G3 gave 0 errors."""
     doc(b, ROE).data["validity"]["not_before"] = "2026-10-03T00:00:00+08:00"
     hits = [i for i in run_all(b).errors if i.code == "E-GATE-ROE-VALIDITY"]
-    assert {h.where.rsplit("/", 1)[-1] for h in hits} >= {"gate-record.g0b.example.json", "gate-record.g3.example.json"}
+    flagged = {h.where.rsplit("/", 1)[-1] for h in hits}
+    assert "gate-record.g3.example.json" in flagged
+    assert "gate-record.g0b.example.json" not in flagged   # G0b itself suspends a run whose ROE is not yet valid
 
 
 def test_g3_approver_must_be_a_roe_person(b):

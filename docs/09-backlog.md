@@ -14,6 +14,9 @@
 | BL-03 | L-20 | `docs/evidence/link-check-2026-09-23.md` | 外部連結檢查只做到 2026-09-23；v0.2／v0.3 新增的 URL 尚未重查；403 的來源未逐一人工確認 | 用本輪加入的 `tools/check_external_links.py` 重跑，並把結果存成新的日期檔；403 以瀏覽器人工抽查 | 待辦 |
 | BL-04 | H-D1 延伸 | `tools/vchlib/checks.py`、`gate-record.schema.json` | G4／G5 的職責分離只在同一個 run 內檢查；跟進 run 沿用前一個 run 的 G4 時，沒有 `g4_gate_record_id` 的跨 run 連結 | G5 紀錄加上 `g4_gate_record_id`，validator 跨 run 解析 | 待辦 |
 | BL-05 | M-G7 延伸 | docs 02／03／06／08 | 保留期限（03、06 §2.2、08 §7.5）、簽章（03 §6.1、06 §1.6）、稽核 tail（03 §13、06 §1.7、08 §7.4）仍在多處描述 | 各主題指定一個主頁，其他地方改為一句話加連結 | 待辦 |
+| BL-21 | H-B5 延伸 | `gate-record.schema.json`、`tools/vchlib/checks.py` | 跨 run 沿用 G1／G3 核准（未變更的項目）只是設計規則：`decisions[]` 沒有欄位標示「沿用自哪一份紀錄」，validator 也不檢查跨 run 的沿用 | `decisions[]` 加上 `carried_from`（前一個 run 的 gate record ID 與項目 hash），validator 核對 hash 相同、ROE 相同且在效期內；G4／G5 永遠不沿用 | 待辦 |
+| BL-22 | N-5 延伸 | `run.schema.json` | run manifest 的 `config_refs` 六個鍵都必填；G1 之前（還沒有 `invariants`）或 G0b 之前（還沒有 `seed_manifest`）的 run 紀錄無法表示「尚未產生」 | 允許 `null` 並記錄產生的節點；validator 依 run 已到達的節點檢查 | 待辦 |
+| BL-23 | N-5 延伸 | `tools/vchlib/checks.py` | 只做白箱的 Lane B run 也必須有 `seed_manifest` 參照（目前只有 Lane A 可為 `null`） | 沒有 B 階段的 run 允許 `seed_manifest: null` | 待辦 |
 | BL-06 | H-E9 限制 | `docs/03` §6.1、`docs/06` §3 | 簽署時間由簽署者自填，沒有可信的時間來源 | 評估 RFC 3161 時間戳記服務或以 WORM 稽核錨點的時間為準；需要先決定 U-04 | 延後（依 U-04） |
 
 ## 2. 延後的設計項目

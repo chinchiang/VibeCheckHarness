@@ -5,7 +5,7 @@
 ## v0.3 變更摘要
 
 - **reviewer 與 verifier 看不到工具輸出**（§3 規則 5）：工具結果只經由確定性的 Clusterer／Aggregator 進入裁決，因為一個家族重複掃描器的命中不是獨立證據。（H-A1）
-- **工具佐證分強／弱**（§3 規則 5、§4.2）：只有 (adapter, rule_id) 列在該桶 `high_precision_rules`、且 `precision_lower95` ≥ `high_precision_min`（0.90）的 SARIF 算強佐證；校準前名單為空。其他 SARIF 與 `E_fail_u` 是弱工具訊號，只算 1 個獨立來源。R2 計算獨立來源數；R4 遇到任何工具佐證或訊號都是 `DISPUTED`；R5 只接受強佐證或投票分支；R6 改為「獨立來源 ≥ 2 → `LIKELY`」；R8 不變。裁決新增 `tool_signal`、`independent_sources`；`tool_corroboration` 只含強佐證。決定表仍是 13 列，欄位改為「強工具佐證」「弱工具訊號／`E_fail_u`」「獨立來源 ≥ 2」。範例 K-014 由 `CONFIRMED_CORROBORATED` 改為 `LIKELY`。（H-A1）
+- **工具佐證分強／弱**（§3 規則 5、§4.2）：只有 (adapter, rule_id, tool_version) 列在該桶 `high_precision_rules`、且 `precision_lower95` ≥ `high_precision_min`（0.90）的 SARIF 算強佐證；校準前名單為空。其他 SARIF 與 `E_fail_u` 是弱工具訊號，各只算 1 個獨立來源。R2 計算獨立來源數；R4 遇到任何工具佐證或訊號都是 `DISPUTED`；R5 只接受強佐證或投票分支；R6 改為「獨立來源 ≥ 2 → `LIKELY`」；R8 不變。裁決新增 `tool_signal`、`independent_sources`；`tool_corroboration` 只含強佐證。決定表仍是 13 列，欄位改為「強工具佐證」「弱工具訊號／`E_fail_u`」「獨立來源 ≥ 2」。範例 K-014 由 `CONFIRMED_CORROBORATED` 改為 `LIKELY`（它的 SARIF 改由 `opengrep:scan` 產生，見 §4.2）。`rule_version` 改為 `05-v0.3`。（H-A1、N-7）
 - **新增 §5.10**：掃描器規則列入高精準名單的程序（Clopper-Pearson 下界、n ≥ 40、保留切分檢查、移除與暫停）。（H-A1）
 - **確定性證明不必經 LLM**（§4.2 測試證據分類）：確定性 oracle 判定的 FAIL，重播成立、所有對照 PASS、解讀事先登記（G4 核准的黑箱測試；或需求全部經 G1 簽核、有 `oracle_can_pass` 對照的 W4 測試）→ 直接 `E_proof`。否則由分析者池（每家族一位；有 PII 時只用自架模型）中合格的 Result Analyst 確認。`oracle.types` 改為陣列並新增 `LLM_GRADER`；測試結果新增 `fail_oracles`；違反只由 `LLM_GRADER`／`HUMAN` 判定 → `E_inc`。（H-A3、N-8、L-15）
 - **對照與 `INVALID`**（§4.2）：測試案例的 `controls[]`（`reachability`／`oracle_can_pass`／`oracle_can_fail`）；任一對照不是 PASS → `INVALID` → `E_inc`，永遠不算 PASS。`E_pass` 改以 `reachability` 對照取代「前置條件已到達」；`positive_control`＝`oracle_can_fail` 對照為 PASS。（H-B1、H-A3）
@@ -108,7 +108,7 @@
      - `config_fact`：`file`＋`key_path`（指向已解析、已遮罩設定檔的 JSON Pointer）＋`asserted`（主張的值；字串 `"<absent>"` 表示主張該鍵不存在）。
      - 後兩種用在「缺少某物」類問題，例如沒有 RLS、沒有認證 middleware、沒有限流設定。這類問題交不出一段程式碼；v0.2 只收逐字片段，所以它們一定比對失敗，並被 R0 駁回。
    - **一律比對遮罩後的文字**：片段與比對對象都是 W0 遮罩之後的切片，不是原始碼。
-   - **容錯比對**（`code_snippet`）：先正規化空白（去掉行尾空白、連續的空白與 tab 合併為一個、統一換行字元），再在第 line_start − 3 行到第 line_end + 3 行之間尋找：
+   - **容錯比對**（`code_snippet`）：先正規化空白（去掉每一行頭尾的空白、連續的空白與 tab 合併為一個、統一換行字元、片段前後的空白行不計），再在第 line_start − 3 行到第 line_end + 3 行之間尋找：
      - 在所寫的行號找到 → `MATCHED`；
      - 在範圍內其他行找到 → `MATCHED_SHIFTED`，harness 改寫 `line_start`／`line_end`；
      - 範圍內找不到 → `NOT_FOUND`。
@@ -117,8 +117,8 @@
    - 只有 `MATCHED`／`MATCHED_SHIFTED` 的證據算**已接地**。叢集所有成員的所有證據都是 `NOT_FOUND` → R0 `REJECTED`。
    - **reviewer 與 verifier 看不到工具輸出**：W2 reviewer（含 CMD-2 加派的輪次）與 W3 verifier 都**不會**收到 W1 的工具輸出（SARIF 等）。工具結果只經由確定性的 Clusterer／Aggregator 進入裁決（§4.1、§4.2 R2）。原因：reviewer 若先看到掃描器命中、再回報同一位置，只是把掃描器的同一次命中重複一遍。一個家族重複掃描器的結果不是獨立證據，卻會被算成「家族回報＋工具佐證」兩個來源 [H]。
    - **強／弱工具佐證** [H]：
-     - **強**：已解析的 SARIF 結果，其 (adapter, rule_id) 列在校準結果的 `high_precision_rules`，桶等於叢集的 CWE 桶，且 `precision_lower95` ≥ `high_precision_min`（預設 0.90）。名單怎麼產生見 [§5.10](#510-掃描器規則的高精準名單high_precision_rules)。**校準前名單是空的**，所以所有 SARIF 都是弱的。
-     - **弱**（工具訊號）：其他所有已解析的 SARIF 結果，以及 `E_fail_u` 測試結果（§4.2）。弱工具訊號只算 **1 個獨立來源**（R6），本身不能確認。
+     - **強**：已解析的 SARIF 結果，其 (adapter, rule_id, tool_version) 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的 CWE 桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90）。`adapter`、`rule_id`、`tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.adapter`、`payload.sarif_results[]`（`{ref, rule_id}`）與 `payload.tool_version`。名單怎麼產生見 [§5.10](#510-掃描器規則的高精準名單high_precision_rules)。**校準前名單是空的**，所以所有 SARIF 都是弱的。
+     - **弱**（工具訊號）：其他所有已解析的 SARIF 結果，以及 `E_fail_u` 測試結果（§4.2）。弱 SARIF（不論幾筆）只算 **1 個獨立來源**，`E_fail_u`（不論幾筆）也只算 1 個（R2、R6）；弱訊號本身不能確認。
      - 為什麼要分級：掃描器規則的精準度差很多。§2.3 引用的研究中，SAST 在 OWASP Benchmark 上的誤報率超過 92%（預印本）[V][E:whitebox-33]。所以只有實測精準度夠高的規則，才能單獨讓叢集確認。
 6. **校準加權**：投票權重取自各模型在校準語料上、分 CWE 桶的實測投票正確率（公式見 §4.3），不是等權。只有驗證者有權重；reviewer 不投票（§4.3）。
 7. **分歧→人工（G2）**：這是 **[H] 設計假設**，需要量測 DISPUTED 佇列的精準度（§5.3 M-6）。G2 佇列＝所有 `DISPUTED` 叢集＋最高嚴重度為 critical／high 的 `UNCORROBORATED` 叢集；其他 `UNCORROBORATED` 不進 G2（見 [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。`LIKELY`（含 `no_eligible_verifier` 的多家族叢集）也不進 G2（規則 2）。Trust or Escalate（ICLR 2025）支持「信心不足就不自動判定」，但它是升級給**更強的 LLM 評審**並選擇棄權，**不是交給人**，而且用的是單一評審的校準信心，不是跨廠商分歧 [P][E:multi_llm_bias-34]。
@@ -144,14 +144,17 @@
   - 同一個正規位置，或同一函式內的行範圍重疊
   - **且**屬於同一個桶
 - 同一桶內若 CWE 不一致，保留清單；不同桶則分成不同叢集，但互相連結。
-- **「獨立報告」的定義**：不同家族在**本次 run 的第一輪**各自貢獻了同一叢集的成員。Lane A 帶入的參考性發現項（D8）與 CMD-2 加派的結果**不計入**獨立家族數 [H]。validator 以成員的 `reporter.round`＝1 重算 `independent_families`，不採信叢集自己寫的值。<!-- SYNC-A: 確認 independent_families 是否排除 UNVERIFIED 成員（change-spec D14 只看 reporter.round＝1；v0.2 文字曾說片段比對失敗的發現項不計入支持） -->
+- **「獨立報告」的定義**：不同家族在**本次 run 的第一輪**各自貢獻了同一叢集的成員。Lane A 帶入的參考性發現項（D8）與 CMD-2 加派的結果**不計入**獨立家族數 [H]。validator 重算 `independent_families`，不採信叢集自己寫的值（不一致 → `E-CLUSTER-FAMILIES`）。只計同時符合下列條件的成員的家族：
+  - 發現項屬於本 run，`reporter.round`＝1；
+  - 回報的 agent 在 `agents.yaml` 的角色是 `reviewer`；
+  - 發現項至少有一項證據**不是** `NOT_FOUND`。證據全部 `NOT_FOUND` 的發現項（`UNVERIFIED`）不算支持，所以不計入。
 - **工具結果怎麼進叢集**：W1 工具結果先正規化，再由 Clusterer 以同一組叢集鍵附到叢集的 `sarif_refs`（正規化與合併規則見 [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）。這是工具結果進入裁決的唯一路徑（§3 規則 5）。
 - 叢集結果依 [schemas/cluster.schema.json](schemas/cluster.schema.json) 保存，含 `member_finding_ids`、`families`、`lineages`、`independent_families`、`sarif_refs`；v0.3 另有 `origin`、`threat_id`、`fingerprint`、`baseline_state`、`reopened`（見下）。
 
 **叢集來源（`origin`）** [H]
 - `white_box`：由 W2 發現項形成，使用上面的叢集鍵。`threat_id` 為 null。
-- `black_box`：黑箱階段發現、沒有對應白箱叢集的問題。也就是威脅沒有 `source_cluster_id`（例如只有 B1 外部視角看得到的威脅）。該威脅的測試結果出現 `FAIL` 時，B5 由程式碼建立叢集，`threat_id` 必填。<!-- SYNC-A: 確認黑箱叢集的建立時機（只在 FAIL 時，或任何結果）與實作一致 -->
-  - **叢集鍵**：(`target_id`, HTTP 方法, `path_template`)＋桶，記在 `canonical_location.endpoint`。
+- `black_box`：黑箱階段發現、沒有對應白箱叢集的問題。也就是威脅沒有 `source_cluster_id`（例如只有 B1 外部視角看得到的威脅）。這種威脅的測試案例，**每一筆** B5 測試結果（FAIL、PASS、INVALID 等都一樣，不只 FAIL）都寫到該威脅的黑箱叢集，由 B5 以程式碼建立，`threat_id` 必填。validator 檢查：這類結果的 `cluster_ids` 不能是空的，而且只能指向 `origin: black_box`、`threat_id` 相同的叢集（`E-CLUSTER-ORIGIN`）。所以 PASS 也有裁決紀錄（例如 R7＋R11 的 `test_not_reproduced`）。
+  - **叢集鍵**：(`target_id`, HTTP 方法, `path_template`)＋桶，記在 `canonical_location.endpoint`（`file`、`symbol`、`source`、`sink` 為 null）。端點必須是該威脅某個測試案例 `request_allowlist` 中的請求（`E-CLUSTER-ORIGIN`）。
   - **沒有成員**：`member_finding_ids`、`families`、`lineages`、`independent_families`、`sarif_refs` 可以是空的；只有 `black_box` 能這樣（validator `E-CLUSTER-ORIGIN`）。
   - **會觸發的規則**：
     - R1：`E_proof` → `CONFIRMED_EXECUTABLE`。黑箱測試都經 G4 核准，所以解讀算事先登記（§4.2）。
@@ -160,7 +163,9 @@
   - **不會觸發的規則**：R0 不適用（沒有成員，「全部證據 `NOT_FOUND`」恆為否）；沒有投票與 SARIF，所以 R3–R5 不成立；R9、R10 不會出現（Lane A 不跑黑箱；G2 在黑箱之前）。
   - 叢集的 `families` 是空的，所以分析者池中每一位 Result Analyst 都合格（§4.2）。
   - 黑箱叢集在 B5 才建立，已經過了 CMD-2 與 G2，所以結果直接列入 B6 報告。
-  - 範例：`schemas/examples/cluster.k-201.example.json`（黑箱，threat 沒有 `source_cluster_id`），G4 核准的測試案例得到確定性 FAIL → `verdict.k-201-b5` 經 R1 為 `CONFIRMED_EXECUTABLE`。<!-- SYNC-A: 確認 K-201 範例檔名、threat ID 與 verdict ID；若實作改用既有的黑箱威脅／測試案例，改寫這一句 -->
+  - 範例（`schemas/examples/`）：
+    - `cluster.k-201.example.json`：K-201，威脅 T-033（沒有 `source_cluster_id`），端點 `tgt-staging-api` `GET /api/invoices`，桶 `authz`。G4 核准的 TC-033-01（S0，`testcase.bola-list.example.json`）得到確定性 FAIL（R-TC-033-01-1：`fail_oracles` 為 `STATUS_AND_BODY`，兩個對照都 PASS，重播 2 次都相同）→ `verdict.k-201-b5.example.json`（V-201-1）經 R1 為 `CONFIRMED_EXECUTABLE`，**沒有** Result Analyst（`interpretation_confirmed_by` 為 null）。
+    - `cluster.k-202.example.json`：K-202，威脅 T-027（同樣沒有來源叢集），桶 `injection`。TC-027-01（ZAP 主動掃描）的結果 R-TC-027-01-1 是 PASS → `verdict.k-202-b5.example.json`（V-202-1）經 R7 為 `UNCORROBORATED`，R11 加註 `test_not_reproduced`。它是範例中唯一 `provisional` 為 true 的裁決（見 §4.2）。
 
 **跨 run 指紋與基準狀態** [H]：每個叢集有 `fingerprint`＝sha256(JCS({cwe_bucket, file, symbol}))；黑箱叢集用 {cwe_bucket, target_id, method, path_template}。指紋不含行號，所以程式移動幾行，指紋不變；validator 會重算（`E-CLUSTER-FINGERPRINT`）。`baseline_state` 是與 `run.baseline_run_id` 那次 run 比較的結果，沿用 SARIF 2.1.0 `baselineState` 的四個值 `new`／`unchanged`／`updated`／`absent` [V][E:whitebox-56]。本工具包的用法：`new`＝基準 run 沒有這個指紋；`unchanged`＝指紋相同、成員證據的 hash 也相同；`updated`＝指紋相同、證據改變；`absent` 只出現在報告中（基準 run 有、本次沒有的指紋，列在 report-manifest 的 `absent_fingerprints[]`）；沒有基準 run 時為 null。`reopened`（本次為 `new`，但更早的 run 曾是 `absent`）只是資訊。這些欄位**不是**裁決規則的輸入，只讓報告、PR 回饋與 G3 的差異審查能跨 run 對上同一個問題。SARIF 輸出的欄位對應見 [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)。
 
@@ -182,7 +187,7 @@
 **合格票（valid vote）的操作定義**：
 - 投票者的家族與血統都不在叢集中（§3 規則 2）；
 - 候選已匿名化、順序已隨機化；
-- 理由**引用了具體證據**，而且引用的證據通過同樣的接地比對（§3 規則 5）：程式位置（例如「第 57 行已有 `tenant_id` 條件」），或 inventory／設定事實（例如「`/db/tables/0/rls_enabled` 為 `true`」）。**工具輸出不能當引用**，因為驗證者看不到它。沒有可比對證據的票一律視為棄權。
+- 理由**引用了具體證據**，而且引用的證據通過同樣的接地比對（§3 規則 5）：程式位置（例如「第 57 行已有 `tenant_id` 條件」），或 inventory／設定事實（例如「`/db/tables/0/rls_enabled` 為 `true`」）。**工具輸出不能當引用**，因為驗證者看不到它。沒有可比對證據的票一律視為棄權。引用逐項記在票的 `votes[].cited_evidence`（v0.3 新增、必填；例如 K-014 的兩張票都引用 `routes/invoices.ts:88`）；它也是驗證者 LLM 輸出中僅有的三個欄位之一（另兩個是 `stance`、`rationale`）。
 - 「理由成立」因此不需要主觀判斷：Aggregator 只檢查引用的證據能否被程式碼或 inventory 比對。
 
 **計權合格票**＝合格票，且投票模型在該叢集的 CWE 桶權重 w > 0（§4.3）[H]。權重為 0 的模型（含「接近 0」者，§4.3；以及尚未重跑 §5.8 的 fallback 模型，§3 規則 3）的票照樣保存（`valid` 依上面定義），但不參與 R3–R5 的條件判斷，也不影響 S。這避免一個近乎隨機的投票者單獨把叢集推進 `DISPUTED`。
@@ -197,12 +202,14 @@
   - `reachability`：證明測試真的到達要測的地方。W4：sink 行被覆蓋；B5：請求帶著有效 session 到達目標端點，並通過認證／授權前置步驟。每個測試案例至少一個（`E-TC-CONTROLS`）。
   - `oracle_can_pass`：在已知正常的條件下，oracle 判 PASS。證明測試不是「怎樣都失敗」。
   - `oracle_can_fail`：在已知有缺陷的條件下，oracle 判 FAIL。W4 用 mutmut／Stryker 的變異體或植入缺陷版本；B5 用 oracle 自我檢查 fixture。證明測試不是「怎樣都通過」。
-  - 測試結果的 `controls[]` 記錄每個對照的結果。**任一對照不是 PASS**（FAIL、ERROR、NOT_RUN）→ 結果的 `outcome` 必須是 `INVALID`（`E-RESULT-INVALID`）。`INVALID` 表示測試沒有證明自己能測到東西，所以它**永遠不算 PASS**，也不算 FAIL，一律列 `E_inc`。報告清單的 `metrics` 列出 `results_total`、`results_invalid` 與 `control_pass_rate`。
+  - 測試結果的 `controls[]` 記錄每個對照的結果。**任一對照不是 PASS**（FAIL、ERROR、NOT_RUN）→ 結果的 `outcome` 必須是 `INVALID`（`E-RESULT-INVALID`）。`INVALID` 表示測試沒有證明自己能測到東西，所以它**永遠不算 PASS**，也不算 FAIL，一律列 `E_inc`。報告清單的 `metrics` 列出 `results_total`、`results_invalid` 與 `control_pass_rate`（PASS 的對照數 ÷ 所有結果的對照總數；validator 重算，`E-REPORT-METRICS`）。範例 run 為 4 筆結果、0 筆 `INVALID`、1.0。
 - **事先登記的解讀**：下列兩種情況，FAIL 的意思在測試執行**之前**就已由人核准，所以不需要 LLM 解讀：
-  - (a) 經 G4 核准的黑箱測試案例：G4 核准的就是測試步驟與 oracle；
-  - (b) W4 測試：它的 `requirement_ids` 全部經 G1 簽核，而且有一個 `oracle_can_pass` 對照為 PASS（判定 PASS 時改為 `oracle_can_fail` 對照）。
+  - (a) 經 G4 核准的黑箱測試案例（B4 結果；該 run 最新的 G4 紀錄為 `APPROVED`／`PARTIALLY_APPROVED`，且對這個測試案例的決定是 `accept`）：G4 核准的就是測試步驟與 oracle；
+  - (b) W4 測試：它的 `requirement_ids` 不是空的、全部經 G1 核准，而且有 `oracle_can_pass` 對照、全部 PASS（判定 PASS 時改為 `oracle_can_fail` 對照）。
   - Result Analyst 原本只負責確認「這個 FAIL 真的代表所述問題」。意思已事先固定、又由確定性 oracle 判定時，這一步沒有增加資訊，只會讓證明依賴 LLM，而且在分析者都與叢集同家族時根本無法成立。
-- **Result Analyst 分析者池**：每個家族一位（`result_analyst_a`＝`claude_sonnet`、`result_analyst_b`＝`gpt_flagship`、`result_analyst`＝`nemotron_self`）。<!-- SYNC-A: 確認 agents.yaml 的分析者 ID 與模型 --> harness 挑一位家族與血統都不在叢集 `families`／`lineages` 中的分析者。黑箱回應中偵測到 PII 時，只能用自架模型。沒有符合條件的分析者，就是「沒有合格的 Result Analyst」。
+- **Result Analyst 分析者池**：`agents.yaml` 中每個家族一位，角色都是 `result_analyst`（`result_analyst_a`＝`claude_sonnet`、`result_analyst_b`＝`gpt_flagship`、`result_analyst`＝`nemotron_self`）。harness 挑一位家族與血統都不在叢集 `families`／`lineages` 中的分析者（家族與血統由 `agents.yaml` → `models.yaml` 解析）。黑箱回應中偵測到 PII 時，只能用自架模型（`result_analyst`）。沒有符合條件的分析者，就是「沒有合格的 Result Analyst」。
+  - 分析者記在測試結果的 `interpreted_by`，它的 LLM 輸出記在 `interpretation`（`{agrees, rationale}`；兩者同時有或同時為 null，`E-RESULT-ANALYST`）。`interpreted_by` 不是 `result_analyst` 角色的 agent → `E-RESULT-ANALYST-ROLE`。
+  - 合格分析者只有在 `agrees` 為 true 時才算「確認」；`agrees` 為 false → `E_inc`。
 
 | 類別 | 條件（全部成立） | 用在 |
 |---|---|---|
@@ -212,7 +219,7 @@
 | `E_inc` 不確定 | 其他所有情況：`ERROR`、`SKIPPED`、`STOPPED`、**`INVALID`**（任一對照不是 PASS）、沒有重播或重播不一致的 FAIL（`replays`＝0；確定性測試 k_r ＜ n_r；機率型測試 k_r ＜ `fail_k_min`，例如 k_r＝0）、k 未達 `trials.fail_k_min`、機率型 PASS 的有效次數 n′ ＜ 30（前置條件未到達的次數不計；n′ ≥ 30 是 `E_pass` 的條件）、**違反只由 `LLM_GRADER`／`HUMAN` 判定**（`fail_oracles` 沒有確定性類型）、沒有確定性 oracle 的 PASS、解讀沒有事先登記也沒有合格分析者的 PASS、分析者不同意或缺票 | R12（只記錄） |
 
 - **機率型測試的次數、門檻與重播**以 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 為準（`trials.fail_k_min`、n＝30／60、n_r＝`trials.replay_n`＝20、k_r＝`replay_k`、PASS 的 n′ ＜ 30 ⇒ `E_inc`；`trials.pass_rule` 只是文字說明）；本節只負責把結果分類。重播 job k_r＝0 不代表第一批是誤判（真實違反率 5% 時約 36% 會全部沒重現），所以列 `E_inc` 並保留第一批紀錄給人看，而不是反證 [H]。
-- `positive_control`（測試結果欄位）＝「有 `oracle_can_fail` 對照，而且結果是 PASS」，由 validator 推導比對 [H]。沒有正對照的 PASS 仍可能是 `E_pass`（黑箱測試經 G4 核准，或經分析者確認），但報告標示；§5.3 M-9 會分開量測兩者的「測試漏報率」。
+- `positive_control.value`（測試結果欄位）＝「有 `oracle_can_fail` 對照，而且全部 PASS」；沒有這種對照時為 null（例如範例 B 的 PASS 與 TC-027-01 的 ZAP PASS）。由 validator 推導比對（`E-RESULT-CONTROLS`）[H]。沒有正對照的 PASS 仍可能是 `E_pass`（黑箱測試經 G4 核准，或經分析者確認），但報告標示；§5.3 M-9 會分開量測兩者的「測試漏報率」。
 - **PASS 永遠不會單獨把叢集變成 `REJECTED`**：測試只覆蓋有限條件，「沒有失敗」不等於「沒有漏洞」[H]。若校準顯示測試漏報率夠低（§5.3 M-9），未來的 `rule_version` 才可能放寬。
 
 #### 有序規則
@@ -242,9 +249,14 @@
   - W4：`W4_readjudicate` 的新版裁決若為 `DISPUTED`、而被取代的前一版不是 `DISPUTED`（例如 `LIKELY` 經 R11 → `DISPUTED`），加註 `w4_became_disputed`；這與 G2 是否已決定無關。run 與種子威脅的 `disputed_after_g2` 是由這些註記推導的清單，G3 的種子威脅清單標示「W4 後轉為爭議」。
   - B5：`B5_readjudicate` 產生的 `DISPUTED` 不加 `w4_became_disputed`，列入 B6 的人工複核清單。
 - G2 的 accept 與 NEEDS_INFO／逾時都**不是規則輸入**：狀態照規則計算，G2 紀錄只附在報告中。
-- **暫定裁決（`provisional`）** [H]：下列任一成立，裁決的 `provisional` 為 true：`calibration_version` 為 null；本裁決所有票的權重都是 0；`theta_confirm` 為 null。<!-- SYNC-A: 確認「沒有任何票」時 provisional 的推導值（「所有票權重為 0」對空集合是否成立） --> 它不改規則的計算（w＝0 時投票分支本來就不會成立，θ＝null 視為 +∞），只表示這個狀態沒有經過校準的投票支撐。報告（W5、B6）把暫定裁決標為「暫定（校準前）」，並在摘要列出暫定裁決的比例。校準前的其他預設見 [08 §11.11](08-implementation-spec.md#1111-校準前的預設)。
-- **規則版本**：v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，所以裁決的 `rule_version` 隨之更新（例如 `05-v0.3`）。<!-- SYNC-A: 確認實作使用的 rule_version 字串 -->
-- 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`；v0.2 另有每票的 `votes[].weight`、`votes[].weighted_valid`（＝計權合格票），以及 `status_cap`、`advisory`、`test_evidence{class, results[]}`、`annotations[]{kind, reason}`（kind：`test_not_reproduced`、`test_inconclusive`、`conflicting_test_results`、`g3_rejected`、`post_g2_conflict`、`w4_became_disputed`）、`g2_decision_ref`、`calibration_version`（整數）、`theta_confirm`、`theta_reject`、`readjudicated_by`（產生該版裁決的節點：`W3_adjudicate`、`W4_readjudicate` 或 `B5_readjudicate`）、`supersedes_verdict_id`。v0.3 的 `tool_corroboration` 只含**強**工具佐證，另新增 `tool_signal`（弱工具訊號）、`independent_sources`（整數）與 `provisional`。
+- **暫定裁決（`provisional`）** [H]：下列任一成立，裁決的 `provisional` 為 true：
+  - `calibration_version` 為 null；
+  - `theta_confirm` 為 null；
+  - 合格驗證家族 E(叢集)（§3 規則 3）中的**每一個**驗證模型，在該叢集 CWE 桶的校準權重都是 0。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
+  - 所以沒有任何票的裁決不一定是暫定的。例：黑箱叢集 K-201 的 V-201-1 沒有票，但合格的 `nemotron_self` 在 `authz` 桶 w＝0.6933，`provisional` 為 false；K-202 在 `injection` 桶，沒有任何模型有權重，V-202-1 為 true。
+  - 它不改規則的計算（w＝0 時投票分支本來就不會成立，θ＝null 視為 +∞），只表示這個狀態沒有經過校準的投票支撐。報告（W5、B6）把暫定裁決標為「暫定（校準前）」，並在摘要列出暫定裁決的比例。校準前的其他預設見 [08 §11.11](08-implementation-spec.md#1111-校準前的預設)。
+- **規則版本**：v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，所以裁決的 `rule_version` 由 `05-v0.2` 改為 **`05-v0.3`**（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
+- 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`；v0.2 另有每票的 `votes[].weight`、`votes[].weighted_valid`（＝計權合格票），以及 `status_cap`、`advisory`、`test_evidence{class, results[]}`、`annotations[]{kind, reason}`（kind：`test_not_reproduced`、`test_inconclusive`、`conflicting_test_results`、`g3_rejected`、`post_g2_conflict`、`w4_became_disputed`）、`g2_decision_ref`、`calibration_version`（整數）、`theta_confirm`、`theta_reject`、`readjudicated_by`（產生該版裁決的節點：`W3_adjudicate`、`W4_readjudicate` 或 `B5_readjudicate`）、`supersedes_verdict_id`。v0.3 的 `tool_corroboration` 只含**強**工具佐證，另新增 `tool_signal`（弱工具訊號）、`independent_sources`（整數）、`provisional`，以及每票必填的 `votes[].cited_evidence`。
 - **自我宣告的欄位不採信**（validator 強制）[H]：裁決中影響規則的欄位由 validator 自行推導，再與裁決記錄的值比對，不一致就是錯誤；重算規則時用推導值，不用裁決自己寫的值。
   - `diversity_degraded`：依 §3 第 3 條（|E| ＞ 0 且計權合格票的家族數 ＜ min(2, |E|)；Lane A 一律 false）。家族依 `voter_agent_id` → `agents.yaml` 的模型 → `models.yaml` 的 `family` 解析。每張票的 `voter_model_key` 必須是該 agent 的模型；`fallback_used` 時可以是同家族的 fallback 模型，權重取 fallback 模型自己的值；否則 → `E-VERDICT-VOTE`。與宣告值不一致 → `E-VERDICT-DIVERSITY`。
   - `no_eligible_verifier`：＝ |E(叢集)| ＝ 0（§3 第 3 條）；不一致 → `E-VERDICT-NOELIGIBLE`。
@@ -253,7 +265,7 @@
   - `tool_signal`：＝ 已解析但為弱的 `sarif_refs` ∪ 每個 `E_fail_u` 測試結果的 `result_ref`（不可重複）；不一致 → `E-VERDICT-TOOLSIGNAL`。
   - `independent_sources`：＝ 叢集的獨立家族數＋（有弱 SARIF 時 1）＋（有 `E_fail_u` 時 1）；不一致 → `E-VERDICT-SOURCES`。
   - `provisional`：依上面的定義；不一致 → `E-VERDICT-PROVISIONAL`。
-  - `sarif_refs` 也不採信叢集自我宣告：每一項都必須出現在同一個 run 稽核檔中某個 `tool_invocation_end` 事件的 `payload_refs`，且該事件在 Z2、`payload.ok` 為 true、`payload.adapter` 是 `tools.yaml` 登錄的白箱工具模式（`b4_executable: false`），該工具的法務閘門已結案，並能對應到 (adapter, rule_id)；否則 → `E-SARIF-REF`，該項既不算強佐證，也不算弱訊號。
+  - `sarif_refs` 也不採信叢集自我宣告：每一項都必須出現在同一個 run 稽核檔中某個 `tool_invocation_end` 事件的 `payload_refs`，且該事件在 Z2、`payload.ok` 為 true、`payload.adapter` 是 `tools.yaml` 登錄的白箱工具模式（工具在 Z2、`b4_executable: false`），該工具在 `licenses.yaml` 的狀態是 `OK` 或 `注意`（`法務閘門` 等其他狀態都不行，N-7）；否則 → `E-SARIF-REF`，該項既不算強佐證，也不算弱訊號。強弱的判斷另外需要同一事件的 `payload.sarif_results[]` 有這個 ref 的 `rule_id`，以及 `payload.tool_version`；validator 另檢查 `payload.tool_version` 等於 `run.tool_versions` 中該 adapter 的版本（`E-RUN-CONFIG`）。
   - 這樣裁決無法靠自行宣告「有工具佐證」或把弱訊號寫成強佐證來繞過 R6／R8，也無法靠漏寫 `diversity_degraded` 避開 `LIKELY` 上限。
 
 #### 決定表
@@ -312,17 +324,22 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 
 **範例：K-014（單一家族＋一筆 SARIF）**：範例 bundle 的 `cluster.k-014` 只由 anthropic 家族回報（F-052），另有一筆 W1 掃描器的 SARIF 結果在同一位置。這正是審查發現 H-A1 的情況。
 
-| 項目 | v0.2 | v0.3 |
+| 項目 | v0.2 | v0.3（`verdict.k-014-w3.example.json`，V-014-1） |
 |---|---|---|
-| 第一輪獨立回報的家族 | anthropic | anthropic |
-| SARIF | 1 筆已解析的 ref，算工具佐證 | 同一筆 ref；規則不在 `high_precision_rules`（校準前為空）→ 弱工具訊號 |
-| 票 | `ver_1`（nvidia）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同；S＝0.6933 ＜ θ_confirm＝1.2 |
-| 合格驗證家族 E | —（v0.2 沒有這個定義） | {nvidia, openai}；`ver_2` 屬 anthropic，排除 |
+| 第一輪獨立回報的家族 | anthropic | anthropic（`routes/invoices.ts::updateInvoice`，桶 `authz`） |
+| SARIF | 1 筆已解析的 ref，來自 `semgrep:scan`，算工具佐證 | 同一個 ref，改由 `opengrep:scan` 1.6.0 產生（稽核 seq 13，`inv-w1-opengrep-001`；規則 `vc.authz.update-without-owner`）。`semgrep:scan` 在 `licenses.yaml` 是法務閘門，v0.3 的 `E-SARIF-REF` 不接受它（N-7）；Opengrep 的狀態是「注意」，可以執行。規則不在 `high_precision_rules`（校準前為空）→ 弱工具訊號 |
+| 票 | `ver_1`（nvidia，`nemotron_self`）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同，兩票的 `cited_evidence` 都是 `routes/invoices.ts:88`；只有 `ver_1` 是計權合格票；S＝0.6933 ＜ θ_confirm＝1.2（`calibration_version` 3，θ_reject 為 null） |
+| 合格驗證家族 E | —（v0.2 沒有這個定義） | {nvidia, openai}；`ver_2`（`claude_sonnet`）屬 anthropic，排除 |
 | `diversity_degraded` | false（有效票有 2 個家族） | true（計權合格票只有 1 個家族 ＜ min(2, 2)）；不影響結果，因為 R8 只作用在第 11 列 |
-| 裁決欄位 | `tool_corroboration`＝[該 ref] | `tool_corroboration`＝[]、`tool_signal`＝[該 ref]、`independent_sources`＝2、`provisional`＝false |
-| 規則與狀態 | R2 → R5（工具佐證）→ `CONFIRMED_CORROBORATED` | R2 → R6（獨立來源＝2）→ `LIKELY` |
+| 裁決欄位 | `tool_corroboration`＝[該 ref] | `tool_corroboration`＝[]、`tool_signal`＝[該 ref]、`independent_sources`＝2、`no_eligible_verifier`＝false、`provisional`＝false（E 中的 `nemotron_self` 在 `authz` 桶 w＞0） |
+| 規則與狀態 | R2 → R5（工具佐證）→ `CONFIRMED_CORROBORATED`；`rule_version` `05-v0.2` | R2 → R6（獨立來源＝2）→ `LIKELY`；`rule_version` `05-v0.3` |
 
-<!-- SYNC-A: 對照實作後的 cluster.k-014 與 verdict.k-014-w3 範例：SARIF 的 adapter／rule_id（N-7 改用不受法務閘門控制的 adapter）、票的權重、θ_confirm、diversity_degraded、tool_signal、independent_sources、provisional、rule_trace 文字與 rule_version -->
+範例的 `rule_trace`：
+
+```text
+R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=2
+R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
+```
 
 一個家族加一條未經校準的掃描器規則，v0.2 就能「確認」；v0.3 只到 `LIKELY`。它仍會送 W4 測試並成為種子威脅；要確認，需要可執行證明、強工具佐證，或達門檻的跨家族計權票。
 
@@ -541,19 +558,20 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 
 `calibration.yaml` 分成**設定**（事先寫定）與**結果**（實驗產出）兩部分，schema 見 [schemas/calibration.schema.json](schemas/calibration.schema.json)。本節列出本文件需要的欄位 [H]：
 
-- **設定**：`calibration_id`、`calibration_version`（整數）、`preregistration`（本檔版本 hash、主要指標、檢定、α、Δ_min、ψ、ρ、不劣性邊界、登記時間）、`corpus`（每個應用的 ID、內容 hash、部分 P／V／D／B、`generator_family`、生成日期、切分、是否在哨兵子集）、`models`（`model_key`、家族、血統、版本、參數、prompt 範本 hash、訓練截止日）、`arms`（`"1"`、`"2a"`、`"2b"`、`"3"`、`"4"`、`"5"` 的定義、N、接受規則；`"5"` 即 ⑤ 少數否決，標示 `exploratory: true`）、`repetitions`、`random_seed`、`threshold_search`（格點、precision 下限、駁回真缺陷上限、最小叢集數）、`high_precision_min`（預設 0.90，§5.10）<!-- SYNC-A: 確認 high_precision_min 實際放在 calibration.yaml 的哪個區塊（或 toolkit 設定） -->、`smoothing_k`、`near_zero_rules`、`annotation`（標註者 ID、κ 門檻、仲裁者）。
-- **結果**：`weights[]`（模型、桶、n、C、a、w、`near_zero`、`near_zero_reasons`）、`thresholds`（θ_confirm、θ_reject、是否可行、校準與保留切分上的 precision／recall 與 CI）、`high_precision_rules[]`（`adapter`、`rule_id`、`cwe_bucket`、`n`、`precision_lower95`；§5.10；校準前為空陣列）、`primary_hypothesis`（實際比較組 ②a／②b、Δ、CI、McNemar p 值、H1／H2 結果、決定、套用的後備方案）、`metrics`（M-1–M-11 的值與 CI）、`exploratory`（⑤ 的 precision、recall、相對 ③ 的差值與 CI）、`annotator_agreement[]`（批次、κ、是否接受）、`contamination`（canary 探測結果（只作輔助）、原版 vs 變形版差距）、`holdout_access_log`、`recommended_defaults`、`valid_for_model_keys`、`invalidated_by`（觸發 §5.8 的變更）。
+- **設定**：`calibration_id`、`calibration_version`（整數）、`preregistration`（本檔版本 hash、主要指標、檢定、α、Δ_min、ψ、ρ、不劣性邊界、登記時間）、`corpus`（每個應用的 ID、內容 hash、部分 P／V／D／B、`generator_family`、生成日期、切分、是否在哨兵子集）、`models`（`model_key`、家族、血統、版本、參數、prompt 範本 hash、訓練截止日）、`arms`（`"1"`、`"2a"`、`"2b"`、`"3"`、`"4"`、`"5"` 的定義、N、接受規則；`"5"` 即 ⑤ 少數否決，標示 `exploratory: true`）、`repetitions`、`random_seed`、`threshold_search`（格點、precision 下限、駁回真缺陷上限、最小叢集數）、`smoothing_k`、`near_zero_rules`、`annotation`（標註者 ID、κ 門檻、仲裁者）。
+- **結果**：`weights[]`（模型、桶、n、C、a、w、`near_zero`、`near_zero_reasons`）、`thresholds`（`theta_confirm`、`theta_reject`、`high_precision_min` 三項，結構相同：`value`、`feasible`、校準與保留切分上的 precision／recall 與 CI、`generalised`）、`high_precision_rules[]`（`adapter`、`rule_id`、`tool_version`、`cwe_bucket`、`n`、`precision_lower95`；§5.10；校準前為空陣列）、`primary_hypothesis`（實際比較組 ②a／②b、Δ、CI、McNemar p 值、H1／H2 結果、決定、套用的後備方案）、`metrics`（M-1–M-11 的值與 CI）、`exploratory`（⑤ 的 precision、recall、相對 ③ 的差值與 CI）、`annotator_agreement[]`（批次、κ、是否接受）、`contamination`（canary 探測結果（只作輔助）、原版 vs 變形版差距）、`holdout_access_log`、`recommended_defaults`、`valid_for_model_keys`、`invalidated_by`（觸發 §5.8 的變更）。
+- **`high_precision_min` 放在結果的 `thresholds` 裡**（`result.thresholds.high_precision_min`），不在設定，也不在 `toolkit.yaml`。它是政策下限、不是 §5.7 搜尋出來的，所以範例是 `value: 0.9`、`feasible: true`，兩個切分的統計都填 0（n＝0）、`generalised: false`。schema 要求這一項；validator 讀它的 `value`，`value` 為 null 時停用強佐證（沒有任何 SARIF 算強）。
 
 ### 5.10 掃描器規則的高精準名單（`high_precision_rules`）
 
-**目的**：決定哪些 W1 掃描器規則的命中可以當**強**工具佐證（§3 規則 5），單獨讓叢集到 `CONFIRMED_CORROBORATED`（§4.2 R5 第 10 列）。其他規則的命中都只是弱訊號。名單以 (adapter, rule_id, cwe_bucket) 為單位：同一條規則在不同桶分開量測，只在量測過的桶算強 [H]。
+**目的**：決定哪些 W1 掃描器規則的命中可以當**強**工具佐證（§3 規則 5），單獨讓叢集到 `CONFIRMED_CORROBORATED`（§4.2 R5 第 10 列）。其他規則的命中都只是弱訊號。名單以 (adapter, rule_id, tool_version, cwe_bucket) 為單位：同一條規則在不同桶分開量測，只在量測過的桶算強；掃描器換版就是另一列，要重新量測 [H]。
 
 **為什麼要量測**：reviewer 看不到工具輸出，所以掃描器命中與家族回報是兩個獨立來源（§3 規則 5）。但要讓工具**單獨**確認一個叢集，就要先證明這條規則的命中很少是誤報；掃描器規則的精準度差異很大 [V][E:whitebox-33]。
 
-**候選規則** [H]：`tools.yaml` 登錄的 W1 白箱工具模式（`b4_executable: false`），且法務閘門已結案；在校準切分上至少命中一次的規則。
+**候選規則** [H]：`tools.yaml` 登錄的 W1 白箱工具模式（工具在 Z2、`b4_executable: false`），且 `licenses.yaml` 狀態為 `OK` 或 `注意`（與 `E-SARIF-REF` 的條件相同，§4.2）；在校準切分上至少命中一次的規則。
 
 **量測**（校準切分）[H]：
-1. 在校準切分的 P 與 D 應用上執行候選掃描器，版本固定並記錄。V 變形版與 B 公開 benchmark 不計入：V 與原版高度相關，B 不用於任何門檻（§5.1）。
+1. 在校準切分的 P 與 D 應用上執行候選掃描器，版本固定，並寫入該列的 `tool_version`。V 變形版與 B 公開 benchmark 不計入：V 與原版高度相關，B 不用於任何門檻（§5.1）。
 2. 每筆 SARIF 結果依 §4.1 的叢集鍵對到正規位置與桶；同一條規則在同一位置的重複結果只算一筆。
 3. 對到真值缺陷（植入缺陷，或經 §5.1 雙標註確認的自然缺陷）＝真陽性；對到誘餌或被標為誤報＝偽陽性；範圍外的不計。對不上植入缺陷的結果，照 §5.1 的雙標註流程判定。n＝真陽性＋偽陽性。
 4. `precision_lower95`＝真陽性／n 的 **Clopper-Pearson 雙尾 95% 區間下界**。選精確法，是因為它與 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 報告 k／n 的方法相同。
@@ -571,7 +589,7 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 
 **移除與暫停** [H]：
 - 之後任何一次校準（含新加入的語料）重算的 `precision_lower95` ＜ `high_precision_min` → 移除。
-- 掃描器版本或規則內容改變（與 `run.tool_versions` 中量測時的版本不同）→ 該項**暫停**，視為弱訊號，在校準切分重新量測後才恢復。<!-- SYNC-A: high_precision_rules 的欄位（adapter、rule_id、cwe_bucket、n、precision_lower95）沒有記錄掃描器版本；確認版本綁定怎麼表示，或把這一條改寫成實作的做法 -->
+- **版本綁定**：每一列記錄量測時的掃描器版本（`tool_version`）。執行時，只有該 SARIF 結果所屬稽核事件的 `payload.tool_version` 等於這一列的 `tool_version`，才算強佐證；而 validator 另外要求稽核事件的版本等於 `run.tool_versions` 中該 adapter 的版本（`E-RUN-CONFIG`）。所以掃描器換版後，舊的一列自動不再適用，結果只算弱訊號（等於暫停），直到在校準切分以新版本重新量測、加入新的一列。validator 只比對版本字串：規則內容改變但版本字串不變時（例如自有規則檔更新），它看不出差別，所以規則內容也要反映在所記錄的版本上 [H]。
 - 實際使用中經人確認的誤報（該規則佐證的叢集被 G2 駁回，或在報告回饋中被標為誤報，見 [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)）：去識別化後加入校準切分（§6），與原本的計數一起重算下界；低於 `high_precision_min` 就立刻暫停，下一版校準正式移除。
 - 名單有任何增減 → `calibration_version` 加一，新 run 記錄所用的版本。
 

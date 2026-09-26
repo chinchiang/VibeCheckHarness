@@ -25,7 +25,7 @@
 - **保證等級**：每個 MVP 標示可用的模式（Lite／Team／Full，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)）。（M-G3）
 - **指揮官的加值要量測**（M2-X12）：指揮官維持為核心元件，但它的計畫必須包含確定性的覆蓋下限；它額外加派的內容是否產生有效叢集，要記錄並報告。（M-G4）
 - **ASI09 抽查**（M2-X7）：抽查對象改為所有 `CONFIRMED_*` 裁決與 G2 的決定。（N-3）
-- **法務閘門與工具佐證**（§3）：法務閘門未結案的 adapter（例如 `semgrep:scan`）產生的 SARIF，validator 不算佐證（`E-SARIF-REF`）。（N-7）
+- **法務閘門與工具佐證**（§3）：`licenses.yaml` 狀態不是 `OK`／`注意` 的 adapter（例如法務閘門未結案的 `semgrep:scan`）產生的 SARIF，validator 回報 `E-SARIF-REF`，既不算強佐證也不算弱訊號。範例 K-014 的 SARIF 因此改由 `opengrep:scan` 產生（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。（N-7）
 
 ## v0.2 變更摘要
 
@@ -64,26 +64,26 @@
 
 | 階段 | 交付什麼 | 不包含 | 可用的模式 | 沿用的 M 準則 |
 |---|---|---|---|---|
-| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W1：secrets、SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`NEXT_PUBLIC_`、`VITE_`）<br>• W0.5／G1<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11 |
-| **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`），跑 B0–B6：<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M3-X1、X5；M4-X2～X5、X7 |
-| **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• G0b 與 `legal_review`<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X1～X3、X8、X9；M4-X3、X8 |
+| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W0.5／G1<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11 |
+| **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`；ROE 只對 `localhost`、`127.0.0.1`、`[::1]` 允許 `http://`，其他一律 `https://`，`E-ROE-URL`），跑 B0–B6：<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M3-X1、X5；M4-X2～X5、X7 |
+| **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• G0b 與 `legal_review`（Lite 的兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁標示聲明為自行簽署，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X1～X3、X8、X9；M4-X3、X8 |
 | **MVP-3 以後** | 依序加入：<br>• staging 的 S2＋G5（Full 模式需兩人核准）<br>• LLM 功能測試，先做 G4 核准的腳本式多輪（M5）<br>• Calibration Lab 與 `high_precision_rules`（M2-X1）<br>• CI Lane B 完整版<br>• 靜態 HTML 報告<br>• adaptive relay（只限 Full，[09 BL-10](09-backlog.md)） | — | 依功能而定 | M2-X1～X3、X5、X7～X9、X12；M4 其餘；M5 全部 |
 
 **出場條件**：
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| MVP0-X1 | 在 `notes-rls-app`（Next.js＋Supabase 型的範例，[08 §8.3](08-implementation-spec.md#83-範例應用整合測試的目標)）上找出下列三個植入問題：<br>• 沒有 RLS 的資料表：以 `inventory_fact` 證據支撐<br>• bundle 中的公開前綴金鑰<br>• 幻覺套件名稱 | 整合測試（CI 用錄製的 LLM 回應） | 任一個沒有找到，或 RLS 問題因為交不出程式片段而被判 `REJECTED` |
+| MVP0-X1 | 在 `notes-rls-app`（Next.js＋Supabase 型的範例，[08 §8.3](08-implementation-spec.md#83-範例應用整合測試的目標)）上找出下列三個植入問題：<br>• 沒有 RLS 的資料表：以 `inventory_fact` 證據支撐（寫法同範例 F-061：`fact_ref` `/db/tables/0/rls_enabled`、`asserted: false`）<br>• bundle 中的公開前綴金鑰<br>• 幻覺套件名稱 | 整合測試（CI 用錄製的 LLM 回應） | 任一個沒有找到，或 RLS 問題因為交不出程式片段而被判 `REJECTED` |
 | MVP0-X2 | 遮罩之前沒有任何 LLM 呼叫；除了 Model Gateway 與套件鏡像，沒有任何出站連線 | 稽核檔＋Z2 出站紀錄 | 有任何一例 |
 | MVP0-X3 | SARIF 通過 SARIF 2.1.0 schema 驗證；在同一個 commit 上重跑時，所有叢集的 `baseline_state` 都是 `unchanged` | `fast` 線＋整合測試 | 驗證失敗，或指紋不穩定 |
 | MVP0-X4 | 沒有校準資料時，每個裁決都是 `provisional`；沒有可執行證明的叢集不會是 `CONFIRMED_*` | 性質測試 | 有任何一例 |
-| MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator＋報告測試 | 缺少聲明卻通過，或報告沒有標示 |
+| MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator（`E-ENG-PROFILE`、`E-GATE-SOD`）＋報告測試 | 缺少聲明卻通過（一人在同一份關卡紀錄中兼任兩個角色而沒有 `E-GATE-SOD`），或報告沒有標示 |
 | MVP1-X1 | 範例 A 在本地目標上：<br>• 植入版的 TC-012-01 FAIL，並且**不經 LLM 分析者**就裁決為 `CONFIRMED_EXECUTABLE`（G4 已事先登記解讀）<br>• 修正版 PASS，且所有 control 都通過 | 整合測試 | 任一步不符 |
-| MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點 | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
+| MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點（沒有綁定的測試案例算出 S3，`E-TC-MUTATION-SCOPE`） | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
 | MVP1-X3 | 故障注入（session 過期、路徑錯誤、種子遺失）時，結果是 `INVALID`，不是 PASS；報告列出 control 通過率 | 整合測試 | 有任何一例被當成 PASS |
-| MVP1-X4 | 沒有來源叢集的黑箱威脅，結果寫進 `origin: black_box` 的叢集並有裁決 | 整合測試 | 結果沒有裁決路徑 |
-| MVP2-X1 | 部署的版本與 `repo_commit` 不一致時，job 不執行，並列入 B6；`build_identity.method: none` 的目標在報告中列為「版本未驗證」 | 整合測試 | 不一致仍執行，或報告沒有列出 |
-| MVP2-X2 | 共享平台網域的目標沒有 `platform_project` 證明與 `platform_policies` 時，G0b 拒絕 | `security` 線 | 被接受 |
+| MVP1-X4 | 沒有來源叢集的黑箱威脅，每一筆結果（FAIL、PASS、INVALID 都一樣）都寫進該威脅 `origin: black_box` 的叢集並有裁決（`E-CLUSTER-ORIGIN`；範例 K-201、K-202） | 整合測試 | 結果沒有裁決路徑 |
+| MVP2-X1 | 部署的版本與 `repo_commit` 不一致時，job 不執行，並列入 B6；`build_identity.method: none` 的目標在報告中列為「版本未驗證」（`build_unverified_targets[]`；`tester_controlled` 的目標如 canary 除外；`E-RESULT-BUILD`） | 整合測試 | 不一致仍執行，或報告沒有列出 |
+| MVP2-X2 | 共享平台網域的目標沒有 `platform_project` 證明與同一平台的 `platform_policies` 時，G0b 拒絕（`E-ROE-PLATFORM`） | `security` 線 | 被接受 |
 | MVP2-X3 | 每一批測試前，每個角色都先通過 whoami；需要 CAPTCHA 或第三方 IdP、卻沒有 staging 旁路的角色，其測試標 `SKIPPED` 並列入 B6 | 整合測試 | 未驗證身分就執行，或沒有列出略過的測試 |
 | MVP2-X4 | ST-1＝0：canary-server 的「ROE 以外」接收器沒有任何命中 | `selftest-report.json` | 大於 0 |
 
@@ -103,7 +103,7 @@
 | Sandbox Runner（Z2） | W0、W1 | W4（`hypothesis:property`、`fast_check:property`） | — | — | — |
 | Z3 Executor | 最小版（`verify_ownership`、`http_get`） | — | B1 | 完整版（`run_job`、停止條件） | Relay 用戶端 |
 | Commander | — | CMD-1、CMD-2 | CMD-3 | CMD-4、CMD-5 | — |
-| Slicer、Clusterer、Aggregator | — | ✓ | — | 黑箱證據（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)：`E_proof`→R1、`E_fail_u`→R2 的工具佐證→R4／R5、`E_pass`→R11、`E_inc` 與證據衝突→R12；B5 重新裁決） | 機率判定 |
+| Slicer、Clusterer、Aggregator | — | ✓ | — | 黑箱證據（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)：`E_proof`→R1、`E_fail_u`→R2 的弱工具訊號（1 個獨立來源）→R4／R6、`E_pass`→R11、`E_inc` 與證據衝突→R12；黑箱起源叢集；B5 重新裁決） | 機率判定 |
 | Gate Service | 只有 G0a／G0b 的離線驗章 | G1、G2、GB、`claim_run`、ASI09 抽查 | G3 | G4、G5 | — |
 | Calibration Lab | — | ✓ | — | — | — |
 | Budget Tracker | — | ✓ | — | — | Relay 的花費上限 |
@@ -165,7 +165,7 @@
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish` | 整合測試 | inventory 沒有 `routes/invoices.ts:42`，或 `db.tables` 中 `invoices` 的 `rls_enabled` 不是 `false`<!-- SYNC-A: inventory field names -->；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
+| M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish` | 整合測試 | inventory 的 `endpoints[]` 沒有 `GET /api/invoices/{id}`（`file` 為 `routes/invoices.ts`、`kind` 為 `http`；`line` 是 handler 的位置，範例 inventory 為第 40 行，第 42 行是 K-005 的 sink），或 `db.tables[]` 中 `name` 為 `invoices` 的項目 `rls_enabled` 不是 `false`；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
 | M1-X2 | 必須拒絕清單 N-01–N-43 全部通過（N-32–N-43 為 v0.3 新增，見 [08 §8.2](08-implementation-spec.md#82-m1-必須拒絕清單負面安全測試)） | `security` 線 | 任一項沒有拒絕，或沒有對應的稽核事件 |
 | M1-X3 | ST-1＝0、ST-3＝0、ST-7＝0（[06 §1.2.1](06-security-legal-limitations.md#121-工具包自測計畫植入注入的-repo-h)）；M1 的每個注入向量 ≥3 個樣本；每個 twin ≥10 個已知漏洞 | [selftest-report](schemas/selftest-report.schema.json)：三項都是 `status: RUN`、`passed: true` | 任一個大於 0，或任一項為 `NOT_RUN` |
 | M1-X4 | 在每個 M1 節點的邊界 kill 行程後 resume | 整合測試 | 最終產物的 hash 與不中斷的 run 不同；Sandbox job 被重跑；稽核去重後有重複事件 |

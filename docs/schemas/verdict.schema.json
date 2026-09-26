@@ -64,7 +64,7 @@
             "items": {
               "type": "string"
             },
-            "description": "理由引用的證據（程式位置 file:line、inventory JSON Pointer 或工具結果 ref）；沒有可比對證據的票視為棄權"
+            "description": "理由引用的證據（程式位置 file:line、inventory JSON Pointer 或設定檔的 key_path）；不得引用工具結果（驗證者看不到工具輸出，docs/05 §3 規則 5）；沒有可比對證據的票視為棄權"
           },
           "fallback_used": {
             "anyOf": [

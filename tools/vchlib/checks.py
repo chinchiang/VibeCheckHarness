@@ -1110,7 +1110,10 @@ def g_gates(R: Report, c: Ctx):
                 for a in rec.get("approvers", []):
                     R.check((a.get("person_id"), a.get("key_fingerprint")) in roe_people, "E-GATE-ROE-APPROVER", w,
                             f"{gate} approver {a.get('person_id')} is not a ROE signatory or gate_approver")
-                R.check(rnb and rna and rnb <= at <= rna, "E-GATE-ROE-VALIDITY", w, f"{gate} decided outside the ROE validity")
+                # G0b is the check that finds a not-yet-valid ROE and suspends the run (docs/02 §1.4), so its own
+                # record may precede not_before; the gates decided by people (G3-G5) must fall inside the validity.
+                if gate != "G0b":
+                    R.check(rnb and rna and rnb <= at <= rna, "E-GATE-ROE-VALIDITY", w, f"{gate} decided outside the ROE validity")
             gate_sod(R, c, rec, w)
             # timeouts
             limit = tmo.get(gate)
