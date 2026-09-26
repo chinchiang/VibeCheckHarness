@@ -6,7 +6,7 @@
 > - [§11](#11-元件規格補充v03) 補上 v0.3 的元件規格（W0 抽取器、工具結果合併、Slicer、Scope Proxy、Session Provider、SARIF 等）。
 > - 其他還沒寫到的細節（不需要使用者決定，但本版尚未規定的部分）列在 [09 待辦清單](09-backlog.md)。不在本文件、03 或 09 的設計，視為遺漏，請回報。
 > - 本文件的內容幾乎全部是設計選擇，標為 **[H]**。
-> - 引用的外部事實沿用 01–06 的證據 ID。本文件新增的外部事實只有套件的授權與版本，以及 §11 引用的 SARIF 2.1.0 列舉值與 Schemathesis 的行為；都已獨立查核並併入證據帳本（依查核結果標 V／P）。
+> - 引用的外部事實沿用 01–06 的證據 ID。本文件新增的外部事實只有套件的授權與版本，以及 §11 引用的 SARIF 2.1.0 列舉值與 `kind`／`level` 規則、Schemathesis 的行為；都已獨立查核並併入證據帳本（依查核結果標 V／P）。
 > - 元件名稱與介面沿用 [03 §15](03-system-architecture.md#15-元件介面h)。03 §15 沒有的介面，本文件標為「**擴充**」。
 > - 依 03 §15 的約定，**模組配置、錯誤分類與 CLI 細節以本文件為準**。兩份文件不一致時，應改 03。
 
@@ -904,7 +904,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | N-38 | `assurance_profile: lite`，而測試案例的安全等級是 S2（M-G3） | `E-PROFILE-SAFETY`；該測試案例不能進 G4（`test_lite_rejects_s2_toolkit_jobs`）。對照組：`MANUAL` 測試案例不受限（`test_lite_exempts_manual_testcases`） | M1-X2 |
 | N-39 | `assurance_profile: team`，同一人以 `test_lead` 與 `management` 兩個角色簽署 ROE（L-13） | `E-ROE-SOD`；`roe verify` 結束碼 5（`test_team_needs_distinct_roe_signers`）。同一人在同一份 GateRecord 兼兩個角色 → `E-GATE-SOD`（`test_gate_separation_of_duties`）。對照組：`lite`，且 `role_consolidation.acknowledged: true`、`person_id` 就是此人 → 通過（`test_lite_with_acknowledged_consolidation`） | M1-X2、MVP0-X5 |
 | N-40 | `assurance_profile: full`，G5 只有一位 `security_reviewer` 核准 | `E-G5-TWO-PERSON`；該 S2 job 不執行（`test_full_needs_two_g5_reviewers`） | M1-X2 |
-| N-41 | 以 reviewer（例如 `rev_c`）擔任 Result Analyst（C-12） | `E-RESULT-ANALYST-ROLE`；該解讀不算，結果不會成為 `E_proof`（`tests/test_v03_adjudication.py` 的 `test_result_analyst_role_enforced`） | M1-X2 |
+| N-41 | 以 reviewer（例如 `rev_c`）擔任 Result Analyst（C-12） | `E-RESULT-ANALYST-ROLE`；該解讀不計入。若結果本來就事先登記解讀（例如 G4 核准的黑箱測試），分類仍依確定性 oracle 決定；否則因沒有合格分析者而不會成為 `E_proof`（`tests/test_v03_adjudication.py` 的 `test_result_analyst_role_enforced`） | M1-X2 |
 | N-42 | 跟進 run 在自己的紀錄中列出前一個 run 的 GateRecord（例如 `GR-G4-0001`）（C-8） | `E-GATE-RUN`；該紀錄不被採用，依賴它的 resume 被拒（`test_run_cannot_list_another_runs_gate_record`） | M1-X2 |
 | N-43 | 測試案例的 oracle 引用 G1 駁回（`REJECTED`）的需求（C-10） | `E-TC-REQ-UNAPPROVED`；該測試案例不能進 G4（`test_rejected_invariant_is_not_testable`） | M1-X2 |
 
@@ -1029,12 +1029,12 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | U-08 | Z2 使用 gVisor 還是 Firecracker；Z1／Z2／Z3 的主機與網路配置 | 使用者、維運 | M1 以 gVisor（runsc）實作與測試；Firecracker 延後 | M1 |
 | U-09 | 關卡通知的管道（Email、聊天工具） | 使用者 | 只有 `gate list` 輪詢；逾時仍照 03 §6.2 計算 | M2 |
 | U-10 | Calibration 語料的標註人力（兩位標註者＋仲裁者）與預算（05 §5.1） | 使用者 | M2 的出口準則 M2-X1 無法完成 | M2 |
-| U-11 | **已決定（2026-09-25，使用者）**：`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 退役 [V][E:providers-49]）換成 `claude_opus_48`（`claude-opus-4-8`，legacy 但仍為 Active，最早 2027-05-28 退役，1M context，每百萬 token $5／$25 [V][E:providers-52]）；reporter、Lane A 與 `claude_sonnet` 的 fallback 改用它 | `toolkit_maintainer`＋使用者 | 單價是 Haiku 4.5 的 5 倍，reporter 與 Lane A 的成本上升 [V][E:providers-52]；替代模型仍要先完成 05 §5.8 的最小重跑；Opus 4.8 已是 legacy，2027-05-28 前要再選後繼版本 | M2 |
+| U-11 | **已決定（2026-09-25，使用者）**：`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 退役 [V][E:providers-49]）換成 `claude_opus_48`（`claude-opus-4-8`，legacy 但仍為 Active，最早 2027-05-28 退役，1M context，每百萬 token $5／$25 [V][單源][E:providers-52]）；reporter、Lane A 與 `claude_sonnet` 的 fallback 改用它 | `toolkit_maintainer`＋使用者 | 單價是 Haiku 4.5 的 5 倍，reporter 與 Lane A 的成本上升 [V][單源][E:providers-52]；替代模型仍要先完成 05 §5.8 的最小重跑；Opus 4.8 已是 legacy，2027-05-28 前要再選後繼版本 | M2 |
 | U-12 | **已決定（2026-09-25，使用者）**：`gpt_flagship` 綁 GPT-6 Sol（`openai/gpt-6-sol` [V][E:providers-46]；1,050,000 context [V][E:providers-46]）；走 Responses API，因為 Chat Completions 只有 `reasoning_effort=none` 時才能 function calling [P][E:providers-47] | 使用者 | OpenAI 模型頁目前沒有列退役日；C 級使用前仍需確認 GPT-6 的 ZDR 資格 [V][E:providers-48]；M2 的 manual 線仍要驗證 structured outputs 與工具呼叫 | M2 |
 | U-13 | M4 黑箱工具使用的 HTTP 攔截式 proxy 實作（ZAP、Playwright 等工具要經 Scope Proxy） | `toolkit_maintainer` | M1 的 Scope Proxy 只服務 Executor 自己的 HTTP 用戶端（httpx 0.28.1，BSD-3-Clause [V][E:orchestration-57]；DNS 使用 dnspython 2.8.0，ISC [V][E:orchestration-58]） | M4 |
 | U-14 | 鎖檔工具（pip 的 hash 檢查模式、或其他工具） | `toolkit_maintainer` | 以 pip 的 hash 檢查模式實作；它的行為以 T-01 的驗收測試證明，不另外引用文件 | M1 |
 | U-15 | `high_precision_min` 的值：掃描器規則要多準，才能單獨當強工具佐證（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)、§11.2） | `toolkit_maintainer`＋校準負責人 | 0.90。校準前名單是空的，所以暫時不影響任何裁決 | M2 |
-| U-16 | 具名的 PII 偵測器：Presidio（presidio-analyzer 2.2.364，MIT [V][E:whitebox-57]；相依的語言模型另有授權，未查證）或其他 | `toolkit_maintainer`、`legal_reviewer` | 工具包自己的規則式偵測器：email、電話、信用卡號（Luhn）、常見身分證號格式（檢查碼）（§11.17） | M4 |
+| U-16 | 具名的 PII 偵測器：Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]；相依的語言模型另有授權，未查證）或其他 | `toolkit_maintainer`、`legal_reviewer` | 工具包自己的規則式偵測器：email、電話、信用卡號（Luhn）、常見身分證號格式（檢查碼）（§11.17） | M4 |
 | U-17 | JS／TS 解析器是否採用 tree-sitter（Python binding 0.26.0，MIT [V][E:whitebox-58]；各 grammar 另有授權） | `toolkit_maintainer`、`legal_reviewer` | MVP-0 以 tree-sitter 做暫定實作，只使用已在 `licenses.yaml` 登錄的 grammar；決定不採用時換解析器，並重跑抽取器與 Slicer 的契約測試（§11.1、§11.3） | M1–M2 |
 | U-18 | CDN 目標是否必須在 ROE 宣告邊緣 IP 範圍（ROE 欄位也要一併決定；目前 schema 沒有，見 [09 BL-15](09-backlog.md)） | `toolkit_maintainer`、ROE 簽署人 | 選填：未宣告時每個 job 固定一次解析結果，並擋下非公開位址（§11.7） | M4 |
 | U-19 | 是否開啟 PR／issue 回饋；使用哪個程式碼託管平台與哪種權杖（engagement 的開啟欄位目前 schema 沒有，見 [09 BL-17](09-backlog.md)） | 使用者、`app_owner` | 關閉：只產出報告檔與 SARIF（§11.16） | M4 |
@@ -1134,7 +1134,7 @@ class InventoryExtractor(ABC):
    - 單一檔案解析失敗 → 該檔記一筆 `blind_spots`（`other`），該框架降為 `partial`，W0 繼續。
    - 抽取器本身崩潰或逾時 → W0 `FAILED`，與 02 W0 的「任何子步驟失敗 → `FAILED`」一致。原因：inventory 不完整會讓必要面向與切片錨點少算，而且沒有任何訊號告訴人少了什麼。
 
-**支援矩陣**：目前 [`tools.yaml`](examples/tools.yaml) 的 `inventory` 只登錄了 `fastapi`、`express`、`sql_rls` 三個模式。下表標為「規劃中」的 adapter（`nextjs`、`baas_client`、`hono`、`flask`、`django`、`graphql`、`firebase_rules`、`prisma`、`llm_sdk`）**還沒有登錄**，是提案；在 `tools.yaml` 登錄之後才生效，inventory 的 `frameworks[].extractor` 也才能填這些 ID。
+**支援矩陣**（各框架的慣例是設計假設 [H]，見表後說明）：目前 [`tools.yaml`](examples/tools.yaml) 的 `inventory` 只登錄了 `fastapi`、`express`、`sql_rls` 三個模式。下表標為「規劃中」的 adapter（`nextjs`、`baas_client`、`hono`、`flask`、`django`、`graphql`、`firebase_rules`、`prisma`、`llm_sdk`）**還沒有登錄**，是提案；在 `tools.yaml` 登錄之後才生效，inventory 的 `frameworks[].extractor` 也才能填這些 ID。
 
 | 框架或元件 | adapter | 抽取內容（寫到 inventory 的哪裡） | 最高支援等級 | 已知盲點 | 里程碑／MVP |
 |---|---|---|---|---|---|
@@ -1148,9 +1148,11 @@ class InventoryExtractor(ABC):
 | GraphQL | `inventory:graphql`（規劃中） | SDL 檔中每個 Query 與 Mutation 欄位 → `kind: graphql`（方法 POST，路徑是 GraphQL 端點）；依命名慣例對到 resolver | `partial` | code-first 的 schema；resolver 只依慣例對應 | M2（候選） |
 | Supabase 型 migrations | `inventory:sql_rls`（已登錄；本表的擴充是規劃中） | `supabase/migrations/*.sql` 等 SQL 檔：資料表 → `db.tables`；`ENABLE ROW LEVEL SECURITY` → `rls_enabled`；`CREATE POLICY` → `policies[]`（command、roles、來源行）；`SECURITY DEFINER` 函式 → `db.functions[].security_definer`；SQL 中宣告的 storage bucket → `db.storage_buckets` | `full`（只限 SQL 中寫到的部分） | 在平台後台設定、沒進 migration 的 RLS 與 bucket 公開設定 → `dashboard_only_setting` | M1／MVP-0 |
 | 瀏覽器直連 BaaS | `inventory:baas_client`（規劃中） | 會送到瀏覽器的程式碼中，BaaS 用戶端對資料表、RPC、storage 的呼叫 → `kind: baas_direct`，路徑樣板寫成 `table:<名稱>`、`rpc:<函式>`、`storage:<bucket>`，並連到 `db` 中的同名項目 | `partial` | 名稱以變數傳入 → `dynamic_route`；SDK 的方法名稱以釘選的 SDK 版本為準（候選，未查證） | M1／MVP-0 |
-| Firebase 規則 | `inventory:firebase_rules`（規劃中） | `firestore.rules`、`storage.rules` 等規則檔的 `match` 路徑 → `db.tables`（`schema` 記為規則檔種類）；`allow` 的動作 → `policies[].command`：read → `SELECT`、create → `INSERT`、update → `UPDATE`、delete → `DELETE`、write → `ALL` | `partial` | 條件運算式只記位置，不求值；主控台上的設定 → `dashboard_only_setting` | M2（候選） |
+| Firebase 規則 | `inventory:firebase_rules`（規劃中） | `firestore.rules`、`storage.rules` 等規則檔的 `match` 路徑 → `db.tables`（`schema` 記為規則檔種類）；`allow` 的動作 → `policies[].command`：read → `SELECT`、create → `INSERT`、update → `UPDATE`、delete → `DELETE`、write（＝create＋update＋delete）→ `INSERT`、`UPDATE`、`DELETE` 各一筆（不用 `ALL`：PostgreSQL policy 的 `ALL` 也包含 `SELECT`） | `partial` | 條件運算式只記位置，不求值；主控台上的設定 → `dashboard_only_setting` | M2（候選） |
 | Prisma | `inventory:prisma`（規劃中） | `schema.prisma` 的 model → `db.tables`（`rls_enabled: null`）；關聯欄位當作 G1 問卷「資料屬於誰」的候選答案（§11.4） | `full`（只限 schema） | Prisma 本身不表達 RLS | M2（候選） |
 | LLM SDK | `inventory:llm_sdk`（規劃中） | 已知 LLM SDK 的呼叫點、字面值的模型參數、工具定義（名稱與 handler 位置）、prompt 組裝位置 → `llm_integrations`；有工具時 `features` 加 `llm_tools` | `partial` | 使用者輸入是否流入 prompt，只在同一函式內近似判斷 | M2／MVP-0 |
+
+- 表中各框架的檔案與語法慣例都是**設計假設 [H]**，證據帳本沒有對應條目：Next.js 的 `app/**/route.*`、`"use server"`、`middleware.*` 與 `matcher`、`pages/api/**`；Supabase 的 `supabase/migrations/*.sql` 路徑；PostgreSQL 的 `ENABLE ROW LEVEL SECURITY`、`CREATE POLICY`、`SECURITY DEFINER` 語法與 policy 指令的涵蓋範圍（例如 `ALL` 也包含 `SELECT`）；Firebase 規則檔的 `match`／`allow` 與各動作的涵蓋範圍（例如 `write` 包含 create、update、delete）。每個抽取器實作前，都要對照所釘選框架版本的官方文件確認，並把確認結果寫進抽取器的測試資料。
 
 **瀏覽器直連 BaaS 的入口**（`kind: baas_direct`）[H]：
 - 這類入口中間沒有伺服器端的 handler，授權完全靠資料庫端的 policy（例如 RLS）。
@@ -1168,7 +1170,7 @@ class InventoryExtractor(ABC):
 **W0 與 B1 的端點差異（inventory drift）**：B1 外部視角（爬行＋匯入的 schema）的端點與 W0 的端點比對。比對鍵是 (HTTP 方法, 路徑樣板)，路徑樣板先依第 3 條統一 [H]。
 - 只在 B1 出現 → `b1_diff` 的 `only_external`。可能是 repo 以外的部署、舊版殘留或動態路由；另外檢查 build 識別（§11.7）。
 - 只在 W0 出現 → `only_merged`。可能需要登入、沒有部署，或爬行沒有走到。
-- 每一項都由 B2 critic 處置（[02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)）。這對應 OWASP API Security Top 10 2023 的 API9 Improper Inventory Management [V][E:blackbox-65]；binding 見 [04 §4.3](04-threat-to-testcase.md#43-binding-表)。
+- 每一項都由 B2 critic 處置（[02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)）。這對應 OWASP API Security Top 10 2023 的 API9 Improper Inventory Management（條目 [V][E:blackbox-65]；對映本身是 curated 判斷 [H]）；binding 見 [04 §4.3](04-threat-to-testcase.md#43-binding-表)。
 
 **解析器**：
 - Python 抽取器使用標準函式庫 `ast`。
@@ -1220,7 +1222,7 @@ class ToolResult(BaseModel):
 
 **正規化步驟**（`toolresult` 模組，純函式）[H]：
 1. **拆成單一結果**：adapter 的 `parse()` 把每個 SARIF result 存成獨立的 CAS 物件（只含一個 result 的 SARIF log），全部列在該次 `tool_invocation_end` 的 `payload_refs`。同一個事件的 `payload` 帶 `adapter`、`tool_version`，以及 `sarif_results[]`（每一項是 `{ref, rule_id}`，`ref` 就是 `payload_refs` 中的那個物件）。這樣叢集的每個 `sarif_refs` 項目都能對到一組 (adapter, rule_id, tool_version)（`E-SARIF-REF`；範例：稽核 seq 13 的 `opengrep:scan` 1.6.0，規則 `vc.authz.update-without-owner`）。
-2. **只收 `kind: fail`**：SARIF result 的 `kind` 預設是 `fail`，`level` 預設是 `warning` [V][E:whitebox-56]。`kind` 為其他值（`pass`、`notApplicable`、`informational`、`review`、`open`）的結果只留在工具紀錄，不成為 ToolResult。
+2. **只收 `kind: fail`**：SARIF result 的 `kind` 預設是 `fail` [V][E:whitebox-56]。`level` 在 schema 中的預設值是 `warning` [V][E:whitebox-56]，但依規格 §3.27.9–3.27.10，這只適用於 `kind: fail` 且規則沒有設定（組態覆寫或 `defaultConfiguration`）的情況：`kind: fail` 而沒有 `level` 時，`level` 取自規則設定；`kind` 不是 `fail` 時，`level` 預設為 `none`，有值也必須是 `none` [V][E:whitebox-59]。`kind` 為其他值（`pass`、`notApplicable`、`informational`、`review`、`open`）的結果只留在工具紀錄，不成為 ToolResult。
 3. **路徑與行號**：路徑轉成 repo 相對的 POSIX 路徑。指到 repo 以外、或路徑黑名單中的檔案 → 丟棄並記錄。欄（column）不使用。
 4. **區段 → 函式**：以 W0 的符號索引，找出**包含 `region.startLine` 的最內層函式或方法**，得到完整限定符號名；不在任何函式內 → `"<module>"`。有 `codeFlows` 時，正規位置用最後一個位置（sink），第一個位置記為 `source_symbol`（[05 §4.1](05-bias-calibration.md#41-叢集鍵clusterer確定性)）。
 5. **CWE 與桶**：CWE 取自規則的 metadata（SARIF 的 taxonomy 關聯或 tag）。規則沒有 CWE → 查工具包維護的 `rule_bucket_map`（adapter, rule_id → 桶）；兩者都沒有 → `other`。
@@ -1374,7 +1376,7 @@ class ToolResult(BaseModel):
 | `payments` | ASVS L2 | 與商業邏輯相關的章節，實作時依 ASVS 5.0 的官方資料檔選定（未查證章節編號） |
 | 其他 | — | 預設不提高；G1 可以手動加入 |
 
-- **範例**（[docs/examples/invariants.yaml](examples/invariants.yaml)）：`baseline_levels: {asvs: 1, aisvs: 1}`；兩條 `level_triggers` 涵蓋 L2 的條目：`{feature: invoices, standard: asvs, level: 2, sections: ["8.2"]}` 涵蓋 ASVS `v5.0.0-8.2.3`，`{feature: support_agent, standard: aisvs, level: 2, sections: ["9.5"]}` 涵蓋 AISVS `v1.0-9.5.2` 與 `v1.0-9.5.3`。這兩個 `feature` 取自 invariants 的 `applies_to_features`；上表依 inventory `features[]` 自動加入的預設觸發，範例沒有示範。
+- **範例**（[docs/examples/invariants.yaml](examples/invariants.yaml)）：`baseline_levels: {asvs: 1, aisvs: 1}`；兩條 `level_triggers` 涵蓋 L2 的條目：`{feature: invoices, standard: asvs, level: 2, sections: ["8.2"]}` 涵蓋 ASVS `v5.0.0-8.2.3`，`{feature: support_agent, standard: aisvs, level: 2, sections: ["9.5"]}` 涵蓋 AISVS `v1.0-9.5.2` 與 `v1.0-9.5.3`（AISVS 的條文編號是 9.5.2、9.5.3 [V][E:threat_modeling-63]；前面加 `v1.0-` 是本工具包仿照 ASVS 格式自訂的 ID 慣例；AISVS 是否有官方的版本前綴格式未查證 [H]）。這兩個 `feature` 取自 invariants 的 `applies_to_features`；上表依 inventory `features[]` 自動加入的預設觸發，範例沒有示範。
 
 - **`E-INVARIANT-LEVEL`**：`baseline[]` 中、或測試案例（`requirement_ids`、`oracle.requirement_refs`）引用的 ASVS 或 AISVS L2 以上條目，都必須被涵蓋：`baseline_levels` 中該標準的等級 ≥ 條目的等級，或有一條同標準、`level` ≥ 條目等級、`sections` 前綴符合條目編號的 `level_triggers`。這避免「只選了 L1，卻在測試中引用 L2」（A-2）。
 - **`E-TC-REQ-UNAPPROVED`**：oracle 引用的需求必須是 G1 已核准的；G1 駁回的條目不能被測試（C-10）。
@@ -1408,7 +1410,7 @@ class ToolResult(BaseModel):
 **browser → BaaS 資料流** [H]：
 - inventory 的每個 `baas_direct` 端點，產生一條從瀏覽器端直接到 data store 的資料流；中間**沒有**伺服器的 process。依 `dfd.schema.json`，這條流以 `external_entity` → `data_store` 表示，而且至少跨越一個 `kind: third_party` 的邊界。範例 `flow-browser-uploads`（使用者的瀏覽器以簽名 URL 直接上傳到 `store-support-uploads`）跨越 `tb-internet`（`network`）與 `tb-baas`（`third_party`）。
 - 這條流上唯一的授權控制是資料表的 policy，所以 DFD 把流連到 `db.tables[].policies`。
-- B2 critic 的檢查清單包含每一條這類資料流：`rls_enabled` 為 `false` 或 `null` 的資料表，要有對應的威脅，或附理由駁回。這正是 vibe-coded 應用常見的問題類別，例如 Lovable 因 RLS 不足而被登錄的 CVE-2025-48757 [V][E:vibe_risks-23]。
+- B2 critic 的檢查清單包含每一條這類資料流：`rls_enabled` 為 `false` 或 `null` 的資料表，要有對應的威脅，或附理由駁回。這正是 vibe-coded 應用常見的問題類別，例如 Lovable 因 RLS 不足而被登錄的 CVE-2025-48757（CVE 標為 disputed）[V][E:vibe_risks-23]。
 
 **validator**：`kind` 與 `provenance` 由 schema 強制（必填、列舉）；只有 trust boundary 的 `kind` 不是 null，資料流的兩端與跨越的邊界都要是存在的元素（`E-DFD`）。G3 是否接受，在 B2 → B3 之間由 Policy Engine 檢查（M3）。
 
@@ -1532,7 +1534,7 @@ class SeedService(Protocol):
 - 被擋下的請求照 [03 §7.3](03-system-architecture.md#73-限速與停止條件) 計數。觸發停止條件時，外部視角退回「只用 schema」，並列為缺口（[02 B1](02-methodology.md#b1-系統建模兩個獨立視角)）。
 - 預設值原本設計放在 `toolkit.yaml`，但 `toolkit-config.schema.json` 還沒有 B1 爬行的區塊（schema 尚未涵蓋，見 [09 BL-16](09-backlog.md)）。在補上之前，上表的規則寫成程式常數，並記入 run manifest。
 
-**攔截式 proxy 的選型**仍未決定（§10 U-13）。mitmproxy 12.2.3 是 MIT [V][E:blackbox-67]，是候選之一，**尚未選定**。不論選哪一個，本節的規則都由工具包自己的程式碼強制，並以 §8.2 的 N-17、N-18、N-32、N-33 驗證。
+**攔截式 proxy 的選型**仍未決定（§10 U-13）。mitmproxy 12.2.3 的 PyPI classifier 為 MIT [V][E:blackbox-67]，是候選之一，**尚未選定**。不論選哪一個，本節的規則都由工具包自己的程式碼強制，並以 §8.2 的 N-17、N-18、N-32、N-33 驗證。
 
 **`JobAllowlist` 的擴充欄位**（§2.3）：`protocols`、`job_token_id`、`edge_ip_ranges`（ROE 尚無來源欄位，一律為空；見 [09 BL-15](09-backlog.md)）。
 
@@ -1621,8 +1623,8 @@ class SessionProvider(Protocol):
 
 **為什麼需要**：
 - Schemathesis 從 OpenAPI 或 GraphQL schema 產生測試 [V][E:blackbox-13]。它的 `ignored_auth` 只對 schema **宣告了認證**的操作執行（401 或 403 都算有強制；每個操作多送 2 個請求）[V][E:blackbox-66]。
-- vibe-coded 應用常沒有 OpenAPI。沒有 spec，或 spec 沒寫 `security`，這個 check 就**靜默地不執行** [H]。
-- `use_after_free` 在成功的 DELETE 之後預期 404 [V][E:blackbox-66]；對產生的 ID 做 DELETE，依寫入範圍規則是 S3（§11.6）。
+- vibe-coded 應用常沒有 OpenAPI [H]。沒有 spec，或 spec 沒寫 `security`，這個 check 就**不執行** [V][E:blackbox-66]，而且可能不會有任何提示（靜默略過）[H]。
+- `use_after_free` 在成功的 DELETE 之後預期 404，只在 Schemathesis 的 stateful 階段觸發，單次 `call_and_validate()` 不會觸發 [V][E:blackbox-66]。stateful 階段 DELETE 的目標可能取自其他回應或由工具產生，不限於工具自己建立的物件 [H]；依寫入範圍規則是 S3（§11.6），不跑。「刪除後不可存取」改以綁種子的 GENERATED_SCRIPT 驗證（[04 §4.3](04-threat-to-testcase.md#43-binding-表)）。
 
 **輸入**：W0 inventory（`endpoints`、框架能抽出的請求 model）、G1 的 `access_matrix`、ROE 的登入方式；選用：B1 爬行錄到的 S0 流量。
 **輸出**：`openapi.draft.json`（OpenAPI 3.1 草稿），附 hash。它是**測試產物**，不是應用的文件。
@@ -1705,7 +1707,7 @@ class SessionProvider(Protocol):
 - `pricing`：`{input_usd_per_mtok, output_usd_per_mtok, as_of, source}`，可以是 null。**null＝價格未知**，不是免費。
 - `rate_limits`：`{rpm, tpm}`，各自可以是 null。
 - `tokenizer`：字串或 null（§11.3）。
-- 範例檔的 `pricing` 都是 null：價格會變，實作時查證後填入，並寫上 `as_of` 與 `source`。例如 §10 U-11 記錄的 Claude Opus 4.8 單價是每百萬 token $5／$25 [V][E:providers-52]。
+- 範例檔的 `pricing` 都是 null：價格會變，實作時查證後填入，並寫上 `as_of` 與 `source`。例如 §10 U-11 記錄的 Claude Opus 4.8 單價是每百萬 token $5／$25 [V][單源][E:providers-52]。
 - 自架模型（Z4）的 API 費用記為 0，但運算時間照常計入 `max_compute_minutes`。
 
 **執行前估算**（`vibecheck run estimate`，§4.2）[H]：
@@ -1820,15 +1822,15 @@ class SessionProvider(Protocol):
 
 ### 11.16 SARIF 輸出與報告回饋
 
-**目的**：v0.2 只說「輸出 SARIF」與「結果回貼 PR」。本節規定 SARIF 欄位怎麼對應、跨 run 怎麼對上同一個問題、追溯矩陣有哪些欄，以及怎麼把結果安全地回饋給開發者。SARIF 2.1.0 是 OASIS 標準 [V][E:whitebox-17]；下文用到的欄位與列舉值都出自它的官方 JSON schema [V][E:whitebox-56]。
+**目的**：v0.2 只說「輸出 SARIF」與「結果回貼 PR」。本節規定 SARIF 欄位怎麼對應、跨 run 怎麼對上同一個問題、追溯矩陣有哪些欄，以及怎麼把結果安全地回饋給開發者。SARIF 2.1.0 是 OASIS 標準 [V][E:whitebox-17]；下文用到的欄位與列舉值都出自它的官方 JSON schema [V][E:whitebox-56]，`kind` 與 `level` 的搭配規則出自規格正文 §3.27.9–3.27.10 [V][E:whitebox-59]。
 
 **對應表**：一個叢集，或一筆確定性的工具結果 → 一個 SARIF `result` [H]。
 
 | SARIF 欄位 | 來源 | 規則 |
 |---|---|---|
 | `ruleId` | 叢集的桶與主要 CWE | `vibecheck/<cwe_bucket>/<CWE-n>`；主要 CWE＝成員中出現最多者，同數時取編號最小者。工具結果另用 `vibecheck-tool/<adapter>/<rule_id>` |
-| `level` | 嚴重度 rubric（§11.17） | critical、high → `error`；medium → `warning`；low → `note`；info → `none` |
-| `kind` | 裁決狀態 | `CONFIRMED_*`、`LIKELY` → `fail`；`DISPUTED` → `review`；`UNCORROBORATED` → `open`；`REJECTED` 預設不輸出（`--include-rejected` 時以 suppression 輸出）；黑箱的 PASS 結果只在 `--include-pass` 時以 `pass` 輸出 |
+| `level` | 嚴重度 rubric（§11.17）＋`kind` | 只有 `kind: fail` 的 result 依嚴重度給值：critical、high → `error`；medium → `warning`；low → `note`；info → `none`。`kind` 不是 `fail`（`review`、`open`、`pass`，以及 `informational`、`notApplicable`）的 result 一律寫 `level: none`：SARIF 2.1.0 規定 `level` 不是 `none` 時 `kind` 必須是 `fail`，`kind` 不是 `fail` 時 `level` 必須是 `none` [V][E:whitebox-59]。這些 result 的嚴重度只放在 `properties.vc_severity` |
+| `kind` | 裁決狀態 | `CONFIRMED_*`、`LIKELY` → `fail`；`DISPUTED` → `review`；`UNCORROBORATED` → `open`；`REJECTED` 預設不輸出（`--include-rejected` 時以 suppression 輸出）；黑箱的 PASS 結果只在 `--include-pass` 時以 `pass` 輸出。`kind` 不是 `fail` 的 result，`level` 一律 `none`（見上一列） |
 | `message.text` | 確定性範本 | 由桶、CWE、位置、狀態組成；**不放** LLM 的敘事 |
 | `locations[].physicalLocation` | 成員證據中 `MATCHED` 或 `MATCHED_SHIFTED` 的位置 | repo 相對路徑與行範圍；不放程式片段 |
 | `locations[].logicalLocations` | 叢集的正規位置 | 完整限定符號名 |
@@ -1836,10 +1838,10 @@ class SessionProvider(Protocol):
 | `baselineState` | 叢集的 `baseline_state` | `new`、`unchanged`、`updated`、`absent`；沒有基準 run 時省略 |
 | `suppressions` | G2 駁回、回饋 | G2 駁回 → `kind: external`、`status: accepted`，理由指向 GateRecord；開發者回報誤報但尚未判定 → `status: underReview`；判定是誤報 → `accepted`；判定不是誤報 → `rejected`（見下方「誤報回饋」） |
 | `webRequest`、`webResponse` | 黑箱測試結果 | 方法、目標 URL、狀態碼；標頭去掉 `Authorization`、`Cookie` 等認證資訊；**不放** request 與 response 的本體，只放 hash |
-| `rank` | 不使用 | — |
-| `properties` | 工具包自己的欄位 | `vc_cluster_id`、`vc_status`、`vc_provisional`、`vc_origin`、`vc_families`、`vc_independent_sources`、`vc_test_evidence`、`vc_threat_ids`、`vc_requirement_ids`、`vc_severity_inputs`、`vc_reopened`、`vc_rule_trace_ref` |
+| `rank` | 不使用 | —（嚴重度放在 `properties.vc_severity`） |
+| `properties` | 工具包自己的欄位 | `vc_cluster_id`、`vc_status`、`vc_provisional`、`vc_origin`、`vc_families`、`vc_independent_sources`、`vc_test_evidence`、`vc_threat_ids`、`vc_requirement_ids`、`vc_severity`（rubric 結果，每個 result 都有，不論 `kind`）、`vc_severity_inputs`、`vc_reopened`、`vc_rule_trace_ref` |
 
-- 匯出的 SARIF 以 SARIF 2.1.0 的官方 schema 驗證（07 的 M4-X7、MVP0-X3）。
+- 匯出的 SARIF 以 SARIF 2.1.0 的官方 schema 驗證（07 的 M4-X7、MVP0-X3），**並**由匯出器另外檢查 §3.27.9–3.27.10 的 `kind`／`level` 規則：每個 `level` 不是 `none` 的 result，`kind` 都是 `fail`（或省略）；每個 `kind` 不是 `fail` 的 result，`level` 都是 `none` [V][E:whitebox-59]。schema 驗證抓不到這條規則，違反時匯出失敗 [H]。
 - 相依弱點、secrets、套件存在性（§11.2）以 `vibecheck-tool/...` 的 `ruleId` 輸出，`properties.vc_origin: tool`，不帶裁決狀態。
 
 **指紋與基準狀態**（H-B5）：
@@ -1911,7 +1913,7 @@ class SessionProvider(Protocol):
 
 #### 嚴重度 rubric
 
-報告、SARIF 的 `level` 與 issue 的排序所用的嚴重度，由下列四個輸入以程式碼計算 [H]：
+報告、SARIF 的 `level`（只用於 `kind: fail` 的 result；其他 result 的 `level` 是 `none`，嚴重度放在 `properties.vc_severity`，見 §11.16）與 issue 的排序所用的嚴重度，由下列四個輸入以程式碼計算 [H]：
 
 | 輸入 | 取值 | 來源 |
 |---|---|---|
@@ -1981,7 +1983,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 #### 具名的 PII 偵測器
 
 - **用在**：黑箱回應的 PII 停止條件（[03 §7.3](03-system-architecture.md#73-限速與停止條件)）、relay 與 scripted 多輪的目標回應、fix brief 與 PR 發布前的掃描、報告輸出前的掃描。
-- **候選**：Presidio（presidio-analyzer 2.2.364，MIT [V][E:whitebox-57]）。它依賴的語言模型等套件另有授權，採用前要逐一登錄（未查證）。**尚未選定**（§10 U-16）。
+- **候選**：Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]）。它依賴的語言模型等套件另有授權，採用前要逐一登錄（未查證）。**尚未選定**（§10 U-16）。
 - **未決定前的預設** [H]：工具包自己的規則式偵測器，涵蓋 email、電話號碼、信用卡號（加 Luhn 檢查）、常見的身分證號格式（加檢查碼）。「高信心命中」＝樣式符合，而且檢查碼正確。
 - 偵測器在 Z1 與 Z3 都要能用，所以放在 `pii` 模組（L2，不依賴 Z1 的模組；§1.2）。偵測器本身不連網。
 

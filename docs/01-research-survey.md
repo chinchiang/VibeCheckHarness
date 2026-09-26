@@ -4,7 +4,7 @@
 
 ## v0.3 變更摘要
 
-- **新增 §8 補充查證**（2026-09-26）：深度審查（[review-2026-09-26](evidence/review-2026-09-26.md)）需要的 8 條事實，逐條對照一手來源查證後併入帳本（全部已查證；帳本欄位 `merged_from` 為 `review-2026-09-26-NN`）。帳本合計 **454** 條。（M-R2）
+- **新增 §8 補充查證**（2026-09-26）：深度審查（[review-2026-09-26](evidence/review-2026-09-26.md)）需要的 10 條事實，逐條對照一手來源查證後併入帳本（全部已查證；帳本欄位 `merged_from` 為 `review-2026-09-26-NN`；其中 2 條是獨立事實查核時補查的）。帳本合計 **456** 條。（M-R2）
 - **標記一致**（§1.2）：providers-52 同時標 [V] 與 [單源]：已查證，但來源只有 Anthropic 官方頁面。（N-11）
 
 ## v0.2 變更摘要
@@ -35,8 +35,8 @@
 5. **撰寫後查核**：文件完成後，再由獨立代理把每個事實陳述逐條比對證據帳本的**查核結果與更正**（不是原始主張）。
 
 ### 1.2 結果統計
-- 證據帳本共 **454** 條發現（v0.1 的 321 條、v0.2 的 125 條、v0.3 的 8 條）：
-  - 已查證 387 條（v0.1 273、v0.2 106、v0.3 8）
+- 證據帳本共 **456** 條發現（v0.1 的 321 條、v0.2 的 125 條、v0.3 的 10 條）：
+  - 已查證 389 條（v0.1 273、v0.2 106、v0.3 10）
   - 部分查證 60 條（v0.1 43、v0.2 17）
   - 被推翻、已更正 7 條（v0.1 5、v0.2 2）
   - v0.2 的第 125 條是 providers-52（Claude Opus 4.8，U-11 的替代模型，2026-09-25 加入）；只以三個 Anthropic 官方頁面互相核對：已查證，但屬廠商來源，因此標 [V][單源]。
@@ -95,7 +95,7 @@
     - `claude-opus-5-5`：2027-09-22
     - `claude-sonnet-5`：2027-06-30
     - `claude-haiku-4-5-20251001`：**2026-10-15**。範例設定已依使用者決定換成 Claude Opus 4.8（見 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事)、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-11）。
-    - `claude-opus-4-8`（legacy，仍為 Active）：2027-05-28；1M context，每百萬 token $5／$25（2026-09-25 查詢）[V][E:providers-52]
+    - `claude-opus-4-8`（legacy，仍為 Active）：2027-05-28；1M context，每百萬 token $5／$25（2026-09-25 查詢）[V][單源][E:providers-52]
   - structured outputs 已 GA，schema 有限制 [V][E:providers-24][E:providers-25]。
   - Opus 5.5 拒絕強制 tool_choice [V][E:providers-26]。
   - 資料保留與 ZDR [V][E:providers-27][E:providers-28][E:providers-29]。
@@ -145,7 +145,7 @@
 | 常見誤引 | 「AI 程式碼的漏洞多 2.74 倍」其實出自 CodeRabbit，不是 Veracode；而且 2.74 倍只是 XSS 這一類的數字，CodeRabbit 整體約為 1.7 倍問題數 [V][E:vibe_risks-12] |
 | 套件幻覺 | [V][E:vibe_risks-13]～[E:vibe_risks-16] |
 | Benchmark | CyberSecEval [V][E:vibe_risks-18]、BaxBench [V][E:vibe_risks-20]、SeCodePLT [V][E:vibe_risks-22] |
-| 事件 | Lovable CVE-2025-48757 [V][E:vibe_risks-23][E:vibe_risks-24]；Base44 [P][E:vibe_risks-25]；Escape.tech 掃描 [P][E:vibe_risks-26]；Replit [P][E:vibe_risks-27][V][E:vibe_risks-28] |
+| 事件 | Lovable CVE-2025-48757（CVE 標為 disputed）[V][E:vibe_risks-23][E:vibe_risks-24]；Base44 [P][E:vibe_risks-25]；Escape.tech 掃描 [P][E:vibe_risks-26]；Replit [P][E:vibe_risks-27][V][E:vibe_risks-28] |
 | **反例** | 沒有一手來源顯示 Tea（第一次）外洩由 vibe coding 造成；Tea 歸因於未遷移的舊系統（此為否定性主張，只對已查來源成立）[V][E:vibe_risks-30][E:vibe_risks-31] |
 
 ### 2.8 參考系統架構（[ledger](evidence/ledger.md#reference_systems)）
@@ -200,7 +200,7 @@
 | S-03 | LangGraph 從條件邊回傳 `Send` 物件可以動態 fan-out；每個 state key 有獨立的 reducer，平行更新以 reducer 合併 | <https://docs.langchain.com/oss/python/langgraph/graph-api> | [V]（官方文件） |
 | S-04 | CWE-639 的名稱：Authorization Bypass Through User-Controlled Key | <https://cwe.mitre.org/data/definitions/639.html> | [V] |
 | S-05 | ASVS 5.0：8.2.1 功能層級存取（L1）、8.2.2 資料層級存取以緩解 IDOR／BOLA（L1）、8.2.3 欄位層級存取以緩解 BOPLA（L2） | <https://github.com/OWASP/ASVS/blob/master/5.0/en/0x17-V8-Authorization.md> | [V] |
-| S-06 | WSTG-ATHZ-04：Testing for Insecure Direct Object References（v4.2）；建議以多個不同權限的測試使用者，檢查修改物件參照後授權是否仍被正確執行 | <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/04-Testing_for_Insecure_Direct_Object_References.md>（v4.2 原始檔，直接讀取）；owasp.org 上對應的 v42 頁面在 2026-09-23 的連結檢查中回傳 404（網站改版），搜尋結果仍列出該頁。<br>**v0.2**：可用的網址格式為 `https://wstg.owasp.org/v4.2/…`；v5.0 仍在開發中 [V][E:threat_modeling-77] | [V] |
+| S-06 | WSTG-v42-ATHZ-04：Testing for Insecure Direct Object References（v4.2）；建議以多個不同權限的測試使用者，檢查修改物件參照後授權是否仍被正確執行 | <https://github.com/OWASP/www-project-web-security-testing-guide/blob/master/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/04-Testing_for_Insecure_Direct_Object_References.md>（v4.2 原始檔，直接讀取）；owasp.org 上對應的 v42 頁面在 2026-09-23 的連結檢查中回傳 404（網站改版），搜尋結果仍列出該頁。<br>**v0.2**：可用的網址格式為 `https://wstg.owasp.org/v4.2/…`；v5.0 仍在開發中 [V][E:threat_modeling-77] | [V] |
 | S-07 | 讀取時 CWE-639 頁面沒有列出 Related Attack Patterns；CAPEC-1 的 Related Weaknesses 也沒有 CWE-639 → 範例 A 不硬配 CAPEC | <https://cwe.mitre.org/data/definitions/639.html>、<https://capec.mitre.org/data/definitions/1.html> | **[P]**：網頁摘要工具可能漏讀，實作時用 CWE／CAPEC 的 XML 資料再確認 |
 | S-08 | promptfoo 的遠端服務與關閉方式：<br>・`PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION=true`：改用本地生成，但**保留** SimulatedUser 的遠端生成；官方提醒品質可能下降<br>・`PROMPTFOO_DISABLE_REMOTE_GENERATION=true`：停用紅隊生成路徑中支援的遠端生成 fallback；但**不會**停用 telemetry、帳號或授權檢查、分享、Cloud 同步<br>・`PROMPTFOO_DISABLE_TELEMETRY=1`：關閉 telemetry<br>・沒有 API key 時，會把應用的 `purpose`、plugin 設定、送給目標的 prompt 與目標的回應（評分用）、使用者 email 送到 `api.promptfoo.app` | <https://www.promptfoo.dev/docs/red-team/configuration/><br><https://www.promptfoo.dev/docs/red-team/troubleshooting/data-handling/> | [V]（官方文件） |
 | S-09 | GitHub issue #10970：iterative／crescendo 策略即使明確設定了 redteam provider，仍會使用遠端生成（觸發條件：未設 `OPENAI_API_KEY` 且未登入 cloud）；issue 中的暫行解法是 `PROMPTFOO_DISABLE_REMOTE_GENERATION` | <https://github.com/promptfoo/promptfoo/issues/10970> | **[單源]**：issue 存在且內容相符（事實查核代理確認）；仍只是使用者回報 |
@@ -402,7 +402,7 @@ v0.1 寫「只找到廠商自述」；v0.2 找到下列非廠商來源，但**�
 
 ## 8. v0.3 補充查證（2026-09-26）
 
-2026-09-26 的深度審查（[review-2026-09-26](evidence/review-2026-09-26.md)）指出，修正內容需要下列事實。每一條都直接讀一手來源查證（官方專案頁、官方 schema 檔、官方文件、官方 PDF、PyPI metadata），全部標 [V]。
+2026-09-26 的深度審查（[review-2026-09-26](evidence/review-2026-09-26.md)）指出，修正內容需要下列事實；最後兩條是修正完成後的獨立事實查核補查的。每一條都直接讀一手來源查證（官方專案頁、官方 schema 檔、官方文件、官方 PDF、PyPI metadata），全部標 [V]。
 
 | 證據 ID | 內容 | 用在 |
 |---|---|---|
@@ -414,6 +414,8 @@ v0.1 寫「只找到廠商自述」；v0.2 找到下列非廠商來源，但**�
 | [E:whitebox-58] | tree-sitter 的 Python binding 0.26.0 在 PyPI 的授權 classifier 為 MIT（各語言 grammar 另計） | W0 抽取器與 Slicer 的候選（未選定） |
 | [E:threat_modeling-79] | OWASP LLM Top 10 2026 PDF 的版本界線：模型是應用中的元件時用 LLM 清單；模型成為能呼叫工具、帶記憶、造成下游後果的行動者時，改用 Agentic Top 10，並建議兩者搭配 | [04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照) |
 | [E:threat_modeling-80] | 同一份 PDF 的附錄 A 把每個條目對應到 CWE 4.20（分主要與輔助），例如 LLM01→CWE-1427、LLM10→CWE-1426、CWE-116、CWE-79 | 叢集的 CWE 桶、威脅紀錄 |
+| [E:whitebox-59] | SARIF 2.1.0 規格 §3.27.9–3.27.10：`level` 不是 `none` 時 `kind` 必須是 `fail`；`kind` 不是 `fail` 時 `level` 必須是 `none` | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 的對應規則 |
+| [E:threat_modeling-81] | WSTG v4.2 checklist 中 CLNT-04、CLNT-07、INPV-01、INPV-02、BUSL-08、BUSL-09、CONF-04、CONF-05 的名稱 | 04 binding 表新增的列 |
 
 **限制**：
 - PyPI 的授權欄位是發布者自填的 metadata。三個候選工具都要在採用前讀 repo 的 LICENSE（[06 §4](06-security-legal-limitations.md#4-開放的法務與查證項目)）。

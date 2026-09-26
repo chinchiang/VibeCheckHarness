@@ -3,7 +3,7 @@
 > 本檔由 `tools/build_references.py` 依文件中實際引用的證據 ID 自動產生，請勿手動編輯。每條的 ID 連到 [evidence/ledger.md](evidence/ledger.md) 中的條目，那裡有完整主張、查核意見與所有來源。
 > 狀態：V＝已查證、P＝部分查證、C＝原主張被推翻（以更正為準）。
 
-文件共引用 399 條證據。
+文件共引用 401 條證據。
 
 ## 多代理編排框架與模型閘道
 
@@ -520,6 +520,8 @@
   - <https://pypi.org/pypi/presidio-analyzer/json>
 - **[E:whitebox-58](evidence/ledger.md#whitebox-58)** [V] PyPI metadata (checked 2026-09-26): the Python binding tree-sitter 0.26.0 (py-tree-sitter) carries the classifier 'License :: OSI Approved :: MIT License'.
   - <https://pypi.org/pypi/tree-sitter/json>
+- **[E:whitebox-59](evidence/ledger.md#whitebox-59)** [V] SARIF 2.1.0 (errata01) §3.27.9–3.27.10: 'If level has any value other than "none" and kind is present, then kind SHALL have the value "fail".' 'If kind has any value other than…
+  - <https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/sarif-v2.1.0-errata01-os-complete.html>
 
 ## 威脅建模方法與標準
 
@@ -732,6 +734,8 @@
   - <https://genai.owasp.org/download/56857/?tmstv=1785822482>
 - **[E:threat_modeling-80](evidence/ledger.md#threat_modeling-80)** [V] Appendix A of the OWASP LLM Top 10 2026 PDF maps each entry to MITRE CWE 4.20, distinguishing primary CWEs (the definitional weakness) from supporting CWEs. Examples of primary…
   - <https://genai.owasp.org/download/56857/?tmstv=1785822482>
+- **[E:threat_modeling-81](evidence/ledger.md#threat_modeling-81)** [V] OWASP WSTG v4.2 checklist (checklist/checklist.json at tag v4.2, commit dd33419e): WSTG-CLNT-04 Testing for Client-side URL Redirect; WSTG-CLNT-07 Testing Cross Origin Resource…
+  - <https://github.com/OWASP/wstg/blob/v4.2/checklist/checklist.json>
 
 ## 黑箱驗證工具與安全實務
 

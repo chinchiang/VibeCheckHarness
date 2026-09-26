@@ -26,7 +26,7 @@
 | 一個主 AI agent 當 harness／指揮官，負責調度其他 agents | Harness＝Run Controller（程式碼：順序、並行、重試、限速、checkpoint）＋ Commander Agent（LLM，在 5 個決策節點規劃與加派）；Policy Engine 以程式碼強制範圍與關卡 | [03 §4](docs/03-system-architecture.md#4-harness指揮官如何滿足需求) | 指揮官刻意不能判定漏洞真偽、不能擴大範圍、不能跳過關卡 |
 | 白箱每個 agent 可接不同 LLM（Claude、Nemotron、ChatGPT 等）以減少模型偏誤 | `agents.yaml` 逐一綁模型；LiteLLM 接 Anthropic／OpenAI／NVIDIA（雲端＋自架）；規則：驗證者必須不同家族、不跨家族 fallback、第一輪互不可見 | [02 §2](docs/02-methodology.md#2-白箱階段w0w5)、[05](docs/05-bias-calibration.md)、[examples](docs/examples/) | 多家族**只能降低、不能消除**偏誤；是否勝過「單一最佳模型多次取樣」必須自己量 |
 | 黑箱階段一定先做威脅建模，再依結果設計 test cases | B2 威脅建模是強制關卡（G3 人工簽核）；B3 以「威脅→需求→測試」可追溯鏈產生案例；附兩個完整範例 | [02 §3](docs/02-methodology.md#3-黑箱階段b0b6)、[04](docs/04-threat-to-testcase.md) | 追溯鏈並非每一環都有官方對照，需人審對照表 |
-| 先上網搜尋可參考的專案與資料 | 8 個主題、454 條發現（v0.1 的 321 條＋v0.2 新增 125 條＋v0.3 新增 8 條），逐條獨立查核 | [01](docs/01-research-survey.md)、[ledger](docs/evidence/ledger.md) | 搜尋未窮盡（部分產品與論文未查） |
+| 先上網搜尋可參考的專案與資料 | 8 個主題、456 條發現（v0.1 的 321 條＋v0.2 新增 125 條＋v0.3 新增 10 條），逐條獨立查核 | [01](docs/01-research-survey.md)、[ledger](docs/evidence/ledger.md) | 搜尋未窮盡（部分產品與論文未查） |
 | 完整的方法論 | 白箱 W0–W5、黑箱 B0–B6、事先簽署 G0a／G0b 與人工關卡 G1–G5、偏誤控制、校準實驗 | [02](docs/02-methodology.md)、[05](docs/05-bias-calibration.md) | — |
 | 詳細的系統架構 | 元件、信任區部署、LangGraph 狀態機、資料模型（JSON Schema）、設定範例、成本模型、CI 兩條線 | [03](docs/03-system-architecture.md)、[08](docs/08-implementation-spec.md)、[schemas](docs/schemas/) | 尚未實作，數字皆為設計假設 |
 | 目標應用：Web＋REST／GraphQL API、含 LLM／Agent 功能的應用 | Binding 表涵蓋 REST 與 GraphQL（輸入驗證、欄位層級授權、查詢深度、introspection）與 LLM／Agent 威脅（OWASP LLM Top 10、ASI、MAESTRO） | [04 §4.3](docs/04-threat-to-testcase.md#43-binding-表)、[02 B2](docs/02-methodology.md#b2-威脅建模g3-強制簽核) | 行動 App 不在本版範圍 |
@@ -135,5 +135,5 @@ python tools/check_doc_links.py                 # 文件內連結與錨點
 - **文件**（`README.md`、`docs/` 下的 Markdown、JSON Schema 與範例）：[CC BY-SA 4.0](LICENSE-docs)。
 - **工具與測試**（`tools/`、`tests/`、`.github/`）：[Apache-2.0](LICENSE)。
 - `docs/evidence/` 中引用的外部來源（摘錄、標題、ID）仍屬原作者；本 repo 只引用並附上來源連結。
-- OWASP 的內容（ASVS、WSTG、Top 10 等）本身為 CC BY-SA 4.0，引用時標示來源（見 [06 §2.3](docs/06-security-legal-limitations.md#23-授權登錄表)）。
+- 已查過授權的 OWASP 內容為 CC BY-SA 4.0：ASVS、WSTG、AISVS [V][E:threat_modeling-67]；LLM Top 10 與 Agentic Top 10（genai.owasp.org 網站頁尾聲明）[P][E:threat_modeling-68]；AI Testing Guide [V][E:threat_modeling-78]。引用時標示來源（見 [06 §2.3](docs/06-security-legal-limitations.md#23-授權登錄表)）。OWASP API Security Top 10 2023 的授權尚未查證，目前只引用 ID 與名稱（見 [06 §4](docs/06-security-legal-limitations.md#4-開放的法務與查證項目)）。
 - 工具包實作時使用的第三方工具與模型各有授權義務，見 [06 §2](docs/06-security-legal-limitations.md#2-法遵與授權)。

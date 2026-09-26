@@ -51,7 +51,7 @@
   - 核准綁定逐項 hash，下一個 run 只重審變更的項目；G5 永遠不沿用。
   - 報告加入覆蓋指標。
   - （H-B5、M-G5）
-- **關卡核准者的來源**：G0a／G1／G2 取自委任設定的 `gate_approvers`；G0b／G3／G4／G5 取自 ROE，且必須在 ROE 有效期間內簽署（[§1.3](#13-人工關卡一覽)）。（H-D2）
+- **關卡核准者的來源**：G0a／G1／G2 取自委任設定的 `gate_approvers`；G0b／G3／G4／G5 取自 ROE；G3／G4／G5 必須在 ROE 有效期間內決定，G0b 除外（它本身就是發現 ROE 未生效並讓 run 暫停的檢查；[§1.3](#13-人工關卡一覽)）。（H-D2）
 - **G0b 結果的寫法統一**：ROE 尚未生效或不在時間窗內 → `VERIFIED`，run → `SUSPENDED`；`EXPIRED` 只用於 ROE 已過期。（A-9）
 - **B0**：
   - 共享平台網域改用 `platform_project` 證明，並在 ROE 記錄 `platform_policies[]`。
@@ -705,11 +705,11 @@ flowchart TD
   - 範例：T-033 → TC-033-01（S0）的確定性 FAIL → K-201 → V-201-1 `CONFIRMED_EXECUTABLE`（R1，沒有分析者）；T-027 → TC-027-01 的 ZAP PASS → K-202 → V-202-1 `UNCORROBORATED`（R7，R11 加註 `test_not_reproduced`）。細節見 [05 §4.1](05-bias-calibration.md#41-叢集鍵clusterer確定性)。
 - **PASS 與不確定結果**：合格的 PASS 會把 `CONFIRMED_CORROBORATED`／`LIKELY` 降為 `DISPUTED`、在 `UNCORROBORATED` 上加註記，但**永遠不會自動變成 `REJECTED`**（05 R11）；不確定的結果只註記（05 R12）。
 - **重新裁決**（`B5_readjudicate`）：結果寫回相關叢集，由 Aggregator 重新裁決，保留每一版。此時才轉為 `DISPUTED` 的叢集不回到 G2 或 G3，而是列入 B6 的人工複核清單 [H]。
-- **PII**：若在回應中偵測到個資，觸發停止條件，B5 的解讀改成只用自架模型。候選的確定性偵測器是 Presidio（MIT [V][E:whitebox-57]；[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）。
+- **PII**：若在回應中偵測到個資，觸發停止條件，B5 的解讀改成只用自架模型。候選的確定性偵測器是 Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]；[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）。
 
 ### B6 報告
 - 輸出（M4 起 JSON＋SARIF＋追溯矩陣；M5 起加靜態 HTML；**不提供儀表板**）：
-  - SARIF：欄位對應見 [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)，例如以叢集指紋作 `partialFingerprints`、`baselineState`、黑箱結果的 `webRequest`／`webResponse` [V][E:whitebox-56]
+  - SARIF：欄位對應見 [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)，例如以叢集指紋作 `partialFingerprints`、`baselineState`、黑箱結果的 `webRequest`／`webResponse` [V][E:whitebox-56]。只有 `kind: fail` 的 result 帶 `note`／`warning`／`error`；`review`、`open`、`pass` 等其他 `kind` 的 result 一律 `level: none`，嚴重度放在 `properties` [V][E:whitebox-59]。匯出時除了 SARIF 2.1.0 schema 驗證，也檢查 §3.27.9–3.27.10 的 `kind`／`level` 規則。
   - 人讀報告（Markdown／靜態 HTML）
   - 機器可讀 JSON 與報告清單（`report-manifest.schema.json`：列出每個產物的 hash；`metrics`：`results_total`、`results_invalid`、`control_pass_rate`，由 validator 重算，`E-REPORT-METRICS`）
   - **追溯矩陣**：威脅 → 需求 → 測試 → 結果 → 回連白箱發現項

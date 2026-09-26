@@ -5,9 +5,9 @@
 ## v0.3 變更摘要
 
 - **§2.3 補上 2026 版界線與 CWE 對照**：加入官方 PDF 的「模型當元件 → LLM 清單；模型當行動者（工具、記憶、下游後果）→ Agentic 清單，模型會行動時兩張清單並用」界線規則 [V][E:threat_modeling-79]，以及附錄 A 的 CWE 對照範例（LLM01→CWE-1427；LLM04→CWE-494、CWE-829；LLM05→CWE-349、CWE-829；LLM10→CWE-1426、CWE-116、CWE-79）[V][E:threat_modeling-80]。所有 LLMxx 引用一律帶版本（§2.3、§4.3、§6）（§2.3、L-07）。
-- **Binding 表（§4.3）大幅擴充並引用 OWASP API Security Top 10 2023**：新增 BFLA、mass assignment／excessive data exposure（BOPLA）、列表端點的租戶隔離、認證控制、OAuth／OIDC、CSRF、CORS、open redirect、非 LLM XSS、檔案上傳、入站 webhook 簽章、外洩檔案與頁面（source map／`.git`／`.env`／除錯／API 文件）、Supabase／BaaS（寬鬆 RLS、SECURITY DEFINER RPC、view、edge function、realtime、storage bucket）、私有回應快取、商業流程競態、盤點漂移（W0 vs B1）、供應鏈 CSP／SRI、GraphQL 額外項（batching／alias／欄位建議）、工具端物件層級授權，以及直接 prompt injection 的範圍聲明；每列補上 API Top 10 2023 編號 [V][E:blackbox-65]（H-F2、M-R2）。
-- **§4.3 修正既有列的安全等級與 §5 一致**：GraphQL introspection 以 POST 送出 → S1；Schemathesis `use_after_free` 會刪除工具產生的 ID，除非綁種子否則 S3，改為「僅綁種子執行」並註明 [V][E:blackbox-66]（L-11）。
-- **§4.2 標明 Schemathesis `ignored_auth` 的前提**：只作用在 schema 有宣告 `security` 的操作（401 或 403 都算強制）[V][E:blackbox-66]；沒有正確 OpenAPI 的應用須先由 W0 起草規格（連 [08 §11.10](08-implementation-spec.md#1110-沒有-openapi-的應用)）（H-E10）。
+- **Binding 表（§4.3）大幅擴充並引用 OWASP API Security Top 10 2023**：新增 BFLA、mass assignment／excessive data exposure（BOPLA）、列表端點的租戶隔離、認證控制、OAuth／OIDC、CSRF、CORS、open redirect、非 LLM XSS、檔案上傳、入站 webhook 簽章、外洩檔案與頁面（source map／`.git`／`.env`／除錯／API 文件）、Supabase／BaaS（寬鬆 RLS、SECURITY DEFINER RPC、view、edge function、realtime、storage bucket）、私有回應快取、商業流程競態、盤點漂移（W0 vs B1）、供應鏈 CSP／SRI、GraphQL 額外項（batching／alias／欄位建議）、工具端物件層級授權，以及直接 prompt injection 的範圍聲明；Web／API 與 BaaS 列補上能對到的 API Top 10 2023 編號，對不到的列寫「—」。條目 ID 與名稱已查證 [V][E:blackbox-65]，逐列對映是 curated 判斷 [H]（H-F2、M-R2）。
+- **§4.3 修正既有列的安全等級與 §5 一致**：GraphQL introspection 以 POST 送出 → S1；Schemathesis `use_after_free` 期望成功 DELETE 後回 404，只在 stateful 階段觸發、單次 `call_and_validate()` 不會觸發 [V][E:blackbox-66]；stateful 階段 DELETE 的目標不限於工具自己建立的物件 [H]，所以執行這個 check 為 S3、一律不跑，「刪除後不可存取」改以綁種子的 GENERATED_SCRIPT 驗證（L-11）。
+- **§4.2 標明 Schemathesis `ignored_auth` 的前提**：只作用在 schema 有宣告認證（OpenAPI 的 `security`）的操作（401 或 403 都算強制）[V][E:blackbox-66]；GraphQL SDL 沒有這類宣告 [H]；沒有正確 OpenAPI 的應用須先由 W0 起草規格（連 [08 §11.10](08-implementation-spec.md#1110-沒有-openapi-的應用)）（H-E10）。
 - **良性 canary 政策（§4.3 末）**：明訂 canary 可含的內容、可放置的位置與偵測方式，以及 promptfoo／PyRIT 允許的策略「類別」（不逐一列外掛 ID）（M-G5）。
 - **§3 測試案例欄位**：新增 `controls[]`（reachability／oracle_can_pass／oracle_can_fail，至少一個 reachability）、`oracle.types[]`（陣列，含 `LLM_GRADER`）、腳本式多輪的 `script_turns[]`；allow-list 項目新增 `step_id`、`graphql_operation`；結果側新增 `fail_oracles`、`INVALID` 結果、`observed_build_id`、`request_log_sha256`、`interpretation`，`precondition_reached`／`positive_control` 改為由 `controls[]` 推導（H-B1、H-A3、H-E15、H-B4、L-15、L-21）。
 - **§5 安全等級演算法**（與 `tools/vchlib/safety.py` 同步）：每個寫入（POST／PUT／PATCH／DELETE、GraphQL mutation）都必須用種子 `path_templates` 相符的 `{seed:<key>}`，或用 create-only 端點＋`{created:<step_id>}`，否則 S3（`mutation_scope_problems`，`E-TC-MUTATION-SCOPE`）；allow-list 項目新增 `step_id` 與 `graphql_operation`；排除比對前先正規化路徑（`normalize_for_match`：百分號解碼一次、去 `;params`、收合 `//`、解析 dot segment、不分大小寫）；主機排除支援 `*.` 萬用字元（`host_matches`）；`host_of` 只接受 http／https，https 規則（localhost 除外）由 ROE 檢查 `E-ROE-URL` 強制；lite profile 只允許 S0／S1（`E-PROFILE-SAFETY`，MANUAL 除外）（H-B3、C-1、C-2、C-3、M-G3）。
@@ -146,12 +146,12 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 
 | LLM 條目（2026） | primary CWE | supporting CWE |
 |---|---|---|
-| LLM01:2026 Prompt Injection | CWE-1427 | — |
-| LLM04:2026 Supply Chain | CWE-494、CWE-829 | — |
-| LLM05:2026 Data and Model Poisoning | CWE-349、CWE-829 | — |
-| LLM10:2026 Improper Output Handling | CWE-1426 | CWE-116、CWE-79 |
+| LLM01:2026 Prompt Injection | CWE-1427 | 未讀取（見官方 PDF 附錄 A） |
+| LLM04:2026 Supply Chain | CWE-494、CWE-829 | 未讀取（見官方 PDF 附錄 A） |
+| LLM05:2026 Data and Model Poisoning | CWE-349、CWE-829 | 未讀取（見官方 PDF 附錄 A） |
+| LLM10:2026 Improper Output Handling | CWE-1426、CWE-116、CWE-79 | 未讀取（見官方 PDF 附錄 A） |
 
-- 只讀取上列各列；附錄 A 的完整多欄對照表未逐列複製 [V][E:threat_modeling-80]。crosswalk 的 CWE 對照以此為 `curated` 起點，仍要人審（§1.2）。
+- 只讀取上列各列的 primary CWE；supporting CWE 欄沒有轉錄，「未讀取」不代表沒有 supporting CWE。附錄 A 的完整多欄對照表未逐列複製 [V][E:threat_modeling-80]。crosswalk 的 CWE 對照以此為 `curated` 起點，仍要人審（§1.2）。
 
 ## 3. 測試案例欄位
 
@@ -207,7 +207,7 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 
 | Adapter（`tool:mode`） | 工具語意 | 需求 oracle 如何對應 |
 |---|---|---|
-| `schemathesis:check` | 14 個 check，除了 `max_response_time` 都預設啟用；例如 `ignored_auth` 驗證有強制認證、`use_after_free` 偵測刪除後仍可存取的資源 [V][E:blackbox-14] | 需求「未認證不得存取」→ `ignored_auth`；需求「刪除後不可存取」→ `use_after_free`。check 失敗＝需求未滿足 |
+| `schemathesis:check` | 14 個 check，除了 `max_response_time` 都預設啟用；例如 `ignored_auth` 驗證有強制認證、`use_after_free` 偵測刪除後仍可存取的資源 [V][E:blackbox-14] | 需求「未認證不得存取」→ `ignored_auth`；需求「刪除後不可存取」→ `use_after_free` 需 stateful 階段，執行即 S3，改用綁種子的 GENERATED_SCRIPT（§4.2）。check 失敗＝需求未滿足 |
 | `zap:baseline`（passive＋alert filter） | 被動規則產生 alert。<br>・`zap-api-scan.py`：`-c` 設定檔可把各規則設為 IGNORE／INFO／FAIL，alert 預設為 WARN；exit code 0＝成功、1＝至少一個 FAIL、2＝只有 WARN、3＝其他失敗 [V][E:blackbox-07]<br>・Automation Framework：有 `alertFilter` 與 `exitStatus` job，exit code 0＝ok、1＝error、2＝warnings [V][E:blackbox-04] | 需求對應的規則設為 FAIL。<br>・**需求未滿足**：api-scan exit 1（或 AF 的 error 等級），**且**對應規則的 alert ID 確實出現<br>・exit 2：人工檢視 WARN，不直接判定<br>・exit 3 或 AF 的 plan／job 錯誤：屬於**執行失敗**，列入「未能測試清單」，不算需求未滿足 |
 | `zap:active` | 規則式主動掃描（S2） | 同上；每次 G5。`params` 的界限見下方「ZAP 參數」 |
 | `nuclei:signed_templates` | 模板比對 | 模板的 matcher＝需求的反例條件 |
@@ -223,16 +223,16 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 
 **DB 狀態 oracle**（`STATE_DIFF`）一律由 Z3 的 Snapshot Service 以 ROE `db_access.oracle_readonly_credential_ref` 執行，只對 `oracle_tables` 有 SELECT 權限；回到 Z1 的只有 hash 比對結果與改變的欄位名稱、列數，不含欄位值（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）。ROE 的 `snapshot_method: none` 或沒有 `db_access` 時，需要 DB oracle 的測試改用只看 API 回應的 oracle，或標 `MANUAL`。
 
-**Schemathesis `ignored_auth` 的前提**（H-E10）：`ignored_auth` **只作用在 OpenAPI／GraphQL schema 有宣告 `security` 的操作**；對這類操作，它送兩個額外請求（一個不帶憑證、一個帶無效憑證），回應為 401 或 403 都算「有強制認證」[V][E:blackbox-66]。因此：
+**Schemathesis `ignored_auth` 的前提**（H-E10）：`ignored_auth` **只作用在 schema 有宣告認證的操作**；對這類操作，它送兩個額外請求（一個不帶憑證、一個帶無效憑證），回應為 401 或 403 都算「有強制認證」[V][E:blackbox-66]。這裡的「宣告認證」指 OpenAPI 的 `security`；GraphQL SDL 沒有對應的認證宣告，所以 GraphQL 端點不能拿 `ignored_auth` 當認證證據，改用 GENERATED_SCRIPT [H]。因此：
 - schema 沒宣告認證的操作，`ignored_auth` **不會執行**，不能當成「認證有強制」的證據。
-- 沒有正確 OpenAPI 的應用（vibe-coded 常見），必須先由 W0 依盤點與流量起草 OpenAPI（`security` 取自 G1 存取矩陣，G4 審），才能讓這些 check 有意義；起草規格的機制見 [08 §11.10](08-implementation-spec.md#1110-沒有-openapi-的應用)。
-- `use_after_free` 期望「成功 DELETE 後回 404」；它刪除的是工具產生的 ID，屬寫入，安全等級與綁定方式見 §4.3 A 表與 §5（僅綁種子執行）[V][E:blackbox-66]。
+- 沒有正確 OpenAPI 的應用（vibe-coded 應用常見 [H]），必須先由 W0 依盤點與流量起草 OpenAPI（`security` 取自 G1 存取矩陣，G4 審），才能讓這些 check 有意義；起草規格的機制見 [08 §11.10](08-implementation-spec.md#1110-沒有-openapi-的應用)。
+- `use_after_free` 期望「成功 DELETE 後回 404」；它是 stateful check，只在 Schemathesis 的 stateful 階段觸發，單次 `call_and_validate()` 不會觸發 [V][E:blackbox-66]。stateful 階段 DELETE 的目標可能取自其他回應或由工具產生，不限於工具自己建立的物件；能否把它限制在種子 ID 上未查證 [H]。所以執行這個 check 屬非種子寫入，依 §5 為 S3，一律不跑；「刪除後不可存取」改以綁種子的 GENERATED_SCRIPT 驗證（§4.3 A 表）。
 
 ### 4.3 Binding 表
 
 欄位說明：
 - **需求類型**：測試要驗證的需求（引用已簽核的 ASVS／AISVS／G1 不變量）。需求來源欄位對應 G1 invariants：`access_matrix[].ownership`（owner_field／tenant_field／membership）、`policies`（cors_allowlist、redirect_allowlist、upload_types、outbound_hosts、webhook_signature、csp…）、`limits`、`data_classification`、`llm_tools`。
-- **API 2023**：OWASP API Security Top 10 2023 的條目（API1–API10）[V][E:blackbox-65]，只填在 Web／API 與 BaaS 列；把握不準的對映標 [H]，對不到的寫「—」。WSTG／ASVS／CWE 沿用既有慣例，只用能佐證的 ID。
+- **API 2023**：OWASP API Security Top 10 2023 的條目 ID 與名稱（API1–API10）已查證 [V][E:blackbox-65]；**每一列對到哪個條目則是本工具包的 curated 判斷 [H]**，不是官方對照，G3 審查時要確認。只填在 Web／API 與 BaaS 列；特別沒把握的對映在儲存格另標 [H]，對不到的寫「—」（例如輸入驗證、注入與反序列化列不對到 2023 版條目）。WSTG／ASVS／CWE 沿用既有慣例，只用能佐證的 ID。
 - **驗證方式**：oracle 的意圖，只寫「成立時應觀察到什麼」；一律描述受測內容與 oracle，不寫攻擊 payload。
 - **WSTG／AITG**：只填已在 OWASP 官方 repo 核對過的 ID，一律寫成 `WSTG-v42-…`（L-08）；威脅→程序的對應本身都是 `curated`（見 §1.1），不是官方對照。沒核對到或未逐一查證的寫「—（未對到官方 ID）」或標 [H]。
 - **binding／oracle**：`kind`＋`adapter` 一律**優先用既有樣板 adapter**（`BUILTIN_CHECK` 或 `tools.yaml` 已登錄的模式），涵蓋不到才用 `GENERATED_SCRIPT`；需要新 adapter 時在 adapter 後標「候選」並標 [H]（M-G4）。
@@ -247,40 +247,40 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 | I：物件屬性層級——過度資料揭露 | API3 | 回應只含該角色有權看的屬性（`access_matrix.ownership`、`data_classification`；ASVS v5.0.0-8.2.3，L2 [V][S-05]） | 帶物件屬性的 process | 以合法角色讀取種子物件：回應不含 G1 標為未授權的屬性 | GENERATED_SCRIPT `playwright:api` | S1 | —（未對到官方 ID） |
 | T：物件屬性層級——mass assignment | API3 | 不可經多送屬性提權或改他人欄位（`access_matrix.ownership`） | 帶物件屬性的 process | 以合法角色對種子物件 PATCH 一個未授權屬性（例如 owner／role）：STATE_DIFF 顯示該屬性未變更 | GENERATED_SCRIPT `playwright:api` | S1（PATCH 綁種子） | —（未對到官方 ID） |
 | I：列表端點的租戶隔離 | API1 | 列表端點只回傳該租戶／使用者的資料列（`access_matrix.ownership` tenant_field／owner_field） | 列表 process＋data store | 以租戶 A 呼叫列表端點：回應不含任何租戶 B 種子資料列的 ID（比對種子 ID 集合） | GENERATED_SCRIPT `playwright:api` | S1（多角色；提議下限 S1） | WSTG-v42-ATHZ-04 [V][S-06] |
-| S：缺少認證 | API2 | 未認證不得存取（`access_matrix`） | process（API 端點） | 工具 check `ignored_auth`（只作用於 schema 宣告 `security` 的操作，見 §4.2 [V][E:blackbox-66]） | BUILTIN_CHECK `schemathesis:check` | S1 | WSTG-v42-ATHN-04 [V][E:threat_modeling-57] |
+| S：缺少認證 | API2 [H] | 未認證不得存取（`access_matrix`） | process（API 端點） | 工具 check `ignored_auth`（只作用於 OpenAPI schema 宣告 `security` 的操作，見 §4.2 [V][E:blackbox-66]） | BUILTIN_CHECK `schemathesis:check` | S1 | WSTG-v42-ATHN-04 [V][E:threat_modeling-57] |
 | S：認證控制（登入、逾時、列舉） | API2 | 認證端點強制認證、登入限流、不洩漏帳號是否存在（`access_matrix`、`limits`） | 認證 process | 未／無效憑證 → 401／403（`ignored_auth`）；並見下方帳號列舉列 | BUILTIN_CHECK `schemathesis:check`＋GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-ATHN-04 [V][E:threat_modeling-57] |
-| S：OAuth／OIDC 流程 | API2 | 授權流程驗證 `state`、`redirect_uri` 允許清單、token 受眾（`policies.redirect_allowlist`；ASVS 5.0 V10 OAuth／OIDC [V][E:threat_modeling-40]） | 認證 process | 對授權端點給一個未登錄的 `redirect_uri`：伺服器拒絕、不外送授權碼；深層 token 驗證以白箱為主 | GENERATED_SCRIPT `playwright:api` 或 MANUAL | S1 | —（未對到官方 ID）[H] |
+| S：OAuth／OIDC 流程 | API2 [H] | 授權流程驗證 `state`、`redirect_uri` 允許清單、token 受眾（`policies.redirect_allowlist`；ASVS 5.0 V10 OAuth／OIDC [V][E:threat_modeling-40]） | 認證 process | 對授權端點給一個未登錄的 `redirect_uri`：伺服器拒絕、不外送授權碼；深層 token 驗證以白箱為主 | GENERATED_SCRIPT `playwright:api` 或 MANUAL | S1 | —（未對到官方 ID）[H] |
 | S／T：CSRF | — | 狀態改變請求需 CSRF 防護（token 或 SameSite；`policies`） | 狀態改變 process | 在缺少防 CSRF token／SameSite 條件的跨站情境下送出狀態改變請求（綁種子）：伺服器拒絕 | GENERATED_SCRIPT `playwright:api` | S1（寫入綁種子） | WSTG-v42-SESS-05 [V][E:threat_modeling-55] |
-| I：CORS 設定 | API8 | CORS 只允許 G1 允許來源，不反射任意 Origin、不對憑證請求用萬用字元（`policies.cors_allowlist`） | data flow（回應標頭） | 以不同 `Origin` 標頭觀察回應的 `Access-Control-Allow-Origin`／`-Credentials` 是否符合政策 | BUILTIN_CHECK `zap:baseline` 或 GENERATED_SCRIPT `playwright:api` | S0 | WSTG-v42-CLNT-07 [H] |
-| I：Open redirect | — | 重定向目標只限 G1 允許清單（`policies.redirect_allowlist`） | 重定向 process | 對重定向端點給一個不在允許清單中的目標：`Location` 只指向允許主機，不外送到外部主機 | GENERATED_SCRIPT `playwright:api` | S0 | WSTG-v42-CLNT-04 [H] |
-| I：非 LLM 的 XSS（輸出編碼） | — | 使用者輸入在 UI 輸出時被安全編碼（`data_classification`；CWE-79／80） | 輸入 process → UI | DOM 斷言：透過輸入欄位送出的良性合成標記在頁面上以文字呈現，不成為元素或屬性（綁種子） | GENERATED_SCRIPT `playwright:ui` | S1（寫入綁種子） | WSTG-v42-INPV-01、WSTG-v42-INPV-02 [H] |
-| T：檔案上傳限制 | — | 上傳只接受 G1 允許的類型／大小，上傳物件只限擁有者存取（`policies.upload_types`、`access_matrix.ownership`） | 上傳 process＋檔案 data store | 上傳不允許類型的良性檔案：被拒；上傳允許類型後以他人角色取回：403／404（上傳端點列為 `create_only_endpoints`，後續以 `{created:…}` 取回） | GENERATED_SCRIPT `playwright:api` | S1（create-only） | WSTG-v42-BUSL-08、WSTG-v42-BUSL-09 [H] |
+| I：CORS 設定 | API8 | CORS 只允許 G1 允許來源，不反射任意 Origin、不對憑證請求用萬用字元（`policies.cors_allowlist`） | data flow（回應標頭） | 以不同 `Origin` 標頭觀察回應的 `Access-Control-Allow-Origin`／`-Credentials` 是否符合政策 | BUILTIN_CHECK `zap:baseline` 或 GENERATED_SCRIPT `playwright:api` | S0 | WSTG-v42-CLNT-07 [V][E:threat_modeling-81] |
+| I：Open redirect | — | 重定向目標只限 G1 允許清單（`policies.redirect_allowlist`） | 重定向 process | 對重定向端點給一個不在允許清單中的目標：`Location` 只指向允許主機，不外送到外部主機 | GENERATED_SCRIPT `playwright:api` | S0 | WSTG-v42-CLNT-04 [V][E:threat_modeling-81] |
+| I：非 LLM 的 XSS（輸出編碼） | — | 使用者輸入在 UI 輸出時被安全編碼（`data_classification`；CWE-79／80） | 輸入 process → UI | DOM 斷言：透過輸入欄位送出的良性合成標記在頁面上以文字呈現，不成為元素或屬性（綁種子） | GENERATED_SCRIPT `playwright:ui` | S1（寫入綁種子） | WSTG-v42-INPV-01、WSTG-v42-INPV-02 [V][E:threat_modeling-81] |
+| T：檔案上傳限制 | — | 上傳只接受 G1 允許的類型／大小，上傳物件只限擁有者存取（`policies.upload_types`、`access_matrix.ownership`） | 上傳 process＋檔案 data store | 上傳不允許類型的良性檔案：被拒；上傳允許類型後以他人角色取回：403／404（上傳端點列為 `create_only_endpoints`，後續以 `{created:…}` 取回） | GENERATED_SCRIPT `playwright:api` | S1（create-only） | WSTG-v42-BUSL-08、WSTG-v42-BUSL-09 [V][E:threat_modeling-81] |
 | S：入站 webhook 簽章 | — | 入站 webhook 驗證簽章／HMAC，拒絕未簽或錯簽請求（`policies.webhook_signature`） | webhook process | 送缺少或無效簽章的良性 webhook：4xx 且 STATE_DIFF 顯示無下游動作；送 G1 提供的有效簽章：被接受（reachability 控制）。webhook 端點列為 `create_only_endpoints` | GENERATED_SCRIPT `playwright:api` | S1（create-only） | —（未對到官方 ID） |
-| I：外洩檔案與頁面 | API8 | 不對外提供 source map、`.git`／`.env`、除錯端點、未受保護的 API 文件（`policies`、`secrets_config`） | 靜態資源／管理端點 | 對一組固定的良性敏感路徑清單送 GET：回 404／403（非 200 帶內容）；ZAP 被動規則也會標出 | BUILTIN_CHECK `zap:baseline` 或 GENERATED_SCRIPT `playwright:api` | S0 | WSTG-v42-CONF-04、WSTG-v42-CONF-05 [H] |
+| I：外洩檔案與頁面 | API8 | 不對外提供 source map、`.git`／`.env`、除錯端點、未受保護的 API 文件（`policies`、`secrets_config`） | 靜態資源／管理端點 | 對一組固定的良性敏感路徑清單送 GET：回 404／403（非 200 帶內容）；ZAP 被動規則也會標出 | BUILTIN_CHECK `zap:baseline` 或 GENERATED_SCRIPT `playwright:api` | S0 | WSTG-v42-CONF-04、WSTG-v42-CONF-05 [V][E:threat_modeling-81] |
 | I：私有回應快取 | API8 | 含個資／機密的回應設 `Cache-Control: private/no-store`、正確 `Vary`，不入共享快取（`data_classification`、`policies`） | data flow（回應標頭） | 檢查受保護端點回應的快取標頭符合政策（被動讀取） | BUILTIN_CHECK `zap:baseline` | S0 | —（未對到官方 ID）[H] |
-| 商業流程競態 | API6 | 敏感業務流程在並發下不違反 G1 不變量（no double-spend；`limits`、G1 不變量） | 業務流程 process | 對同一種子資源近乎同時送出少量合法業務請求：最終狀態符合不變量（例如只成功一次），以 STATE_DIFF／COUNT 檢查 | GENERATED_SCRIPT `playwright:api` | S1（少量並發、綁種子） | —（WSTG-BUSL 系列，逐案 curated） |
-| I：刪除後仍可存取 | API1 | 刪除後不可存取（`access_matrix.ownership`） | process＋data store | 工具 check `use_after_free`（成功 DELETE 後期望 404）**僅綁種子執行**：只刪 seed manifest 中的 ID；預設會刪除工具產生的 ID，屬非種子寫入，依 §5 為 S3，那種設定一律排除不跑 [V][E:blackbox-66] | BUILTIN_CHECK `schemathesis:check` | S1（僅綁種子）；否則 S3 | —（未對到官方 ID） |
-| T：輸入未驗證 | API8 | 不合規格的輸入被拒絕且不產生 5xx | process | 工具 check `negative_data_rejection`、`not_a_server_error` | BUILTIN_CHECK `schemathesis:check` | S1 | —（未對到官方 ID） |
+| 商業流程競態 | API6 [H] | 敏感業務流程在並發下不違反 G1 不變量（no double-spend；`limits`、G1 不變量） | 業務流程 process | 對同一種子資源近乎同時送出少量合法業務請求：最終狀態符合不變量（例如只成功一次），以 STATE_DIFF／COUNT 檢查 | GENERATED_SCRIPT `playwright:api` | S1（少量並發、綁種子） | —（WSTG-BUSL 系列，逐案 curated） |
+| I：刪除後仍可存取 | API1 | 刪除後不可存取（`access_matrix.ownership`） | process＋data store | 對種子物件（或本 run 以 create-only 端點建立的 `{created:<step_id>}` 物件）送 DELETE，成功後再 GET 同一 ID：期望 404。Schemathesis 的 `use_after_free` 也是「成功 DELETE 後期望 404」，但只在 stateful 階段觸發，單次 `call_and_validate()` 不會觸發 [V][E:blackbox-66]；stateful 階段 DELETE 的目標不限於工具自己建立的物件 [H]，屬非種子寫入，依 §5 為 S3，一律排除不跑 | GENERATED_SCRIPT `playwright:api`（DELETE 綁種子或 `{created:…}`）；不用 `schemathesis:check` 的 `use_after_free` | S1（綁種子）；`use_after_free` 為 S3 | —（未對到官方 ID） |
+| T：輸入未驗證 | — | 不合規格的輸入被拒絕且不產生 5xx | process | 工具 check `negative_data_rejection`、`not_a_server_error` | BUILTIN_CHECK `schemathesis:check` | S1 | —（未對到官方 ID） |
 | I：回應標頭、錯誤訊息外洩 | API8 | 錯誤回應不含堆疊或內部資訊 | data flow | 對應的 ZAP 被動規則設為 FAIL | BUILTIN_CHECK `zap:baseline` | S0 | WSTG-v42-ERRH-01、WSTG-v42-ERRH-02 [V][E:threat_modeling-58] |
-| T／I：注入類廣泛檢查 | API8 | 依 G1 列出的輸入處理需求 | process | ZAP 主動規則的 alert | BUILTIN_CHECK `zap:active` | **S2** | —（涵蓋多項，不逐一對應） |
+| T／I：注入類廣泛檢查 | — | 依 G1 列出的輸入處理需求 | process | ZAP 主動規則的 alert | BUILTIN_CHECK `zap:active` | **S2** | —（涵蓋多項，不逐一對應） |
 | I：資料表 RLS 缺失 | API1 | 用戶端權限讀不到 G1 標記為受保護的資料表（`access_matrix.ownership`、`data_classification`） | data store（用戶端可直連） | 以 staging 的公開 client 權限查詢，回傳筆數＝0 | GENERATED_SCRIPT `playwright:api` | S0 | —（未對到官方 ID） |
 | I：前端 bundle 內含金鑰 | API8 | 前端資源不含 secrets（`secrets_config`） | data flow（靜態資源） | 取回 staging 提供的前端資源，在 Z3 以 secrets 規則掃描，無命中 | GENERATED_SCRIPT `playwright:api` | S0 | —（未對到官方 ID） |
 | I：供應鏈——CSP／SRI（黑箱） | API8 | 前端載入第三方資源受 CSP 限制且外部資源帶 SRI 完整性雜湊（`policies.csp`）[H] | data flow（前端頁面） | 取回前端頁面：`Content-Security-Policy` 存在且限制來源，外部 script／link 帶 `integrity` 屬性 | BUILTIN_CHECK `zap:baseline` 或 GENERATED_SCRIPT `playwright:api` | S0 | —（未對到官方 ID）[H] |
 | D：未限流、無上限消耗（LLM06@2026＝LLM10@2025） | API4 | 超過門檻後回限流（`limits`） | process | 低量 threshold：超過 G1 門檻後收到 429 | GENERATED_SCRIPT `k6:threshold` | S1（量由 ROE 限制） | WSTG-v42-BUSL-05 [V][E:threat_modeling-60]；AITG-INF-02 [V][E:threat_modeling-62] |
 | R：否認（缺稽核紀錄） | — | 敏感動作留下稽核紀錄 | data store（稽核） | 動作後稽核表列數增加（DB oracle） | GENERATED_SCRIPT `playwright:api` 或 MANUAL | S1 | —（未對到官方 ID） |
-| 商業邏輯 | API6 | 依 G1 不變量 | process | 依不變量 | GENERATED_SCRIPT `playwright:api` 或 MANUAL | S1 | —（WSTG-BUSL 系列，逐案 curated） |
+| 商業邏輯 | API6 [H] | 依 G1 不變量 | process | 依不變量 | GENERATED_SCRIPT `playwright:api` 或 MANUAL | S1 | —（WSTG-BUSL 系列，逐案 curated） |
 | I：盤點漂移（W0 vs B1） | API9 | 實際暴露端點集合與 W0 盤點一致，無未記載端點 | 全部端點 | 比對 B1 外部視角端點與 W0 inventory（`b1_diff`，[02 B1](02-methodology.md#b1-系統建模兩個獨立視角)）；差異列為缺口。這是覆蓋一致性檢查，不對受測應用送測試 | 工具包內部（`b1_diff`） | —（非黑箱測試） | —（未對到官方 ID） |
-| T／I：GraphQL 輸入驗證 | API8 | 同「輸入未驗證」 | GraphQL process | Schemathesis 以 GraphQL schema 產生測試 [V][E:blackbox-13]；ZAP Automation Framework 可匯入 GraphQL 定義 [V][E:blackbox-04] | BUILTIN_CHECK `schemathesis:check` | S1 | WSTG-v42-APIT-01 [V][E:threat_modeling-59] |
+| T／I：GraphQL 輸入驗證 | — | 同「輸入未驗證」 | GraphQL process | Schemathesis 以 GraphQL schema 產生測試 [V][E:blackbox-13]；ZAP Automation Framework 可匯入 GraphQL 定義 [V][E:blackbox-04] | BUILTIN_CHECK `schemathesis:check` | S1 | WSTG-v42-APIT-01 [V][E:threat_modeling-59] |
 | E／I：GraphQL resolver 欄位層級授權（BOPLA） | API3 | 欄位層級存取（`access_matrix.ownership`；ASVS v5.0.0-8.2.3，L2）[V][S-05] | GraphQL resolver | 以不同角色查詢同一物件，回應不含未授權欄位 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-APIT-01 [V][E:threat_modeling-59] |
 | D：GraphQL 查詢深度或複雜度沒有上限 | API4 | 超過 G1 上限的查詢被拒絕（`limits`） | GraphQL process | 送出**單一個**超過上限的查詢；伺服器拒絕，且延遲不超過 ROE 門檻 | GENERATED_SCRIPT `playwright:api` | S1（只送少量請求） | WSTG-v42-APIT-01 [V][E:threat_modeling-59] |
 | D／I：GraphQL 額外項（batching／alias／欄位建議） | API4 | 依 G1 政策限制 batching／alias 放大並關閉欄位建議（`limits`、`policies`） | GraphQL process | 送一個含大量 alias／batched 操作的**單一**合法查詢：依 G1 上限被拒或受限；含拼錯欄位的查詢：回應不含「did you mean」建議（若政策要求關閉） | GENERATED_SCRIPT `playwright:api` | S1（少量請求） | WSTG-v42-APIT-01 [V][E:threat_modeling-59] |
 | I：GraphQL introspection 開放程度 | API8 | 依 G1 政策（是否允許由應用擁有者決定） | GraphQL process | 單一 introspection 查詢的結果符合政策；此查詢以 POST 送出，依 §5 任何 POST ≥ S1 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-APIT-01 [V][E:threat_modeling-59] |
 | I：SSRF（伺服器端代抓 URL） | API7 | 伺服器端只抓 G1 允許清單中的主機（`policies.outbound_hosts`） | 會代抓 URL 的 process | 送一個指向 ROE 中我方 canary（`tester_controlled`，且**不在**應用允許清單中）的 URL：應用拒絕，canary 沒有收到連線。**不**送指向內部位址或雲端 metadata 的變體；允許清單的實作以白箱 W1 規則確認 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-INPV-19 [V][E:threat_modeling-53] |
 | I：路徑穿越／檔案存取越界 | API1 | 檔案下載只回傳該使用者自己的檔案（`access_matrix.ownership`） | 檔案下載 process＋檔案 data store | 以租戶 A 請求租戶 B 的種子檔案、以及含上層目錄段的檔名：回 400／404，回應不含 B 的種子檔案的 canary 內容 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-ATHZ-01 [V][E:threat_modeling-54] |
-| T／E：不安全反序列化 | API8 | 不接受非預期的序列化格式；不可信資料不以原生物件格式反序列化 | 接收序列化資料的 process | 黑箱只能驗證「非預期 content type 或格式錯誤的內容被拒絕且沒有 5xx」；是否用了不安全的反序列化器以白箱 W1（Semgrep／CodeQL 規則）為主 | BUILTIN_CHECK `schemathesis:check`（`negative_data_rejection`）＋白箱；否則 MANUAL | S1 | —（WSTG v4.2 無專屬 ID [V][E:threat_modeling-56]） |
-| S／E：session 管理 | API2 | 登出與逾時後 session 在伺服器端失效 | 認證 process | 登出後重用同一 session：401；逾時後：401 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-SESS-01、WSTG-v42-SESS-06、WSTG-v42-SESS-07 [V][E:threat_modeling-55] |
+| T／E：不安全反序列化 | — | 不接受非預期的序列化格式；不可信資料不以原生物件格式反序列化 | 接收序列化資料的 process | 黑箱只能驗證「非預期 content type 或格式錯誤的內容被拒絕且沒有 5xx」；是否用了不安全的反序列化器以白箱 W1（Semgrep／CodeQL 規則）為主 | BUILTIN_CHECK `schemathesis:check`（`negative_data_rejection`）＋白箱；否則 MANUAL | S1 | —（WSTG v4.2 無專屬 ID [V][E:threat_modeling-56]） |
+| S／E：session 管理 | API2 [H] | 登出與逾時後 session 在伺服器端失效 | 認證 process | 登出後重用同一 session：401；逾時後：401 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-SESS-01、WSTG-v42-SESS-06、WSTG-v42-SESS-07 [V][E:threat_modeling-55] |
 | S／E：JWT 處理 | API2 | 伺服器驗證 token 簽章、到期與受眾 | 認證 process | 用 Session Provider 取得的合法 token 做**單一欄位**的變化（簽章位元組改動、過期、錯誤受眾）：一律 401 | GENERATED_SCRIPT `playwright:api` | S1 | —（WSTG v4.2 無專屬 ID [V][E:threat_modeling-56]；一般 session 項目見上列） |
-| S：帳號列舉 | API2 | 回應不透露帳號是否存在（`access_matrix`） | 認證／查詢 process | 對存在與不存在的合成帳號送相同請求：狀態碼、訊息與回應大小一致 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-IDNT-04 [V][E:threat_modeling-66] |
+| S：帳號列舉 | API2 [H] | 回應不透露帳號是否存在（`access_matrix`） | 認證／查詢 process | 對存在與不存在的合成帳號送相同請求：狀態碼、訊息與回應大小一致 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-IDNT-04 [V][E:threat_modeling-66] |
 
 **B. LLM 功能（OWASP LLM Top 10；每列寫 2026 編號／2025 編號，對照見 §2.3）**
 
@@ -326,7 +326,7 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 
 **E. BaaS／Supabase 直連**（`endpoints.kind = baas_direct`；含 browser→BaaS 直連流，見 [W0 inventory](02-methodology.md#w0-盤點與-secrets-遮罩確定性無-llm) 的 `db`／`storage_buckets`）
 
-vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器，所以這些列以**公開 client 權限**測試，等同於前端拿得到的權限。
+vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器 [H]（Escape.tech 的掃描以 Supabase RLS 設定錯誤為主要問題類別之一，與此一致，但沒有量測這種架構的比例 [P][E:vibe_risks-26]），所以這些列以**公開 client 權限**測試，等同於前端拿得到的權限。
 
 | 威脅類別 | API 2023 | 需求類型（G1 來源） | DFD 元件 | 驗證方式（oracle） | kind＋adapter | 安全等級 | WSTG／AITG |
 |---|---|---|---|---|---|---|---|
@@ -337,7 +337,7 @@ vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器，
 | Realtime 訂閱隔離 | API1 | realtime 只推送該租戶授權的變更（`access_matrix.ownership`） | realtime data flow | 以租戶 A 的公開 client 訂閱：不收到租戶 B 種子資料的變更事件 | GENERATED_SCRIPT `playwright:api`（websocket）候選 [H] | S1（保持連線） | —（未對到官方 ID） |
 | Storage bucket 存取 | API1 | 儲存物件只限擁有者／授權者；公開桶只含 G1 允許公開的物件（`access_matrix.ownership`、`policies`；`db.storage_buckets[].public`） | 物件儲存 data store | 以租戶 A 取租戶 B 的種子物件：403／404，回應不含 B 種子物件的 canary 內容；列出公開桶只含允許物件 | GENERATED_SCRIPT `playwright:api` | S1 | —（未對到官方 ID） |
 
-- Escape.tech 對公開 vibe-coded 應用的被動掃描發現，主要問題類別是 Supabase RLS 設定錯誤、前端 bundle 內含 token、缺少認證 [P][E:vibe_risks-26]；CVE-2025-48757 也是 RLS 問題 [V][E:vibe_risks-23]。所以 A 表中 RLS 與 bundle 兩列、以及 E 表整組是 vibe-coded 應用的優先項目。
+- Escape.tech 對公開 vibe-coded 應用的被動掃描發現，主要問題類別是 Supabase RLS 設定錯誤、前端 bundle 內含 token、缺少認證 [P][E:vibe_risks-26]；CVE-2025-48757 也是 RLS 問題（CVE 標為 disputed）[V][E:vibe_risks-23]。所以 A 表中 RLS 與 bundle 兩列、以及 E 表整組是 vibe-coded 應用的優先項目。
 - AITG 的 ID 格式如 `AITG-APP-01` [V][E:threat_modeling-38]；表中 ID 的名稱已在 OWASP AI Testing Guide 的官方 repo 核對 [V][E:threat_modeling-61][E:threat_modeling-62]。AISVS→AITG **未找到官方對照**，每條對應都要人審；標「curated 候選」者只是主題相近，G3／對照表審查時要確認。
 - WSTG ID 都是 v4.2（最新穩定版，5.0 仍在開發 [V][E:threat_modeling-45]），在報告中寫成 `WSTG-v42-…`。ID 是在 GitHub 的 v4.2 原始檔核對的；報告中的連結用 `https://wstg.owasp.org/v4.2/<路徑>`，因為 `owasp.org/www-project-web-security-testing-guide/v42/…` 與 `/stable/` 目前回傳 404 [V][E:threat_modeling-77]。
 
@@ -848,7 +848,7 @@ db_access:
 
 **需求**
 - `INV-LLM-003`（G1）：`refund` 必須經人工確認，且只能針對目前登入使用者自己的訂單
-- OWASP LLM06 的緩解：高影響動作需人核准、最小權限 [V][E:blackbox-32]
+- OWASP LLM06:2025 Excessive Agency（2026 版為 LLM03）的緩解：高影響動作需人核准、最小權限 [V][E:blackbox-32]
 
 **對照**
 

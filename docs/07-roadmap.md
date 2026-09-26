@@ -75,7 +75,7 @@
 |---|---|---|---|
 | MVP0-X1 | 在 `notes-rls-app`（Next.js＋Supabase 型的範例，[08 §8.3](08-implementation-spec.md#83-範例應用整合測試的目標)）上找出下列三個植入問題：<br>• 沒有 RLS 的資料表：以 `inventory_fact` 證據支撐（寫法同範例 F-061：`fact_ref` `/db/tables/0/rls_enabled`、`asserted: false`）<br>• bundle 中的公開前綴金鑰<br>• 幻覺套件名稱 | 整合測試（CI 用錄製的 LLM 回應） | 任一個沒有找到，或 RLS 問題因為交不出程式片段而被判 `REJECTED` |
 | MVP0-X2 | 遮罩之前沒有任何 LLM 呼叫；除了 Model Gateway 與套件鏡像，沒有任何出站連線 | 稽核檔＋Z2 出站紀錄 | 有任何一例 |
-| MVP0-X3 | SARIF 通過 SARIF 2.1.0 schema 驗證；在同一個 commit 上重跑時，所有叢集的 `baseline_state` 都是 `unchanged` | `fast` 線＋整合測試 | 驗證失敗，或指紋不穩定 |
+| MVP0-X3 | SARIF 通過 SARIF 2.1.0 schema 驗證，並符合 §3.27.9–3.27.10 的 `kind`／`level` 規則（`kind` 不是 `fail` 的 result，`level` 為 `none`）[V][E:whitebox-59]；在同一個 commit 上重跑時，所有叢集的 `baseline_state` 都是 `unchanged` | `fast` 線＋整合測試 | 驗證失敗，或指紋不穩定 |
 | MVP0-X4 | 沒有校準資料時，每個裁決都是 `provisional`；沒有可執行證明的叢集不會是 `CONFIRMED_*` | 性質測試 | 有任何一例 |
 | MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator（`E-ENG-PROFILE`、`E-GATE-SOD`）＋報告測試 | 缺少聲明卻通過（一人在同一份關卡紀錄中兼任兩個角色而沒有 `E-GATE-SOD`），或報告沒有標示 |
 | MVP1-X1 | 範例 A 在本地目標上：<br>• 植入版的 TC-012-01 FAIL，並且**不經 LLM 分析者**就裁決為 `CONFIRMED_EXECUTABLE`（G4 已事先登記解讀）<br>• 修正版 PASS，且所有 control 都通過 | 整合測試 | 任一步不符 |
@@ -231,7 +231,7 @@
 | M4-X4 | ST-6＝0；INJ-HTTP 不改變裁決或計畫 | `selftest-report.json` | 大於 0 |
 | M4-X5 | S3 永遠不進 G4；安全等級依 04 §5 的虛擬碼計算（每個分支都有測試） | `security` 線 | 有任何一例 |
 | M4-X6 | G-07 pilot：在 ≥3 個含已知漏洞的 vibe-coded 範例應用（`invoices-app`、`support-agent-app`、`notes-rls-app`）上，量測 ZAP、Nuclei、Schemathesis 對種子漏洞的檢出率與誤報，報告附原始結果 | 報告 | 缺少任何一個工具或應用 |
-| M4-X7 | B6 的 JSON 報告通過 schema 驗證、SARIF 通過 SARIF 2.1.0 驗證；追溯矩陣中每一列都能從發現項追到測試案例與結果 | `fast`＋`integration` 線 | 驗證失敗，或有斷鏈 |
+| M4-X7 | B6 的 JSON 報告通過 schema 驗證、SARIF 通過 SARIF 2.1.0 schema 驗證，並符合 §3.27.9–3.27.10 的 `kind`／`level` 規則 [V][E:whitebox-59]；追溯矩陣中每一列都能從發現項追到測試案例與結果 | `fast`＋`integration` 線 | 驗證失敗，或有斷鏈 |
 | M4-X8 | ASI09 抽查：G3／G4 各抽 10%（最少 2 項）；G5 全部抽查，2 個工作天內完成 | 抽查紀錄 | 不符 |
 | M4-X9 | §3「M4 前」全部結案 | 驗收包 | 有未結案的項目 |
 

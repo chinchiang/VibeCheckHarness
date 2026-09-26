@@ -119,7 +119,7 @@
    - **強／弱工具佐證** [H]：
      - **強**：已解析的 SARIF 結果，其 (adapter, rule_id, tool_version) 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的 CWE 桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90）。`adapter`、`rule_id`、`tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.adapter`、`payload.sarif_results[]`（`{ref, rule_id}`）與 `payload.tool_version`。名單怎麼產生見 [§5.10](#510-掃描器規則的高精準名單high_precision_rules)。**校準前名單是空的**，所以所有 SARIF 都是弱的。
      - **弱**（工具訊號）：其他所有已解析的 SARIF 結果，以及 `E_fail_u` 測試結果（§4.2）。弱 SARIF（不論幾筆）只算 **1 個獨立來源**，`E_fail_u`（不論幾筆）也只算 1 個（R2、R6）；弱訊號本身不能確認。
-     - 為什麼要分級：掃描器規則的精準度差很多。§2.3 引用的研究中，SAST 在 OWASP Benchmark 上的誤報率超過 92%（預印本）[V][E:whitebox-33]。所以只有實測精準度夠高的規則，才能單獨讓叢集確認。
+     - 為什麼要分級：SAST 整體的誤報率很高。§2.3 引用的研究中，SAST 在 OWASP Benchmark 上的誤報率超過 92%（預印本）[V][E:whitebox-33]。該研究只給整體數字；「各規則之間的精準度差很多」是本設計的假設 [H]。所以只有實測精準度夠高的規則，才能單獨讓叢集確認。
 6. **校準加權**：投票權重取自各模型在校準語料上、分 CWE 桶的實測投票正確率（公式見 §4.3），不是等權。只有驗證者有權重；reviewer 不投票（§4.3）。
 7. **分歧→人工（G2）**：這是 **[H] 設計假設**，需要量測 DISPUTED 佇列的精準度（§5.3 M-6）。G2 佇列＝所有 `DISPUTED` 叢集＋最高嚴重度為 critical／high 的 `UNCORROBORATED` 叢集；其他 `UNCORROBORATED` 不進 G2（見 [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。`LIKELY`（含 `no_eligible_verifier` 的多家族叢集）也不進 G2（規則 2）。Trust or Escalate（ICLR 2025）支持「信心不足就不自動判定」，但它是升級給**更強的 LLM 評審**並選擇棄權，**不是交給人**，而且用的是單一評審的校準信心，不是跨廠商分歧 [P][E:multi_llm_bias-34]。
 8. **防注入**：受測 repo 一律視為不可信資料（[06 §1](06-security-legal-limitations.md#1-工具包自身的安全)）。
@@ -566,7 +566,7 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 
 **目的**：決定哪些 W1 掃描器規則的命中可以當**強**工具佐證（§3 規則 5），單獨讓叢集到 `CONFIRMED_CORROBORATED`（§4.2 R5 第 10 列）。其他規則的命中都只是弱訊號。名單以 (adapter, rule_id, tool_version, cwe_bucket) 為單位：同一條規則在不同桶分開量測，只在量測過的桶算強；掃描器換版就是另一列，要重新量測 [H]。
 
-**為什麼要量測**：reviewer 看不到工具輸出，所以掃描器命中與家族回報是兩個獨立來源（§3 規則 5）。但要讓工具**單獨**確認一個叢集，就要先證明這條規則的命中很少是誤報；掃描器規則的精準度差異很大 [V][E:whitebox-33]。
+**為什麼要量測**：reviewer 看不到工具輸出，所以掃描器命中與家族回報是兩個獨立來源（§3 規則 5）。但要讓工具**單獨**確認一個叢集，就要先證明這條規則的命中很少是誤報；SAST 整體的誤報率很高 [V][E:whitebox-33]，而且本設計假設各規則的精準度差異很大 [H]。
 
 **候選規則** [H]：`tools.yaml` 登錄的 W1 白箱工具模式（工具在 Z2、`b4_executable: false`），且 `licenses.yaml` 狀態為 `OK` 或 `注意`（與 `E-SARIF-REF` 的條件相同，§4.2）；在校準切分上至少命中一次的規則。
 
