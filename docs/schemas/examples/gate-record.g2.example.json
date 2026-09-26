@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "disputed_clusters",
-    "sha256": "sha256:98e0ffaa9eceaa05c46525125a6a8388d738a6f7daabf28e51d249fd4de82520"
+    "sha256": "sha256:15e21c6d9f1e9363c6b66f882896033e313f6577bc993f450b4429c328407459"
   },
   "job_id": null,
   "initiator": "alice",
@@ -21,7 +21,7 @@
   "decisions": [
     {
       "item_id": "K-011",
-      "item_sha256": "sha256:94a5c48f73ff54e258e969249f5a7c512f086196b77d2200452568362e1f63a3",
+      "item_sha256": "sha256:3d9801bfcaeeb386b09d3a5508a0d4ef11ef99b3299b9e37b35247ec609d8630",
       "decision": "accept",
       "risk_override": null,
       "note": "高嚴重度、只有一個家族回報；保留進 B 階段以測試驗證"
@@ -36,7 +36,7 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "i3bz7gcYPHAfyhJyKnO6RMsnf3a01v0fxV94LlA4qGtBBJ5qs3rsiKKQG65rYK16Oh8aQ8nZtVyxXQAK51x+Dg=="
+      "value": "neysvMsyKQcF5ZseSOuVSOW4MBecj3cgU56T4Mv8iul+deJxecEhvTRvIyMYxTBA/7HyRa367mY4PZN5WtM3CA=="
     }
   ]
 }

@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "roe",
-    "sha256": "sha256:55651ed81d98bcd693d7d6a36495155f1448a7dbff62b41dbb1656ac56eb9b5c"
+    "sha256": "sha256:8a81ad301655f2db960a718194805748e74041ededbd5b11fe71b5350beb4d90"
   },
   "job_id": null,
   "initiator": "alice",
@@ -31,7 +31,7 @@
   "decisions": [
     {
       "item_id": "roe:eng-acme-invoices-2026q4@1",
-      "item_sha256": "sha256:55651ed81d98bcd693d7d6a36495155f1448a7dbff62b41dbb1656ac56eb9b5c",
+      "item_sha256": "sha256:8a81ad301655f2db960a718194805748e74041ededbd5b11fe71b5350beb4d90",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -39,7 +39,7 @@
   ],
   "gb": null,
   "verification": {
-    "document_ref": "sha256:55651ed81d98bcd693d7d6a36495155f1448a7dbff62b41dbb1656ac56eb9b5c",
+    "document_ref": "sha256:8a81ad301655f2db960a718194805748e74041ededbd5b11fe71b5350beb4d90",
     "key_registry_version": 4,
     "signer_results": [
       {

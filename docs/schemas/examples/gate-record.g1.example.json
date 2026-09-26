@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "invariants",
-    "sha256": "sha256:79018547b2920a6d1db95caf530fecb898973049403d3b4193651f96fc0870cc"
+    "sha256": "sha256:527581300dba7336a5f2226855331fb17c53fb348960c39bdffd87d36d30767a"
   },
   "job_id": null,
   "initiator": "alice",
@@ -43,7 +43,7 @@
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "AjM62rOjzj4Re4VW/iof0/ACRDlMh036QI4FExAwHPoTdkhV5ECaCrhdb2qm3GlIDAFSIbtKztue9snvOjNaAg=="
+      "value": "555hhEmqDOQvIAGxZ8Qa45Z5NGOXLvyd/+Bm77sLlGU0z+gNsuVBaH3dIQdC5jrwCgw7qsuowoM7jjuanF53BQ=="
     }
   ]
 }

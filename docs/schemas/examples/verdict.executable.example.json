@@ -6,9 +6,11 @@
   "votes": [],
   "missing_votes": [],
   "tool_corroboration": [],
+  "tool_signal": [],
+  "independent_sources": 2,
   "executable_proof": {
     "testcase_id": "TC-012-01",
-    "result_ref": "sha256:77ab1e9a23f858db33e9eb66445bc43a32e6b988e255f20e4a17a36e6ba6a053",
+    "result_ref": "sha256:ec78e4831015af2988804ee84a2fd8068fdffb07711dcfcf26215da9e9e44cdf",
     "trials": null,
     "interpretation_confirmed_by": {
       "agent_id": "result_analyst",
@@ -19,10 +21,10 @@
     "class": "E_proof",
     "results": [
       {
-        "result_ref": "sha256:77ab1e9a23f858db33e9eb66445bc43a32e6b988e255f20e4a17a36e6ba6a053",
+        "result_ref": "sha256:ec78e4831015af2988804ee84a2fd8068fdffb07711dcfcf26215da9e9e44cdf",
         "class": "E_proof",
         "positive_control": true,
-        "reason": "FAIL，重播 2 次相同；result_analyst（nvidia）不在叢集家族中"
+        "reason": "FAIL，重播 2 次相同；確定性 oracle（STATUS_AND_BODY），G4 預先登記解讀"
       }
     ]
   },
@@ -31,6 +33,7 @@
   "calibration_version": 3,
   "theta_confirm": 1.2,
   "theta_reject": null,
+  "provisional": false,
   "score": 0,
   "g2_decision_ref": null,
   "status": "CONFIRMED_EXECUTABLE",
@@ -38,8 +41,8 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.2",
+  "rule_version": "05-v0.3",
   "rule_trace": [
-    "R1:E_proof(R-TC-012-01-1)+cross_family_interpretation->CONFIRMED_EXECUTABLE"
+    "R1:E_proof(R-TC-012-01-1),deterministic oracle,pre-registered at G4->CONFIRMED_EXECUTABLE"
   ]
 }

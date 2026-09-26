@@ -45,7 +45,21 @@
       "facets": {
         "type": "array",
         "items": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "authz",
+            "authn_session",
+            "injection",
+            "data_access",
+            "secrets_config",
+            "business_logic",
+            "llm_integration",
+            "file_handling",
+            "ssrf_outbound",
+            "frontend_client",
+            "webhooks_integrations",
+            "crypto"
+          ]
         }
       },
       "viewpoint": {
@@ -68,10 +82,12 @@
           "type": "string",
           "enum": [
             "read_slice",
+            "read_inventory",
             "read_blackboard",
             "write_blackboard"
           ]
-        }
+        },
+        "description": "reviewer／verifier 只能 read_slice；commander 沒有任何工具（輸入是程式產生的型別化視圖）；invariant_drafter 不能 read_slice（E-AGENT-TOOLS）"
       },
       "fallback_models": {
         "type": "array",

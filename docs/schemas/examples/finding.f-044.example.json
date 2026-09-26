@@ -1,7 +1,7 @@
 {
   "finding_id": "F-044",
   "run_id": "run-2026-09-23-001",
-  "slice_id": "sha256:29c34c37a9617bceb0d741006798fb94dbf97a181c95ca73a101fb8bc025a09e",
+  "slice_id": "sha256:ad186f2db02b15239aa533c2dc239cb9cccc23879ecc1589dc29486dc6264ee2",
   "facet": "llm_integration",
   "reporter": {
     "agent_id": "rev_a",
@@ -19,11 +19,15 @@
   "confidence": "medium",
   "evidence": [
     {
-      "file": "src/support/agent.ts",
+      "kind": "code_snippet",
+      "file": "app/support/agent.py",
       "line_start": 57,
       "line_end": 57,
-      "snippet": "tools: [summarizeDocument, refund],",
-      "snippet_sha256": "sha256:a4b3f47d1f9f8639191d4d6d8430a7d0bbedcc09b3bc44d852ab755d74ea2cae",
+      "snippet": "tools=[summarize_document, refund],",
+      "snippet_sha256": "sha256:e9e7fa02e762bebdfb34175c0847572b6934a6a513dde74fa412df747df9a7e7",
+      "fact_ref": null,
+      "key_path": null,
+      "asserted": null,
       "match": "MATCHED"
     }
   ],

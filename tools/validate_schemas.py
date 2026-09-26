@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the VibeCheck Harness schemas, examples and configuration (v0.2).
+"""Validate the VibeCheck Harness schemas, examples and configuration (v0.3).
 
     python -m pip install -r requirements.txt
     python tools/validate_schemas.py

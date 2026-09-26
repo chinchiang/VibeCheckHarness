@@ -82,8 +82,10 @@
               "data_flow",
               "code_location",
               "finding",
+              "cluster",
               "inventory"
-            ]
+            ],
+            "description": "cluster：ref 為 K- 叢集 ID；finding：ref 為 F- 發現項 ID；inventory：ref 為 W0 inventory 的 JSON Pointer（E-INVENTORY-REF）"
           },
           "ref": {
             "type": "string"

@@ -48,8 +48,9 @@ def line_sha(text, seq):
 
 # ================================================================ 1 derived verdict flags
 def test_diversity_degraded_examples_are_derived(b):
+    # v0.3 (A3): only WEIGHTED-valid votes count; K-014's openai vote has weight 0 -> degraded
     for suffix, want in ((V_W3, True), (V_K011, True), ("verdict.executable.example.json", True), (V_LANE_A, False),
-                         ("verdict.k-014-w3.example.json", False)):         # nvidia + openai valid votes
+                         ("verdict.k-014-w3.example.json", True)):
         assert doc(b, suffix).data["diversity_degraded"] is want, suffix
     assert "E-VERDICT-DIVERSITY" not in codes(b)
 
@@ -71,14 +72,17 @@ def _add_gpt_oss_vote(v):
     v["votes"].append(vt)
 
 
-def test_two_valid_families_are_not_degraded(b, keys):
+def test_weight_zero_vote_does_not_add_diversity(b, keys):
+    """v0.3 (A3): a valid vote with calibration weight 0 (gpt_oss_self / llm_specific) is not weighted-valid,
+    so it adds no family: V-011-1 stays diversity_degraded (the v0.2 rule counted every valid vote)."""
     v = doc(b, V_K011).data
     _add_gpt_oss_vote(v)
     rederive(b, keys)                                  # G2 item hash / signatures follow the new vote
-    assert codes(b) == {"E-VERDICT-DIVERSITY"}         # still declared true: the only error
+    assert v["votes"][1]["valid"] is True and v["votes"][1]["weighted_valid"] is False
+    assert codes(b) == set()                           # still degraded, as declared
     v["diversity_degraded"] = False
     rederive(b, keys)
-    assert codes(b) == set()
+    assert codes(b) == {"E-VERDICT-DIVERSITY"}
 
 
 def test_vote_family_is_taken_from_the_registry(b):
@@ -101,17 +105,51 @@ def test_tool_corroboration_self_declared_is_rejected(b):
     assert "E-VERDICT-TOOLCORR" in codes(b)
 
 
-def test_tool_corroboration_from_sarif_refs(b):
-    """The K-014 example: its SARIF ref is backed by a successful semgrep:scan tool_invocation_end."""
+def test_tool_signal_from_sarif_refs(b):
+    """The K-014 example (v0.3, H-A1): its SARIF ref is backed by a successful, legally cleared opengrep:scan
+    tool_invocation_end, but opengrep's rule is not a calibrated high-precision rule, so it is a WEAK signal:
+    tool_signal, one extra independent source, LIKELY via R6 (was CONFIRMED_CORROBORATED in v0.2)."""
     cl = doc(b, "cluster.k-014.example.json").data
     v = doc(b, "verdict.k-014-w3.example.json").data
-    assert cl["sarif_refs"] and v["tool_corroboration"] == cl["sarif_refs"]
-    assert v["diversity_degraded"] is False and v["status"] == "CONFIRMED_CORROBORATED"
+    assert cl["sarif_refs"] and v["tool_signal"] == cl["sarif_refs"] and v["tool_corroboration"] == []
+    assert v["independent_sources"] == 2 and v["status"] == "LIKELY" and v["rule_trace"][-1].startswith("R6:")
     ends = [e for e in doc(b, AUDIT).data if e["event_type"] == "tool_invocation_end"]
-    assert any(cl["sarif_refs"][0] in e["payload_refs"] for e in ends)
+    assert any(cl["sarif_refs"][0] in e["payload_refs"] and e["payload"]["adapter"] == "opengrep:scan" for e in ends)
     assert codes(b) == set()
-    v["tool_corroboration"] = []                       # omitting the derived SARIF ref
-    assert codes(b) == {"E-VERDICT-TOOLCORR"}
+    v["tool_signal"] = []                              # omitting the derived SARIF ref
+    assert codes(b) == {"E-VERDICT-TOOLSIGNAL"}
+
+
+def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
+    """Positive case of H-A1: once calibration lists (opengrep:scan, rule, authz) with precision_lower95 >=
+    high_precision_min, the same SARIF ref is STRONG: tool_corroboration, row 10 CONFIRMED_CORROBORATED (never
+    capped by R8, although V-014-1 is diversity_degraded)."""
+    rule = {"adapter": "opengrep:scan", "rule_id": "vc.authz.update-without-owner", "tool_version": "1.6.0", "cwe_bucket": "authz",
+            "n": 120, "precision_lower95": 0.93}
+    doc(b, "calibration.yaml").data["result"]["high_precision_rules"] = [rule]
+    rederive(b, keys)                                  # run.config_refs hashes calibration.yaml (v0.3, B11)
+    v = doc(b, "verdict.k-014-w3.example.json").data
+    ref = v["tool_signal"][0]
+    assert codes(b) == {"E-VERDICT-TOOLCORR", "E-VERDICT-TOOLSIGNAL", "E-VERDICT-SOURCES", "E-VERDICT-STATUS", "E-VERDICT-TRACE"}
+    v.update(tool_corroboration=[ref], tool_signal=[], independent_sources=1, status="CONFIRMED_CORROBORATED",
+             rule_trace=["R2:strong_tool=opengrep:scan", "R5:strong tool corroboration (row 10)"])
+    counts = doc(b, "report-manifest.example.json").data["verdict_counts"]
+    counts["LIKELY"] -= 1
+    counts["CONFIRMED_CORROBORATED"] += 1
+    rederive(b, keys)
+    assert codes(b) == {"E-AUDIT-VERDICT"}            # the audit verdict_changed event still says LIKELY
+    next(e for e in doc(b, AUDIT).data if (e["payload"] or {}).get("verdict_id") == "V-014-1")["payload"]["status"] = "CONFIRMED_CORROBORATED"
+    rederive(b, keys)
+    assert codes(b) == set()
+    rule["precision_lower95"] = 0.89                 # below high_precision_min 0.90 -> weak again
+    assert "E-VERDICT-TOOLCORR" in codes(b)
+    rule.update(precision_lower95=0.93, tool_version="1.5.2")   # measured on another scanner version -> weak
+    assert "E-VERDICT-TOOLCORR" in codes(b)
+    rule["tool_version"] = "1.6.0"
+    rederive(b, keys)
+    assert codes(b) == set()
+    doc(b, "calibration.yaml").data["result"]["thresholds"]["high_precision_min"]["value"] = 0.95   # stricter policy
+    assert "E-VERDICT-TOOLCORR" in codes(b)
 
 
 def test_fabricated_sarif_ref_is_rejected(b):
@@ -128,30 +166,44 @@ def test_fabricated_sarif_ref_is_rejected(b):
     assert any("not in payload_refs of any tool_invocation_end" in i.msg for i in R.errors if i.code == "E-SARIF-REF")
 
 
-def test_tool_corroboration_from_e_fail_u(b, keys):
-    """A reproduced FAIL interpreted by an ineligible (same-family) analyst is E_fail_u, which is
-    tool corroboration (R2) -> row 10 CONFIRMED_CORROBORATED. Consistent change, exact error set."""
+def test_reproduced_black_box_fail_is_proof_without_an_eligible_analyst(b, keys):
+    """v0.3 (A2, H-A3): a reproduced deterministic FAIL of a G4-approved black-box testcase has a pre-registered
+    interpretation, so it is E_proof even when the analyst is of the cluster's family (v0.2: E_fail_u)."""
+    from vchlib.derive import Index, classify_result
     tr = doc(b, "testresult.llm-pass.example.json").data
-    tr.update(outcome="FAIL", trials={"n": 60, "k": 3}, replays=20, replay_k=2,
-              interpreted_by={"agent_id": "rev_a", "family": "anthropic"})     # K-011 is anthropic: not eligible
+    tr.update(outcome="FAIL", fail_oracles=["TOOL_CALL_LOG"], trials={"n": 60, "k": 3}, replays=20, replay_k=2,
+              interpreted_by={"agent_id": "result_analyst_a", "family": "anthropic"})    # K-011 is anthropic: not eligible
+    ix = Index(b)
+    assert classify_result(ix, tr, ix.first("cluster", cluster_id="K-011").data)[0] == "E_proof"
+    tr["fail_oracles"] = ["LLM_GRADER"]                 # only a non-deterministic oracle saw the violation
+    assert classify_result(ix, tr, ix.first("cluster", cluster_id="K-011").data) ==         ("E_inc", "violation judged only by a non-deterministic oracle")
+
+
+def test_tool_signal_from_e_fail_u(b, keys):
+    """E_fail_u (a reproduced W4 FAIL without pre-registration or an eligible analyst) is a WEAK tool signal
+    (v0.3): it goes to tool_signal and counts as one independent source; it never confirms on its own."""
+    from vchlib.checks import Ctx, derived_independent_sources, derived_tool_signal, verdict_inputs
+    from vchlib.adjudicate import adjudicate
+    from vchlib.bundle import Doc
+    base = doc(b, "testresult.llm-pass.example.json")
+    w4 = copy.deepcopy(base.data)
+    w4.update(result_id="R-W4-031-1", phase="W4", job_id=None, outcome="FAIL", fail_oracles=["TOOL_CALL_LOG"],
+              trials={"n": 60, "k": 3}, replays=20, replay_k=2, request_log_sha256=None,
+              interpreted_by={"agent_id": "result_analyst_a", "family": "anthropic"},
+              interpretation={"agrees": True, "rationale": "同家族分析者（不合格）"})
+    b.docs.append(Doc("docs/schemas/examples/testresult.w4.example.json", "testresult", w4, None))
+    rederive(b, keys)
+    c = Ctx(b)
     v = doc(b, "verdict.k-011-b5.example.json").data
-    v.update(status="CONFIRMED_CORROBORATED", annotations=[],
-             rule_trace=["R2:E_fail_u (TC-031-01 reproduced, analyst not eligible)", "R5:tool_corroboration->CONFIRMED_CORROBORATED"])
-    for ev in doc(b, AUDIT).data:
-        if (ev.get("payload") or {}).get("verdict_id") == "V-011-2":
-            ev["payload"]["status"] = "CONFIRMED_CORROBORATED"
-        if (ev.get("payload") or {}).get("job_id") == "job-llm-001" and ev["event_type"] == "sandbox_job_end":
-            ev["payload"]["outcome"] = "FAIL"
-    counts = doc(b, "report-manifest.example.json").data["verdict_counts"]
-    counts["UNCORROBORATED"] -= 1
-    counts["CONFIRMED_CORROBORATED"] += 1
-    rederive(b, keys)
-    assert v["test_evidence"]["class"] == "E_fail_u"
-    ref = v["test_evidence"]["results"][0]["result_ref"]
-    assert codes(b) == {"E-VERDICT-TOOLCORR"}          # declared [] but E_fail_u is derived corroboration
-    v["tool_corroboration"] = [ref]
-    rederive(b, keys)
-    assert codes(b) == set()
+    cl = c.ix.first("cluster", cluster_id="K-011").data
+    classes = [r["class"] for r in v["test_evidence"]["results"]]
+    assert "E_fail_u" in classes and v["test_evidence"]["class"] == "E_fail_u"
+    ref = next(r["result_ref"] for r in v["test_evidence"]["results"] if r["class"] == "E_fail_u")
+    assert derived_tool_signal(c, v, cl) == [ref] and derived_independent_sources(c, v, cl) == 2
+    out = adjudicate(verdict_inputs(c, v, cl))
+    assert out.row == 12 and out.rules[:2] == ["R2", "R6"]     # LIKELY via the extra source, then R11 (E_pass) -> DISPUTED
+    assert out.status == "DISPUTED" and out.rules[-1] == "R11"
+    assert {"E-VERDICT-TOOLSIGNAL", "E-VERDICT-SOURCES", "E-VERDICT-STATUS"} <= run_all(b).codes()
 
 
 # ================================================================ 2 strict JSON
