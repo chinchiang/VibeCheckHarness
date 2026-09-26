@@ -202,7 +202,8 @@
 - **職責分離依保證等級而定** [H]（定義見 [02 §1.7](02-methodology.md#17-保證等級liteteamfull)）：
   - **Team**：ROE 的每個簽署角色必須由不同的人擔任（`E-ROE-SOD`）；G4／G5 的分離同上。
   - **Full**：在 Team 之上，G5 需要兩位不同的資安審查者（`E-G5-TWO-PERSON`）。
-  - **Lite（單人）**：一人可以兼任多個角色，但必須在 engagement 中明確聲明（`role_consolidation`）；只允許 S0／S1，所以沒有 G5。報告首頁標示「單人模式，未經職責分離」。這是已知的限制（§3 #26），不是替代方案。
+  - **Lite（單人）**：一人可以兼任多個角色，但必須在 engagement 中明確聲明（`role_consolidation`；在其他模式使用 → `E-ENG-PROFILE`）；只允許由工具包執行的 S0／S1（`E-PROFILE-SAFETY`；人工執行的 `MANUAL` 測試案例除外），所以沒有 G5；§2.1.1 的 L-5 改為警告 `W-L5-LITE`。報告首頁標示「單人模式，未經職責分離」。這是已知的限制（§3 #26），不是替代方案。
+  - 同一份關卡紀錄上，一個人不能同時擔任兩個核准角色（`E-GATE-SOD`，Team／Full）。
   - 各模式的**安全底線相同**：ROE 與所有權證明、Scope Proxy、排除清單、kill switch、先遮罩再送 LLM、只測 staging。
 - 限制 checkpoint 與 audit 儲存庫的存取權。Microsoft Agent Framework 也警告不要從不可信來源載入 checkpoint [V][E:orchestration-09]。
 
@@ -266,7 +267,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | L-2 | `attested_by` 在金鑰登錄中、未撤銷，且角色含 `legal_reviewer`。沒有法務人員的組織可以用 `management` 角色代理 | 不在登錄、已撤銷或兩種角色都沒有 → `VERIFY_FAILED`；以 `management` 通過時 → 警告 `W-L2-MANAGEMENT`（不是錯誤），報告首頁標示「未經法務人員審查」 |
 | L-3 | `attested_by` 的簽章有效（與其他 ROE 簽章同一套流程，D11） | `VERIFY_FAILED` |
 | L-4 | `attested_at` ≤ ROE 的 `not_before`；`expires_at` ≥ ROE 的 `not_after` | `VERIFY_FAILED`；到期時執行中的 run → `SUSPENDED`（`B4_preflight` 檢查，`suspended_wait`；checkpoint 保留，resume 需要一份新的有效 ROE） |
-| L-5 | `attested_by` 不是 ROE 的 `test_lead`（職責分離） | `VERIFY_FAILED`（理由 `legal_attester_is_test_lead`），但 run 不中止：`SUSPENDED`（`suspended_wait`）等 ROE 修正後重新驗章 |
+| L-5 | `attested_by` 不是 ROE 的 `test_lead`（職責分離） | `VERIFY_FAILED`（理由 `legal_attester_is_test_lead`），但 run 不中止：`SUSPENDED`（`suspended_wait`）等 ROE 修正後重新驗章。**例外（Lite）**：engagement 為 `lite`、`role_consolidation` 已聲明，且簽署者就是該人時，改為警告 `W-L5-LITE`，報告首頁標示「法務聲明由測試負責人本人簽署」（[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 | L-6 | 依序對照：ROE 的 `allowed_tools` → `tools.yaml` 各工具的 `license_ref` → `licenses.yaml` 對應列。只要有一列 `status: 法務閘門`，`component_licenses` 就必須為 `true` | 該元件從允許清單移除，並列入 B6；過濾後的允許清單記入 G0b GateRecord，B 階段只用這份清單 |
 
 - 工具包**只檢查聲明存在且簽章有效**，不判斷法律意見的內容（§3 #24）。
