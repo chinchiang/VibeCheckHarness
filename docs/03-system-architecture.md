@@ -220,7 +220,7 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 - 每個 CMD 節點的輸出都先以 schema 驗證，再經 Policy Engine 檢查；兩者任一失敗就要求修復（至多 2 次），之後改用上表最右欄**由程式碼決定的保底計畫**（CMD-1 寫稽核事件 `coverage_floor_applied`，其他節點寫 `policy_decision`）[H]。
 - **CMD-2 的輪數上限由 validator 檢查**：計畫帶 `round`（1 或 2），超過 `max_extra_dispatch_rounds`（2）→ `E-PLAN-ROUNDS`；RunState 的 `cmd2_rounds` 只是執行中的計數（§5.1）[H]。
 
-**覆蓋下限**：「每個切片 × 每個必要面向」的最小計畫由程式碼從 W0 inventory 產生。必要面向由 W0 的確定性特徵決定：`authz`、`authn_session`、`injection`、`data_access`、`secrets_config`、`business_logic` 一律必要；其他面向依 inventory 的 `features[]`、LLM 整合與公開前綴的環境變數加入（規則見 [02 W2](02-methodology.md#w2-多家族獨立審查)）[H]。Commander **只能加，不能減**：它的計畫必須是覆蓋下限計畫的**超集合**，每個切片都要包含全部必要面向，否則 → `E-PLAN-FACETS`（覆蓋下限計畫本身也受同一檢查）。任何降權或略過都要記錄並出現在報告中。這也防止受測 repo 內容透過 Commander 讓覆蓋縮水。
+**覆蓋下限**：「每個切片 × 每個必要面向」的最小計畫由程式碼從 W0 inventory 產生。必要面向由 W0 的確定性特徵決定：`authz`、`authn_session`、`injection`、`data_access`、`secrets_config`、`business_logic` 一律必要；其他面向依 inventory 的 `features[]`、LLM 整合與公開前綴的環境變數加入（規則見 [02 W2](02-methodology.md#w2-多家族獨立審查)）[H]。Commander **只能加，不能減**：它的計畫必須是覆蓋下限計畫的**超集合**，每個切片都要包含全部必要面向，否則 → `E-PLAN-FACETS`（覆蓋下限計畫本身也受同一檢查）。v0.4 起 CMD-1 計畫還必須涵蓋 run 的每個切片（`E-PLAN-COVERAGE`），且每個切片的 reviewer 至少來自 min(2, 合格 reviewer 家族數) 個家族（`E-PLAN-FAMILIES`）；否則 Commander 可以漏掉切片或只派一個家族，讓多家族審查名存實亡。任何降權或略過都要記錄並出現在報告中。這也防止受測 repo 內容透過 Commander 讓覆蓋縮水。
 
 **Commander 的輸入：型別化視圖** [H]：Commander **沒有任何工具**（`agents.yaml` 的 `tools: []`），不能讀 Blackboard、切片或 repo。每個 CMD 節點的輸入是 Policy Engine 以程式碼組成的**型別化視圖**：只有 ID、狀態、CWE 桶、嚴重度、家族、enum 值與計數，**沒有任何來自 LLM 輸出或受測 repo 的自由文字**（沒有發現項說明、推理、程式片段、威脅敘述、檔名或註解）。受測 repo 可能含有影響 LLM 的文字：經 LLM 最佳化的 PR metadata 框架攻擊，曾讓 LLM 安全審查漏判 33 個 CVE 中的 32 個 [V：預印本][E:whitebox-29]。各節點的視圖內容如下：
 
@@ -738,7 +738,7 @@ stateDiagram-v2
 | `CMD1_plan`…`CMD5_followup` | Z1 | 是 | 計畫 ID；Commander 無工具，輸入是型別化視圖；先經 schema 與 Policy Engine 驗證才寫入 state | 見 §4 |
 | `W2_fanout`、`W3_verify_fanout`、`B2_threat_fanout` | Z1 | — | 只產生 `Send` | — |
 | `W2_review`、`W3_adjudicate` 的驗證者分支 | Z1 | 是 | LLM 請求快取鍵；輸入**不含** W1 工具輸出 | 重試用盡 → 缺票 |
-| `W2_fanin`、`W3_cluster`、`W3_adjudicate` | Z1 | 否 | 純函式（輸入 hash → 輸出 hash）；`W3_cluster` 的輸入是發現項與 `ToolResult`；依 05 R0–R13 | quorum 不足 → R8 封頂 |
+| `W2_fanin`、`W3_cluster`、`W3_adjudicate` | Z1 | 否 | 純函式（輸入 hash → 輸出 hash）；`W3_cluster` 的輸入是發現項與 `ToolResult`；依 05 R0–R13 | quorum 不足 → 獨立家族數變少並列入報告（不是 R8；[05 §3 規則 3](05-bias-calibration.md#3-設計規則)） |
 | `W4_testgen` | Z1 | 是 | LLM 請求快取鍵 | 修復 ≤2 → `MANUAL` |
 | `W4_exec` | Z2 | 否 | Sandbox job ID | 重試 1 次 → `ERROR` |
 | `W4_readjudicate`、`B5_readjudicate` | Z1 | 否 | 新版裁決 append-only | — |

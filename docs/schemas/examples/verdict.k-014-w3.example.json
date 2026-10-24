@@ -63,7 +63,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.3",
+  "rule_version": "05-v0.4",
   "rule_trace": [
     "R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=2",
     "R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY"

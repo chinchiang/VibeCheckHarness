@@ -202,8 +202,9 @@ def test_tool_signal_from_e_fail_u(b, keys):
     ref = next(r["result_ref"] for r in v["test_evidence"]["results"] if r["class"] == "E_fail_u")
     assert derived_tool_signal(c, v, cl) == [ref] and derived_independent_sources(c, v, cl) == 2
     out = adjudicate(verdict_inputs(c, v, cl))
-    assert out.row == 12 and out.rules[:2] == ["R2", "R6"]     # LIKELY via the extra source, then R11 (E_pass) -> DISPUTED
-    assert out.status == "DISPUTED" and out.rules[-1] == "R11"
+    assert out.row == 12 and out.rules[:2] == ["R2", "R6"]     # LIKELY via the extra source
+    # v0.4: the B5 PASS (TC-031-01) has no oracle_can_fail control, so R11 only annotates (no downgrade to DISPUTED)
+    assert out.status == "LIKELY" and out.rules[-1] == "R11" and "test_not_reproduced" in out.annotations
     assert {"E-VERDICT-TOOLSIGNAL", "E-VERDICT-SOURCES", "E-VERDICT-STATUS"} <= run_all(b).codes()
 
 

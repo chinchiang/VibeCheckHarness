@@ -136,16 +136,22 @@ class Index:
         return d.data if d else None
 
 
+GROUNDED_MATCHES = ("MATCHED", "MATCHED_SHIFTED")
+
+
 def has_supporting_evidence(f: dict) -> bool:
-    """At least one evidence item is not NOT_FOUND (docs/05 §4.2: findings whose evidence all failed to match
-    do not support the cluster)."""
-    return any(isinstance(e, dict) and e.get("match") != "NOT_FOUND" for e in f.get("evidence") or [])
+    """At least one evidence item is grounded: MATCHED or MATCHED_SHIFTED (docs/05 §3 rule 5).
+
+    v0.4: NOT_CHECKED (the harness could not check the item, e.g. an unparseable config file) is not
+    grounded either. v0.3 counted every item that was not NOT_FOUND, so two families that each sent an
+    uncheckable config_fact reached R6 LIKELY without any grounded evidence."""
+    return any(isinstance(e, dict) and e.get("match") in GROUNDED_MATCHES for e in f.get("evidence") or [])
 
 
 def independent_families(ix: Index, cluster: dict) -> list[str]:
     """docs/05 §4.1 (D14): families that contributed a member in the first round of this run, reported by an
     agents.yaml `reviewer` (Lane A advisories and CMD-2 extra rounds do not count), whose finding has at least
-    one evidence item that is not NOT_FOUND (UNVERIFIED findings do not count). Sorted."""
+    one grounded evidence item (MATCHED / MATCHED_SHIFTED; UNVERIFIED and NOT_CHECKED-only findings do not count). Sorted."""
     fams = set()
     for fid in cluster.get("member_finding_ids") or []:
         f = ix.finding(fid)

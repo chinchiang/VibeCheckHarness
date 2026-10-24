@@ -2,6 +2,28 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
+## v0.4（2026-10-24）
+
+依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一優先項目，修正裁決規則的邊界與 validator 的繞過。其餘審查項目與理由見該紀錄 §5。
+
+### 裁決規則（語意改變，`rule_version` 改為 `05-v0.4`）
+- **R0** 只在叢集沒有任何其他證據時成立：除了成員證據全部 `NOT_FOUND`，還要沒有已解析的 SARIF、沒有 `E_proof`／`E_fail_u`。（A1）
+- **R10**：G2 駁回後出現 `E_proof` → `CONFIRMED_EXECUTABLE`（R10、R1），加註 `post_g2_conflict` 並列入 B6 人工複核；對投票、SARIF 與 `E_fail_u` 仍是最終決定。（A4）
+- **R11** 只有在合格 PASS 有正對照（`oracle_can_fail` PASS）時才把 `CONFIRMED_CORROBORATED`／`LIKELY` 降為 `DISPUTED`；否則只加註 `test_not_reproduced`。（A3）
+- 只有 `NOT_CHECKED` 證據的發現項不計入獨立家族。（A2）
+- 補上 quorum 與 `single_best_resampled` 下的裁決定義。（A8、A9）
+
+### validator
+- `E-SARIF-REF`：`payload.sarif_results[]` 新增 `file`、`symbol`、`cwe_bucket`，必須等於叢集鍵；黑箱叢集不收 SARIF。（D1）
+- 自架（Z4）模型改由 `toolkit.yaml` 新增的 `z4_model_hosts` 確切主機名稱判定，不再看 `z4-` 前綴。（D2）
+- 新增 `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES`：CMD-1 計畫涵蓋 run 的每個切片，每個切片的 reviewer 至少 min(2, 合格家族數) 個家族。（D3）
+- `E-FINDING-EVIDENCE`：程式片段至少 12 個非空白字元並含識別字，檔案必須在發現項的切片中。（D4）
+- `graphql_operation: query／introspection` 只在 ROE 新增的 `targets[].graphql_paths` 宣告的路徑、GET／POST 上算讀取；其他帶這個標籤的請求一律 S3。（B1）
+- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 497 個。
+
+### 文件
+- docs/02、03、04、05、08 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
+
 ## v0.3（2026-09-26）
 
 依 [2026-09-26 深度審查](docs/evidence/review-2026-09-26.md) 修正 v0.2。高、中優先項目本輪處理；低優先與延後項目見 [docs/09-backlog.md](docs/09-backlog.md)。

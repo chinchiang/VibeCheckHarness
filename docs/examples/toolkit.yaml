@@ -54,6 +54,10 @@ sandbox:                           # docs/03 §2 Z2 預設上限
   max_output_mib: 100
   network: none
 
+z4_model_hosts:                    # docs/03 §2 Z4：自架模型伺服器的確切主機名稱（不比對前綴）
+  - z4-gpt-oss                     # models.yaml 的 api_base 主機必須完全等於其中一項，才算自架（可收 C 級，E-ENG-PROVIDER）
+  - z4-nemotron
+
 path_blacklist:                    # W0：完全不進任何後續產物（docs/02 W0、docs/06 §1）
   - ".env*"
   - "**/*.pem"

@@ -47,37 +47,37 @@
     {
       "kind": "verdict",
       "ref": "V-005-1",
-      "sha256": "sha256:7bba3f8f98c89c9f6f83faf2cf1859859fb55979d98846062d5813f71a57c8d7"
+      "sha256": "sha256:68c1ed0092e87553b5f50bef592df004c2244c006746aaf622f25251c5672996"
     },
     {
       "kind": "verdict",
       "ref": "V-011-1",
-      "sha256": "sha256:23ebbef689855fd9f08613d81f1907a85384dc1d8430de9b082baf1c3cbbb0c7"
+      "sha256": "sha256:31dba1d50f637b2c0123f5c896c2c086907a87a431264f6df6bc82850ae75013"
     },
     {
       "kind": "verdict",
       "ref": "V-005-2",
-      "sha256": "sha256:6f9b1ea95c95c904d60e3b650d38b781a5f5e147f1a875773ac1ffc5fc3e5ca9"
+      "sha256": "sha256:fbf642dc8157a5f702ef0fb8cbdccfce43ced90958b155bf88aab9cfde3f4be3"
     },
     {
       "kind": "verdict",
       "ref": "V-011-2",
-      "sha256": "sha256:3b433d03a7b8f93a419b68991611e9c1b48f5de68fa719efe316e67c70635de8"
+      "sha256": "sha256:f042c0c1c887618a3ff341bed080cbaaffda23af9b6dc53d5ddae0967e22a09e"
     },
     {
       "kind": "verdict",
       "ref": "V-015-1",
-      "sha256": "sha256:3cc1501576a0915799fa68a7bc789257e31b7a5027a42f6fe417caead9ab48e8"
+      "sha256": "sha256:ffc8ac08e488f74b7932953c9209faa7b3a5a83d7aa83d67f1e67dd59a865873"
     },
     {
       "kind": "verdict",
       "ref": "V-201-1",
-      "sha256": "sha256:42dd3ded56afdb53e3f332f628815b6bdd990d76016cd561d23b9bab4b88f57b"
+      "sha256": "sha256:4c678a479488762ce92a6145e7dffbfbd646feff0e5eb7f2b7f252a62392a5cc"
     },
     {
       "kind": "verdict",
       "ref": "V-202-1",
-      "sha256": "sha256:42ae9f8b1b460dbd3cc9897a99c842c95e74cdda7029daeb62ecd2399393367f"
+      "sha256": "sha256:6f8122d47dcc1b54d529fe538c832fe4ad8cd65b88d43b80335aedd6d418d04d"
     },
     {
       "kind": "gate_record",
@@ -122,7 +122,7 @@
     {
       "kind": "audit_log",
       "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
-      "sha256": "sha256:bca0e284b78d4c38fff4331ead514f111b67e67f5edb6ead1c5bed2d7eb04737"
+      "sha256": "sha256:a104382b41ff5294940e519159c9536f0c6cb8f3efc7ed938865c30103b207ce"
     },
     {
       "kind": "followup_draft",

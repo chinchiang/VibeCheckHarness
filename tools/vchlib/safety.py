@@ -20,6 +20,12 @@ v0.3 (H-B3, L-11, D1, D11):
     ("mutation scope", E-TC-MUTATION-SCOPE);
   - a {seed:<key>} segment is only valid at a variable position of one of the seed's declared
     path_templates (a DELETE on an invoices seed under /api/users/... is S3).
+
+v0.4 (B1): `graphql_operation` is a claim of the test designer (an LLM). A query / introspection
+counts as a read only on a path the signed ROE declares as GraphQL for that target
+(targets[].graphql_paths) and only over GET / POST; any other request that carries a
+graphql_operation is S3. v0.3 trusted the label on every path, so `POST /api/admin/purge` marked
+`query` skipped the seed-binding check.
 """
 from __future__ import annotations
 
@@ -152,12 +158,30 @@ def seed_path_problem(path: str, manifest) -> str | None:
     return None
 
 
-def is_mutation(r: dict) -> bool:
-    """POST / PUT / PATCH / DELETE and GraphQL mutations; a GraphQL query / introspection is a read."""
+GRAPHQL_METHODS = frozenset({"GET", "POST"})
+
+
+def graphql_paths(roe: dict | None) -> dict[str, set[str]]:
+    """target_id -> the GraphQL endpoint paths the signed ROE declares for it (targets[].graphql_paths)."""
+    out: dict[str, set[str]] = {}
+    for t in (roe or {}).get("targets") or [] if isinstance(roe, dict) else []:
+        if isinstance(t, dict) and isinstance(t.get("id"), str):
+            out[t["id"]] = {x for x in t.get("graphql_paths") or [] if isinstance(x, str)}
+    return out
+
+
+def graphql_declared(r: dict, gql: dict[str, set[str]] | None) -> bool:
+    """The request goes to a ROE-declared GraphQL path of its target over GET / POST."""
+    return r.get("method") in GRAPHQL_METHODS and r.get("path") in (gql or {}).get(r.get("target_id"), set())
+
+
+def is_mutation(r: dict, gql: dict[str, set[str]] | None = None) -> bool:
+    """POST / PUT / PATCH / DELETE and GraphQL mutations. A GraphQL query / introspection is a read only on
+    a ROE-declared GraphQL path (v0.4); elsewhere the label is ignored and the HTTP method decides."""
     op = r.get("graphql_operation")
     if op == "mutation":
         return True
-    if op in READ_ONLY_GRAPHQL:
+    if op in READ_ONLY_GRAPHQL and graphql_declared(r, gql):
         return False
     return r.get("method") in STATE_CHANGING
 
@@ -171,9 +195,11 @@ def _create_endpoint(manifest, r: dict) -> dict | None:
     return None
 
 
-def mutation_scope_problems(tc: dict, manifest) -> list[str]:
-    """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope)."""
+def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list[str]:
+    """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope).
+    `roe` supplies the declared GraphQL paths (v0.4); without it no request is a GraphQL read."""
     out = []
+    gql = graphql_paths(roe)
     creates: dict[str, dict] = {}                   # step_id -> earlier create request
     for i, r in enumerate(tc.get("request_allowlist") or []):
         if not isinstance(r, dict):
@@ -189,7 +215,10 @@ def mutation_scope_problems(tc: dict, manifest) -> list[str]:
         prob = seed_path_problem(path, manifest)
         if prob:
             out.append(f"{where}: {prob}")
-        if is_mutation(r):
+        if r.get("graphql_operation") is not None and not graphql_declared(r, gql):
+            out.append(f"{where}: graphql_operation {r.get('graphql_operation')!r} on a path the ROE does not declare as GraphQL "
+                       f"for {r.get('target_id')} (targets[].graphql_paths), or not over GET/POST")
+        if is_mutation(r, gql):
             var = [s for s in segments(path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
             create = _create_endpoint(manifest, r)
@@ -353,7 +382,7 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
         if hits:
             return "S3", [f"{r['method']} {r['path']}: may match ROE exclusion {hits}"]
     # every mutation is seed-bound or a create in the run namespace; seeds only on their own resources
-    scope = mutation_scope_problems(tc, manifest)
+    scope = mutation_scope_problems(tc, manifest, roe)
     if scope:
         return "S3", [f"{MUTATION_SCOPE}: {p}" for p in scope]
 

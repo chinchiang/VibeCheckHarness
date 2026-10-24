@@ -603,15 +603,21 @@ def g_engagement(R: Report, c: Ctx):
     R.check(e.get("telemetry_disabled") is True, "E-ENG-TELEMETRY", w, "telemetry_disabled must be true")
 
 
-Z4_HOST_PREFIX = "z4-"      # self-hosted model servers live in Z4 (models.yaml api_base http://z4-...)
+def z4_hosts(c: Ctx) -> set[str]:
+    """toolkit.yaml z4_model_hosts: the exact host names of the Z4 self-hosted model servers."""
+    hosts = c.toolkit.get("z4_model_hosts") if isinstance(c.toolkit, dict) else None
+    return {safety.norm_host(h) for h in hosts if isinstance(h, str)} if isinstance(hosts, list) else set()
 
 
-def self_hosted(m: dict) -> bool:
+def self_hosted(m: dict, c: Ctx) -> bool:
+    """v0.4 (D2): a model is self-hosted in Z4 iff its api_base host equals a toolkit.yaml z4_model_hosts entry.
+
+    v0.3 accepted any host that started with "z4-", so https://z4-evil.attacker.example could take C data."""
     try:
         host = urlsplit(m.get("api_base") or "").hostname or ""
     except ValueError:
         return False
-    return host.startswith(Z4_HOST_PREFIX)
+    return bool(host) and safety.norm_host(host) in z4_hosts(c)
 
 
 def provider_rules(R: Report, c: Ctx):
@@ -623,7 +629,7 @@ def provider_rules(R: Report, c: Ctx):
     prov = {p.get("family"): p for p in e.get("providers") or [] if isinstance(p, dict)}
     for k, users in sorted(reachable_models(c).items()):
         m = c.model(k)
-        if not m or "C" not in (m.get("data_classes") or []) or self_hosted(m):
+        if not m or "C" not in (m.get("data_classes") or []) or self_hosted(m, c):
             continue
         p = prov.get(m.get("family")) or {}
         R.check(p.get("zdr") == "confirmed" and p.get("dpa_signed") is True, "E-ENG-PROVIDER", w,
@@ -1553,7 +1559,7 @@ def g_testcases(R: Report, c: Ctx):
             prop = tc.get("safety_class_proposed") or "S0"
             R.check(safety.ORDER.index(level) >= safety.ORDER.index(prop), "E-TC-SAFETY", w, "computed class below the LLM proposal")
             R.check(safety.admissible(level, r), "E-TC-ADMISSIBLE", w, f"class {level} cannot enter G4 ({'; '.join(trace)})")
-            scope = safety.mutation_scope_problems(tc, mk)
+            scope = safety.mutation_scope_problems(tc, mk, r)
             R.check(not scope, "E-TC-MUTATION-SCOPE", w, "every mutation must be seed-bound or a create in the run namespace (B6): "
                     + "; ".join(scope))
             dn = tc.get("data_needed") or {}
@@ -1762,9 +1768,32 @@ def _resolving_event(c: Ctx, cluster: dict, ref) -> tuple[dict | None, str | Non
             reasons.append(f"seq {e.get('seq')}: event zone {e.get('zone')!r} is not Z2")
         elif p.get("ok") is not True:
             reasons.append(f"seq {e.get('seq')}: invocation of {adapter} failed (payload.ok is not true)")
+        elif (why := sarif_location_problem(cluster, ref, p)) is not None:
+            reasons.append(f"seq {e.get('seq')}: {why}")
         else:
             return e, None
     return None, f"SARIF ref {ref}: " + "; ".join(reasons)
+
+
+def sarif_location_problem(cluster: dict, ref, payload: dict) -> str | None:
+    """v0.4 (D1): a SARIF result supports only the cluster at its own location.
+
+    The normaliser (docs/08 §11.2 steps 3-5) records the result's repo-relative `file`, innermost
+    `symbol` and `cwe_bucket` in its payload.sarif_results[] entry; they must equal the cluster key
+    (canonical_location.file / .symbol and cwe_bucket). Black-box clusters have no source location and
+    take no SARIF. v0.3 checked only that the ref was in the audit log, so any one-family cluster could
+    borrow an unrelated result as a weak signal and reach LIKELY (R6)."""
+    if cluster.get("origin") == "black_box":
+        return "black_box clusters take no SARIF (they have no source location)"
+    entry = next((x for x in payload.get("sarif_results") or [] if isinstance(x, dict) and x.get("ref") == ref), None)
+    if entry is None:
+        return "no payload.sarif_results entry for the ref"
+    loc = cluster.get("canonical_location") or {}
+    want = {"file": loc.get("file"), "symbol": loc.get("symbol"), "cwe_bucket": cluster.get("cwe_bucket")}
+    got = {k: entry.get(k) for k in want}
+    if got != want:
+        return f"result location {got} is not the cluster key {want}"
+    return None
 
 
 def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
@@ -1773,7 +1802,9 @@ def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
     A SARIF ref counts only when the audit log of the cluster's run has a `tool_invocation_end`
     event that lists the ref in payload_refs, whose payload.adapter is a tools.yaml tool:mode of a
     white-box tool (tool zone Z2, mode b4_executable false) whose licenses.yaml status is cleared
-    (OK / 注意; not 法務閘門, N-7), with event zone Z2 and payload.ok true.
+    (OK / 注意; not 法務閘門, N-7), with event zone Z2 and payload.ok true, and whose
+    payload.sarif_results[] entry has the cluster's file, symbol and CWE bucket (v0.4,
+    sarif_location_problem; black_box clusters take no SARIF).
     """
     return _resolving_event(c, cluster, ref)[1]
 
@@ -1852,7 +1883,8 @@ def derived_independent_sources(c: Ctx, v: dict, cluster: dict) -> int:
 
 
 def all_evidence_not_found(c: Ctx, cluster: dict) -> bool:
-    """R0 (v0.3): every evidence item of every member finding is NOT_FOUND; False when there are no members."""
+    """R0 input: every evidence item of every member finding is NOT_FOUND; False when there are no members.
+    (v0.4: R0 itself also needs no resolved SARIF and no FAIL-class test evidence, adjudicate.r0_applies.)"""
     members = [c.ix.finding(f) for f in cluster.get("member_finding_ids") or []]
     if not members or any(m is None for m in members):
         return False
@@ -1872,6 +1904,10 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         g2_rejected=g2_rej,
         all_snippets_fail=all_fail,
         evidence={x.get("class") for x in (v.get("test_evidence") or {}).get("results", [])},
+        # R11 (v0.4): only a qualified PASS with a PASSed oracle_can_fail control may downgrade; the per-result
+        # positive_control is recomputed from the testresult (E-RESULT-CONTROLS), not taken from the verdict
+        pass_positive=any(x.get("class") == "E_pass" and x.get("positive_control") is True
+                          for x in (v.get("test_evidence") or {}).get("results", []) if isinstance(x, dict)),
         weighted_support=any(x.get("stance") == "SUPPORT" for x in votes),
         weighted_refute=any(x.get("stance") == "REFUTE" for x in votes),
         score=v.get("score") or 0.0,
@@ -2001,6 +2037,12 @@ def finding_evidence(R: Report, c: Ctx, d: Doc):
             want = evidence.match_fact(inv, ev)
             R.check(ev.get("match") == want, "E-FINDING-MATCH", w,
                     f"evidence[{i}].match {ev.get('match')} but the inventory fact gives {want}")
+        if ev.get("kind") == "code_snippet":
+            sl = c.ix.first("slice", slice_id=f.get("slice_id"))
+            files = {x.get("path") for x in (sl.data.get("files") if sl else None) or [] if isinstance(x, dict)}
+            R.check(sl is None or ev.get("file") in files, "E-FINDING-EVIDENCE", w,
+                    f"evidence[{i}].file {ev.get('file')!r} is not a file of the finding's slice (v0.4: a snippet can only be "
+                    "matched against the redacted slice the reviewer saw)")
         if ev.get("kind") == "config_fact" and inv is not None:
             R.check(ev.get("file") in {x.get("path") for x in inv.get("files") or []}, "E-INVENTORY-REF", w,
                     f"evidence[{i}].file {ev.get('file')!r} is not an inventory file")
@@ -2107,6 +2149,55 @@ def plan_facets(R: Report, c: Ctx, d: Doc):
         for i, s in enumerate(d.data.get("slices") or []):
             miss = sorted(need - set(s.get("facets") or []))
             R.check(not miss, "E-PLAN-FACETS", d.path, f"slices[{i}] misses mandatory facets {miss} (W0 inventory of {rid})")
+
+
+def eligible_reviewer_families(c: Ctx, sl: dict) -> set[str]:
+    """Registry families of agents.yaml reviewers whose model the engagement allows for its data class and
+    that the slice does not exclude (slice.excluded_models: the model cannot fit the slice)."""
+    e = c.engagement or {}
+    allowed = set((e.get("allowed_models") or {}).get(e.get("data_class"), []))
+    excluded = {x.get("model_key") for x in sl.get("excluded_models") or [] if isinstance(x, dict)}
+    fams = set()
+    for a in c.agents.values():
+        if isinstance(a, dict) and a.get("role") == "reviewer" and a.get("model") in allowed and a.get("model") not in excluded:
+            m = c.model(a.get("model"))
+            if m and isinstance(m.get("family"), str):
+                fams.add(m["family"])
+    return fams
+
+
+def plan_coverage(R: Report, c: Ctx, d: Doc):
+    """v0.4 (D3): a CMD-1 plan is a superset of the coverage floor, not only for facets.
+
+    - E-PLAN-COVERAGE: every slice of a (non-Lane-A) run that lists the plan is in plan.slices;
+    - E-PLAN-FAMILIES: each planned slice is assigned reviewers of at least min(2, |eligible families|)
+      distinct registry families (docs/02 W2: N reviewers of different families per slice).
+    v0.3 checked only the facets of the slices the plan happened to list, so a plan could drop slices or
+    send each slice to one family and still pass E-PLAN-FACETS."""
+    p = d.data
+    if p.get("decision_node") != "CMD-1":
+        return
+    planned = {s.get("slice_id"): s for s in p.get("slices") or [] if isinstance(s, dict)}
+    for rid, run in c.runs.items():
+        if p.get("plan_id") not in run.get("plan_ids", []) or run.get("run_kind") == "lane_a":
+            continue
+        for sd in c.docs("slice"):
+            sl = sd.data
+            if sl.get("run_id") != rid:
+                continue
+            ps = planned.get(sl.get("slice_id"))
+            if not R.check(ps is not None, "E-PLAN-COVERAGE", d.path,
+                           f"slice {sl.get('slice_id')} of {rid} is not in the CMD-1 plan (the plan must cover every slice)"):
+                continue
+            fams = set()
+            for a in ps.get("agents") or []:
+                m = c.model((c.agents.get(a) or {}).get("model"))
+                if m and isinstance(m.get("family"), str):
+                    fams.add(m["family"])
+            need = min(2, len(eligible_reviewer_families(c, sl)))
+            R.check(len(fams) >= need, "E-PLAN-FAMILIES", d.path,
+                    f"slice {sl.get('slice_id')} of {rid} is assigned reviewer families {sorted(fams)}; "
+                    f"at least {need} distinct families are required (eligible: {sorted(eligible_reviewer_families(c, sl))})")
 
 
 def g_trace(R: Report, c: Ctx):
@@ -2261,6 +2352,7 @@ def g_trace(R: Report, c: Ctx):
     for d in c.docs("commander-plan"):
         with doc_guard(R, d.path):
             plan_facets(R, c, d)
+            plan_coverage(R, c, d)
             plan_checks(R, c, d)
             for tid in d.data.get("testcase_ids", []):
                 R.check(ix.first("testcase", testcase_id=tid) is not None, "E-TRACE", d.path, f"testcase {tid} not found")

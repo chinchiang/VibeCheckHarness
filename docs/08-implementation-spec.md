@@ -1221,7 +1221,7 @@ class ToolResult(BaseModel):
 ```
 
 **正規化步驟**（`toolresult` 模組，純函式）[H]：
-1. **拆成單一結果**：adapter 的 `parse()` 把每個 SARIF result 存成獨立的 CAS 物件（只含一個 result 的 SARIF log），全部列在該次 `tool_invocation_end` 的 `payload_refs`。同一個事件的 `payload` 帶 `adapter`、`tool_version`，以及 `sarif_results[]`（每一項是 `{ref, rule_id}`，`ref` 就是 `payload_refs` 中的那個物件）。這樣叢集的每個 `sarif_refs` 項目都能對到一組 (adapter, rule_id, tool_version)（`E-SARIF-REF`；範例：稽核 seq 13 的 `opengrep:scan` 1.6.0，規則 `vc.authz.update-without-owner`）。
+1. **拆成單一結果**：adapter 的 `parse()` 把每個 SARIF result 存成獨立的 CAS 物件（只含一個 result 的 SARIF log），全部列在該次 `tool_invocation_end` 的 `payload_refs`。同一個事件的 `payload` 帶 `adapter`、`tool_version`，以及 `sarif_results[]`（每一項是 `{ref, rule_id, file, symbol, cwe_bucket}`，`ref` 就是 `payload_refs` 中的那個物件；`file`、`symbol`、`cwe_bucket` 是步驟 3–5 的結果，v0.4 起必填，用來把結果綁到叢集鍵）。這樣叢集的每個 `sarif_refs` 項目都能對到一組 (adapter, rule_id, tool_version)（`E-SARIF-REF`；範例：稽核 seq 13 的 `opengrep:scan` 1.6.0，規則 `vc.authz.update-without-owner`）。
 2. **只收 `kind: fail`**：SARIF result 的 `kind` 預設是 `fail` [V][E:whitebox-56]。`level` 在 schema 中的預設值是 `warning` [V][E:whitebox-56]，但依規格 §3.27.9–3.27.10，這只適用於 `kind: fail` 且規則沒有設定（組態覆寫或 `defaultConfiguration`）的情況：`kind: fail` 而沒有 `level` 時，`level` 取自規則設定；`kind` 不是 `fail` 時，`level` 預設為 `none`，有值也必須是 `none` [V][E:whitebox-59]。`kind` 為其他值（`pass`、`notApplicable`、`informational`、`review`、`open`）的結果只留在工具紀錄，不成為 ToolResult。
 3. **路徑與行號**：路徑轉成 repo 相對的 POSIX 路徑。指到 repo 以外、或路徑黑名單中的檔案 → 丟棄並記錄。欄（column）不使用。
 4. **區段 → 函式**：以 W0 的符號索引，找出**包含 `region.startLine` 的最內層函式或方法**，得到完整限定符號名；不在任何函式內 → `"<module>"`。有 `codeFlows` 時，正規位置用最後一個位置（sink），第一個位置記為 `source_symbol`（[05 §4.1](05-bias-calibration.md#41-叢集鍵clusterer確定性)）。
@@ -1254,7 +1254,7 @@ class ToolResult(BaseModel):
   - 範例：K-014 的 `opengrep:scan` 結果不在名單中（範例的 `high_precision_rules` 是空的），所以是弱訊號：裁決 V-014-1 的 `tool_signal` 列出它、`tool_corroboration` 是空的、`independent_sources` 是 2（anthropic＋弱 SARIF），經 R6 為 `LIKELY`。
 
 **validator**：
-- `E-SARIF-REF`：每個 `sarif_refs` 項目都要對到同一 run 的 `tool_invocation_end` 事件（`payload_refs` 含這個 ref、事件 `zone` 為 Z2、`payload.ok` 為 true），它的 adapter 是 `tools.yaml` 中已登錄的白箱模式（工具 zone Z2、`b4_executable: false`），而且 `licenses.yaml` 的狀態是 `OK` 或「注意」（法務閘門未結案的工具不算，N-7）。
+- `E-SARIF-REF`：每個 `sarif_refs` 項目都要對到同一 run 的 `tool_invocation_end` 事件（`payload_refs` 含這個 ref、事件 `zone` 為 Z2、`payload.ok` 為 true），它的 adapter 是 `tools.yaml` 中已登錄的白箱模式（工具 zone Z2、`b4_executable: false`），而且 `licenses.yaml` 的狀態是 `OK` 或「注意」（法務閘門未結案的工具不算，N-7）。v0.4：該 ref 的 `sarif_results[]` 項目的 `file`、`symbol`、`cwe_bucket` 必須等於叢集的 `canonical_location.file`、`canonical_location.symbol` 與 `cwe_bucket`；`origin: black_box` 的叢集不收 SARIF。v0.3 沒有這條，任何叢集都能借用同一 run 中無關的 SARIF 結果當弱訊號。
 - `E-VERDICT-TOOLCORR`：裁決的 `tool_corroboration` 必須等於推導出的強佐證。
 - `E-VERDICT-TOOLSIGNAL`：`tool_signal` 必須等於「弱 SARIF ∪ `E_fail_u` 測試結果的 `result_ref`」。
 - `E-VERDICT-SOURCES`：`independent_sources` 必須等於推導值。
@@ -1788,7 +1788,7 @@ class SessionProvider(Protocol):
 | `region` | 字串或 null | 資料處理的區域 |
 
 **C 級路由規則**（`E-ENG-PROVIDER`）[H]：可能收到 C 級資料的 agent，它的模型必須符合下列其一：
-- 自架（`api_base` 在 Z4）；或
+- 自架：`api_base` 的主機**完全等於** `toolkit.yaml` 的 `z4_model_hosts` 中的一項（v0.4；v0.3 只看主機名稱是否以 `z4-` 開頭，`https://z4-evil.attacker.example` 也會被當成自架）；或
 - 該家族在 `providers[]` 中是 `zdr: confirmed`，**而且** `dpa_signed: true`。
 
 同一規則也套用到 fallback 鏈上的每個模型（`E-MODEL-FALLBACK-CLASS`）。Gateway 在執行時再檢查一次；不符 → `DataClassDenied`（§6.1），請求不送出。端點限制照舊：C 級不使用 Batch、Files 等不在 ZDR 範圍內的端點 [V][E:providers-28][E:providers-35]；OpenAI 一律 `store=false`（[03 §8.4](03-system-architecture.md#84-資料治理)）。

@@ -181,6 +181,15 @@
         "network"
       ]
     },
+    "z4_model_hosts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+      },
+      "uniqueItems": true,
+      "description": "Z4 自架模型伺服器的確切主機名稱（小寫）。models.yaml 的 api_base 主機完全等於其中一項才算自架；v0.3 以 `z4-` 前綴判斷，任何以 z4- 開頭的外部主機都會被當成自架（v0.4 修正）。沒有這個欄位＝沒有自架模型"
+    },
     "path_blacklist": {
       "type": "array",
       "items": {

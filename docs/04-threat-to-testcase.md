@@ -516,12 +516,19 @@ def seed_path_problem(path: str, manifest) -> str | None:
     return None
 
 
-def is_mutation(r) -> bool:
+def graphql_declared(r, roe) -> bool:
+    """v0.4：r 送到 ROE 為該目標宣告的 GraphQL 路徑（targets[].graphql_paths），方法為 GET／POST。"""
+    return r.method in {"GET", "POST"} and r.path in roe.target(r.target_id).graphql_paths
+
+
+def is_mutation(r, roe) -> bool:
     """寫入＝POST／PUT／PATCH／DELETE 與 GraphQL mutation；graphql_operation 為 query 或
-    introspection 的請求是讀取（即使以 POST 送出）。"""
+    introspection 的請求只有在 graphql_declared 時才是讀取（即使以 POST 送出）。
+    graphql_operation 是測試設計者（LLM）的宣稱：v0.3 在任何路徑都採信它，
+    `POST /api/admin/purge` 標成 query 就能跳過綁種子檢查。"""
     if r.graphql_operation == "mutation":
         return True
-    if r.graphql_operation in READ_ONLY_GRAPHQL:
+    if r.graphql_operation in READ_ONLY_GRAPHQL and graphql_declared(r, roe):
         return False
     return r.method in STATE_CHANGING
 
@@ -535,7 +542,7 @@ def create_endpoint(manifest, r):
     return None
 
 
-def mutation_scope_problems(tc, manifest) -> list[str]:
+def mutation_scope_problems(tc, manifest, roe) -> list[str]:
     """寫入範圍（H-B3、L-11；E-TC-MUTATION-SCOPE）：回傳違規說明，空清單＝全部在範圍內。
     依 allow-list 的順序檢查；creates 記錄較早的建立請求（step_id → 請求）。"""
     problems, creates = [], {}
@@ -547,7 +554,9 @@ def mutation_scope_problems(tc, manifest) -> list[str]:
         p = seed_path_problem(r.path, manifest)
         if p is not None:
             problems.append(p)
-        if is_mutation(r):
+        if r.graphql_operation is not None and not graphql_declared(r, roe):
+            problems.append("graphql_operation 不在 ROE 宣告的 GraphQL 路徑上")  # v0.4
+        if is_mutation(r, roe):
             var = [s for s in segments(r.path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
             create = create_endpoint(manifest, r)
@@ -670,7 +679,7 @@ def compute_safety_class(tc, roe, tools, manifest) -> str:
         if any(path_may_match(r.path, pat) for pat in roe.exclusions.paths):   # C-1：正規化後比對
             return "S3"
     # 5a. 寫入範圍（H-B3）與種子路徑（D11）：任何一條違規都是 S3（validator 另報 E-TC-MUTATION-SCOPE）
-    if mutation_scope_problems(tc, manifest):
+    if mutation_scope_problems(tc, manifest, roe):
         return "S3"
 
     # 6. 速率：高於 ROE 不是升級，而是拒絕
@@ -713,7 +722,7 @@ def admissible(level: str, roe) -> bool:
   - **以路徑定址既有物件**：路徑的每個變數段都是 `{seed:key}` 或 `{created:step_id}`。`{seed:key}` 的 key 必須在 seed manifest 的 `seeds` 中，而且該種子的 `path_templates` 有一個與請求路徑同形的樣板（D11，`seed_path_problem`；例如 `tenant_b_invoice` 只宣告 `/api/invoices/{id}`，所以 `DELETE /api/users/{seed:tenant_b_invoice}` → S3；見 [seed-manifest](examples/seed-manifest.yaml)）。`{created:step_id}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點並帶 `step_id` 的請求；
   - **集合層級建立**：路徑沒有變數段時，該請求必須對應 seed manifest `create_only_endpoints[]` 的某一條（同目標、同方法、路徑同形），在 run 命名空間中建立新物件；帶 `step_id` 的建立請求，之後的請求才能用 `{created:<step_id>}` 指向它。create-only 樣板本身可以有變數段（例如 `/api/chat/sessions/{session}/messages`），請求在那個位置用 `{created:…}`。
   - 種子路徑規則（D11）對所有請求都檢查，不只寫入：GET `/api/users/{seed:tenant_b_invoice}` 同樣 S3。
-  - GraphQL：allow-list 項目以 `graphql_operation` 標示操作。`query`／`introspection` 不算寫入，不需綁種子，但以 POST 送出，第 7 步仍使等級 ≥ S1。`mutation` 一律算寫入；validator 只看路徑，GraphQL 端點（例如 `/graphql`）沒有變數段，所以 mutation 只有在該端點列為 `create_only_endpoints` 時才在範圍內，否則 S3。mutation 的 variables 中引用的物件 ID 目前沒有欄位可以表達，也沒有檢查。
+  - GraphQL：allow-list 項目以 `graphql_operation` 標示操作。v0.4：這個標籤只在 ROE 為該目標宣告的 GraphQL 路徑（`targets[].graphql_paths`，由基礎設施擁有者簽署）上、方法為 GET／POST 時才採用；其他帶 `graphql_operation` 的請求一律算出範圍（S3，`E-TC-MUTATION-SCOPE`）。在宣告的路徑上，`query`／`introspection` 不算寫入，不需綁種子，但以 POST 送出，第 7 步仍使等級 ≥ S1。`mutation` 一律算寫入；validator 只看路徑，GraphQL 端點（例如 `/graphql`）沒有變數段，所以 mutation 只有在該端點列為 `create_only_endpoints` 時才在範圍內，否則 S3。mutation 的 variables 中引用的物件 ID 目前沒有欄位可以表達，也沒有檢查。
 - **驗證器強韌性修正（C-1／C-2／C-3）**：
   - 排除比對前先 `normalize_for_match`（百分號解碼一次、去每段的 `;params`、收合 `//`、解析 dot 段、轉小寫），所以 `/Admin/billing/x`、`/admin;jsessionid=1/billing/x` 都會命中 `/admin/billing/*` → S3；含 `%` 的樣板本身就不是正規化路徑（`is_normalized`），同樣 S3。
   - `exclusions.hosts` 支援 `*.example.com`（`host_matches`：比對任何深度的子網域，不比對 apex；雙方先經 `norm_host`，schema 也限制樣式）。

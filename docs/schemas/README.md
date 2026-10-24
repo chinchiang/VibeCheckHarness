@@ -95,7 +95,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
     - `independent_sources`＝len(叢集 independent_families) ＋（有弱 SARIF 訊號 ? 1 : 0）＋（有 E_fail_u ? 1 : 0）；R6 需 ≥ 2；`E-VERDICT-SOURCES`
     - E(cluster)＝agents.yaml 中 role verifier、家族與血統都不在叢集中的家族；`no_eligible_verifier`＝E 為空（`E-VERDICT-NOELIGIBLE`）；`diversity_degraded`＝非 Lane A、E 非空、且**計權合格票**的不同家族數 ＜ min(2, |E|)（`E-VERDICT-DIVERSITY`）
     - `provisional`＝calibration_version 為 null，或 theta_confirm 為 null，或 E(cluster) 每個模型在該叢集 CWE 桶的權重都是 0（`E-VERDICT-PROVISIONAL`）
-    - 每個 `sarif_refs` 項目必須對應到該 run 稽核日誌中一個 `tool_invocation_end` 事件的 `payload_refs`，該事件 `payload.adapter` 是 tools.yaml 中白箱工具的 `tool:mode`（工具 zone Z2、`b4_executable: false`）、其 licenses.yaml 狀態已放行（`OK`／`注意`；`法務閘門` 不算）、事件 zone Z2、`payload.ok: true`；否則 → `E-SARIF-REF`，該 ref 不算任何工具證據。rule_id 取自 `payload.sarif_results[]`
+    - 每個 `sarif_refs` 項目必須對應到該 run 稽核日誌中一個 `tool_invocation_end` 事件的 `payload_refs`，該事件 `payload.adapter` 是 tools.yaml 中白箱工具的 `tool:mode`（工具 zone Z2、`b4_executable: false`）、其 licenses.yaml 狀態已放行（`OK`／`注意`；`法務閘門` 不算）、事件 zone Z2、`payload.ok: true`，且該 ref 的 `payload.sarif_results[]` 項目的 `file`、`symbol`、`cwe_bucket` 等於叢集的 `canonical_location.file`／`.symbol` 與 `cwe_bucket`（v0.4；`origin: black_box` 的叢集不收 SARIF）；否則 → `E-SARIF-REF`，該 ref 不算任何工具證據。rule_id 取自 `payload.sarif_results[]`
     - 只有 agents.yaml 中 role 為 `verifier` 的代理可以投票；其他角色的票 → `E-VERDICT-VOTER-ROLE`，且不計入 weighted_valid、score、支持／反對與家族多樣性
     - R0＝每個成員的每一項證據都是 NOT_FOUND（沒有成員時不成立）；independent_families＝第一輪、reviewer 角色、至少一項證據不是 NOT_FOUND 的成員家族（`E-CLUSTER-FAMILIES`）
     - 測試證據分類（`derive.classify_result`）：非 PASS／FAIL（ERROR、SKIPPED、STOPPED、INVALID）→ E_inc；重現的 FAIL 若只有 HUMAN／LLM_GRADER oracle 判定違反 → E_inc；解讀已預先登記（B4：G4 核准；W4：需求都經 G1 核准且 oracle_can_pass 對照 PASS）→ E_proof，不需要 LLM；否則由家族與血統都不在叢集中、且同意解讀的 Result Analyst → E_proof；否則 E_fail_u。PASS 需要所有 reachability 對照 PASS、機率型 k＝0 且 n′ ≥ 30、有確定性 oracle，以及預先登記（W4 用 oracle_can_fail）或合格分析者 → E_pass
@@ -118,17 +118,18 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate）由 run 的測試結果重算 |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |
 | `E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | 指紋＝sha256(JCS({cwe_bucket, file, symbol}))（black_box：{cwe_bucket, target_id, method, path_template}）；`baseline_state` 依 run `baseline_run_id` 推導；report `absent_fingerprints` |
-| `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-FINDING-FACET` | 證據 kind 的欄位；inventory_fact 由 inventory 重算 match；status 由 match 推導；facet 與叢集 CWE 桶（`FACET_BUCKETS`） |
+| `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-FINDING-FACET` | 證據 kind 的欄位；code_snippet 至少 12 個非空白字元並含 3 字元以上的識別字，`file` 在發現項的切片中（v0.4）；inventory_fact 由 inventory 重算 match；status 由 match 推導；facet 與叢集 CWE 桶（`FACET_BUCKETS`） |
 | `E-INVENTORY`、`E-INVENTORY-REF` | inventory 內部參照（middleware、來源檔、public_prefix）；finding／threat／DFD 的 inventory JSON Pointer 必須可解析 |
 | `E-INVARIANT-LEVEL`、`E-INVARIANT-REF` | L2 以上的 ASVS／AISVS 需求由 baseline_levels 或 level_triggers 涵蓋；llm_tools 的資料分級、access_matrix.ownership |
+| `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES` | v0.4：CMD-1 計畫涵蓋 run 的每個切片；每個切片的 reviewer 至少 min(2, 合格 reviewer 家族數) 個家族（合格＝reviewer 角色、模型在 engagement 該資料等級的 `allowed_models`、不在切片 `excluded_models`） |
 | `E-PLAN-FACETS`、`E-PLAN-TARGET`、`E-PLAN-ROUNDS`、`E-PLAN-AGENTS`、`E-PLAN-BUDGET` | 計畫每個切片涵蓋 `MANDATORY_FACETS`；型別化目標；輪次 ≤ 2；代理角色；token 預算 ≤ run 階段預算 |
 | `E-AGENT-TOOLS` | reviewer／verifier 只能 read_slice；commander 沒有工具；invariant_drafter 不能 read_slice |
-| `E-TC-MUTATION-SCOPE` | 變更請求只能經 `{seed:key}`（種子的 path_templates）或 create_only_endpoints＋`{created:step_id}`（同時 S3） |
+| `E-TC-MUTATION-SCOPE` | 變更請求只能經 `{seed:key}`（種子的 path_templates）或 create_only_endpoints＋`{created:step_id}`（同時 S3）；帶 `graphql_operation` 的請求必須送到 ROE `targets[].graphql_paths` 宣告的路徑、方法為 GET／POST（v0.4，同時 S3） |
 | `E-SEED-MANIFEST` | create_only_endpoints 的目標必須是 ROE 的 http 目標 |
 | `E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG` | observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash |
 | `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
 | `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
-| `E-ENG-PROVIDER`、`E-ENG-PROFILE`、`E-PROFILE-SAFETY` | 能收 C 級資料的雲端模型需 ZDR confirmed＋DPA；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 |
+| `E-ENG-PROVIDER`、`E-ENG-PROFILE`、`E-PROFILE-SAFETY` | 能收 C 級資料的雲端模型需 ZDR confirmed＋DPA（自架＝`api_base` 主機完全等於 toolkit.yaml `z4_model_hosts` 的一項，v0.4）；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 |
 | `E-THREAT-REVIEW`、`E-TC-REQ-UNAPPROVED`、`E-TC-SCRIPT` | 威脅的 review 必須是決定它的 G3 紀錄；testcase 只能引用 G1 核准的需求；scripted relay 需要 script_turns |
 | `E-RUN-CONFIG`、`E-RUN-RULE-VERSION`、`E-SLICE-IDENTITY` | run config_refs 指向正確種類的檔案、tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.3`；切片的 prompt 範本與 redaction map 屬於本 run |
 | `E-PROVENANCE`、`E-MODEL-FALLBACK-CLASS`、`E-MODEL-RETIREMENT-DATE`、`E-RESULT-ANALYST-ROLE` | threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 |

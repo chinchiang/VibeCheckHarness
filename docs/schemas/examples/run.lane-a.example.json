@@ -16,7 +16,7 @@
   "resume_node": null,
   "resume_deadline": null,
   "data_class": "C",
-  "toolkit_config_ref": "sha256:0948a01e5864ec7f289f776ec38cfae57f8e87e652ef326c5f86ea1b69a81b48",
+  "toolkit_config_ref": "sha256:3fc4c9d620d82550e04c1c2b71ed3996ce8b7f55457402166e4a6c5c312f7eaf",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
   "engagement_ref": "sha256:1078ad184ebd428c04007dca51628ab67bcf5dda0eb4e814266120a1f17cc409",
   "config_refs": {
@@ -50,7 +50,7 @@
     }
   ],
   "tool_versions": [],
-  "rule_version": "05-v0.3",
+  "rule_version": "05-v0.4",
   "roe_ref": null,
   "repo_commit": "9b7e3d2",
   "owasp_llm_version": "2026",

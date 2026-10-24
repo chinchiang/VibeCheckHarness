@@ -1,6 +1,6 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
-> **狀態**：設計文件 v0.3（2026-09-26，依[深度審查](docs/evidence/review-2026-09-26.md)修正 v0.2；變更見 [CHANGELOG](CHANGELOG.md)）。v0.2（2026-09-24）起可據以實作：每個階段／關卡／元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。工具包本身**尚未實作**；本 repo 另附可執行的資料模型驗證器與參考演算法（`tools/`）。v0.1：2026-09-23。
+> **狀態**：設計文件 v0.4（2026-10-24，依[設計審查](docs/evidence/review-2026-10-24.md)修正 v0.3 的裁決規則與 validator；v0.3 於 2026-09-26 依[深度審查](docs/evidence/review-2026-09-26.md)修正 v0.2；變更見 [CHANGELOG](CHANGELOG.md)）。v0.2（2026-09-24）起可據以實作：每個階段／關卡／元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。工具包本身**尚未實作**；本 repo 另附可執行的資料模型驗證器與參考演算法（`tools/`）。v0.1：2026-09-23。
 > **第一次讀**：先看 [docs/00 總覽](docs/00-overview.md)（端到端流程、自動與人工的分界、依角色的閱讀路徑）。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
 > **語言**：正體中文；證據原文保留英文（見 [`docs/evidence/ledger.md`](docs/evidence/ledger.md)）。
@@ -34,7 +34,7 @@
 | Nemotron 同時支援雲端（build.nvidia.com）與自架（NIM／vLLM） | 兩種模式都接在 LiteLLM；雲端只收公開或合成程式碼，機密碼只用自架 | [03 §8.2](docs/03-system-architecture.md#82-nemotron-雙模式)、[examples/serving](docs/examples/serving/README.md) | 雲端試用條款禁止機密資訊與正式用途；自架需要 GPU |
 | 文件放在 repo 根目錄 | `README.md`＋`docs/` | — | — |
 | 做不到的事就說做不到 | 41 條明列，分成四類（LLM 與方法的本質限制、環境與平台、組織與法務前提、本版範圍） | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
-| 所有內容經交叉比對核實 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經獨立代理對抗式審查；2026-09-26 的深度審查逐項記錄在 [review-2026-09-26](docs/evidence/review-2026-09-26.md) | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
+| 所有內容經交叉比對核實 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經獨立代理對抗式審查；2026-09-26 的深度審查逐項記錄在 [review-2026-09-26](docs/evidence/review-2026-09-26.md)，2026-10-24 的設計審查在 [review-2026-10-24](docs/evidence/review-2026-10-24.md) | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
 
 ## 文件導覽
 
@@ -119,7 +119,7 @@
 ```bash
 python -m pip install -r requirements.txt
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 約 450 個測試，需要幾分鐘
+python -m pytest tests                 # 約 500 個測試，需要幾分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點
