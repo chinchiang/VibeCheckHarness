@@ -30,6 +30,7 @@ graphql_operation is S3. v0.3 trusted the label on every path, so `POST /api/adm
 from __future__ import annotations
 
 import fnmatch
+import ipaddress
 import posixpath
 import re
 from urllib.parse import unquote, urlsplit
@@ -75,9 +76,10 @@ def is_placeholder(seg: str) -> bool:
 
 
 def normalize_for_match(path: str) -> str:
-    """D1: the form an exclusion is compared against: percent-decode once, strip `;params` from every
-    segment, collapse `//`, resolve `.` / `..`, lower-case. Placeholder segments are kept."""
-    p = unquote(path or "")
+    """D1: the form an exclusion is compared against: percent-decode once, treat `\\` as `/` (v0.4: servers
+    such as IIS and some Node routers do), strip `;params` from every segment, collapse `//`, resolve
+    `.` / `..`, lower-case. Placeholder segments are kept."""
+    p = unquote(path or "").replace("\\", "/")
     segs = [s.split(";", 1)[0] if not is_placeholder(s) else s for s in p.split("/")]
     p = "/".join(segs)
     p = re.sub(r"/{2,}", "/", p)
@@ -231,6 +233,41 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
     return out
 
 
+# v0.4: address classes the Scope Proxy never connects to, on top of `not ip.is_global`. Python's is_global
+# is True for NAT64 64:ff9b::/96 (64:ff9b::a9fe:a9fe reaches 169.254.169.254 through a translator), the
+# deprecated site-local fec0::/10, multicast, and IPv4-mapped literals of public addresses.
+DENIED_NETWORKS = tuple(ipaddress.ip_network(n) for n in (
+    "64:ff9b::/96",        # NAT64 well-known prefix (RFC 6052)
+    "64:ff9b:1::/48",      # local-use NAT64 (RFC 8215)
+    "::ffff:0:0/96",       # IPv4-mapped: connect over IPv4 instead, so the IPv4 rules apply
+    "2002::/16",           # 6to4: the embedded IPv4 address may be internal
+    "2001::/32",           # Teredo
+    "fec0::/10",           # deprecated site-local
+    "fc00::/7",            # unique local
+    "224.0.0.0/4", "ff00::/8",   # multicast
+))
+LOCAL_TEST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def ip_problem(addr: str, local_target: bool = False) -> str | None:
+    """v0.4 (docs/08 §11.7): why the Scope Proxy must not connect to this resolved address (None = allowed).
+
+    Only public unicast addresses are allowed. `local_target` is the MVP-1 exception (a ROE target on
+    localhost / 127.0.0.1 / [::1] on the same isolated host): loopback is then allowed, nothing else."""
+    try:
+        ip = ipaddress.ip_address(addr.strip("[]") if isinstance(addr, str) else addr)
+    except ValueError:
+        return f"{addr!r} is not an IP address"
+    if local_target and ip.is_loopback:
+        return None
+    for net in DENIED_NETWORKS:
+        if ip.version == net.version and ip in net:
+            return f"{ip} is in denied network {net}"
+    if not ip.is_global:
+        return f"{ip} is not a public address (private, loopback, link-local, reserved or cloud metadata)"
+    return None
+
+
 # E2 (H-D3): shared-platform domains. A host under one of these suffixes belongs to the platform, not to the
 # customer: DNS TXT / well-known-path proofs do not show ownership of the project; platform_project does.
 SHARED_PLATFORM_SUFFIXES = {
@@ -243,6 +280,21 @@ SHARED_PLATFORM_SUFFIXES = {
     "pages.dev": "other",
     "fly.dev": "other",
     "herokuapp.com": "other",
+    # v0.4: vibe-coding and other hosting platforms whose DNS and web root belong to the platform. The
+    # implementation should take the private section of the Public Suffix List as the source and keep this
+    # table as the platform mapping; the list below is the minimum the validator enforces.
+    "lovable.app": "other",
+    "replit.app": "other",
+    "repl.co": "other",
+    "workers.dev": "other",
+    "github.io": "other",
+    "gitlab.io": "other",
+    "amplifyapp.com": "other",
+    "azurewebsites.net": "other",
+    "azurestaticapps.net": "other",
+    "railway.app": "other",
+    "glitch.me": "other",
+    "deno.dev": "other",
 }
 
 

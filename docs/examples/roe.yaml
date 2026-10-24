@@ -174,14 +174,19 @@ legal_review:                    # docs/06 §2.1.1；grace 必須也簽這份 RO
   scope:
     computer_misuse: true
     privacy: true
-    cross_border:
-      value: false
-      not_applicable_reason: "staging 與全部 LLM 端點都在同一法域；受測資料為合成資料"
+    cross_border: true           # v0.4：委任設定宣告了 TW→US 的傳輸（anthropic、openai），這裡不能寫不適用（E-ROE-TRANSFER）
     third_party_platform_policy: true
     upstream_llm_terms: true
     component_licenses: true     # L-6：ROE 啟用 k6（法務閘門）→ 必須為 true
   reference_doc_sha256: "sha256:5d1c1b1e0a3f9c8e7d6b5a4f3e2d1c0b9a8f7e6d5c4b3a291807f6e5d4c3b2a1"
   expires_at: "2027-03-31T23:59:59+08:00"
+
+incident_response:               # v0.4：測試造成意外時的處理（E-ROE-INCIDENT）
+  contacts: [dave, carol]
+  notify_within_hours: 24
+  covers: [data_exposure, third_party_side_effect, shared_platform_impact, staging_outage]
+  procedure_ref: "doc:acme-ir-playbook-2026#security-testing"
+  liability_ref: "doc:acme-msa-2026#security-testing-liability"
 
 secrets_verification:
   trufflehog_verify: false
@@ -191,16 +196,16 @@ signatures:                      # 每位 signatory 與 legal_review.attested_by
   - signer: alice
     key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    value: "f0PK1kU+k2pH+DaVF+LMZ6Gq9kPEaF/4LWK+5FVUJVDPwaXqVJcBcxJGuQgSO/UU4Us+O7/bMADWAZN69y8iDQ=="
+    value: "zsEJUEqmEjjAc0ETi726C7H6E13YUWCM8BQ9O+7zYXcvKZpXgr+r5/iqB6quzYWo7IOuLbWxav/wozmlxO2HDA=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "P9wrrOZKYj/6HeOZeMDLPfGeTSzy+yXjn7wyl37En9b1DS2e8P6XGjXmSWz4Gk182pXDFlonHz1gt48Pr+vwDg=="
+    value: "fo2WRqZqJAkJDC8qjH8sbb5bjObSDSTprsHXdE9ym71rTfSPARuG3mgaMrcE0xf1qL1IZKx/7LihmT55SYxiCw=="
   - signer: dave
     key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    value: "F+ZqbZTi5WGYaMJGQS5Mvqug/EhSj8A0baJpU8IhiIdNoeb6/oVFxd+sPSxDgoId1rMGobJHPD1sfo3OOTzfAw=="
+    value: "+8VaMRcji/iIIC48hvunRGECh0gi8vF7BZG5CsACbauwEKgACwbfgOiskvvX+PzWLHasSxXq//I1qzulgVXaBQ=="
   - signer: grace
     key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
     alg: ed25519
-    value: "l4wwlcilWdYlw1hCNSfxal6p3/PLfWHRhF1buqY7CEbK5I0w7et5gqw79CHI62duz8W6juAP+EDEGRS8p9KsBQ=="
+    value: "UHlIioMoT4Y1OJmQQK7eSQFmYN626vkAwIrkg9U1JBMQbtr+iMf7vVUEJMIBaIQ9TZ6Il6WRGusO/dyVAm95BA=="

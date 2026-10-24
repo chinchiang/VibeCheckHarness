@@ -18,7 +18,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:3fc4c9d620d82550e04c1c2b71ed3996ce8b7f55457402166e4a6c5c312f7eaf",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:1078ad184ebd428c04007dca51628ab67bcf5dda0eb4e814266120a1f17cc409",
+  "engagement_ref": "sha256:48da48622d02284185690c5e278de5d69a92f42dd98c0859d0f390cadc0e126a",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -119,7 +119,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:1078ad184ebd428c04007dca51628ab67bcf5dda0eb4e814266120a1f17cc409",
+      "subject_hash": "sha256:48da48622d02284185690c5e278de5d69a92f42dd98c0859d0f390cadc0e126a",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"

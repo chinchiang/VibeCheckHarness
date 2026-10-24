@@ -11,6 +11,7 @@
 - CMD-1 計畫必須涵蓋 run 的**每個**切片，且每個切片的 reviewer 至少 min(2, 合格家族數) 個家族（`E-PLAN-COVERAGE`、`E-PLAN-FAMILIES`）。
 - 自架（Z4）模型改由 `toolkit.yaml` 的 `z4_model_hosts` 確切主機名稱判定，不再看 `z4-` 前綴。
 - `graphql_operation: query／introspection` 只在 ROE 為該目標宣告的 GraphQL 路徑（`targets[].graphql_paths`）、方法為 GET／POST 時才算讀取；其他帶這個標籤的請求一律 S3。
+- **第二優先**（v0.4 第二輪）：G0a 增加跨境聲明（`data_transfer`，`E-ENG-TRANSFER`）與設定檔釘選（`config_pins`，`E-ENG-CONFIG-PIN`）；W0 增加個資掃描（遮罩表 `kind: pii`）；ROE 增加事故應變（`incident_response`，`E-ROE-INCIDENT`）；關卡時間以 Audit Writer 收件時間為準。架構面的修正見 [03 v0.4](03-system-architecture.md#v04-變更摘要)。
 
 ## v0.3 變更摘要
 
@@ -282,6 +283,7 @@ flowchart TD
 - **做法**（全部是確定性工具與解析器，**不用 LLM**）：
   1. **Secrets 掃描最先跑**：**預設**用 Betterleaks [P][E:whitebox-09] 或 gitleaks（已宣布只修安全問題），兩者都是 MIT 授權。TruffleHog（AGPL-3.0）[V][E:whitebox-10] 是**選用**：[06 §2.3](06-security-legal-limitations.md#23-授權登錄表) 把它列為法務閘門；只有在工具包層級的法務閘門已結案（[07 §3](07-roadmap.md#3-入口閘門法務與查證) 確認、`trufflehog:scan` 已註冊，見 [08 §2.3](08-implementation-spec.md#23-擴充介面)）時，W0 才能使用它 [H]。這個判斷不讀 ROE 的 `legal_review`（ROE 此時尚未驗章）；ROE 的 `component_licenses` 只在 G0b 用來過濾 B 階段的元件（06 L-6）。TruffleHog 的驗證會把找到的憑證送到供應商 API → W0 一律 `--no-verification`；若要驗證，那是 B 階段的另一個步驟：必須寫進 ROE（`secrets_verification`），通過 G0b 與所有權驗證後從 Z3 發出、留紀錄，否則建議直接輪替。
   2. **路徑黑名單**（`.env*`、金鑰與憑證檔、auth-state 目錄、CI secrets 檔）**完全不進任何後續產物**。
+  2a. **個資掃描**（v0.4）[H]：secrets 之後，以確定性個資偵測器（候選為 Presidio，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）掃描所有文字檔；repo 中的測試 fixture、種子 dump、提交進來的日誌可能含真實個資。命中的值像 secrets 一樣遮罩，記入遮罩對照表（`kind: pii`）。偵測器有漏報，只能降低風險（[06 §1.3](06-security-legal-limitations.md#13-秘密與資料)）。
   3. **遮罩對照表 `secrets-redaction-map`**（`redaction-map.schema.json`，run 以 `redaction_map_ref` 參照）：`hash_alg`、`hmac_key_ref` 與 `entries[]`；每筆只存位置、類型、值的 **HMAC** 與遮罩代號，**不存值**；再以 pattern＋entropy 作第二層遮罩規則（掃描器 recall 不完美，Betterleaks 的 98.6% recall 只是廠商宣稱 [P][E:whitebox-09]）。
   4. 以遮罩後的檔案，由各框架的確定性抽取器（`inventory:<name>`）建立 `inventory.json`，欄位見下表。支援矩陣與各抽取器的限制見 [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)。
   5. 相依清單；Syft 產生 SBOM（CycloneDX／SPDX）[V][E:whitebox-14]。
@@ -773,7 +775,7 @@ flowchart TD
 
 | 步驟 | 輸入 | 輸出 | 區 | LLM | 失敗處理 | 完成條件 | schema | 里程碑 |
 |---|---|---|---|---|---|---|---|---|
-| G0a | `engagement.yaml`（含 `signatures[]`、`assurance_profile`、`gate_approvers`）、`key-registry.yaml`、`toolkit.yaml`（根金鑰指紋） | G0a GateRecord（`signatures: []`＋`verification` 區塊）、run 紀錄 | Z1 | 否 | 驗章失敗、金鑰撤銷、過期、模型不在允許清單 → `ABORTED` | 簽章有效、角色相符、簽署人在 `gate_approvers.G0a`、在有效期間內、每個 agent 的模型都在該資料等級的允許清單中 | engagement、key-registry、toolkit-config、gate-record、run | M1 |
+| G0a | `engagement.yaml`（含 `signatures[]`、`assurance_profile`、`gate_approvers`、v0.4 的 `data_transfer` 與 `config_pins`）、`key-registry.yaml`、`toolkit.yaml`（根金鑰指紋） | G0a GateRecord（`signatures: []`＋`verification` 區塊）、run 紀錄 | Z1 | 否 | 驗章失敗、金鑰撤銷、過期、模型不在允許清單、跨境聲明不完整（`E-ENG-TRANSFER`）、設定檔與釘選 hash 不符（`E-ENG-CONFIG-PIN`）→ `ABORTED` | 簽章有效、角色相符、簽署人在 `gate_approvers.G0a`、在有效期間內、每個 agent 的模型都在該資料等級的允許清單中 | engagement、key-registry、toolkit-config、gate-record、run | M1 |
 | W0 | repo（commit SHA）、路徑黑名單、G0a 已驗章的委任設定（不讀 ROE） | `inventory.json`（`frameworks`、`endpoints`、`db`、`auth`、`env_vars`、`features`、`blind_spots`）、SBOM、`secrets-redaction-map`、secrets 發現（位置＋hash；預設 Betterleaks／gitleaks） | Z2 | 否（G0a 之後第一步；之前沒有 LLM 呼叫） | 任何子步驟失敗 → `FAILED` | 每個框架有支援程度；entry point 都有 `kind` 與 handler；table 都有 `rls_enabled`（`null` 時附 `blind_spots`）；遮罩對照表已登錄 | run（`inventory_ref`、`redaction_map_ref`）、inventory、redaction-map | M1 |
 | W0.5 | W0 inventory（名稱與事實，不含程式碼）、G1 問卷答案、ASVS 5.0 L1＋`level_triggers`、（followup）威脅衍生需求 | `invariants.yaml` 草稿 | Z1 | 是（Invariant Drafter；工具只有 `read_inventory`、`write_blackboard`） | schema 修復 ≤2 次；仍失敗 → 只交 ASVS 基準＋空白矩陣給 G1，由人補齊 | 草稿通過 schema；L2 以上的引用都有觸發（`E-INVARIANT-LEVEL`） | invariants、requirement、inventory | M2 |
 | G1 | 不變量草稿、問卷答案對照、與上一版的差異 | GateRecord（G1）、已簽核 `invariants.yaml` | Z1 | 否 | REJECTED／NEEDS_INFO → W0.5，≤3 輪 → `ABORTED`；EXPIRED → `SUSPENDED` | APPROVED 且簽章、hash 綁定有效；核准者在 `gate_approvers.G1` | gate-record、invariants、engagement | M2 |

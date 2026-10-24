@@ -100,7 +100,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
     - R0＝每個成員的每一項證據都是 NOT_FOUND（沒有成員時不成立）；independent_families＝第一輪、reviewer 角色、至少一項證據不是 NOT_FOUND 的成員家族（`E-CLUSTER-FAMILIES`）
     - 測試證據分類（`derive.classify_result`）：非 PASS／FAIL（ERROR、SKIPPED、STOPPED、INVALID）→ E_inc；重現的 FAIL 若只有 HUMAN／LLM_GRADER oracle 判定違反 → E_inc；解讀已預先登記（B4：G4 核准；W4：需求都經 G1 核准且 oracle_can_pass 對照 PASS）→ E_proof，不需要 LLM；否則由家族與血統都不在叢集中、且同意解讀的 Result Analyst → E_proof；否則 E_fail_u。PASS 需要所有 reachability 對照 PASS、機率型 k＝0 且 n′ ≥ 30、有確定性 oracle，以及預先登記（W4 用 oracle_can_fail）或合格分析者 → E_pass
 14. **追溯鏈**：finding → cluster → verdict → threat → testcase → testresult → report；requirement 範例與 invariants.yaml 一致；種子威脅、DFD 元件、G2 參照。
-15. **稽核紀錄結構**：seq 是整數且連號（`3e0` 之類 → `E-AUDIT-SEQ`）、時間不倒退、每個 gate_decision 後緊接 audit_anchor、`run.audit_anchors` 的 `{seq, line_sha256}` 與日誌行一致（`E-AUDIT-ANCHOR`／`-MISMATCH`／`-TRUNCATED`），而且必須依序列出日誌中**每一個** audit_anchor 事件（漏列任何一個，包括最後一個 → `E-AUDIT-ANCHOR`，不論 run 狀態）、最後錨點之後的尾段（非終止 → `W-AUDIT-UNANCHORED-TAIL`；終止狀態的 run 必須以 `run_end` anchor 結尾，所有原因合併成**一個** `E-AUDIT-TAIL`）、每份關卡紀錄都有事件。
+15. **稽核紀錄結構**：seq 是整數且連號（`3e0` 之類 → `E-AUDIT-SEQ`）、時間不倒退、每個 gate_decision 後緊接 audit_anchor、`run.audit_anchors` 的 `{seq, line_sha256}` 與日誌行一致（`E-AUDIT-ANCHOR`／`-MISMATCH`／`-TRUNCATED`），而且必須依序列出日誌中**每一個** audit_anchor 事件（漏列任何一個，包括最後一個 → `E-AUDIT-ANCHOR`，不論 run 狀態）、最後錨點之後的尾段（非終止 → `W-AUDIT-UNANCHORED-TAIL`；終止狀態的 run 必須以 `run_end` anchor 結尾，所有原因合併成**一個** `E-AUDIT-TAIL`）、每份關卡紀錄都有事件；gate_decision 事件的 `ts`（Audit Writer 的收件時間）與關卡紀錄自填的 `timestamp` 相差不超過 5 分鐘（v0.4，`E-AUDIT-GATE`），而關卡的金鑰效期、ROE 有效期、逾時與 G5 時間窗都以收件時間判定。
 16. **校準**：重算 a、w、near_zero 與原因（±0.0005）、θ 可行性、arms（只有 ⑤ 探索性）、M-11 flag、κ。
 17. **授權**：`tools.yaml` 的 license_ref 與 requirements.txt 的套件都在 licenses.yaml。
 18. **對照表**：curated 必須有 reviewed_by、llm-suggested 不得有；OWASP 預設版本＝toolkit。
@@ -129,6 +129,9 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG` | observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash |
 | `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
 | `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
+| `E-ENG-TRANSFER`、`E-ROE-TRANSFER` | v0.4：data_class C 時，每個能收 C 級資料的雲端（非 Z4）家族有 `providers[].region` 與同區域的 `data_transfer.transfers[]`；跨出 `source_jurisdiction` 需要 `same_jurisdiction` 以外的機制與 reference；聲明者是委任設定簽署人。委任設定宣告跨境傳輸時，ROE `legal_review.scope.cross_border` 必須為 true |
+| `E-ENG-CONFIG-PIN` | v0.4：engagement `config_pins` 等於 models／agents／tools／licenses 的內容 hash（sha256(JCS)） |
+| `E-ROE-INCIDENT` | v0.4：ROE `incident_response` 的聯絡人在金鑰登錄中，`covers` 含 data_exposure、third_party_side_effect、shared_platform_impact、staging_outage |
 | `E-ENG-PROVIDER`、`E-ENG-PROFILE`、`E-PROFILE-SAFETY` | 能收 C 級資料的雲端模型需 ZDR confirmed＋DPA（自架＝`api_base` 主機完全等於 toolkit.yaml `z4_model_hosts` 的一項，v0.4）；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 |
 | `E-THREAT-REVIEW`、`E-TC-REQ-UNAPPROVED`、`E-TC-SCRIPT` | 威脅的 review 必須是決定它的 G3 紀錄；testcase 只能引用 G1 核准的需求；scripted relay 需要 script_turns |
 | `E-RUN-CONFIG`、`E-RUN-RULE-VERSION`、`E-SLICE-IDENTITY` | run config_refs 指向正確種類的檔案、tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.3`；切片的 prompt 範本與 redaction map 屬於本 run |

@@ -2,6 +2,17 @@
 
 > 標記說明見 [README](../README.md#標記說明)。本文件是設計，尚未實作；所有數值都是設計假設，除非另附證據。
 
+## v0.4 變更摘要
+
+依 [2026-10-24 設計審查](evidence/review-2026-10-24.md) 修正（第一優先見 [02 v0.4](02-methodology.md#v04-變更摘要)；以下是第二優先的架構項目）：
+- **Z3 工具容器需求**（§2）：比照 Z2 的沙箱表；每個 job 一個 gVisor／microVM、只能連 Scope Proxy、沒有 DNS 解析器、只解密本 job 角色的 storageState、沒有 Relay 憑證。
+- **Scope Proxy 的位址與協定**（§2、[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)）：解析到的位址以參考實作 `safety.ip_problem` 判定（擋 NAT64、IPv4-mapped、6to4、Teredo、ULA、site-local、multicast 與一切非公開位址）；封鎖 `Upgrade: h2c`、HTTP/3（QUIC、`Alt-Svc`）與 CONNECT 後的非 TLS 流量；路徑的 `\` 視為 `/`。
+- **執行期狀態不放在 checkpoint**（§5.8）：S2 與所有 B4 job 的冪等帳本放在 Z3 的 job 帳本（append-only），時間旅行重播或 checkpoint 回溯不會讓已執行的 job 再執行；每個 run 一把資料庫 advisory lock；kill switch 走圖外通道；有副作用的節點用同步 checkpoint。
+- **LLM 快取鍵**（§5.8）加入 `engagement_id`、資料等級與取樣序號：不跨委任重用回應，重複取樣不會被壓成同一個答案。
+- **設定檔釘選**（§6.1）：委任設定以 `config_pins` 釘選 `models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 的內容 hash（`E-ENG-CONFIG-PIN`）。
+- **關卡時間以 Audit Writer 的收件時間為準**（§6.1、§13.1）：GateRecord 的 `timestamp` 只需與 `gate_decision` 事件的 `ts` 相差不超過 5 分鐘（`E-AUDIT-GATE`）；金鑰效期、ROE 有效期、逾時與時間窗都以收件時間判定。
+- **跨境聲明在 G0a**（§8.4）：委任設定的 `data_transfer`（`E-ENG-TRANSFER`）；HMAC 遮罩金鑰改為每個 run 一把、只在 W0 job 內存在的臨時金鑰。
+
 ## v0.3 變更摘要
 
 依 [2026-09-26 深度審查紀錄](evidence/review-2026-09-26.md) 修正。新元件的細部規格放在 [08 §11](08-implementation-spec.md#11-元件規格補充v03)，本文件只保留架構層級的說明與連結。
@@ -167,9 +178,21 @@ flowchart TB
 | 主機設定 | Firecracker 不開 `--enable-pci`；Jailer 目錄只有 root 可寫；virtiofsd 等主機端輔助程式沙箱化執行 |
 | 共置 | 同一台實體主機不同時執行不同 engagement 的 Z2 job（側通道，[V][E:blackbox-48]），或改用關閉 SMT 的專用主機 |
 
+**Z3 工具容器需求**（v0.4，全部 [H]）：Z3 執行 G4 核准、但由 LLM 產生的腳本（Playwright、pytest 等）與第三方工具（ZAP、Schemathesis）。核准只證明有人看過，不證明腳本無害，所以 Z3 比照 Z2 隔離：
+
+| 項目 | 要求 |
+|---|---|
+| 執行環境 | gVisor 或 Firecracker microVM；每個 job 一個全新環境，結束即銷毀；不同 job 不共用檔案系統 |
+| 網路 | 每個 job 自己的網路命名空間；唯一可連的位址是 Scope Proxy（以該 job 的 proxy 權杖認證）；**沒有 DNS 解析器**（名稱由 Scope Proxy 解析）；不能連 Relay、Snapshot Service、Executor 的指令埠 |
+| 憑證 | 只解密本 job 用到的角色的 storageState，放在 tmpfs；job 結束即抹除。Executor 的 mTLS 服務金鑰與 z3_executor 簽章金鑰不進工具容器 |
+| LLM | 沒有 Relay 憑證；多輪測試的下一輪由 Executor（容器外）經 Relay 取得後再交給容器 |
+| 輸出 | 只收集指定輸出目錄、stdout／stderr 與 Scope Proxy 的請求紀錄；離開 Z3 前做 PII 掃描 |
+| 映像與權限 | 以 digest 鎖定；非 root；無 Docker socket、無主機掛載；工具的自動更新與遙測關閉（例如 ZAP 的 add-on 更新） |
+
 **Scope Proxy（Z3 唯一出口）**：
 - 只放行通過所有權驗證的 ROE 目標主機。目標 ID→主機名稱的對應由 Policy Engine 完成（不經 LLM）；DNS 解析結果由 Scope Proxy 固定。
-- 擋內網、雲端 metadata 位址，以及 ROE 以外的 redirect。
+- 擋內網、雲端 metadata 位址，以及 ROE 以外的 redirect。**位址判定**（v0.4）：每個解析結果以參考實作 `vchlib.safety.ip_problem` 判定，只接受公開的 unicast 位址；Python 的 `is_global` 會放行的 NAT64（`64:ff9b::/96`，例如 `64:ff9b::a9fe:a9fe` 經轉譯器到達 169.254.169.254）、IPv4-mapped、6to4、Teredo、`fec0::/10` 與 multicast 一律擋下。
+- **協定**（v0.4）：拒絕 `Upgrade: h2c`（h2c smuggling），移除回應中的 `Alt-Svc` 並封鎖 UDP 443（HTTP/3／QUIC 會繞過 TCP 上的 proxy），CONNECT 之後不是 TLS 的流量直接斷線。路徑正規化把 `\` 與 `%5C` 視為 `/`（部分伺服器如此解讀，否則可以繞過排除清單）。
 - **每個 job 的請求白名單**：依測試案例的 `request_allowlist`（目標 ID × HTTP 方法 × 路徑樣板）逐一放行，並強制 `max_requests`。**每個寫入請求**（POST／PUT／PATCH／DELETE 與 GraphQL mutation）都要符合寫入範圍規則：只能經 `{seed:<id>}` 碰既有的種子物件，或是 seed manifest 列出的建立請求（§7.1）。路徑先正規化再比對排除清單（§7.1）。這是真正的強制點；對產物做的靜態抽取（§7.2）只是第一道檢查。B1 爬行 job 同樣有自己的 job 白名單，由 harness 以程式碼產生，預設規則見 [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)（`toolkit.yaml` 還沒有對應的設定區塊，預設值暫為程式常數，見 [09 BL-16](09-backlog.md)）。
 - **TLS、協定與 CDN**（M4，[H]）：要逐一檢查 HTTPS 請求的方法與路徑，Scope Proxy 必須終結 TLS。它以 **Z3 本地 CA** 簽發的憑證面對 Executor 的工具，再以一般的 TLS 驗證連到目標；CA 私鑰只存在 Z3。HTTP/2、WebSocket、SSE 的處理方式，以及 DNS 固定如何與 CDN（同一主機名稱對應多個輪替 IP）共存，見 [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)。
 - 每個主機設請求預算與並行上限，**與工具設定無關**；並計算停止條件所需的指標（§7.3）。
@@ -763,10 +786,14 @@ stateDiagram-v2
 ### 5.8 節點邊界規則
 
 - LangGraph 的 `interrupt()` 會在 resume 時**從該節點開頭重新執行**，所以 interrupt 之前的副作用必須是冪等的 [V][E:orchestration-04]。本設計讓每個 `G*_gate`、`claim_run`、`suspended_wait`、`stopped_wait` 節點**只做 interrupt**，前面沒有任何副作用；開啟關卡、發送通知、寫 `gate_opened` 稽核事件由 Gate Service 觀察到待處理的 interrupt 後在圖外完成 [H]。
-- **LLM 呼叫的冪等**：每個請求以 sha256（模型 ID＋版本＋參數＋prompt hash＋schema hash）為快取鍵，回應存 CAS。節點重新執行（resume、重試、GB 延長後）時命中快取，不會重複花費 [H]。
+- **LLM 呼叫的冪等**：每個請求以 sha256（`engagement_id`＋資料等級＋模型 ID＋版本＋參數＋prompt hash＋schema hash＋取樣序號）為快取鍵，回應存 CAS。節點重新執行（resume、重試、GB 延長後）時命中快取，不會重複花費 [H]。v0.4 加入前兩項與取樣序號：v0.3 的鍵會跨委任重用 C 級回應（也讓後寫入者的保留期限被忽略），並把同一切片的多次取樣（校準 ② 組、`single_best_resampled`）壓成同一個答案。取樣序號只在「刻意重複取樣」時遞增；重試與 resume 沿用同一個序號，所以仍命中快取。
 - **Sandbox 與 Executor job**：job ID 由輸入 hash 決定；結果已存在就不重跑。
 - `B4_s2_snapshot` 以 `run_id + job_id` 為冪等鍵：快照已存在就略過。
 - `B4_s0s1_exec`、`B4_s2_exec` 執行前檢查 `executed_jobs`，防止 resume 或重試時重跑；狀態為 `EXECUTING` 卻沒有結果的 job 一律標 `INTERRUPTED`，依 §5.6 的續跑規則處理。
+- **job 帳本在 checkpoint 之外**（v0.4）[H]：`executed_jobs` 只是快取；權威是 Z3 Executor 的 **job 帳本**（append-only，每筆 `{run_id, job_id, g5_gate_record_id, started_at, finished_at, outcome}`，由 z3_executor 金鑰簽署）。Executor 收到 job 時先查帳本：已有紀錄 → 拒絕執行並回傳原結果。理由：checkpoint 可以回溯（時間旅行重播、從較早的 checkpoint 分叉），回溯後 state 內的 `executed_jobs` 也會倒退；job_id 又是確定性的，可能對上原本的 G5 紀錄，於是 S2 job 會在沒有新 G5 的情況下重跑。
+- **每個 run 一把鎖**（v0.4）[H]：Run Controller、Gate Service 的 `submit`／`expire_due` 與 `run abort` 修改同一個 run 之前，先取得以 `run_id` 為鍵的 PostgreSQL advisory lock。LangGraph 的 OSS 版本沒有 thread 層級的互斥，同時寫入會讓 checkpoint 歷史分叉。
+- **kill switch 走圖外通道**（v0.4）[H]：`kill_switch` 在 state 中只是紀錄。觸發時 CLI 直接呼叫 `Executor.kill(run_id)` 與 Scope Proxy 的關閉介面（兩者都在 Z3，與圖的執行無關），再寫入 state；節點執行途中無法更新 state，所以不能靠圖內的欄位停止正在進行的 job。
+- **durability**（v0.4）[H]：有外部副作用的節點（`B4_*`、`B0_ownership_verify`、Gate Service 寫入）使用同步 checkpoint；非同步模式在當機時可能遺失最後一個 checkpoint，讓已完成的副作用在 resume 時重做。
 - `B4_s2_restore` 是**補償步驟**：中止、失敗、kill switch 觸發時由 `abort_handler` 也會執行，由 checkpoint 中的 `jobs` 狀態驅動。
 - 每個 `CMD*` 節點的輸出都要先經 Policy Engine 驗證，才寫入 state。
 - **稽核事件**在節點重新執行時可能重複寫入；每個事件帶 `idempotency_key`（run_id＋節點＋冪等鍵），讀取時去重 [H]。
@@ -811,6 +838,7 @@ stateDiagram-v2
 
 | 物件 | 內容 |
 |---|---|
+| 設定檔釘選（v0.4） | 委任設定的 `config_pins` 記錄 `models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 的內容 hash（sha256(JCS)），受 G0a 簽章保護；載入的檔案與釘選值不同 → `E-ENG-CONFIG-PIN`。這四份決定 C 級資料路由、家族多樣性、S0／S2 與法務閘門，v0.3 卻沒有簽章 |
 | `toolkit.yaml`（`toolkit-config.schema.json`） | 釘選組織根金鑰：`org_root_key.fingerprint`、`alg`；`key_registry.location`；`key_registry.min_version`（防回滾）；`automation_accounts`；`restore_drill_interval_days` |
 | `key-registry.yaml`（`key-registry.schema.json`） | `registry_id`、`version`（單調遞增）、`issued_at`、`entries[]`：`person_id`、`roles[]`（含 `legal_reviewer`、`z3_executor`）、`public_key`、`alg`、`fingerprint`、`not_before`、`not_after`、`revoked_at`、`revocation_reason`（`compromised`／`role_change`／`retired`）；`signatures[]`：組織根金鑰的簽章 |
 | 被簽署的文件 | `engagement.yaml`、`roe.yaml`、GateRecord（G0a／G0b 除外）；人為的稽核事件 `initiator_claim`、`run_resume`。每位簽署人在 `signatures[]` 中一筆：`{signer, key_fingerprint, alg: ed25519, value}`（舊的 `signature_ref` 欄位已移除） |
@@ -833,7 +861,10 @@ stateDiagram-v2
 1. 讀 `toolkit.yaml`（隨部署設定管理，不由 run 輸入）取得根金鑰指紋 `org_root_key.fingerprint`。
 2. 驗證 `key-registry.yaml` 的根簽章；`version` < `key_registry.min_version` → 拒絕（回滾）；登錄的 `registry_id`、`toolkit.yaml` 的 `key_registry.location` 與委任設定／ROE 的 `key_registry_ref` 必須一致。
 3. 對被簽署文件：解析 → 移除 `signatures` → 正規化 → 對每份簽章以登錄中的公鑰驗證。
-4. 檢查每位簽署人：`key_fingerprint` 在登錄中、角色符合該文件或關卡的要求、簽署時間在 `not_before`–`not_after` 之間。**簽署時間**取文件的 `issued_at`、GateRecord 的 `timestamp` 或稽核事件的 `ts`；這些都是自行宣告的時間，沒有時間戳記服務（限制，見 06）。
+4. 檢查每位簽署人：`key_fingerprint` 在登錄中、角色符合該文件或關卡的要求、簽署時間在 `not_before`–`not_after` 之間。**簽署時間**：
+   - GateRecord（v0.4）：以 Audit Writer 寫入 `gate_decision` 事件時的 `ts`（收件時間）為準；核准者自填的 `timestamp` 必須與它相差不超過 5 分鐘（`E-AUDIT-GATE`）。金鑰效期、撤銷、ROE 有效期、關卡逾時與 G5 時間窗都以收件時間判定，所以核准者無法把決定倒填到撤銷之前或 ROE 效期之內。
+   - 委任設定與 ROE 的 `issued_at`、人為稽核事件：仍是自行宣告的時間；G0a／G0b 驗章本身發生在收件時間，過期與撤銷照該時間判定。
+   - 收件時間來自 Audit Writer 所在主機的時鐘，不是可信時間戳記服務；同時控制 Audit Writer 與其時鐘的人仍能偽造（限制，見 06 §3 #25）。
 5. **撤銷**：`revocation_reason = compromised` → 該金鑰的**所有**簽章都無效（不論簽署時間）；其他原因 → `revoked_at` 之前的簽章仍有效，之後的無效。
 6. 核准者來源依關卡而定（§6.3）：G0a／G1／G2 的核准者必須列在委任設定的 `gate_approvers`（`E-GATE-APPROVER-ENG`）；G0b 以後的核准者必須列在 ROE 的 `signatories` 或 `gate_approvers` 中（`E-GATE-ROE-APPROVER`）；G3／G4／G5 的決定時間還必須在 ROE 有效期內（`E-GATE-ROE-VALIDITY`）。`legal_review` 由 `management` 聲明時產生警告 `W-L2-MANAGEMENT`（不是錯誤）。
 7. 結果寫入稽核（`key_registry_loaded`、`signature_verified`／`signature_invalid`），`key_registry_ref` 寫入 run；G0a／G0b 的結果寫成 GateRecord 的 `verification` 區塊。
@@ -1102,6 +1133,8 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 - **Secrets 先於任何 LLM**：Model Gateway 對每個請求檢查所屬 run 的 `redaction_map_ref`；為空就拒絕（稽核事件 `llm_refused_policy`）。請求內容在送出前再以 pattern＋entropy 掃描一次，命中遮罩對照表中任何值的 HMAC 就拒絕 [H]。
 - **遮罩是通往 LLM 的唯一路徑** [H]：W0 的 Inventory 與 secrets 掃描完全不用 LLM；第一個 LLM 節點（`W05_draft_invariants`）在切片產生之前執行，所以 Invariant Drafter 只有 `read_inventory` 與 `write_blackboard` 兩個工具，只讀遮罩後的 inventory，不讀切片（v0.2 還留著用不到的 `read_slice`）。agent 的工具權限由 validator 檢查：reviewer 與 verifier 只有 `read_slice`；Commander 沒有工具；Invariant Drafter 沒有 `read_slice`（`E-AGENT-TOOLS`）。
 - **資料等級採 fail-closed**：未標記＝C（機密）。等級寫在已簽章的委任設定中，**LLM 不能決定**。
+- **跨境聲明在 G0a**（v0.4）[H]：W2 在 G0b 之前就把 C 級程式碼送往雲端模型，所以跨境與資料處理的聲明必須在委任設定（G0a）中，而不只在 ROE 的 `legal_review`。每個能收 C 級資料的雲端家族都要在 `providers[]` 寫明處理區域（不得為 null），並在 `data_transfer.transfers[]` 有同區域的一筆；跨出 `source_jurisdiction` 時，機制不能是 `same_jurisdiction` 且要有文件參照（`E-ENG-TRANSFER`）。ROE 的 `legal_review.scope.cross_border` 涵蓋 B 階段（Relay、Result Analyst），委任設定已宣告跨境傳輸時它不能寫「不適用」（`E-ROE-TRANSFER`）。Gateway 在執行時再比對模型的區域與聲明，不符就拒絕。工具包只比對宣告，不判斷傳輸機制在法律上是否有效。
+- **遮罩的 HMAC 金鑰**（v0.4）[H]：每個 run 由 Z1 的 KMS 產生一把臨時金鑰，以 W0 job 的公鑰包裝後交給該 job，只存在 job 的 tmpfs，W0 結束即銷毀；遮罩對照表的 `hmac_key_ref` 指向 KMS 中包裝後的版本，Gateway 在 Z1 以同一把金鑰比對送出內容。v0.3 寫成「金鑰在 Z1 secret store」，但遮罩在 Z2 執行，而 Z2 規定沒有憑證：二者矛盾，結果只會是金鑰長期進 Z2，或原始 secret 離開 Z2。
 - **C 級的端點與參數白名單**：
   - 只允許一般對話端點。
   - 不用 Batch、Files、background mode。Anthropic ZDR 不涵蓋 Batch（29 天保留）與 Files [V][E:providers-28]；OpenAI 的 files、batches 等端點不適用 ZDR [V][E:providers-35]。
@@ -1285,6 +1318,7 @@ erDiagram
 ### 13.1 稽核事件格式（`audit-event.schema.json`，[H]）
 - **儲存**：append-only JSONL，每個 run 一個檔（另有一個 engagement 層級的檔記錄跨 run 事件）；寫入端與讀取端都**只以 `\n` 分行**（不把 `\r`、U+2028 等其他換行字元當成行界，避免兩邊對「一行」的切法不同而使行 hash 不一致）[H]；大型內容（prompt、回應、請求紀錄）只存 CAS hash，本體加密存在 CAS。
 - **欄位**：`seq`（從 1 起連續）、`ts`、`run_id`、`engagement_id`、`event_type`、`actor`（`{kind: human|agent|system, id}`）、`node`、`zone`、`data_class`、`idempotency_key`、`payload`（小型結構化內容）、`payload_refs[]`（CAS hash）、`prev_hash`、`signature`。全部欄位都必填；只有人為的 `initiator_claim` 與 `run_resume` 事件有簽章（Ed25519，簽署對象是移除 `signature` 後事件的 JCS），其他事件 `signature: null`。
+- **`ts`**（v0.4）：Audit Writer 寫入該行時的時鐘（收件時間），不是事件來源自填的時間；關卡決定的所有時間規則以它為準（§6.1 步驟 4）。
 - **hash chain**：`prev_hash` ＝ 前一行原始位元組（不含換行）的 sha256；第一行的 `prev_hash` ＝ sha256(`run_id`)。只有 Audit Writer 一個寫入者，以檔案鎖序列化。
 - **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件以 `{seq, line_sha256}` 寫入 run 紀錄的 `audit_anchors`（Postgres）：`seq` 是該錨點事件的序號，`line_sha256` 是該錨點事件**自己那一行**原始位元組（不含換行）的 sha256；因為這一行含 `prev_hash`，錨點同時承諾它之前的整條鏈；可選擇另外寫到 WORM 儲存或外部系統 [H]。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。

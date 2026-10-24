@@ -4,7 +4,7 @@
 
 ## v0.4（2026-10-24）
 
-依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一優先項目，修正裁決規則的邊界與 validator 的繞過。其餘審查項目與理由見該紀錄 §5。
+依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一、第二優先項目：修正裁決規則的邊界與 validator 的繞過，並把跨境聲明移到 G0a、補上事故應變、釘選設定檔、修正信任錨與 Scope Proxy。其餘審查項目與理由見該紀錄 §5。
 
 ### 裁決規則（語意改變，`rule_version` 改為 `05-v0.4`）
 - **R0** 只在叢集沒有任何其他證據時成立：除了成員證據全部 `NOT_FOUND`，還要沒有已解析的 SARIF、沒有 `E_proof`／`E_fail_u`。（A1）
@@ -19,10 +19,22 @@
 - 新增 `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES`：CMD-1 計畫涵蓋 run 的每個切片，每個切片的 reviewer 至少 min(2, 合格家族數) 個家族。（D3）
 - `E-FINDING-EVIDENCE`：程式片段至少 12 個非空白字元並含識別字，檔案必須在發現項的切片中。（D4）
 - `graphql_operation: query／introspection` 只在 ROE 新增的 `targets[].graphql_paths` 宣告的路徑、GET／POST 上算讀取；其他帶這個標籤的請求一律 S3。（B1）
-- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 497 個。
+- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 553 個。
+
+### 第二優先：資料出境、法務與信任錨
+- **跨境聲明移到 G0a**：委任設定新增 `data_transfer`（來源法域、聲明者、逐家族的區域與傳輸機制）；能收 C 級資料的雲端家族 `providers[].region` 不得為 null（`E-ENG-TRANSFER`）。委任設定宣告跨境時，ROE 的 `cross_border` 不能寫不適用（`E-ROE-TRANSFER`）；範例 ROE 改為 true。（C1）
+- **ROE 事故應變**：新增 `incident_response`（聯絡人、1–72 小時內通報、四種事故、處理程序與責任條款，`E-ROE-INCIDENT`）。（C5）
+- **W0 個資掃描**：secrets 之後以確定性偵測器掃描 repo，命中的值遮罩並記入遮罩表（`kind: pii`）。（C3）
+- **設定檔釘選**：委任設定新增 `config_pins`，釘選 `models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 的內容 hash（`E-ENG-CONFIG-PIN`）。（E1）
+- **關卡時間以 Audit Writer 收件時間為準**：GateRecord 的自填 `timestamp` 與 `gate_decision` 事件 `ts` 相差不超過 5 分鐘（`E-AUDIT-GATE`）；金鑰效期、ROE 有效期、逾時與 G5 時間窗都以收件時間判定。（E4）
+- **執行期狀態**（03 §5.8、08 §6–§7）：B4 job 的權威帳本在 Z3、不受 checkpoint 回溯影響；每個 run 一把 advisory lock；kill switch 走圖外通道；有副作用的節點用同步 checkpoint；LLM 快取鍵加入 `engagement_id`、資料等級與取樣序號。（E3、E7、E9）
+- **HMAC 遮罩金鑰**改為每個 run 一把、只存在 W0 job 內的臨時金鑰，解決「金鑰在 Z1、遮罩在 Z2」的矛盾。（E6）
+- **Z3 工具容器需求表**（03 §2）：每個 job 一個 gVisor／microVM、只能連 Scope Proxy、沒有 DNS、只解密本角色的 storageState、沒有 Relay 憑證。（E2）
+- **Scope Proxy**：參考實作 `safety.ip_problem`（擋 NAT64、IPv4-mapped、6to4、Teredo、ULA、`fec0::/10`、multicast 與一切非公開位址）；封鎖 h2c、QUIC 與 CONNECT 後的非 TLS 流量；路徑的 `\`／`%5C` 視為 `/`；共享平台網域加入 `lovable.app`、`replit.app`、`workers.dev`、`github.io` 等 12 個，實作版以 Public Suffix List 為來源。（B8、B9）
+- 新增 `tests/test_v04_legal_trust.py`、`tests/test_v04_scope_proxy.py`；`test_validator.py` 的 G5 時間窗測試改以收件時間為準。
 
 ### 文件
-- docs/02、03、04、05、08 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
+- docs/02、03、04、05、06、08 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
 
 ## v0.3（2026-09-26）
 

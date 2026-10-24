@@ -82,7 +82,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G0a-0001",
-      "sha256": "sha256:0770f0387405eef54003dedb0bab2c7112b420815c3cfcc15b862e3f4dcef99c"
+      "sha256": "sha256:52e98730080cb218cd261e989fe30e04bf7eacb0492f77506932aa97a3db4754"
     },
     {
       "kind": "gate_record",
@@ -102,7 +102,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G0b-0001",
-      "sha256": "sha256:c4a285c4c889dd6ab803e7b3f2f041cad02ee26e4d2d96ca1091ea3a248d7ef2"
+      "sha256": "sha256:e990eaa43d5b1833d5d81f001cd733fcf2b1764faf9d612ba6da233ccf01738a"
     },
     {
       "kind": "gate_record",

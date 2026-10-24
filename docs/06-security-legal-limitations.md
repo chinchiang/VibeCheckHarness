@@ -2,6 +2,14 @@
 
 > 一個會讀不可信程式碼、呼叫多家 LLM、還會對網路送出測試請求的工具包，本身就是高風險的 agentic 系統。本文件把威脅建模套用在工具包自己身上，並列出法遵事項與做不到的事。標記說明見 [README](../README.md#標記說明)。
 
+## v0.4 變更摘要
+
+依 [2026-10-24 設計審查](evidence/review-2026-10-24.md)：
+- **跨境聲明移到 G0a**（§2.2）：委任設定的 `data_transfer` 逐家族宣告處理區域與傳輸機制（`E-ENG-TRANSFER`）。v0.3 只在 ROE 的 `legal_review` 有一個布林 `cross_border`，而 G0b 之前的節點不讀 ROE，W2 卻已經把 C 級程式碼送到雲端模型。範例 ROE 的 `cross_border` 改為 true（委任設定宣告了 TW→US），不一致時 `E-ROE-TRANSFER`。
+- **事故應變**（§2.2）：ROE 新增 `incident_response`（聯絡人、通報時限、四種事故、處理程序與責任條款，`E-ROE-INCIDENT`）。
+- **W0 個資掃描**（§1.3）：repo 中的 fixture、種子 dump 與日誌也可能有真實個資；W0 以確定性偵測器掃描並像 secrets 一樣遮罩（遮罩表 `kind: pii`）。
+- **設定檔釘選與關卡時間**（§1.6）：`models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 由委任設定的 `config_pins` 釘選；關卡決定的時間以 Audit Writer 的收件時間為準。§3 #25 的限制因此縮小。
+
 ## v0.3 變更摘要
 
 - **§3 做不到**：
@@ -140,6 +148,7 @@
   - W0 的預設 secrets 掃描器用 MIT 授權的 Betterleaks 或 gitleaks（§2.3）。W0 在 G0b 之前執行，所以要不要用 TruffleHog 只看工具包層級的法務閘門（§2.3），不看 ROE 的 `legal_review`。
 - **資料等級採 fail-closed**，送往 LLM 的端點與參數受白名單限制（[03 §8.4](03-system-architecture.md#84-資料治理)）。
 - **PII**：B4 前抽樣檢查 staging 回應；一旦偵測到個資就觸發停止條件，B5 改用自架模型。
+- **W0 個資掃描**（v0.4）[H]：受測 repo 本身可能含真實個資（測試 fixture、種子資料 dump、提交進來的日誌）。W0 在 secrets 掃描之後，以確定性偵測器（候選為 Presidio，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）掃描所有文字檔，命中的值像 secrets 一樣替換成遮罩代號，記入遮罩對照表（`kind: pii`，只存位置與 HMAC）。偵測器有漏報，所以這只降低風險；委任設定的資料等級仍是 C。
 - **Audit Log 與 DB 快照**：加密、與原始碼同等級、設保留期限、限制存取、遮罩 secrets。
 - **重現證據**：只保存「對 ROE 目標 ID 的失敗安全斷言」；不建立通用 payload 庫；以 C 級（機密）權限保存。
 
@@ -280,6 +289,9 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 ### 2.2 資料、個資與跨境
 - 把原始碼與測試資料送到境外的 LLM 供應商，可能涉及資料保護與跨境傳輸義務。
 - 使用前，應由法律顧問檢視當地的電腦濫用法規、個資法規、跨境傳輸規定，並以 §2.1.1 的 `legal_review` 聲明記錄。
+- **白箱階段的跨境聲明在 G0a**（v0.4）[H]：W2 在 G0b 之前就把 C 級程式碼送往雲端模型，所以只在 ROE 聲明為時已晚。委任設定的 `data_transfer` 寫明 `source_jurisdiction`、聲明者（必須是委任設定的簽署人）與 `transfers[]`：每個能收 C 級資料的雲端家族一筆，區域等於 `providers[].region`（不得為 null），跨出來源法域時要有傳輸機制（`adequacy`、`contract`〔標準契約條款／標準合同〕、`certification`、`security_assessment`、`consent`、`other`）與文件參照（`E-ENG-TRANSFER`，[03 §8.4](03-system-architecture.md#84-資料治理)）。不同法域的機制不同（例如 GDPR、PIPL、台灣個資法各有規定），工具包只檢查聲明存在且一致，不判斷機制在法律上是否有效（§3 #24）。
+- **ROE 的 `cross_border`** 涵蓋 B 階段（Relay、Result Analyst 的 LLM 呼叫）；委任設定已宣告跨境傳輸時，它不能寫「不適用」（`E-ROE-TRANSFER`）。
+- **事故應變**（v0.4）[H]：ROE 的 `incident_response` 寫明測試造成意外時誰會被通知、多快通知（1–72 小時）、依哪份程序處理、依哪份條款決定責任。必須涵蓋四種情況：`data_exposure`（測試回應出現真實個資或機密）、`third_party_side_effect`（觸發真實的寄信、簡訊、金流；工具包只控制 Z3 的出站，管不到 staging 自己的出站）、`shared_platform_impact`（波及共享平台上的其他租戶）、`staging_outage`（`E-ROE-INCIDENT`）。工具包只檢查宣告，不評估程序內容。
 - **本工具包不會讓任何使用行為變得合法**。本文件只提供一般性提醒，不是法律意見。
 
 #### 2.2.1 保留期限的優先順序 [H]
@@ -471,7 +483,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 22 | **範例設定中的模型可能很快退役**：Claude Haiku 4.5 最早 2026-10-15 退役 | [V][E:providers-49] | `models.yaml` 記錄每個模型的最早退役日；距退役 <30 天時 Gateway 警告，並要求換成同家族的替代模型，重跑該模型的校準 [H]。範例已換成 Claude Opus 4.8（最早 2027-05-28 退役 [V][單源][E:providers-52]；08 §10 U-11），但它已是 legacy，仍需再排替換 |
 | 23 | **NVIDIA 託管 API 不能用於客戶工作或安全測試本身** | 只限內部測試與評估；禁止測試其服務 [V][E:providers-41] | 只用於工具包開發期的評估；客戶工作用自架 |
 | 24 | **工具包不能判斷法律問題**（AGPL 的適用、NIM 的「測試」用途、跨境傳輸是否合法） | 屬法律判斷；FSF 也說界線最終由法院決定 [V][E:blackbox-61] | §2.1.1 的 `legal_review` 聲明＋§2.3 的法務閘門；工具包只檢查聲明存在且簽章有效 |
-| 25 | **簽署時間是簽署者自己宣告的，沒有時間戳記機構** | `issued_at`、關卡 `timestamp`、稽核 `ts` 都由簽署端寫入 [H]；金鑰以非 `compromised` 原因撤銷後，持有私鑰的人仍可倒填時間，簽出「撤銷前」的有效簽章 | 撤銷後盡快把金鑰改標為 `compromised`（若有疑慮）；以稽核鏈錨點（§1.7）交叉比對時間；需要更強保證的 engagement 另接外部時間戳記服務 [H] |
+| 25 | **簽署時間沒有時間戳記機構** | v0.4 起，關卡決定的時間以 Audit Writer 的收件時間為準，核准者自填的 `timestamp` 與它相差超過 5 分鐘就是錯誤（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)），所以關卡決定無法倒填。仍做不到的部分：委任設定與 ROE 的 `issued_at` 是自行宣告的；收件時間來自 Audit Writer 主機的時鐘，同時控制 Audit Writer 與其時鐘的人仍能偽造 [H]；金鑰以非 `compromised` 原因撤銷後，持有私鑰的人仍可把委任設定或 ROE 倒填到撤銷之前 | 撤銷後盡快把金鑰改標為 `compromised`（若有疑慮）；以稽核鏈錨點（§1.7）交叉比對時間；需要更強保證的 engagement 另接外部時間戳記服務 [H] |
 | 26 | **單人使用（Lite 模式）無法提供職責分離** | 同一個人同時是發起者、核准者與測試負責人時，關卡只剩「自己確認自己」[H] | 必須在 engagement 明確聲明一人兼多角色（`role_consolidation`）；只允許 S0／S1；報告首頁標示「單人模式，未經職責分離」；需要 S2 或對外交付的結果，改用 Team 模式（[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 | 27 | **staging 的結果不等於正式環境的結果** | 設定、資料、secrets、WAF、feature flag、平台方案都可能不同；版本識別只證明跑的是同一個 commit，不證明設定相同 [H] | B0 以 `build_identity` 確認 commit（不一致就不執行）；G1 宣告已知的環境差異；報告寫明「只代表 staging 在測試時的狀態」 |
 | 28 | **PASS 不代表沒有漏洞** | 測試只覆蓋有限的條件；PASS 永遠不會單獨讓叢集變成 `REJECTED`（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）[H] | 報告一律寫「在測試條件下未重現」；報告敘事 linter 禁止「沒有漏洞」等說法（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）；沒有正對照的 PASS 另行標示 |

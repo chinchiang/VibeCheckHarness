@@ -68,9 +68,22 @@ gate_approvers:               # 白箱關卡（ROE 生效前）的核准者；G0
   G2: [erin, heidi]
 
 providers:                    # 能收到 C 級資料的雲端模型：ZDR 已確認且 DPA 已簽；自架模型（Z4）不需要（E-ENG-PROVIDER）
-  - {family: anthropic, zdr: confirmed, zdr_evidence_ref: "doc:zdr-anthropic-2026-09", dpa_signed: true, retention_days: null, region: null}
-  - {family: openai, zdr: confirmed, zdr_evidence_ref: "doc:zdr-openai-2026-09", dpa_signed: true, retention_days: null, region: null}
+  - {family: anthropic, zdr: confirmed, zdr_evidence_ref: "doc:zdr-anthropic-2026-09", dpa_signed: true, retention_days: null, region: US}
+  - {family: openai, zdr: confirmed, zdr_evidence_ref: "doc:zdr-openai-2026-09", dpa_signed: true, retention_days: null, region: US}
   - {family: nvidia, zdr: not_available, zdr_evidence_ref: null, dpa_signed: false, retention_days: null, region: null}   # 只用自架 Nemotron；雲端 NIM 只收 P
+
+data_transfer:                # v0.4：G0a 驗章的跨境聲明（W2 在 G0b 之前就把程式碼送往雲端模型，E-ENG-TRANSFER）
+  source_jurisdiction: TW
+  attested_by: carol          # 必須是本委任設定的簽署人
+  transfers:                  # 每個能收 C 級資料的雲端家族一筆；自架（Z4）的 nvidia 不需要
+    - {family: anthropic, region: US, mechanism: contract, reference: "doc:dpa-anthropic-2026-09#cross-border"}
+    - {family: openai, region: US, mechanism: contract, reference: "doc:dpa-openai-2026-09#cross-border"}
+
+config_pins:                  # v0.4：影響安全判斷的設定檔內容 hash（E-ENG-CONFIG-PIN）；改設定就要重簽委任設定
+  models: "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+  agents: "sha256:6b436102c1d67adc1b28d10a0772368bfe34acf9fbb1f20385134646dbb8807c"
+  tools: "sha256:312f04aace19149014ee420f44844b93cca29bc5c19259100c2126cea42bb145"
+  licenses: "sha256:3cc53257d103fb15b759f7a2729426d74eba37d08cfbd9b73f32ddb307e5b7ec"
 
 assurance_profile: team       # lite／team／full（docs/03 §6）；team：ROE 每個簽署角色由不同人擔任
 role_consolidation: null      # 只在 lite 使用：同一人兼任多個角色時的聲明
@@ -79,8 +92,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "yl0DK+Zr+EYv2tqPEO8S/Uz2rtIro2FrG5Y+TPyzD2qoi7yDgcep/meG/LN1qVxGeBwegt9rECyOaq/fWls6Aw=="
+    value: "MtQL4g9w4+LBKkDPL5FEhyTb8PbuDzxPC1c424ejmmMNSUrnhvdxDwGtmXguRIUlKSbRFXCRNCFmth8zLyUcAg=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "OgdBFxH/RMgEiRW5Pkm6T5svF22Q2WjfG+4GexdbKYlJp5L+HGtzUfxFbTkhyQhZl3C4slrQiED0NvqFKoEXAw=="
+    value: "LN+ySdxpEwQtsl8kvHGNs/dTA0KesisAE0XXMH9cfL/zKh/l3oRf8xptoNtbhuGLbclCyqEddzSYtQp6MfBfCQ=="

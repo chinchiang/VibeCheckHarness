@@ -748,11 +748,11 @@ class ToolAdapter(ABC):
 | run | `run_id`（UUIDv7） | `run_init` 略過建立 |
 | CAS 物件 | `sha256`（明文內容） | 直接回傳同一個 ref |
 | Blackboard 發布 | 物件 JCS 的 sha256 | 回傳同一個 ref（append-only） |
-| LLM 請求 | sha256（模型 ID＋版本＋參數＋prompt hash＋schema hash）（[03 §5.8](03-system-architecture.md#58-節點邊界規則)） | 從 CAS 讀回應，不重新呼叫、不重複計費 |
+| LLM 請求 | sha256（`engagement_id`＋資料等級＋模型 ID＋版本＋參數＋prompt hash＋schema hash＋取樣序號）（v0.4；[03 §5.8](03-system-architecture.md#58-節點邊界規則)） | 從 CAS 讀回應，不重新呼叫、不重複計費；不跨委任重用；刻意的重複取樣各有自己的序號 |
 | Sandbox job | sha256（image digest＋argv＋輸入 hash）（[03 §2](03-system-architecture.md#2-部署與信任區)） | 讀已存在的結果 |
 | 所有權驗證 | `(run_id, target_id, batch_id)` | 讀已簽署的結果 |
 | S2 快照 | `run_id + job_id` | 略過 |
-| B4 job | `executed_jobs` 與 `JobStatus` | `EXECUTED` 不重跑；`EXECUTING` 但沒有結果 → `INTERRUPTED`（[03 §5.6](03-system-architecture.md#56-中止補償與-resume)） |
+| B4 job | Z3 的 job 帳本（權威，v0.4）；`executed_jobs` 與 `JobStatus` 只是快取 | 帳本已有紀錄 → Executor 拒絕執行並回傳原結果，即使 checkpoint 回溯過；`EXECUTING` 但沒有結果 → `INTERRUPTED`（[03 §5.6](03-system-architecture.md#56-中止補償與-resume)） |
 | 開關卡 | `(run_id, gate, round)` | 不重複開啟、不重複通知 |
 | GateRecord | `approval_hash` | 同一份 → 成功；不同 → 7 |
 | 稽核事件 | `idempotency_key` ＝ `run_id:node:<上列鍵>` | 仍然寫入（append-only）；讀取與驗證時去重 |
@@ -789,6 +789,8 @@ class ToolAdapter(ABC):
 | `sandbox_jobs` | job ID → `SandboxResult` ref |
 | `budget_ledger` | 每次 reserve 與 record（M2） |
 | `key_registry_state` | 上次接受的版本與 hash（防回滾） |
+| `run_locks` | v0.4：不是資料表，而是以 `run_id` 為鍵的 PostgreSQL advisory lock；Run Controller、Gate Service、`run abort` 修改 run 之前取得（[03 §5.8](03-system-architecture.md#58-節點邊界規則)） |
+| Z3 `job_ledger` | v0.4：在 Z3（不在 Z1 的資料庫），append-only：`run_id`、`job_id`、`g5_gate_record_id`、開始與結束時間、結果 ref；每筆以 z3_executor 金鑰簽署。不受 checkpoint 回溯影響 |
 | LangGraph 的資料表 | 由 checkpointer 自己建立；本工具包的遷移**不修改**這些資料表 |
 
 ### 7.3 CAS 配置
@@ -1495,7 +1497,8 @@ class SeedService(Protocol):
 **DNS 固定與 CDN** [H]：
 - 每個 job 開始時（`open_job`）解析一次主機（dnspython [V][E:orchestration-58]），答案固定在該 job 的 `pinned_ips`。job 期間不再解析，也不理會 TTL；連不上固定的 IP → 該請求失敗，不重新解析。
 - 下一個 job 重新解析。這樣 CDN 輪替 IP 時，每個 job 仍有一組固定、可以稽核的位址。
-- 解析到的每個 IP 都必須是公開位址；私有、loopback、link-local 與雲端 metadata 位址一律擋下。唯一的例外是 MVP-1 的本地目標（`localhost`、`127.0.0.1`、`[::1]`），而且只限 Z3 與目標在同一台隔離主機上。
+- 解析到的每個 IP 都必須是公開位址；私有、loopback、link-local 與雲端 metadata 位址一律擋下。v0.4：判定以參考實作 `vchlib.safety.ip_problem` 為準（Scope Proxy 以 parity 測試對齊），除了 `not is_global` 之外，另外擋下 `DENIED_NETWORKS`：NAT64（`64:ff9b::/96`、`64:ff9b:1::/48`）、IPv4-mapped（`::ffff:0:0/96`，改以 IPv4 連線才套用 IPv4 規則）、6to4（`2002::/16`）、Teredo（`2001::/32`）、`fec0::/10`、`fc00::/7` 與 multicast。Python 的 `is_global` 對 `64:ff9b::a9fe:a9fe`（經 NAT64 到達 169.254.169.254）與 `fec0::1` 都回傳 True，所以不能只用它。
+- **DNS 解析器**（v0.4）[H]：Scope Proxy 使用 Z3 自己的遞迴解析器，不使用目標或工具容器提供的解析器；工具容器沒有 DNS。DNSSEC 驗證在可用時開啟；解析結果與 TTL 記入請求紀錄。唯一的例外是 MVP-1 的本地目標（`localhost`、`127.0.0.1`、`[::1]`），而且只限 Z3 與目標在同一台隔離主機上。
 - ROE 為目標宣告了 CDN 邊緣 IP 範圍時，每個 IP 都必須在範圍內，否則該 job 不開始（schema 尚未涵蓋，見 [09 BL-15](09-backlog.md)）。ROE 的 `targets[]` 目前沒有這個欄位，所以一律照 §10 U-18 的預設：只套用上面的規則（每個 job 固定一次解析結果，並擋下非公開位址）。
 - 每批開始時的所有權重驗（`B4_preflight`）照舊。
 
@@ -1507,6 +1510,8 @@ class SeedService(Protocol):
 5. 轉成小寫，再與同樣轉成小寫的樣板比對。
 - 正規化後符合任何排除樣板 → 擋下（fail-closed）。例如排除 `/admin/billing/*` 時，`/Admin/billing/x`、`/admin;jsessionid=1/billing/x`、`/admin/%62illing/x` 都會被擋下。
 - 解碼一次之後仍含「`%`＋兩個十六進位字元」（雙重編碼）→ 擋下 [H]。
+- **反斜線**（v0.4）：解碼後的 `\` 一律視為 `/`（部分伺服器把 `\` 當成路徑分隔，例如 IIS 與部分 Node 路由器）；`/admin%5Cbilling/x` 正規化為 `/admin/billing/x`，會被 `/admin/billing/*` 擋下。
+- **協定**（v0.4）[H]：請求帶 `Upgrade: h2c` → 拒絕（h2c smuggling）；回應的 `Alt-Svc` 標頭被移除，UDP 443 在 job 的網路命名空間中封鎖（HTTP/3／QUIC 不經 TCP proxy）；CONNECT 之後的第一個位元組不是 TLS ClientHello → 斷線。
 - Scope Proxy 與 `policy/safety.py`（移植自 `vchlib/safety.py`）使用**同一個**正規化函式，由 parity 測試比對（§2.4）。
 
 **主機**：
@@ -1598,6 +1603,8 @@ class SessionProvider(Protocol):
 **目的**：vibe-coded 應用常部署在共享平台的子網域上。租用者無法在這些網域放 DNS TXT；即使能放 well-known 檔案，也只證明「能部署內容」，不證明平台允許這類測試 [H]。v0.2 對 `https://acme-staging.supabase.co` 也照樣接受 DNS TXT（H-D3）。
 
 **共享平台網域清單**（`tools/vchlib/safety.py` 的 `SHARED_PLATFORM_SUFFIXES`；主機正規化後等於其中一項，或是它的子網域）[H]：`supabase.co`（`supabase`）、`vercel.app`（`vercel`）、`netlify.app`（`netlify`）、`firebaseapp.com` 與 `web.app`（`firebase`）、`onrender.com`（`render`）、`pages.dev`、`fly.dev`、`herokuapp.com`（這三個對應 `other`）。括號中是該網域對應的 `platform` 值。
+- v0.4 加入 vibe coding 與其他託管平台（都對應 `other`）：`lovable.app`、`replit.app`、`repl.co`、`workers.dev`、`github.io`、`gitlab.io`、`amplifyapp.com`、`azurewebsites.net`、`azurestaticapps.net`、`railway.app`、`glitch.me`、`deno.dev`。
+- 手寫清單一定會漏。實作版以 Public Suffix List 的 private 區段為來源（版本與 hash 記入 run manifest），這份表只負責對應 `platform` 值，並作為 validator 強制的最小集合 [H]。
 - 清單由 `toolkit_maintainer` 以 PR 維護，每次變更都附測試。
 
 **`ownership_proof.method: platform_project`**：
@@ -1785,7 +1792,7 @@ class SessionProvider(Protocol):
 | `zdr_evidence_ref` | 文件參照或 null | 例如合約或供應商確認信的內部參照 |
 | `dpa_signed` | true 或 false | 是否已簽資料處理協議 |
 | `retention_days` | 整數或 null | 宣告的保留天數 |
-| `region` | 字串或 null | 資料處理的區域 |
+| `region` | 字串或 null | 資料處理的區域（ISO 3166-1 alpha-2）。v0.4：能收 C 級資料的雲端家族不得為 null，且要有同區域的 `data_transfer.transfers[]`（`E-ENG-TRANSFER`，[03 §8.4](03-system-architecture.md#84-資料治理)） |
 
 **C 級路由規則**（`E-ENG-PROVIDER`）[H]：可能收到 C 級資料的 agent，它的模型必須符合下列其一：
 - 自架：`api_base` 的主機**完全等於** `toolkit.yaml` 的 `z4_model_hosts` 中的一項（v0.4；v0.3 只看主機名稱是否以 `z4-` 開頭，`https://z4-evil.attacker.example` 也會被當成自架）；或

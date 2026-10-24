@@ -453,7 +453,8 @@ def g_signatures(R: Report, c: Ctx):
     for d in c.docs("gate-record"):
         with doc_guard(R, d.path):
             rec = d.data
-            at = ts(R, rec.get("timestamp"), d.path)
+            # v0.4 (E4): key validity is judged at the Audit Writer's receive time, not the self-declared timestamp
+            at = decision_time(c, rec) or ts(R, rec.get("timestamp"), d.path)
             if rec.get("gate") in ("G0a", "G0b"):
                 R.check(rec.get("signatures") == [], "E-GATE-G0-SIG", d.path, "G0a/G0b are system verifications: signatures must be []")
                 doc = c.engagement if rec.get("gate") == "G0a" else c.roe
@@ -600,6 +601,8 @@ def g_engagement(R: Report, c: Ctx):
         R.check(rc.get("person_id") in c.persons and bool(rc.get("statement")), "E-ENG-PROFILE", w,
                 "an acknowledged role_consolidation needs a registry person_id and a statement")
     provider_rules(R, c)
+    transfer_rules(R, c)
+    config_pin_rules(R, c)
     R.check(e.get("telemetry_disabled") is True, "E-ENG-TELEMETRY", w, "telemetry_disabled must be true")
 
 
@@ -637,7 +640,94 @@ def provider_rules(R: Report, c: Ctx):
                 f"zdr confirmed with a signed DPA (and the model is not self-hosted in Z4)")
 
 
+def c_cloud_families(c: Ctx) -> dict[str, list[str]]:
+    """family -> model keys of the models agents can reach that may receive C data and are not self-hosted in Z4."""
+    out: dict[str, list[str]] = {}
+    if (c.engagement or {}).get("data_class") != "C":
+        return out
+    for k in sorted(reachable_models(c)):
+        m = c.model(k)
+        if m and "C" in (m.get("data_classes") or []) and not self_hosted(m, c) and isinstance(m.get("family"), str):
+            out.setdefault(m["family"], []).append(k)
+    return out
+
+
+def transfer_rules(R: Report, c: Ctx):
+    """v0.4 (C1): the cross-border declaration is verified at G0a, before W2 sends code to any cloud model.
+
+    Every cloud family that can receive C data has a providers[].region (not null) and a data_transfer.transfers
+    entry with the same region; a region other than source_jurisdiction needs a mechanism other than
+    same_jurisdiction and a reference. The declarer is an engagement signatory, so the G0a signature covers it.
+    v0.3 only had legal_review.scope.cross_border in the ROE, which no node before G0b reads."""
+    e, w = c.engagement, "engagement.yaml"
+    dt = e.get("data_transfer")
+    if not R.check(isinstance(dt, dict), "E-ENG-TRANSFER", w, "data_transfer is required (checked at G0a)"):
+        return
+    R.check(dt.get("attested_by") in {s.get("person_id") for s in e.get("signatories") or [] if isinstance(s, dict)},
+            "E-ENG-TRANSFER", w, f"data_transfer.attested_by {dt.get('attested_by')!r} must be an engagement signatory")
+    src = dt.get("source_jurisdiction")
+    prov = {p.get("family"): p for p in e.get("providers") or [] if isinstance(p, dict)}
+    transfers = [t for t in dt.get("transfers") or [] if isinstance(t, dict)]
+    for fam, keys in sorted(c_cloud_families(c).items()):
+        region = (prov.get(fam) or {}).get("region")
+        if not R.check(isinstance(region, str), "E-ENG-TRANSFER", w,
+                       f"providers.{fam}.region is null, but {keys} can receive C data: the processing region must be declared"):
+            continue
+        t = next((t for t in transfers if t.get("family") == fam and t.get("region") == region), None)
+        if not R.check(t is not None, "E-ENG-TRANSFER", w,
+                       f"no data_transfer.transfers entry for {fam} in {region} ({keys} can receive C data)"):
+            continue
+        if region == src:
+            R.check(t.get("mechanism") == "same_jurisdiction", "E-ENG-TRANSFER", w,
+                    f"{fam}: region {region} equals source_jurisdiction, so mechanism must be same_jurisdiction")
+        else:
+            R.check(t.get("mechanism") != "same_jurisdiction" and bool(t.get("reference")), "E-ENG-TRANSFER", w,
+                    f"{fam}: {src} -> {region} is a cross-border transfer; it needs a mechanism other than same_jurisdiction and a reference")
+
+
+def cross_border_declared(c: Ctx) -> bool:
+    """Some engagement transfer leaves the source jurisdiction."""
+    dt = (c.engagement or {}).get("data_transfer") or {}
+    return any(isinstance(t, dict) and t.get("region") != dt.get("source_jurisdiction") for t in dt.get("transfers") or [])
+
+
+CONFIG_PIN_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "licenses": "licenses"}
+
+
+def config_pin_rules(R: Report, c: Ctx):
+    """v0.4 (E1): models / agents / tools / licenses are pinned by content hash in the signed engagement.
+    v0.3 did not sign them, although they decide C-data routing, family diversity, S0/S2 and the legal gate."""
+    pins = (c.engagement or {}).get("config_pins")
+    if not R.check(isinstance(pins, dict), "E-ENG-CONFIG-PIN", "engagement.yaml", "config_pins is required"):
+        return
+    for key, kind in CONFIG_PIN_KINDS.items():
+        data = c.b.data(kind)
+        got = content_hash(data) if data is not None else None
+        R.check(pins.get(key) == got, "E-ENG-CONFIG-PIN", "engagement.yaml",
+                f"config_pins.{key} {pins.get(key)} != content hash of the loaded {kind} {got}: "
+                "the configuration changed after the engagement was signed")
+
+
 # ============================================================== 8 ROE (+ L-1..L-6)
+MAX_CLOCK_SKEW = dt.timedelta(minutes=5)
+
+
+def decision_time(c: Ctx, rec: dict) -> dt.datetime | None:
+    """v0.4 (E4): the ts of the gate_decision audit event of `rec` (the Audit Writer's receive clock), or None.
+
+    v0.3 used the approver's self-declared timestamp for validity, timeout and time-window checks, so a key holder
+    could back-date a decision (e.g. before a role_change / retired revocation, or inside an expired ROE)."""
+    audit = c.ix.audit_for(rec.get("run_id"))
+    for ev in (audit.data if audit and isinstance(audit.data, list) else []):
+        if isinstance(ev, dict) and ev.get("event_type") == "gate_decision" \
+                and (ev.get("payload") or {}).get("gate_record_id") == rec.get("gate_record_id"):
+            try:
+                return timeutil.parse_dt(ev.get("ts"))
+            except (timeutil.TimeError, TypeError, ValueError):
+                return None
+    return None
+
+
 def g_roe(R: Report, c: Ctx):
     r, e, tk, w = c.roe, c.engagement, c.toolkit, "roe.yaml"
     if not r:
@@ -779,7 +869,24 @@ def g_roe(R: Report, c: Ctx):
             f"data_handling.retention_days {rrd} above the toolkit.yaml maximum {lim}")
     for u in r.get("upstream_llm_providers") or []:
         R.check(u.get("terms_confirmed_by") in c.persons, "E-PERSON-UNKNOWN", w, "upstream terms_confirmed_by must be a registry person")
+    incident_rules(R, c)
     legal(R, c)
+
+
+INCIDENT_COVERS = {"data_exposure", "third_party_side_effect", "shared_platform_impact", "staging_outage"}
+
+
+def incident_rules(R: Report, c: Ctx):
+    """v0.4 (C5): the ROE says who is told, how fast, under which procedure and liability terms, when a test leaks
+    data, triggers a real third-party side effect, hits another tenant of a shared platform or takes staging down."""
+    ir, w = c.roe.get("incident_response"), "roe.yaml"
+    if not R.check(isinstance(ir, dict), "E-ROE-INCIDENT", w, "incident_response is required"):
+        return
+    for p in ir.get("contacts") or []:
+        R.check(p in c.persons, "E-ROE-INCIDENT", w, f"incident_response contact {p!r} is not a registry person")
+    R.check(bool(ir.get("contacts")), "E-ROE-INCIDENT", w, "incident_response needs at least one contact")
+    miss = sorted(INCIDENT_COVERS - set(ir.get("covers") or []))
+    R.check(not miss, "E-ROE-INCIDENT", w, f"incident_response.covers misses {miss}")
 
 
 def legal(R: Report, c: Ctx):
@@ -791,6 +898,11 @@ def legal(R: Report, c: Ctx):
     for k, val in (lr.get("scope") or {}).items():
         ok = val is True or (isinstance(val, dict) and (val.get("value") is True or bool(val.get("not_applicable_reason"))))
         R.check(ok, "E-L1", w, f"legal_review.scope.{k} must be true or carry not_applicable_reason")
+    # v0.4: the ROE cannot call cross-border "not applicable" when the signed engagement declares a cross-border transfer
+    cb = (lr.get("scope") or {}).get("cross_border")
+    if cross_border_declared(c):
+        R.check(cb is True or (isinstance(cb, dict) and cb.get("value") is True), "E-ROE-TRANSFER", w,
+                "engagement data_transfer leaves the source jurisdiction, so legal_review.scope.cross_border must be true")
     # L-2
     att = lr.get("attested_by")
     live = [x for x in c.entries if x.get("person_id") == att and not x.get("revoked_at")]
@@ -1086,6 +1198,9 @@ def g_gates(R: Report, c: Ctx):
             opened, at = ts(R, rec.get("opened_at"), w), ts(R, rec.get("timestamp"), w)
             if not (opened and at):
                 continue
+            # v0.4 (E4): the Audit Writer's receive time is the authority for every time rule of a decision;
+            # the signer's own timestamp only has to agree with it within MAX_CLOCK_SKEW (E-AUDIT-GATE)
+            at = decision_time(c, rec) or at
             R.check(opened <= at, "E-GATE-TIME", w, "opened_at after timestamp")
             R.check(enb and ena and enb <= at <= ena, "E-GATE-ENGAGEMENT", w, "decided outside the engagement validity")
             roles = {a.get("role") for a in rec.get("approvers", [])}
@@ -2400,8 +2515,11 @@ def g_audit(R: Report, c: Ctx):
                     R.check(nxt.get("event_type") == "audit_anchor", "E-AUDIT-ANCHOR", where, "every gate_decision must be followed by an audit_anchor")
                     p = ev.get("payload") or {}
                     rec = c.record(p.get("gate_record_id"))
+                    signed_at = ts(R, rec.get("timestamp"), where) if rec is not None else None
                     R.check(rec is not None and rec.get("gate") == p.get("gate") and rec.get("outcome") == p.get("outcome")
-                            and ts(R, rec.get("timestamp"), where) == t, "E-AUDIT-GATE", where, "gate_decision does not match its gate record")
+                            and signed_at is not None and t is not None and abs(t - signed_at) <= MAX_CLOCK_SKEW, "E-AUDIT-GATE", where,
+                            "gate_decision does not match its gate record (gate, outcome, or the signed timestamp differs from the "
+                            f"Audit Writer's receive time by more than {MAX_CLOCK_SKEW})")
                 if et == "initiator_claim":
                     R.check(actor.get("id") in run.get("initiators", []), "E-AUDIT-INITIATOR", where, "claimed initiator not in run.initiators")
                 if et == "verdict_changed":
