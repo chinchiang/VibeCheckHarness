@@ -349,6 +349,44 @@ def ip_problem(addr: str, local_target: bool = False) -> str | None:
     return None
 
 
+# IANA special-purpose blocks (RFC 6890 and successors) that ip_problem rejects through is_global; a declared
+# edge range may not overlap them either (ip_problem still runs on every resolved address, so this only keeps
+# the declaration honest).
+NON_PUBLIC_NETWORKS = DENIED_NETWORKS + tuple(ipaddress.ip_network(n) for n in (
+    "0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12",
+    "192.0.0.0/24", "192.0.2.0/24", "192.168.0.0/16", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24",
+    "240.0.0.0/4",
+    "::/127", "100::/64", "2001:db8::/32", "fe80::/10",
+))
+
+
+def edge_range_problem(cidr: str) -> str | None:
+    """v0.4 (BL-15): why a ROE targets[].edge_ip_ranges entry is unusable (None = fine). A range must be a
+    strict CIDR (host bits zero) of public unicast space: it may not overlap any non-public network."""
+    try:
+        net = ipaddress.ip_network(cidr, strict=True)
+    except (ValueError, TypeError):
+        return f"{cidr!r} is not a CIDR network (host bits must be zero)"
+    for bad in NON_PUBLIC_NETWORKS:
+        if net.version == bad.version and net.overlaps(bad):
+            return f"{net} overlaps non-public network {bad}"
+    return None
+
+
+def ip_in_ranges(addr: str, ranges: list[str] | None) -> str | None:
+    """v0.4 (docs/08 §11.7, BL-15): Scope Proxy check after resolving a target that declares edge_ip_ranges.
+    None = allowed. No declared ranges -> only ip_problem applies (U-18 default). With ranges, every
+    resolved address must also fall inside one of them, otherwise the job does not start."""
+    prob = ip_problem(addr)
+    if prob is not None or not ranges:
+        return prob
+    ip = ipaddress.ip_address(addr.strip("[]"))
+    nets = [ipaddress.ip_network(r, strict=False) for r in ranges if edge_range_problem(r) is None]
+    if any(ip.version == n.version and ip in n for n in nets):
+        return None
+    return f"{ip} is outside the declared edge_ip_ranges {ranges}"
+
+
 # E2 (H-D3): shared-platform domains. A host under one of these suffixes belongs to the platform, not to the
 # customer: DNS TXT / well-known-path proofs do not show ownership of the project; platform_project does.
 SHARED_PLATFORM_SUFFIXES = {
@@ -373,9 +411,17 @@ SHARED_PLATFORM_SUFFIXES = {
     "amplifyapp.com": "other",
     "azurewebsites.net": "other",
     "azurestaticapps.net": "other",
-    "railway.app": "other",
-    "glitch.me": "other",
+    "railway.app": "other",     # PSL lists only up.railway.app; the whole domain is kept (stricter)
+    "glitch.me": "other",       # not in the PSL (checked 2026-10-24); kept, see PSL_EXCEPTIONS
     "deno.dev": "other",
+}
+
+# Suffixes above that tools/check_platform_suffixes.py must not flag although the Public Suffix List does not
+# list them (or lists only a sub-domain). Stricter than the PSL is safe: a shared-platform match only refuses
+# DNS TXT / well-known-path ownership proofs.
+PSL_EXCEPTIONS = {
+    "railway.app": "PSL lists up.railway.app only; projects can also be served from other railway.app hosts [H]",
+    "glitch.me": "not in the PSL; project sub-domains were platform-owned while hosting ran [H]",
 }
 
 

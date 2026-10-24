@@ -49,7 +49,7 @@ def rederive(bundle, keys, rounds=20):
     import json
 
     import sign_examples
-    from vchlib import derive, timeutil
+    from vchlib import derive
     from vchlib.bundle import reload_json
     by_fp = {crypto.fingerprint(crypto.raw_public(k)): k for k in keys.values()}
     registry = doc(bundle, "key-registry.yaml").data
@@ -74,10 +74,7 @@ def rederive(bundle, keys, rounds=20):
                 lines = []
                 for ev in d.data:
                     ev["prev_hash"] = "sha256:" + prev
-                    ev["signature"] = None
-                    if ev["event_type"] in sign_examples.SIGNED_EVENTS and ev["actor"]["kind"] == "human":
-                        key = sign_examples.current_key(registry, ev["actor"]["id"], timeutil.parse_dt(ev["ts"]), by_fp)
-                        ev["signature"] = crypto.sign_event(ev, ev["actor"]["id"], key)
+                    sign_examples.sign_event_in_place(ev, registry, by_fp)
                     line = json.dumps(ev, ensure_ascii=False, separators=(",", ":"))
                     prev = hashlib.sha256(line.encode("utf-8")).hexdigest()
                     lines.append(line)

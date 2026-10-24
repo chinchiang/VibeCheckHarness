@@ -21,9 +21,10 @@
 "node":{"anyOf":[{"type":"string"},{"type":"null"}]},
 "zone":{"enum":["Z1","Z2","Z3","Z4"]},
 "data_class":{"$ref":"common.schema.json#/$defs/data_class"},
-"idempotency_key":{"anyOf":[{"type":"string"},{"type":"null"}]},
+"idempotency_key":{"type":"string","pattern":"^[^:]+:[^:]+:.+$","description":"v0.4：必填，格式 run_id:node:<鍵>（docs/08 §6 的冪等鍵表）。前兩段必須等於事件的 run_id 與 node，同一個 run 內不重複（E-AUDIT-IDEMPOTENCY）；v0.3 可為 null，讀取時的去重因此做不到"},
 "payload":{"type":"object","description":"小型結構化內容；secret_detected 只含位置與 hash，不含值"},
 "payload_refs":{"type":"array","items":{"$ref":"common.schema.json#/$defs/sha256"},"description":"CAS hash（prompt、回應、請求紀錄）"},
 "prev_hash":{"$ref":"common.schema.json#/$defs/sha256"},
 "signature":{"anyOf":[{"$ref":"common.schema.json#/$defs/signature"},{"type":"null"}]}},
-"required":["seq","ts","run_id","engagement_id","event_type","actor","node","zone","data_class","idempotency_key","payload","payload_refs","prev_hash","signature"]}
+"required":["seq","ts","run_id","engagement_id","event_type","actor","node","zone","data_class","idempotency_key","payload","payload_refs","prev_hash","signature"],
+"allOf":[{"if":{"properties":{"event_type":{"const":"audit_anchor"}},"required":["event_type"]},"then":{"properties":{"payload":{"required":["reason","z3_countersignature"],"properties":{"reason":{"type":"string"},"z3_countersignature":{"$ref":"common.schema.json#/$defs/signature","description":"v0.4：Z3 Executor 服務金鑰（角色 z3_executor）對 JCS({run_id, seq, prev_hash}) 的簽章（E-AUDIT-ANCHOR-SIG）；只控制 Z1 的人無法整條重寫"}}}}}}]}

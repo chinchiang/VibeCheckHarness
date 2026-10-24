@@ -258,6 +258,14 @@
           },
           "sha256": {
             "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "anonymizes_candidates": {
+            "type": "boolean",
+            "description": "v0.4：此範本在送出前去除候選的來源模型資訊（W3 verifier 範本必須為 true）。votes[].anonymized 由這裡推導，不採信票上的值"
+          },
+          "randomizes_order": {
+            "type": "boolean",
+            "description": "v0.4：此範本隨機排列候選順序（W3 verifier 範本必須為 true）。votes[].order_randomized 由這裡推導"
           }
         },
         "required": [

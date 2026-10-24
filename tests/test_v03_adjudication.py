@@ -317,9 +317,11 @@ def test_no_eligible_verifier_is_derived(b):
 
 # ================================================================ A4 fallback weight
 def test_fallback_vote_uses_the_fallback_models_weight(b, keys):
-    """claude_sonnet falls back to claude_opus_48, which has no calibration rows: w = 0, not weighted-valid."""
-    v = doc(b, V201).data
+    """claude_sonnet falls back to claude_opus_48, which has no calibration rows: w = 0, not weighted-valid.
+    v0.4: on K-015 (white-box, authz); a black-box cluster has no location a vote could cite."""
+    v = doc(b, "verdict.k-015-w3.example.json").data
     v["votes"] = [_vote("ver_2", "claude_opus_48", "anthropic", "claude", 0.5947)]
+    v["votes"][0]["cited_evidence"] = ["inventory:/db/tables/0/rls_enabled"]
     v["votes"][0]["fallback_used"] = "claude_opus_48"
     rederive(b, keys)
     vt = v["votes"][0]
@@ -332,12 +334,13 @@ def test_fallback_vote_uses_the_fallback_models_weight(b, keys):
 
 # ================================================================ E5 provisional
 def test_provisional_examples(b):
-    assert doc(b, V202).data["provisional"] is True           # no calibrated verifier for the injection bucket
-    assert doc(b, V201).data["provisional"] is False          # no votes, but calibrated verifiers exist (authz)
+    # v0.4: black-box clusters are never provisional (no votes possible), whatever the bucket's calibration
+    assert doc(b, V202).data["provisional"] is False
+    assert doc(b, V201).data["provisional"] is False
 
 
 def test_provisional_is_derived(b, keys):
-    doc(b, V202).data["provisional"] = False
+    doc(b, V202).data["provisional"] = True
     rederive(b, keys)                                    # the report manifest lists V-202-1 by hash
     assert codes(b) == {"E-VERDICT-PROVISIONAL"}
 

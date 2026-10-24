@@ -37,7 +37,7 @@
 |---|---|---|---|---|
 | BL-13 | [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 純工具叢集 | `cluster.schema` 沒有表示「只有工具結果、沒有 LLM 成員」的方式（例如新的 `origin` 值）；`run.schema` 也沒有 ToolResult 清單的參照（`tool_results_ref`） | 純工具叢集只在設計中描述；範例不含 | 待辦 |
 | BL-14 | [08 §11.12](08-implementation-spec.md#1112-成本模型與價格) 各家族上限 | engagement 的每家族 USD 上限欄位 | 只用現有的每 run／階段上限 | 待辦 |
-| BL-15 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) CDN | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | 目標若經 CDN，DNS 固定到第一次解析的位址；解析結果改變就停止該 job | 待辦 |
+| BL-15 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) CDN | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | 目標若經 CDN，DNS 固定到第一次解析的位址；解析結果改變就停止該 job | v0.4 已處理：ROE `targets[].edge_ip_ranges`（`E-ROE-EDGE-RANGE`）、`safety.ip_in_ranges`（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
 | BL-16 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) B1 爬行預設 | `toolkit.yaml` 的 B1 爬行預設區塊（方法、排除樣式、請求上限） | 規則寫在程式碼常數，並記入 run manifest | 待辦 |
 | BL-17 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 回貼 PR／issue | engagement 啟用發佈的欄位與權杖範圍宣告 | 預設不發佈；報告只輸出檔案 | 待辦 |
 | BL-18 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 誤報回饋 | 回饋紀錄的 schema | 回饋先以人工整理進校準語料 | 待辦 |

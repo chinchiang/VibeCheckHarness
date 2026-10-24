@@ -34,7 +34,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:247a60dad44f2f1b4c98f3f0ceaf85f7fb3e3c7903adc6871ba305b95fd2478b"
+      "sha256": "sha256:770c8524719fffa392111a23fd97ad9ffbc97dd3d52386999b1f498f25f97baf"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -164,11 +164,11 @@
   "audit_anchors": [
     {
       "seq": 6,
-      "line_sha256": "sha256:b2454d68ef7533579fc82fbffedbc67a6c9440fea2fc60815587a54fa5517610"
+      "line_sha256": "sha256:81ed5c306f6a4aef45344360d63715ada060f68b240bf8eb081adb38aa34658d"
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:6b76da562e85e1be40523b6c82ff1a69712c21631df0443ceb5ea3f4a0da7526"
+      "line_sha256": "sha256:b07746014b78f0792466a04e97d9f4881cc539aab2f903b85ed271af5600c13b"
     }
   ],
   "errors": []

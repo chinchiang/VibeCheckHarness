@@ -13,6 +13,10 @@
 - **SARIF 只佐證自己位置的叢集**（§4.2）：稽核事件 `payload.sarif_results[]` 的每一項加上 `file`、`symbol`、`cwe_bucket`（正規化器的輸出），必須等於叢集的正規位置與桶；黑箱叢集不收 SARIF。v0.3 只檢查 ref 在稽核檔中，任何單一家族叢集都能借一筆無關的結果當弱訊號而到 `LIKELY`。（審查 D1）
 - **程式片段要有實質內容**（§3 規則 5）：遮罩後片段至少 12 個非空白字元，且含一個 3 字元以上的識別字；片段的檔案必須在該發現項的切片中。單獨一個 `}` 在任何視窗內都找得到，v0.3 會把它當成已接地。（審查 D4）
 - **quorum 的定義**（§3 規則 3）與 **`single_best_resampled` 下的裁決**（§5.6）補上定義。（審查 A8、A9）
+- **第五輪**（[review-2026-10-24 §9](evidence/review-2026-10-24.md#9-第五輪剩餘項目)）：
+  - **支持與反駁權重分開**（§4.3）：支持票的權重取自真缺陷上的票、反駁票的權重取自已知非缺陷上的票，各自平滑與套用「接近 0」判準。v0.3 的單一正確率會讓永遠投支持的驗證者也拿到正權重。（審查 A10）
+  - **`provisional` 只標在投票可能決定的裁決**（§4.2）：R0、R1、R9、R10 決定的裁決與黑箱叢集一律不是暫定。範例 K-202 改為 false。
+  - **合格票的引用必須與叢集相關**（§4.2），`anonymized`／`order_randomized` 由 run 的 verifier 範本推導。（審查 A6、D5）
 
 ## v0.3 變更摘要
 
@@ -179,7 +183,7 @@
   - 黑箱叢集在 B5 才建立，已經過了 CMD-2 與 G2，所以結果直接列入 B6 報告。
   - 範例（`schemas/examples/`）：
     - `cluster.k-201.example.json`：K-201，威脅 T-033（沒有 `source_cluster_id`），端點 `tgt-staging-api` `GET /api/invoices`，桶 `authz`。G4 核准的 TC-033-01（S0，`testcase.bola-list.example.json`）得到確定性 FAIL（R-TC-033-01-1：`fail_oracles` 為 `STATUS_AND_BODY`，兩個對照都 PASS，重播 2 次都相同）→ `verdict.k-201-b5.example.json`（V-201-1）經 R1 為 `CONFIRMED_EXECUTABLE`，**沒有** Result Analyst（`interpretation_confirmed_by` 為 null）。
-    - `cluster.k-202.example.json`：K-202，威脅 T-027（同樣沒有來源叢集），桶 `injection`。TC-027-01（ZAP 主動掃描）的結果 R-TC-027-01-1 是 PASS → `verdict.k-202-b5.example.json`（V-202-1）經 R7 為 `UNCORROBORATED`，R11 加註 `test_not_reproduced`。它是範例中唯一 `provisional` 為 true 的裁決（見 §4.2）。
+    - `cluster.k-202.example.json`：K-202，威脅 T-027（同樣沒有來源叢集），桶 `injection`。TC-027-01（ZAP 主動掃描）的結果 R-TC-027-01-1 是 PASS → `verdict.k-202-b5.example.json`（V-202-1）經 R7 為 `UNCORROBORATED`，R11 加註 `test_not_reproduced`。v0.3 時它是範例中唯一 `provisional` 為 true 的裁決；v0.4 起黑箱叢集一律不是暫定（見 §4.2）。
 
 **跨 run 指紋與基準狀態** [H]：每個叢集有 `fingerprint`＝sha256(JCS({cwe_bucket, file, symbol}))；黑箱叢集用 {cwe_bucket, target_id, method, path_template}。指紋不含行號，所以程式移動幾行，指紋不變；validator 會重算（`E-CLUSTER-FINGERPRINT`）。`baseline_state` 是與 `run.baseline_run_id` 那次 run 比較的結果，沿用 SARIF 2.1.0 `baselineState` 的四個值 `new`／`unchanged`／`updated`／`absent` [V][E:whitebox-56]。本工具包的用法：`new`＝基準 run 沒有這個指紋；`unchanged`＝指紋相同、成員證據的 hash 也相同；`updated`＝指紋相同、證據改變；`absent` 只出現在報告中（基準 run 有、本次沒有的指紋，列在 report-manifest 的 `absent_fingerprints[]`）；沒有基準 run 時為 null。`reopened`（本次為 `new`，但更早的 run 曾是 `absent`）只是資訊。這些欄位**不是**裁決規則的輸入，只讓報告、PR 回饋與 G3 的差異審查能跨 run 對上同一個問題。SARIF 輸出的欄位對應見 [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)。
 
@@ -203,8 +207,10 @@
 - 候選已匿名化、順序已隨機化；
 - 理由**引用了具體證據**，而且引用的證據通過同樣的接地比對（§3 規則 5）：程式位置（例如「第 57 行已有 `tenant_id` 條件」），或 inventory／設定事實（例如「`/db/tables/0/rls_enabled` 為 `true`」）。**工具輸出不能當引用**，因為驗證者看不到它。沒有可比對證據的票一律視為棄權。引用逐項記在票的 `votes[].cited_evidence`（v0.3 新增、必填；例如 K-014 的兩張票都引用 `routes/invoices.ts:88`）；它也是驗證者 LLM 輸出中僅有的三個欄位之一（另兩個是 `stance`、`rationale`）。
 - 「理由成立」因此不需要主觀判斷：Aggregator 只檢查引用的證據能否被程式碼或 inventory 比對。
+- **引用必須與叢集相關**（v0.4）[H]：至少一項引用是叢集正規位置所在檔案中的 `file:line`，或等於某個成員 `inventory_fact` 的 `inventory:<pointer>`；否則視為棄權（`derive.cited_relevant`）。v0.3 只檢查引用能被比對，受測碼裡的註解可以同時誘導反駁並提供一個「真實存在」但無關的行號。
+- **`anonymized`、`order_randomized` 不採信票上的值**（v0.4）：它們是 harness 的性質，由 run manifest 中 W3 verifier 範本（`w3-verify`）的 `anonymizes_candidates`、`randomizes_order` 推導；票上的值必須相同（`E-VERDICT-VOTE`）。
 
-**計權合格票**＝合格票，且投票模型在該叢集的 CWE 桶權重 w > 0（§4.3）[H]。權重為 0 的模型（含「接近 0」者，§4.3；以及尚未重跑 §5.8 的 fallback 模型，§3 規則 3）的票照樣保存（`valid` 依上面定義），但不參與 R3–R5 的條件判斷，也不影響 S。這避免一個近乎隨機的投票者單獨把叢集推進 `DISPUTED`。
+**計權合格票**＝合格票，且投票模型在該叢集的 CWE 桶、對應票的立場那一邊的權重 w > 0（§4.3；v0.4 起支持票看 support、反駁票看 refute）[H]。權重為 0 的模型（含「接近 0」者，§4.3；以及尚未重跑 §5.8 的 fallback 模型，§3 規則 3）的票照樣保存（`valid` 依上面定義），但不參與 R3–R5 的條件判斷，也不影響 S。這避免一個近乎隨機的投票者單獨把叢集推進 `DISPUTED`。
 
 #### 測試證據分類
 
@@ -266,8 +272,9 @@
 - **暫定裁決（`provisional`）** [H]：下列任一成立，裁決的 `provisional` 為 true：
   - `calibration_version` 為 null；
   - `theta_confirm` 為 null；
-  - 合格驗證家族 E(叢集)（§3 規則 3）中的**每一個**驗證模型，在該叢集 CWE 桶的校準權重都是 0。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
-  - 所以沒有任何票的裁決不一定是暫定的。例：黑箱叢集 K-201 的 V-201-1 沒有票，但合格的 `nemotron_self` 在 `authz` 桶 w＝0.6933，`provisional` 為 false；K-202 在 `injection` 桶，沒有任何模型有權重，V-202-1 為 true。
+  - 合格驗證家族 E(叢集)（§3 規則 3）中的**每一個**驗證模型，在該叢集 CWE 桶的校準權重（支持與反駁兩邊）都是 0。
+  - **例外**（v0.4）：決定規則是 R9、R10、R0 或 R1（決定表第 1–5 列），或叢集是 `black_box`，一律不是暫定。這些狀態不取決於投票，標暫定沒有意義；v0.3 會讓同為黑箱、同樣沒有票的 K-201 與 K-202 只因桶不同而一個暫定、一個不是。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
+  - v0.3 的例子（已由上面的例外取代）：黑箱叢集 K-201 的 V-201-1 沒有票，因為合格的 `nemotron_self` 在 `authz` 桶有權重而不是暫定；K-202 在 `injection` 桶，沒有任何模型有權重，V-202-1 曾是 true。v0.4 起兩者都是 false。
   - 它不改規則的計算（w＝0 時投票分支本來就不會成立，θ＝null 視為 +∞），只表示這個狀態沒有經過校準的投票支撐。報告（W5、B6）把暫定裁決標為「暫定（校準前）」，並在摘要列出暫定裁決的比例。校準前的其他預設見 [08 §11.11](08-implementation-spec.md#1111-校準前的預設)。
 - **規則版本**：v0.4 改變了 R0、R10、R11 與獨立家族的語意，裁決的 `rule_version` 為 **`05-v0.4`**（v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
 - 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`；v0.2 另有每票的 `votes[].weight`、`votes[].weighted_valid`（＝計權合格票），以及 `status_cap`、`advisory`、`test_evidence{class, results[]}`、`annotations[]{kind, reason}`（kind：`test_not_reproduced`、`test_inconclusive`、`conflicting_test_results`、`g3_rejected`、`post_g2_conflict`、`w4_became_disputed`）、`g2_decision_ref`、`calibration_version`（整數）、`theta_confirm`、`theta_reject`、`readjudicated_by`（產生該版裁決的節點：`W3_adjudicate`、`W4_readjudicate` 或 `B5_readjudicate`）、`supersedes_verdict_id`。v0.3 的 `tool_corroboration` 只含**強**工具佐證，另新增 `tool_signal`（弱工具訊號）、`independent_sources`（整數）、`provisional`，以及每票必填的 `votes[].cited_evidence`。
@@ -363,7 +370,11 @@ R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
 
 ### 4.3 投票加權
 
-- 對每個模型 m 與 CWE 桶 b，在**校準切分**上統計該模型作為驗證者的**非棄權合格票**：n(m,b)＝票數，C(m,b)＝與真值一致的票數（真實缺陷投支持、非缺陷投反駁）[H]。
+- **v0.4：兩邊分開計算**（審查 A10）[H]。v0.3 把兩種答對混成一個正確率；真缺陷佔多數的語料上，永遠投支持的驗證者正確率很高，卻從來沒有正確地反駁過。現在每個（m, b）有兩組統計，下面的公式與「接近 0」判準在每一邊各自套用：
+  - **support 邊**：只看**真實缺陷**上的非棄權合格票；答對＝投支持。用於 SUPPORT 票的權重。
+  - **refute 邊**：只看**已知非缺陷**（誤報叢集與 §5.1 誘餌）上的票；答對＝投反駁。用於 REFUTE 票的權重。這也就是 §5.3 M-11 的真陰性率。
+  - `calibration.yaml` 的 `result.weights[]` 每列有 `support`、`refute` 兩組 `{n, correct, a, w, near_zero, near_zero_reasons}`；validator 逐邊重算（`E-CAL-WEIGHT`）。
+- 以下以單一邊說明（原 v0.3 的定義）。對每個模型 m 與 CWE 桶 b，在**校準切分**上統計該模型作為驗證者的**非棄權合格票**：n(m,b)＝票數，C(m,b)＝與真值一致的票數（真實缺陷投支持、非缺陷投反駁）[H]。
 - **平滑**（收縮到該模型跨桶的整體正確率 ā(m)）[H]：
 
   a(m,b) ＝ (C(m,b) ＋ k · ā(m)) ／ (n(m,b) ＋ k)，其中 k ＝ 10（相當於 10 張虛擬票）

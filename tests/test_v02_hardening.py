@@ -324,9 +324,11 @@ def test_unanchored_tail_on_running_run_is_a_warning(b):
     evs = copy.deepcopy(d.data)
     extra = copy.deepcopy(next(e for e in reversed(evs) if e["event_type"] != "audit_anchor"))
     extra.update(seq=len(evs) + 1, ts=evs[-1]["ts"], event_type="artifact_stored",
-                 payload={"artifact": "late"}, payload_refs=[], signature=None, idempotency_key=None,
+                 payload={"artifact": "late"}, payload_refs=[], signature=None,
+                 idempotency_key=f"{extra['run_id']}:{extra['node']}:artifact_stored:late-1",
                  actor={"kind": "system", "id": "run-controller"})
-    reload_json(d, rechain(evs + [extra, dict(copy.deepcopy(extra), seq=len(evs) + 2)]))
+    extra2 = dict(copy.deepcopy(extra), seq=len(evs) + 2, idempotency_key=f"{extra['run_id']}:{extra['node']}:artifact_stored:late-2")
+    reload_json(d, rechain(evs + [extra, extra2]))
     run["status"] = "RUNNING"
     run["current_node"] = "W3"
     R = run_all(b)

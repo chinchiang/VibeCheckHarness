@@ -299,7 +299,7 @@ def test_tampered_testcase_breaks_g4_hash(b):
 
 
 def test_calibration_weight_recomputed(b):
-    doc(b, "calibration.yaml").data["result"]["weights"][0]["w"] = 0.9
+    doc(b, "calibration.yaml").data["result"]["weights"][0]["support"]["w"] = 0.9
     assert "E-CAL-WEIGHT" in codes(b)
 
 

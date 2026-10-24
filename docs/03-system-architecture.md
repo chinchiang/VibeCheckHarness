@@ -1322,6 +1322,7 @@ erDiagram
 - **`ts`**（v0.4）：Audit Writer 寫入該行時的時鐘（收件時間），不是事件來源自填的時間；關卡決定的所有時間規則以它為準（§6.1 步驟 4）。
 - **hash chain**：`prev_hash` ＝ 前一行原始位元組（不含換行）的 sha256；第一行的 `prev_hash` ＝ sha256(`run_id`)。只有 Audit Writer 一個寫入者，以檔案鎖序列化。
 - **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件以 `{seq, line_sha256}` 寫入 run 紀錄的 `audit_anchors`（Postgres）：`seq` 是該錨點事件的序號，`line_sha256` 是該錨點事件**自己那一行**原始位元組（不含換行）的 sha256；因為這一行含 `prev_hash`，錨點同時承諾它之前的整條鏈；可選擇另外寫到 WORM 儲存或外部系統 [H]。
+- **Z3 副簽**（v0.4）：每個 `audit_anchor` 的 `payload.z3_countersignature` 是 Z3 Executor 服務金鑰（金鑰登錄中角色 `z3_executor` 的 `z3-executor`）對 JCS(`{run_id, seq, prev_hash}`) 的 Ed25519 簽章。Run Controller 寫錨點前把這三個值送到 Z3 取得簽章；Z3 只簽 `seq` 遞增、`prev_hash` 與它上次看到的鏈一致的請求 [H]。validator 以金鑰登錄驗證，缺少或無效 → `E-AUDIT-ANCHOR-SIG`。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。
 - **驗證**：`vibecheck audit verify <run-id>` 重算整條鏈並與錨點比對。
 - **尾端保護**（validator 強制）[H]：
@@ -1329,7 +1330,7 @@ erDiagram
   - 稽核檔中最後一個 `audit_anchor` 事件之後的行是**未錨定的尾端**（以稽核檔本身的錨點事件為準）：非終態的 run（含 `RUNNING`、`WAITING_GATE`、`SUSPENDED`、`STOPPED`）會有這一段，validator 發出 `W-AUDIT-UNANCHORED-TAIL`（警告）。
   - **終態的 run**（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）必須有稽核檔，且最後一行必須是 `payload.reason: run_end` 的錨點；不是 → `E-AUDIT-TAIL`（錯誤）。
   - 因此尾端截斷只能偵測到最後一個錨點為止：未錨定的尾端被刪掉，無法從鏈本身看出來。
-- **限制（做不到）**：hash chain 只能**偵測**竄改，不能防止；同時控制稽核檔與 run 紀錄的人可以整條重寫（包括錨點）。只有把錨點寫到該人無法修改的外部系統，才能防止這種情況（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 16 條）。
+- **限制（做不到）**：hash chain 只能**偵測**竄改，不能防止。v0.4 起錨點由 Z3 副簽，只控制 Z1（稽核檔與 run 紀錄）的人重寫鏈之後，錨點簽章就驗不過；同時控制 Z1 與 Z3 金鑰的人仍可以整條重寫（包括錨點）。只有把錨點寫到該人無法修改的外部系統，才能防止這種情況（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 16 條）。
 - **與文獻的關係**：防竄改紀錄要靠持有先前承諾（錨點）的稽核者；純 hash chain 的證明長度與紀錄大小成線性 [V][E:orchestration-51]，以每個 run 的規模來說可以接受 [H]。Certificate Transparency v2（RFC 9162，Experimental）改用 Merkle tree 提供包含與一致性證明，並警告紀錄可能對不同用戶端呈現不同視圖 [V][E:orchestration-50]；若日後需要跨 run 的公開驗證，可改用 Merkle 結構 [H]。
 
 ### 13.2 事件類型（enum）

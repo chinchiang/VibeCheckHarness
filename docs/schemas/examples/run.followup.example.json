@@ -37,7 +37,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:247a60dad44f2f1b4c98f3f0ceaf85f7fb3e3c7903adc6871ba305b95fd2478b"
+      "sha256": "sha256:770c8524719fffa392111a23fd97ad9ffbc97dd3d52386999b1f498f25f97baf"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",

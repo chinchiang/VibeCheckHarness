@@ -1499,7 +1499,7 @@ class SeedService(Protocol):
 - 下一個 job 重新解析。這樣 CDN 輪替 IP 時，每個 job 仍有一組固定、可以稽核的位址。
 - 解析到的每個 IP 都必須是公開位址；私有、loopback、link-local 與雲端 metadata 位址一律擋下。v0.4：判定以參考實作 `vchlib.safety.ip_problem` 為準（Scope Proxy 以 parity 測試對齊），除了 `not is_global` 之外，另外擋下 `DENIED_NETWORKS`：NAT64（`64:ff9b::/96`、`64:ff9b:1::/48`）、IPv4-mapped（`::ffff:0:0/96`，改以 IPv4 連線才套用 IPv4 規則）、6to4（`2002::/16`）、Teredo（`2001::/32`）、`fec0::/10`、`fc00::/7` 與 multicast。Python 的 `is_global` 對 `64:ff9b::a9fe:a9fe`（經 NAT64 到達 169.254.169.254）與 `fec0::1` 都回傳 True，所以不能只用它。
 - **DNS 解析器**（v0.4）[H]：Scope Proxy 使用 Z3 自己的遞迴解析器，不使用目標或工具容器提供的解析器；工具容器沒有 DNS。DNSSEC 驗證在可用時開啟；解析結果與 TTL 記入請求紀錄。唯一的例外是 MVP-1 的本地目標（`localhost`、`127.0.0.1`、`[::1]`），而且只限 Z3 與目標在同一台隔離主機上。
-- ROE 為目標宣告了 CDN 邊緣 IP 範圍時，每個 IP 都必須在範圍內，否則該 job 不開始（schema 尚未涵蓋，見 [09 BL-15](09-backlog.md)）。ROE 的 `targets[]` 目前沒有這個欄位，所以一律照 §10 U-18 的預設：只套用上面的規則（每個 job 固定一次解析結果，並擋下非公開位址）。
+- ROE 為目標宣告了 CDN 邊緣 IP 範圍（`targets[].edge_ip_ranges`，v0.4）時，每個解析出的 IP 都必須在範圍內，否則該 job 不開始（參考實作 `safety.ip_in_ranges`；範圍本身必須是公開位址空間的 CIDR，`E-ROE-EDGE-RANGE`）。沒有宣告時照 §10 U-18 的預設：只套用上面的規則（每個 job 固定一次解析結果，並擋下非公開位址）。
 - 每批開始時的所有權重驗（`B4_preflight`）照舊。
 
 **路徑正規化**（比對排除清單與白名單之前；C-1）：
@@ -1606,7 +1606,7 @@ class SessionProvider(Protocol):
 
 **共享平台網域清單**（`tools/vchlib/safety.py` 的 `SHARED_PLATFORM_SUFFIXES`；主機正規化後等於其中一項，或是它的子網域）[H]：`supabase.co`（`supabase`）、`vercel.app`（`vercel`）、`netlify.app`（`netlify`）、`firebaseapp.com` 與 `web.app`（`firebase`）、`onrender.com`（`render`）、`pages.dev`、`fly.dev`、`herokuapp.com`（這三個對應 `other`）。括號中是該網域對應的 `platform` 值。
 - v0.4 加入 vibe coding 與其他託管平台（都對應 `other`）：`lovable.app`、`replit.app`、`repl.co`、`workers.dev`、`github.io`、`gitlab.io`、`amplifyapp.com`、`azurewebsites.net`、`azurestaticapps.net`、`railway.app`、`glitch.me`、`deno.dev`。
-- 手寫清單一定會漏。實作版以 Public Suffix List 的 private 區段為來源（版本與 hash 記入 run manifest），這份表只負責對應 `platform` 值，並作為 validator 強制的最小集合 [H]。
+- 手寫清單一定會漏。實作版以 Public Suffix List 的 private 區段為來源（版本與 hash 記入 run manifest），這份表只負責對應 `platform` 值，並作為 validator 強制的最小集合 [H]。`tools/check_platform_suffixes.py`（選用，需要網路或本地 PSL 檔，不在 CI 執行）檢查手寫清單的每一項都在 PSL private 區段中（或是其中某條規則的上層網域）；不在其中的必須列入 `safety.PSL_EXCEPTIONS` 並寫明理由。2026-10-24 對 PSL 版本 2026-10-22 執行：`railway.app` 在 PSL 只有 `up.railway.app`、`glitch.me` 不在 PSL，兩者都保留（比 PSL 嚴格只會拒絕 DNS TXT／well-known 證明，不會放寬）。
 - 清單由 `toolkit_maintainer` 以 PR 維護，每次變更都附測試。
 
 **`ownership_proof.method: platform_project`**：
@@ -1667,7 +1667,7 @@ class SessionProvider(Protocol):
 | 投票權重 w(m,b) | 所有模型、所有桶都是 0 | 沒有計權合格票，S＝0；R3、R4 與 R5 的投票分支都不會成立 |
 | θ_confirm、θ_reject | null（視為 +∞） | 沒有靠投票得到的 `CONFIRMED_CORROBORATED`，也沒有靠權重得到的 `REJECTED` |
 | `high_precision_rules` | 空陣列 | 沒有強工具佐證，所有 SARIF 都是弱訊號 |
-| `provisional` | 每個裁決都是 true | 報告標示「暫定（校準前）」（`E-VERDICT-PROVISIONAL`） |
+| `provisional` | 每個可能由投票決定的裁決都是 true；R0／R1／R9／R10 決定的裁決與黑箱叢集是 false（v0.4） | 報告標示「暫定（校準前）」（`E-VERDICT-PROVISIONAL`） |
 | reviewer | 不加權 | reviewer 的貢獻只經由獨立來源數（R6）。Calibration Lab 另外量測 reviewer 的精準度，但 v0.3 不把它變成權重 |
 
 **校準前仍然會產出**：

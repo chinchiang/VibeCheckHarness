@@ -25,7 +25,7 @@
   "calibration_version": 3,
   "theta_confirm": 1.2,
   "theta_reject": null,
-  "provisional": true,
+  "provisional": false,
   "score": 0,
   "g2_decision_ref": null,
   "status": "UNCORROBORATED",

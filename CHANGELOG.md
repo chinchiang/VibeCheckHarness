@@ -55,6 +55,18 @@
 - **Schemathesis** 的 S1 模式只跑 GET／HEAD 操作。
 - 新增 `tests/test_v04_write_scope.py`。
 
+### 第五輪：審查紀錄 §5 的剩餘項目
+- **支持／反駁權重分開**：`calibration.yaml` 的每列改為 `support` 與 `refute` 兩側，各自 n、correct、a、w、near_zero；SUPPORT 票用 `support.w`，REFUTE 票用 `refute.w`。
+- **`provisional` 只標在受投票影響的裁決**：R0、R1、R9、R10 決定的裁決與黑箱叢集一律 false；範例 K-202 改為 false。
+- **合格票的引用必須與叢集相關**：至少一項落在叢集的 canonical 檔案或等於成員的 inventory 事實，否則視為棄權。
+- **旗標與排序**：`anonymized`／`order_randomized` 由 run 的 verifier prompt 範本推導（`run.prompt_templates[].anonymizes_candidates`／`randomizes_order`）；G4「最新紀錄」以 Audit Writer 收件時間排序；`initiator_claim`、`run_resume` 必須是 `human`，`run_resume` 要 `test_lead`。
+- **`E-GATE-EXPIRED-EARLY`**：無簽章的 EXPIRED 不能早於 `opened_at`＋逾時。**`E-AUDIT-IDEMPOTENCY`**：`idempotency_key` 必填、格式 `run_id:node:<鍵>`、同 run 不重複。
+- **稽核錨點由 Z3 副簽**：`audit_anchor` 的 `payload.z3_countersignature`（`E-AUDIT-ANCHOR-SIG`）。
+- **`E-SIG-BACKDATED`**：以非 compromised 原因撤銷的金鑰，文件第一次被驗章必須早於撤銷時間。
+- **CDN 邊緣 IP 範圍**（BL-15）：ROE `targets[].edge_ip_ranges`（`E-ROE-EDGE-RANGE`）、`safety.ip_in_ranges`。
+- **Public Suffix List 比對**：`tools/check_platform_suffixes.py`（選用，不在 CI 執行）；`safety.PSL_EXCEPTIONS`。
+- 新增 `tests/test_v04_round5_adjudication.py`、`tests/test_v04_round5_trust.py`。
+
 ### 文件
 - docs/00、02、03、04、05、06、07、08、09 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
 

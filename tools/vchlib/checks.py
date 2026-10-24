@@ -284,6 +284,30 @@ def silent_verify(c: Ctx, payload: bytes, sig: dict, at) -> bool:
     return verify_signature(scratch, c, "", payload, sig, at) is not None
 
 
+def first_verification(c: Ctx, gate: str) -> dt.datetime | None:
+    """Audit Writer receive time of the earliest G0a/G0b record that verified the current document
+    (verification.document_ref = its hash): the first moment the signed bytes provably existed."""
+    times = [decision_time(c, g.data) for g in c.docs("gate-record")
+             if g.data.get("gate") == gate and (g.data.get("verification") or {}).get("document_ref") is not None
+             and (g.data.get("verification") or {}).get("document_ref") == derive.gate_artifact(c.ix, g.data)]
+    times = [t for t in times if t is not None]
+    return min(times) if times else None
+
+
+def check_backdating(R: Report, c: Ctx, where: str, doc: dict, first_seen: dt.datetime | None):
+    """v0.4 (06 §3 #25): issued_at is self-declared. A signature by a key later revoked for a reason
+    other than compromise only counts if the document was first verified before revoked_at; otherwise
+    the signer could have back-dated issued_at after losing the key (E-SIG-BACKDATED)."""
+    for sig in doc.get("signatures") or []:
+        e = c.by_fp.get(sig.get("key_fingerprint")) or {}
+        rv = ts(R, e.get("revoked_at"), "key-registry.yaml", "revoked_at")
+        if rv is None or e.get("revocation_reason") == "compromised":
+            continue
+        R.check(first_seen is not None and first_seen < rv, "E-SIG-BACKDATED", where,
+                f"{sig.get('signer')}: key {sig.get('key_fingerprint')} was revoked at {e.get('revoked_at')}, but the document "
+                f"was first verified {'never' if first_seen is None else 'at ' + first_seen.isoformat()}; issued_at alone cannot prove it was signed before")
+
+
 def check_signed_doc(R: Report, c: Ctx, where: str, doc: dict, signers: list[dict]):
     """signers: [{person_id, role, key_fingerprint}] that must each have one valid signature."""
     sigs = doc.get("signatures") or []
@@ -439,6 +463,7 @@ def g_key_registry(R: Report, c: Ctx):
 def g_signatures(R: Report, c: Ctx):
     if c.engagement:
         check_signed_doc(R, c, "engagement.yaml", c.engagement, c.engagement.get("signatories") or [])
+        check_backdating(R, c, "engagement.yaml", c.engagement, first_verification(c, "G0a"))
     if c.roe:
         lr = c.roe.get("legal_review") or {}
         signers = list(c.roe.get("signatories") or [])
@@ -450,6 +475,7 @@ def g_signatures(R: Report, c: Ctx):
             if not any(s.get("person_id") == att for s in signers):
                 signers.append({"person_id": att, "role": role, "key_fingerprint": fp})
         check_signed_doc(R, c, "roe.yaml", c.roe, signers)
+        check_backdating(R, c, "roe.yaml", c.roe, first_verification(c, "G0b"))
     for d in c.docs("gate-record"):
         with doc_guard(R, d.path):
             rec = d.data
@@ -485,12 +511,18 @@ def g_signatures(R: Report, c: Ctx):
         for ev in d.data:
             where = f"{d.path} seq {ev.get('seq')}"
             actor = ev.get("actor") or {}
+            if ev.get("event_type") in SIGNED_EVENTS:
+                # v0.4: a claim or a resume is a person's act; actor.kind system / agent must not skip the signature
+                R.check(actor.get("kind") == "human", "E-AUDIT-ACTOR", where,
+                        f"{ev.get('event_type')} must have actor.kind human (got {actor.get('kind')!r}); it is always signed")
             if ev.get("event_type") in SIGNED_EVENTS and actor.get("kind") == "human":
                 sig = ev.get("signature")
                 if not R.check(isinstance(sig, dict), "E-AUDIT-SIG", where, f"{ev.get('event_type')} by a human must be signed"):
                     continue
                 R.check(sig.get("signer") == actor.get("id"), "E-SIG-SIGNER", where, "signature signer != actor.id")
-                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where))
+                # v0.4: only a test_lead may resume a run (docs/03 §5.6)
+                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where),
+                                 "test_lead" if ev.get("event_type") == "run_resume" else None)
             else:
                 R.check(ev.get("signature") is None, "E-AUDIT-SIG", where, "only human initiator_claim / run_resume events are signed")
 
@@ -717,15 +749,7 @@ def decision_time(c: Ctx, rec: dict) -> dt.datetime | None:
 
     v0.3 used the approver's self-declared timestamp for validity, timeout and time-window checks, so a key holder
     could back-date a decision (e.g. before a role_change / retired revocation, or inside an expired ROE)."""
-    audit = c.ix.audit_for(rec.get("run_id"))
-    for ev in (audit.data if audit and isinstance(audit.data, list) else []):
-        if isinstance(ev, dict) and ev.get("event_type") == "gate_decision" \
-                and (ev.get("payload") or {}).get("gate_record_id") == rec.get("gate_record_id"):
-            try:
-                return timeutil.parse_dt(ev.get("ts"))
-            except (timeutil.TimeError, TypeError, ValueError):
-                return None
-    return None
+    return c.ix.decision_time(rec)
 
 
 def g_roe(R: Report, c: Ctx):
@@ -794,6 +818,10 @@ def g_roe(R: Report, c: Ctx):
             R.check(h is not None, "E-ROE-TARGETS", w, f"{t.get('id')}: unparseable base_url {t.get('base_url')!r} (no host)")
             R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-TARGETS", w,
                     f"{t.get('id')}: base_url host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
+        # v0.4 (BL-15): CDN edge ranges are public CIDRs on http targets only; the Scope Proxy enforces them (safety.ip_in_ranges)
+        for cidr in t.get("edge_ip_ranges") or []:
+            prob = safety.edge_range_problem(cidr) if t.get("kind") == "http" else "only http targets have edge ranges"
+            R.check(prob is None, "E-ROE-EDGE-RANGE", w, f"{t.get('id')}: edge_ip_ranges {prob}")
     for tr in r.get("test_roles", []):
         R.check((tr.get("login") or {}).get("target_id") in targets, "E-ROE-TARGETS", w, f"test role {tr.get('role')}: login target not in ROE")
     db = r.get("db_access")
@@ -1267,6 +1295,11 @@ def g_gates(R: Report, c: Ctx):
             limit = tmo.get(gate)
             if limit is not None and gate != "G5":
                 R.check(at - opened <= dt.timedelta(hours=limit), "E-GATE-TIMEOUT", w, f"decided {at - opened} after opening; timeout {limit} h")
+                # v0.4: EXPIRED is the one unsigned outcome; it is only valid once the timeout has really elapsed by the
+                # Audit Writer's clock. Otherwise a forged EXPIRED could skip G2 (the run continues past a timed-out G2).
+                if rec.get("outcome") == "EXPIRED":
+                    R.check(at - opened >= dt.timedelta(hours=limit), "E-GATE-EXPIRED-EARLY", w,
+                            f"EXPIRED {at - opened} after opening, before the {limit} h timeout elapsed")
             # outcome vs decisions
             decs = [x.get("decision") for x in rec.get("decisions", [])]
             if rec.get("outcome") == "PARTIALLY_APPROVED":
@@ -1871,12 +1904,16 @@ def derived_diversity_degraded(c: Ctx, v: dict, cluster: dict) -> bool:
 
 def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
     """E5 (H-E11): calibration_version null, or theta_confirm null, or every eligible verifier model of the
-    cluster (E(cluster), from the registries, not from the votes present) has calibration weight 0 in the
-    cluster's CWE bucket. A verdict without votes is therefore provisional iff the pool is uncalibrated."""
+    cluster (E(cluster), from the registries, not from the votes present) has calibration weight 0 (both sides)
+    in the cluster's CWE bucket. v0.4: false for black-box clusters and for statuses decided by rows 1-5."""
+    # v0.4: provisional marks only verdicts that votes could have decided. A status fixed by R9 / R10 / R0 / R1
+    # (rows 1-5) does not depend on calibration, and a black-box cluster never has votes.
+    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row <= 5:
+        return False
     if v.get("calibration_version") is None or v.get("theta_confirm") is None:
         return True
-    return all(c.ix.weight(k, cluster.get("cwe_bucket"), v.get("calibration_version")) == 0
-               for k in eligible_verifier_models(c, cluster))
+    return all(c.ix.weight(k, cluster.get("cwe_bucket"), v.get("calibration_version"), st) == 0
+               for k in eligible_verifier_models(c, cluster) for st in ("SUPPORT", "REFUTE"))
 
 
 LICENSE_CLEARED = ("OK", "注意")     # licenses.yaml statuses that may run; 法務閘門 / 不採用 / 待查 / 參考 may not (N-7)
@@ -2133,6 +2170,10 @@ def g_verdicts(R: Report, c: Ctx):
                 if vt.get("valid"):
                     R.check(vt.get("voter_family") not in cl.data.get("families", []) and vt.get("voter_lineage") not in cl.data.get("lineages", []),
                             "E-VERDICT-VOTE", w, f"self-review vote by {vt.get('voter_agent_id')} counted as valid")
+                anon, rand = derive.verifier_template_controls(c.ix, cl.data)
+                R.check(vt.get("anonymized") is anon and vt.get("order_randomized") is rand, "E-VERDICT-VOTE", w,
+                        f"vote by {vt.get('voter_agent_id')}: anonymized/order_randomized {vt.get('anonymized')}/{vt.get('order_randomized')} "
+                        f"must equal the run's {derive.VERIFIER_TEMPLATE_ID} template ({anon}/{rand}); a vote cannot declare them")
             if v.get("supersedes_verdict_id"):
                 old = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"])
                 R.check(old is not None and old.data.get("cluster_id") == v.get("cluster_id"), "E-TRACE", w, "supersedes a verdict of another cluster")
@@ -2524,7 +2565,7 @@ def g_audit(R: Report, c: Ctx):
             run = c.runs.get(rid)
             if not R.check(run is not None, "E-AUDIT-RUN", w, f"run {rid} not found"):
                 continue
-            prev_t, since = None, 0
+            prev_t, since, seen_keys = None, 0, set()
             for i, ev in enumerate(evs):
                 where = f"{w} seq {ev.get('seq')}"
                 # type(...) is int: a float literal such as 3e0 / 3.0 (or a bool) is not a seq
@@ -2542,6 +2583,16 @@ def g_audit(R: Report, c: Ctx):
                 et = ev.get("event_type")
                 since = 0 if et == "audit_anchor" else since + 1
                 R.check(since <= interval, "E-AUDIT-ANCHOR", where, f"more than {interval} events without an anchor")
+                if et == "audit_anchor":
+                    # v0.4: the Z3 executor countersigns {run_id, seq, prev_hash}; whoever controls both the
+                    # audit log and the run record still cannot rewrite the chain without the Z3 key
+                    cs = (ev.get("payload") or {}).get("z3_countersignature")
+                    scratch = Report()
+                    ok = isinstance(cs, dict) and cs.get("signer") == crypto.ANCHOR_SIGNER and verify_signature(
+                        scratch, c, where, crypto.anchor_payload(ev), cs, t, need_role="z3_executor") is not None
+                    R.check(ok, "E-AUDIT-ANCHOR-SIG", where, "audit_anchor needs a valid z3_countersignature by "
+                            f"{crypto.ANCHOR_SIGNER} (role z3_executor) over {{run_id, seq, prev_hash}}"
+                            + (": " + "; ".join(f"{x.code} {x.msg}" for x in scratch.issues) if scratch.issues else ""))
                 if et == "gate_decision":
                     nxt = evs[i + 1] if i + 1 < len(evs) else {}
                     R.check(nxt.get("event_type") == "audit_anchor", "E-AUDIT-ANCHOR", where, "every gate_decision must be followed by an audit_anchor")
@@ -2554,6 +2605,12 @@ def g_audit(R: Report, c: Ctx):
                             f"Audit Writer's receive time by more than {MAX_CLOCK_SKEW})")
                 if et == "initiator_claim":
                     R.check(actor.get("id") in run.get("initiators", []), "E-AUDIT-INITIATOR", where, "claimed initiator not in run.initiators")
+                # v0.4: idempotency keys are run_id:node:<key> and unique within the run (re-written events are deduplicated by it)
+                ik = ev.get("idempotency_key")
+                parts = ik.split(":", 2) if isinstance(ik, str) else []
+                R.check(len(parts) == 3 and parts[0] == ev.get("run_id") and parts[1] == ev.get("node") and ik not in seen_keys,
+                        "E-AUDIT-IDEMPOTENCY", where, f"idempotency_key {ik!r} must be '<run_id>:<node>:<key>' for this event and unique in the run")
+                seen_keys.add(ik)
                 if et == "verdict_changed":
                     p = ev.get("payload") or {}
                     v = c.ix.first("verdict", verdict_id=p.get("verdict_id"))
@@ -2658,12 +2715,13 @@ def g_calibration(R: Report, c: Ctx):
         reg = c.model(mk)
         R.check(reg is not None and reg.get("family") == m.get("family") and reg.get("lineage") == m.get("lineage"), "E-CAL-MODEL", w,
                 f"config.models {mk}: family/lineage disagree with models.yaml")
-    for mk in {r.get("model_key") for r in rows}:
-        mine = [r for r in rows if r.get("model_key") == mk]
-        tn = sum(r.get("n", 0) for r in mine)
-        abar = sum(r.get("correct", 0) for r in mine) / tn if tn else 0
-        for r in mine:
-            where = f"{w} weights {mk}/{r.get('cwe_bucket')}"
+    for mk, side_key in sorted({(r.get("model_key"), sk) for r in rows for sk in ("support", "refute")}, key=str):
+        # v0.4: the support side (true defects) and the refute side (known non-defects) are computed separately
+        mine = [(r, r.get(side_key) or {}) for r in rows if r.get("model_key") == mk]
+        tn = sum(x.get("n", 0) for _, x in mine)
+        abar = sum(x.get("correct", 0) for _, x in mine) / tn if tn else 0
+        for row, r in mine:
+            where = f"{w} weights {mk}/{row.get('cwe_bucket')}/{side_key}"
             R.check(mk in keys, "E-CAL-MODEL", where, "model not in config.models")
             n, cc = r.get("n", 0), r.get("correct", 0)
             a = (cc + k * abar) / (n + k) if n + k else 0
