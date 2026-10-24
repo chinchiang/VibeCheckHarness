@@ -26,7 +26,7 @@
   "advisory": true,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.3",
+  "rule_version": "05-v0.4",
   "rule_trace": [
     "R9:lane_a->cap UNCORROBORATED,advisory"
   ]

@@ -10,7 +10,7 @@
   "independent_sources": 2,
   "executable_proof": {
     "testcase_id": "TC-012-01",
-    "result_ref": "sha256:ec78e4831015af2988804ee84a2fd8068fdffb07711dcfcf26215da9e9e44cdf",
+    "result_ref": "sha256:0eb5d2b1731943ad0dbd150df66757208ff14b373413cd5354f7fa229b13c559",
     "trials": null,
     "interpretation_confirmed_by": {
       "agent_id": "result_analyst",
@@ -21,7 +21,7 @@
     "class": "E_proof",
     "results": [
       {
-        "result_ref": "sha256:ec78e4831015af2988804ee84a2fd8068fdffb07711dcfcf26215da9e9e44cdf",
+        "result_ref": "sha256:0eb5d2b1731943ad0dbd150df66757208ff14b373413cd5354f7fa229b13c559",
         "class": "E_proof",
         "positive_control": true,
         "reason": "FAIL，重播 2 次相同；確定性 oracle（STATUS_AND_BODY），G4 預先登記解讀"
@@ -41,7 +41,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.3",
+  "rule_version": "05-v0.4",
   "rule_trace": [
     "R1:E_proof(R-TC-012-01-1),deterministic oracle,pre-registered at G4->CONFIRMED_EXECUTABLE"
   ]

@@ -77,7 +77,8 @@
       "method": "GET",
       "path": "/api/invoices",
       "step_id": null,
-      "graphql_operation": null
+      "graphql_operation": null,
+      "object_refs": []
     }
   ],
   "seed_manifest_ref": "docs/examples/seed-manifest.yaml",

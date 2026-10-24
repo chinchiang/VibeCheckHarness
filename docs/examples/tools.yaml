@@ -17,7 +17,7 @@ tools:
     description: "OWASP ZAP（B1 被動探索、B4 主動掃描）"
     license_ref: ZAP
     modes:
-      baseline: {description: "被動規則", base_class: S0, b4_executable: true, toolkit_denied: false}
+      baseline: {description: "被動規則；以 zap-api-scan.py 執行時必須帶 -S（safe mode），否則它會跑主動掃描（E:blackbox-07）", base_class: S0, b4_executable: true, toolkit_denied: false}
       active: {description: "主動掃描；每個 job 都要 G5", base_class: S2, b4_executable: true, toolkit_denied: false}
   playwright:
     zone: Z3
@@ -31,8 +31,8 @@ tools:
     description: "Schemathesis（OpenAPI 性質測試）"
     license_ref: Schemathesis
     modes:
-      check: {description: "內建 checks", base_class: S1, b4_executable: true, toolkit_denied: false}
-      hook: {description: "自訂 hook 的性質測試", base_class: S1, b4_executable: true, toolkit_denied: false}
+      check: {description: "內建 checks；只跑 GET／HEAD 操作（寫入操作會打到非種子物件，改用綁種子的 GENERATED_SCRIPT）", base_class: S1, b4_executable: true, toolkit_denied: false}
+      hook: {description: "自訂 hook 的性質測試；只跑 GET／HEAD 操作", base_class: S1, b4_executable: true, toolkit_denied: false}
   nuclei:
     zone: Z3
     description: "Nuclei（只跑自簽章模板）"

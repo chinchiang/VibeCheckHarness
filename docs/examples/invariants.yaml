@@ -50,8 +50,8 @@ data_classification:                   # 受測應用的資料分級（不是工
   - {data_class_id: DC-SUPPORT-DOC, name: 客服上傳文件, level: confidential, fields: [documents.content], pii: true}
 
 llm_tools:                             # 客服 agent 的工具權限矩陣
-  - {tool_name: refund, side_effect: write, requires_human_confirmation: true, allowed_roles: [customer], data_class_ids: [DC-ORDER]}
-  - {tool_name: summarize_document, side_effect: read, requires_human_confirmation: false, allowed_roles: [customer], data_class_ids: [DC-SUPPORT-DOC]}
+  - {tool_name: refund, side_effect: write, requires_human_confirmation: true, allowed_roles: [customer], data_class_ids: [DC-ORDER], mcp_server: null, description_sha256: null}
+  - {tool_name: summarize_document, side_effect: read, requires_human_confirmation: false, allowed_roles: [customer], data_class_ids: [DC-SUPPORT-DOC], mcp_server: null, description_sha256: null}
 
 limits:
   - {limit_id: LIM-001, subject: refund, metric: calls_per_hour, value: 5, scope: per_user}

@@ -185,8 +185,9 @@ def test_adaptive_relay_only_in_full(b):
 def test_shared_platform_suffixes():
     assert platform_of("acme-staging.supabase.co") == "supabase" and platform_of("x.web.app") == "firebase"
     assert platform_of("supabase.co.example.com") is None and platform_of("api.staging.example.com") is None
-    assert set(safety.SHARED_PLATFORM_SUFFIXES) == {"supabase.co", "vercel.app", "netlify.app", "firebaseapp.com", "web.app",
-                                                     "onrender.com", "pages.dev", "fly.dev", "herokuapp.com"}
+    # v0.3's nine suffixes stay; v0.4 adds vibe-coding and other hosting platforms (tests/test_v04_scope_proxy.py)
+    assert {"supabase.co", "vercel.app", "netlify.app", "firebaseapp.com", "web.app",
+            "onrender.com", "pages.dev", "fly.dev", "herokuapp.com"} <= set(safety.SHARED_PLATFORM_SUFFIXES)
 
 
 def test_shared_platform_host_needs_platform_project(b):

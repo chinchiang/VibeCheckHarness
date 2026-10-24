@@ -77,8 +77,17 @@ def test_unbound_variable_in_a_mutation_is_s3(b):
     assert level(b, tc)[0] == "S3"
 
 
+def declare_graphql(b, target="tgt-staging-api", path="/graphql"):
+    """v0.4: GraphQL reads need the path declared in the signed ROE (targets[].graphql_paths)."""
+    for t in doc(b, "roe.yaml").data["targets"]:
+        if t["id"] == target:
+            t["graphql_paths"] = [path]
+
+
 def test_graphql_introspection_over_post_is_s1(b):
-    """A GraphQL introspection (read) sent as POST is not a mutation: S1 via the POST floor, not S3."""
+    """A GraphQL introspection (read) sent as POST to a ROE-declared GraphQL path is not a mutation:
+    S1 via the POST floor, not S3."""
+    declare_graphql(b)
     tc = copy.deepcopy(doc(b, TC_LIST).data)
     tc["request_allowlist"] = [req("tgt-staging-api", "POST", "/graphql", op="introspection")]
     lv, trace = level(b, tc)

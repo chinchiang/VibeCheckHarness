@@ -43,18 +43,18 @@ def test_r1_with_e_pass_conflicting_results():
 
 
 def test_late_rows_rule_order():
-    out = adjudicate(Inputs(evidence={"E_pass", "E_inc"}, independent_families=2, g3_rejected=True))
+    out = adjudicate(Inputs(evidence={"E_pass", "E_inc"}, independent_families=2, g3_rejected=True, pass_positive=True))
     assert out.status == "DISPUTED" and out.rules == ["R2", "R6", "R11", "R12", "R13"]
 
 
 def test_w4_became_disputed_on_likely_to_disputed_in_w4():
-    kw = dict(evidence={"E_pass"}, independent_families=2)          # LIKELY -> DISPUTED via R11
+    kw = dict(evidence={"E_pass"}, independent_families=2, pass_positive=True)   # LIKELY -> DISPUTED via R11
     out = adjudicate(Inputs(**kw, phase="W4", prev_status="LIKELY"))
     assert out.status == "DISPUTED" and "w4_became_disputed" in out.annotations
 
 
 def test_w4_became_disputed_negative_cases():
-    kw = dict(evidence={"E_pass"}, independent_families=2)
+    kw = dict(evidence={"E_pass"}, independent_families=2, pass_positive=True)
     assert "w4_became_disputed" not in adjudicate(Inputs(**kw, phase="W4", prev_status="DISPUTED")).annotations
     assert "w4_became_disputed" not in adjudicate(Inputs(**kw, phase="W4", prev_status=None)).annotations
     assert "w4_became_disputed" not in adjudicate(Inputs(**kw, phase="B5", prev_status="LIKELY")).annotations

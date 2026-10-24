@@ -31,7 +31,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.3",
+  "rule_version": "05-v0.4",
   "rule_trace": [
     "R2:valid_votes=0,score=0",
     "R6:no_weighted_votes,independent_families=2->LIKELY"

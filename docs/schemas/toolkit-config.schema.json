@@ -47,6 +47,31 @@
       "type": "string",
       "description": "tools.yaml 的位置（D13 權威清單）"
     },
+    "gate_queues": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "v0.4（BL-26，docs/02 W3、W5）：人工關卡佇列。G2 佇列最多 g2_max_items 項（依 rubric 嚴重度、再依 DISPUTED 排序），超出的列入 report-manifest over_cap_items；G3 除高風險與 critical／high 外最多 g3_max_items 項逐項決定；G2 逾時（未決）比例超過 g2_timeout_warn_ratio 寫 gate_load_warning。省略＝程式碼預設 30、50、0.5",
+      "properties": {
+        "g2_max_items": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "g3_max_items": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "g2_timeout_warn_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "g2_max_items",
+        "g3_max_items",
+        "g2_timeout_warn_ratio"
+      ]
+    },
     "gate_timeouts_hours": {
       "type": "object",
       "additionalProperties": false,
@@ -180,6 +205,15 @@
         "max_output_mib",
         "network"
       ]
+    },
+    "z4_model_hosts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+      },
+      "uniqueItems": true,
+      "description": "Z4 自架模型伺服器的確切主機名稱（小寫）。models.yaml 的 api_base 主機完全等於其中一項才算自架；v0.3 以 `z4-` 前綴判斷，任何以 z4- 開頭的外部主機都會被當成自架（v0.4 修正）。沒有這個欄位＝沒有自架模型"
     },
     "path_blacklist": {
       "type": "array",

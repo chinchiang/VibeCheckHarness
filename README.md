@@ -1,6 +1,6 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
-> **狀態**：設計文件 v0.3（2026-09-26，依[深度審查](docs/evidence/review-2026-09-26.md)修正 v0.2；變更見 [CHANGELOG](CHANGELOG.md)）。v0.2（2026-09-24）起可據以實作：每個階段／關卡／元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。工具包本身**尚未實作**；本 repo 另附可執行的資料模型驗證器與參考演算法（`tools/`）。v0.1：2026-09-23。
+> **狀態**：設計文件 v0.4（2026-10-24，依[設計審查](docs/evidence/review-2026-10-24.md)分五輪修正 v0.3：裁決規則與 validator、資料出境與信任錨、路線圖與人工關卡負擔、寫入範圍、威脅對照表與範例；v0.3 於 2026-09-26 依[深度審查](docs/evidence/review-2026-09-26.md)修正 v0.2；變更見 [CHANGELOG](CHANGELOG.md)）。v0.2（2026-09-24）起可據以實作：每個階段／關卡／元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。工具包本身**尚未實作**；本 repo 另附可執行的資料模型驗證器與參考演算法（`tools/`）。v0.1：2026-09-23。
 > **第一次讀**：先看 [docs/00 總覽](docs/00-overview.md)（端到端流程、自動與人工的分界、依角色的閱讀路徑）。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
 > **語言**：正體中文；證據原文保留英文（見 [`docs/evidence/ledger.md`](docs/evidence/ledger.md)）。
@@ -10,6 +10,14 @@
 一個 **Harness**（程式碼寫成的流程控制器）加上一個 **指揮官 Agent**（LLM）調度多個子代理：
 - **白箱階段**：每個子代理可以綁不同廠商的 LLM（Claude／ChatGPT／Nemotron…），彼此獨立審查程式碼，再由**不同家族**的模型交叉驗證，以降低單一模型的偏誤；
 - **黑箱階段**：**一定先做威脅建模**，人工簽核後，才依威脅模型推導測試案例，再在隔離環境中對 **staging** 執行。
+
+## 系統架構圖
+
+![VibeCheck Harness 系統架構](docs/architecture.svg)
+
+- 四個信任區：**Z1** 控制平面（Run Controller、Policy Engine、Gate Service、Blackboard、CAS、Audit Log、Model Gateway）不能連目標，只有 Gateway 能連 LLM；**Z2** 沙箱跑 W0／W1／W4 與目標建置，沒有 LLM 也沒有目標；**Z3** 執行所有權驗證與黑箱測試，唯一出口是 Scope Proxy；**Z4** 自架模型只接受 Gateway。元件責任與里程碑見 [03 §1](docs/03-system-architecture.md#1-元件總覽)，信任區與隔離要求見 [03 §2](docs/03-system-architecture.md#2-部署與信任區)。
+- 黃底是用 LLM 的元件（指揮官、審查／驗證／設計／結果分析 agent、Reporter）：它們只提出假設與草稿；流程、範圍、安全等級、裁決規則與驗章都是程式碼。人只在簽署與關卡（G0a／G0b、G1–G5、GB）出現。
+- 端到端流程（W0–W5、B0–B6 與關卡）見 [00 §2](docs/00-overview.md#2-端到端流程)；圖檔是手工維護的 SVG（[docs/architecture.svg](docs/architecture.svg)），改架構時一併更新。
 
 ## 範圍與界線
 
@@ -34,7 +42,7 @@
 | Nemotron 同時支援雲端（build.nvidia.com）與自架（NIM／vLLM） | 兩種模式都接在 LiteLLM；雲端只收公開或合成程式碼，機密碼只用自架 | [03 §8.2](docs/03-system-architecture.md#82-nemotron-雙模式)、[examples/serving](docs/examples/serving/README.md) | 雲端試用條款禁止機密資訊與正式用途；自架需要 GPU |
 | 文件放在 repo 根目錄 | `README.md`＋`docs/` | — | — |
 | 做不到的事就說做不到 | 41 條明列，分成四類（LLM 與方法的本質限制、環境與平台、組織與法務前提、本版範圍） | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
-| 所有內容經交叉比對核實 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經獨立代理對抗式審查；2026-09-26 的深度審查逐項記錄在 [review-2026-09-26](docs/evidence/review-2026-09-26.md) | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
+| 所有內容經交叉比對核實 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經獨立代理對抗式審查；2026-09-26 的深度審查逐項記錄在 [review-2026-09-26](docs/evidence/review-2026-09-26.md)，2026-10-24 的設計審查在 [review-2026-10-24](docs/evidence/review-2026-10-24.md) | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
 
 ## 文件導覽
 
@@ -53,8 +61,8 @@
 | [docs/references.md](docs/references.md) | 參考文獻 |
 | [docs/schemas/](docs/schemas/) | 資料模型 JSON Schema＋範例實例（`python tools/validate_schemas.py` 驗證；說明見 [schemas/README](docs/schemas/README.md)） |
 | [docs/examples/](docs/examples/) | `models.yaml`、`agents.yaml`、`engagement.yaml`、`roe.yaml`、`key-registry.yaml`、`tools.yaml`、`toolkit.yaml`、`licenses.yaml`、`invariants.yaml`、`seed-manifest.yaml`、`calibration.yaml`、`crosswalk.yaml`、自架模型啟動範例（關卡紀錄等 JSON 範例在 [docs/schemas/examples/](docs/schemas/examples/)） |
-| [tools/](tools/)、[tests/](tests/) | 驗證器、參考演算法（`tools/vchlib`）、範例簽章工具、證據帳本與參考文獻產生器；pytest 測試 |
-| [docs/evidence/](docs/evidence/) | 研究證據（JSON）、自動產生的證據帳本、連結檢查與深度審查紀錄 |
+| [tools/](tools/)、[tests/](tests/) | 驗證器、參考演算法（`tools/vchlib`：裁決規則、安全等級、Scope Proxy 位址與內容綁定、面向、JCS、Ed25519）、範例簽章工具、證據帳本與參考文獻產生器、共享平台清單與 Public Suffix List 的比對工具（選用）；pytest 測試 |
+| [docs/evidence/](docs/evidence/) | 研究證據（JSON）、自動產生的證據帳本、連結檢查，以及兩次審查紀錄（[2026-09-26](docs/evidence/review-2026-09-26.md)、[2026-10-24](docs/evidence/review-2026-10-24.md)：逐項列出問題、證據與 v0.4 的處理） |
 
 ## 標記說明
 
@@ -110,7 +118,12 @@
 | `b1_diff` | — | W0 盤點與 B1 系統建模之間的差異清單，G3 前必須逐項處置 |
 | `E_proof`／`E_fail_u`／`E_pass`／`E_inc` | 測試證據分類 | 可執行證明／未確認的重現失敗／合格 PASS／不確定，見 [05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則) |
 | control | 對照 | 測試案例宣告的對照步驟（reachability、oracle_can_pass、oracle_can_fail）；任一個沒通過，結果就是 `INVALID`，不算 PASS |
-| provisional | 暫定裁決 | 校準完成前產生的裁決；報告會標示 |
+| provisional | 暫定裁決 | 受投票影響、但沒有經校準的投票支撐的裁決（v0.4 起 R0／R1／R9／R10 決定的裁決與黑箱叢集一律不標）；報告會標示 |
+| facet | 審查面向 | W2 審查的 13 個面向；必要面向由 W0 inventory 以程式碼決定，見 [02 W2](docs/02-methodology.md#w2-多家族獨立審查) |
+| rubric 嚴重度 | — | 由程式碼依 inventory、G1 規格與 DFD 骨幹計算的嚴重度；G2 路由與 W4 輸入用它，不用 LLM 自報的嚴重度，見 [08 §11.17](docs/08-implementation-spec.md#1117-確定性輔助規則) |
+| 收件時間 | — | Audit Writer 收到 `gate_decision` 事件的時間；v0.4 起關卡時間、金鑰效期與 G4「最新紀錄」都以它為準，不用自填的 `timestamp` |
+| `object_refs` | 種子綁定 | 請求在 body、query、GraphQL variables 或 PostgREST 過濾條件中碰到的種子物件；路徑沒有變數段的寫入靠它進入寫入範圍，見 [04 §5](docs/04-threat-to-testcase.md#5-安全等級計算規則) |
+| `config_pins` | 設定檔釘選 | 委任設定記錄 `models／agents／tools／licenses.yaml` 的內容 hash；改設定就要重簽（`E-ENG-CONFIG-PIN`） |
 | Lite／Team／Full | 保證等級 | 單人、團隊、完整三種模式；職責分離與允許的安全等級不同，安全底線相同，見 [02 §1.7](docs/02-methodology.md#17-保證等級liteteamfull) |
 | P／C 級 | 資料等級 | P＝公開或合成資料；C＝機密資料（未標記即視為 C；只能送到委任設定允許的模型，見 [03 §8](docs/03-system-architecture.md)） |
 
@@ -119,10 +132,11 @@
 ```bash
 python -m pip install -r requirements.txt
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 約 450 個測試，需要幾分鐘
+python -m pytest tests                 # 615 個測試，約 7 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點
+python tools/check_platform_suffixes.py --check  # 選用，需要網路：手寫的共享平台清單對照 Public Suffix List
 ```
 
 - **Windows**：驗證器需要 `tzdata`（已列在 requirements.txt）；在 cp950 主控台上執行其他工具時請設定 `PYTHONUTF8=1`。

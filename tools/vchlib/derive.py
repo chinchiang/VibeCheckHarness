@@ -88,10 +88,27 @@ class Index:
                 return d
         return None
 
+    def decision_time(self, rec: dict):
+        """v0.4 (E4): ts of the gate_decision audit event of `rec` (the Audit Writer's receive clock), or None."""
+        audit = self.audit_for(rec.get("run_id"))
+        for ev in (audit.data if audit and isinstance(audit.data, list) else []):
+            if isinstance(ev, dict) and ev.get("event_type") == "gate_decision" \
+                    and (ev.get("payload") or {}).get("gate_record_id") == rec.get("gate_record_id"):
+                try:
+                    return timeutil.parse_dt(ev.get("ts"))
+                except (timeutil.TimeError, TypeError, ValueError):
+                    return None
+        return None
+
     def gate_records(self, run_id, gate=None) -> list[Doc]:
-        """Gate records of a run (optionally one gate), in timestamp order (parsed, not as strings)."""
+        """Gate records of a run (optionally one gate), ordered by the Audit Writer's receive time (v0.4), falling
+        back to the self-declared timestamp only for a record without a gate_decision event."""
         recs = [d for d in self.docs("gate-record") if d.data.get("run_id") == run_id and (gate is None or d.data.get("gate") == gate)]
-        return sorted(recs, key=lambda d: timeutil.sort_key(d.data.get("timestamp")))
+
+        def key(d):
+            t = self.decision_time(d.data)
+            return timeutil.sort_key(t.isoformat()) if t is not None else timeutil.sort_key(d.data.get("timestamp"))
+        return sorted(recs, key=key)
 
     def model_of_agent(self, agent_id) -> dict | None:
         a = self.agents.get(agent_id)
@@ -100,13 +117,17 @@ class Index:
         m = self.models.get(a["model"])
         return m if isinstance(m, dict) else None
 
-    def weight(self, model_key, bucket, version) -> float:
+    def weight(self, model_key, bucket, version, stance="SUPPORT") -> float:
+        """v0.4: calibration weight of one side. REFUTE votes use the refute side (accuracy on known non-defects),
+        every other stance the support side (accuracy on true defects); docs/05 §4.3."""
         cal = self.calibration
         if not cal or version is None or cal.get("calibration_version") != version:
             return 0.0
+        side_key = "refute" if stance == "REFUTE" else "support"
         for row in (cal.get("result") or {}).get("weights", []):
             if row.get("model_key") == model_key and row.get("cwe_bucket") == bucket:
-                return 0.0 if row.get("near_zero") else float(row.get("w", 0))
+                side = row.get(side_key) or {}
+                return 0.0 if side.get("near_zero") else float(side.get("w", 0))
         return 0.0
 
     def thresholds(self):
@@ -136,16 +157,22 @@ class Index:
         return d.data if d else None
 
 
+GROUNDED_MATCHES = ("MATCHED", "MATCHED_SHIFTED")
+
+
 def has_supporting_evidence(f: dict) -> bool:
-    """At least one evidence item is not NOT_FOUND (docs/05 §4.2: findings whose evidence all failed to match
-    do not support the cluster)."""
-    return any(isinstance(e, dict) and e.get("match") != "NOT_FOUND" for e in f.get("evidence") or [])
+    """At least one evidence item is grounded: MATCHED or MATCHED_SHIFTED (docs/05 §3 rule 5).
+
+    v0.4: NOT_CHECKED (the harness could not check the item, e.g. an unparseable config file) is not
+    grounded either. v0.3 counted every item that was not NOT_FOUND, so two families that each sent an
+    uncheckable config_fact reached R6 LIKELY without any grounded evidence."""
+    return any(isinstance(e, dict) and e.get("match") in GROUNDED_MATCHES for e in f.get("evidence") or [])
 
 
 def independent_families(ix: Index, cluster: dict) -> list[str]:
     """docs/05 §4.1 (D14): families that contributed a member in the first round of this run, reported by an
     agents.yaml `reviewer` (Lane A advisories and CMD-2 extra rounds do not count), whose finding has at least
-    one evidence item that is not NOT_FOUND (UNVERIFIED findings do not count). Sorted."""
+    one grounded evidence item (MATCHED / MATCHED_SHIFTED; UNVERIFIED and NOT_CHECKED-only findings do not count). Sorted."""
     fams = set()
     for fid in cluster.get("member_finding_ids") or []:
         f = ix.finding(fid)
@@ -315,7 +342,8 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
         return "E_fail_u", "reproduced FAIL, no pre-registered interpretation or eligible analyst"
     if not reachability_reached(tc, tr):
         return "E_inc", "reachability control not passed"
-    if probabilistic and not (k == 0 and n >= 30):
+    n_eff = got.get("n_effective", n)          # v0.4: n' = trials whose precondition was reached (docs/04 §4.4)
+    if probabilistic and not (k == 0 and isinstance(n_eff, int) and n_eff >= 30):
         return "E_inc", "probabilistic PASS needs k=0 and n'>=30"
     if not (oracle_types(tc) & DETERMINISTIC_ORACLES):
         return "E_inc", "no deterministic oracle"
@@ -349,9 +377,45 @@ def w4_became_disputed_clusters(ix: Index) -> dict[str, Any]:
     return out
 
 
-def vote_valid(v: dict, cluster: dict) -> bool:
-    return (v.get("voter_family") not in cluster.get("families", []) and v.get("voter_lineage") not in cluster.get("lineages", [])
-            and bool(v.get("anonymized")) and bool(v.get("order_randomized")))
+VERIFIER_TEMPLATE_ID = "w3-verify"
+
+
+def verifier_template_controls(ix: "Index", cluster: dict) -> tuple[bool, bool]:
+    """v0.4: (anonymizes_candidates, randomizes_order) of the run's W3 verifier prompt template. These are
+    properties of the harness template recorded in the run manifest, not of the vote."""
+    run = ix.first("run", run_id=cluster.get("run_id"))
+    for t in ((run.data if run else {}) or {}).get("prompt_templates") or []:
+        if isinstance(t, dict) and t.get("template_id") == VERIFIER_TEMPLATE_ID:
+            return t.get("anonymizes_candidates") is True, t.get("randomizes_order") is True
+    return False, False
+
+
+def cited_relevant(ix: "Index", v: dict, cluster: dict) -> bool:
+    """v0.4: at least one cited item is about this cluster: a `file:line` in the cluster's canonical file, or an
+    `inventory:<pointer>` equal to a member finding's inventory_fact fact_ref. v0.3 accepted any citation that
+    could be matched, e.g. an unrelated line elsewhere in the slice."""
+    canon = (cluster.get("canonical_location") or {}).get("file")
+    facts = {e.get("fact_ref") for fid in cluster.get("member_finding_ids") or [] for e in ((ix.finding(fid) or {}).get("evidence") or [])
+             if isinstance(e, dict) and e.get("kind") == "inventory_fact"}
+    for c in v.get("cited_evidence") or []:
+        if not isinstance(c, str):
+            continue
+        if c.startswith("inventory:") and c[len("inventory:"):] in facts:
+            return True
+        if canon and c.rsplit(":", 1)[0] == canon:
+            return True
+    return False
+
+
+def vote_valid(v: dict, cluster: dict, ix: "Index | None" = None) -> bool:
+    """docs/05 §4.2: family / lineage not in the cluster; candidates anonymised and order randomised (v0.4: by the
+    run's verifier template, not by the vote's own flags); and (v0.4) a cited item relevant to the cluster."""
+    if v.get("voter_family") in cluster.get("families", []) or v.get("voter_lineage") in cluster.get("lineages", []):
+        return False
+    if ix is None:
+        return bool(v.get("anonymized")) and bool(v.get("order_randomized"))
+    anon, rand = verifier_template_controls(ix, cluster)
+    return anon and rand and bool(v.get("anonymized")) and bool(v.get("order_randomized")) and cited_relevant(ix, v, cluster)
 
 
 def is_verifier_vote(ix: "Index", v: dict) -> bool:
@@ -496,10 +560,10 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
         version = v.get("calibration_version")
         score = 0.0
         for i, vote in enumerate(v.get("votes", [])):
-            valid = vote_valid(vote, cluster)
-            wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version)
+            valid = vote_valid(vote, cluster, ix)
+            wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version, vote.get("stance"))
             exp(d, ["votes", i, "valid"], valid, "family/lineage not in cluster, anonymized, order randomized")
-            exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket)")
+            exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket, side of the stance)")
             # a vote by an agent without the verifier role is ignored (E-VERDICT-VOTER-ROLE in checks)
             counts = valid and wgt > 0 and is_verifier_vote(ix, vote)
             exp(d, ["votes", i, "weighted_valid"], counts, "valid and w > 0 and voter has the verifier role")

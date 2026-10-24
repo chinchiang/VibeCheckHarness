@@ -202,8 +202,9 @@ def test_tool_signal_from_e_fail_u(b, keys):
     ref = next(r["result_ref"] for r in v["test_evidence"]["results"] if r["class"] == "E_fail_u")
     assert derived_tool_signal(c, v, cl) == [ref] and derived_independent_sources(c, v, cl) == 2
     out = adjudicate(verdict_inputs(c, v, cl))
-    assert out.row == 12 and out.rules[:2] == ["R2", "R6"]     # LIKELY via the extra source, then R11 (E_pass) -> DISPUTED
-    assert out.status == "DISPUTED" and out.rules[-1] == "R11"
+    assert out.row == 12 and out.rules[:2] == ["R2", "R6"]     # LIKELY via the extra source
+    # v0.4: the B5 PASS (TC-031-01) has no oracle_can_fail control, so R11 only annotates (no downgrade to DISPUTED)
+    assert out.status == "LIKELY" and out.rules[-1] == "R11" and "test_not_reproduced" in out.annotations
     assert {"E-VERDICT-TOOLSIGNAL", "E-VERDICT-SOURCES", "E-VERDICT-STATUS"} <= run_all(b).codes()
 
 
@@ -323,9 +324,11 @@ def test_unanchored_tail_on_running_run_is_a_warning(b):
     evs = copy.deepcopy(d.data)
     extra = copy.deepcopy(next(e for e in reversed(evs) if e["event_type"] != "audit_anchor"))
     extra.update(seq=len(evs) + 1, ts=evs[-1]["ts"], event_type="artifact_stored",
-                 payload={"artifact": "late"}, payload_refs=[], signature=None, idempotency_key=None,
+                 payload={"artifact": "late"}, payload_refs=[], signature=None,
+                 idempotency_key=f"{extra['run_id']}:{extra['node']}:artifact_stored:late-1",
                  actor={"kind": "system", "id": "run-controller"})
-    reload_json(d, rechain(evs + [extra, dict(copy.deepcopy(extra), seq=len(evs) + 2)]))
+    extra2 = dict(copy.deepcopy(extra), seq=len(evs) + 2, idempotency_key=f"{extra['run_id']}:{extra['node']}:artifact_stored:late-2")
+    reload_json(d, rechain(evs + [extra, extra2]))
     run["status"] = "RUNNING"
     run["current_node"] = "W3"
     R = run_all(b)

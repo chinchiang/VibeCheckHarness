@@ -86,3 +86,17 @@ def sign_event(event: dict, signer: str, key: Ed25519PrivateKey) -> dict:
 def verify_event(event: dict, raw_public_key_b64: str) -> bool:
     sig = event.get("signature") or {}
     return sig.get("alg") == ALG and verify_bytes(raw_public_key_b64, event_payload(event), sig.get("value", ""))
+
+
+ANCHOR_SIGNER = "z3-executor"
+
+
+def anchor_payload(event: dict) -> bytes:
+    """Bytes the Z3 executor countersigns on an audit_anchor (v0.4): JCS of {run_id, seq, prev_hash}.
+    prev_hash pins every earlier line, so rewriting the chain also needs the Z3 key."""
+    return jcs({"run_id": event.get("run_id"), "seq": event.get("seq"), "prev_hash": event.get("prev_hash")})
+
+
+def countersign_anchor(event: dict, key: Ed25519PrivateKey) -> dict:
+    return {"signer": ANCHOR_SIGNER, "key_fingerprint": fingerprint(raw_public(key)), "alg": ALG,
+            "value": sign_bytes(key, anchor_payload(event))}

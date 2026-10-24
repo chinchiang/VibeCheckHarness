@@ -2,7 +2,7 @@
 
 > 這份總覽給第一次讀的人：這套工具包要做什麼、流程怎麼走、哪些步驟是程式、哪些是 LLM、哪些一定要人，以及依角色該先讀哪幾份文件。細節都在後面的文件裡，這裡只放連結，不重複規則。標記說明見 [README](../README.md#標記說明)。
 >
-> **狀態**：設計文件 v0.3。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
+> **狀態**：設計文件 v0.4。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
 
 ## 1. 它是什麼、不是什麼
 
@@ -62,7 +62,7 @@ flowchart LR
 | SARIF 2.1.0 | 給 IDE 與 CI 用；跨 run 以指紋比對 new／unchanged／updated／absent | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) |
 | 報告的限制頁 | 未測試的項目、版本未驗證的目標、盲點、單人模式標示、對照通過率 | [02 B6](02-methodology.md#b6-報告) |
 
-範例：兩個完整的端到端範例見 [04 §6](04-threat-to-testcase.md#6-完整範例)（Web／API 的 IDOR、LLM 功能的間接 prompt injection 與工具濫用）；對應的 JSON 範例在 [schemas/examples/](schemas/examples/)。
+範例：兩個完整的端到端範例見 [04 §6](04-threat-to-testcase.md#6-完整範例)（Web／API 的 IDOR、LLM 功能的 prompt injection 與工具濫用（confused deputy；v0.4 更正：不是第三方內容的間接注入））；對應的 JSON 範例在 [schemas/examples/](schemas/examples/)。
 
 ## 5. 怎麼開始：保證等級與分段 MVP
 

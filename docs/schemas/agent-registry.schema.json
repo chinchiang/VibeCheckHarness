@@ -58,7 +58,8 @@
             "ssrf_outbound",
             "frontend_client",
             "webhooks_integrations",
-            "crypto"
+            "crypto",
+            "cicd_iac"
           ]
         }
       },

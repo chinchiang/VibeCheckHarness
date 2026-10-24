@@ -2,6 +2,14 @@
 
 > 一個會讀不可信程式碼、呼叫多家 LLM、還會對網路送出測試請求的工具包，本身就是高風險的 agentic 系統。本文件把威脅建模套用在工具包自己身上，並列出法遵事項與做不到的事。標記說明見 [README](../README.md#標記說明)。
 
+## v0.4 變更摘要
+
+依 [2026-10-24 設計審查](evidence/review-2026-10-24.md)：
+- **跨境聲明移到 G0a**（§2.2）：委任設定的 `data_transfer` 逐家族宣告處理區域與傳輸機制（`E-ENG-TRANSFER`）。v0.3 只在 ROE 的 `legal_review` 有一個布林 `cross_border`，而 G0b 之前的節點不讀 ROE，W2 卻已經把 C 級程式碼送到雲端模型。範例 ROE 的 `cross_border` 改為 true（委任設定宣告了 TW→US），不一致時 `E-ROE-TRANSFER`。
+- **事故應變**（§2.2）：ROE 新增 `incident_response`（聯絡人、通報時限、四種事故、處理程序與責任條款，`E-ROE-INCIDENT`）。
+- **W0 個資掃描**（§1.3）：repo 中的 fixture、種子 dump 與日誌也可能有真實個資；W0 以確定性偵測器掃描並像 secrets 一樣遮罩（遮罩表 `kind: pii`）。
+- **設定檔釘選與關卡時間**（§1.6）：`models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 由委任設定的 `config_pins` 釘選；關卡決定的時間以 Audit Writer 的收件時間為準。§3 #25 的限制因此縮小。
+
 ## v0.3 變更摘要
 
 - **§3 做不到**：
@@ -62,13 +70,15 @@
 | ASI09 Human-Agent Trust Exploitation | 人在關卡上「照單全收」LLM 的敘事 | 關卡顯示證據（file:line、片段、工具結果），不只是敘事；可部分核准；Reporter 不能改裁決；**定期抽查已核准項目**（頻率見下） |
 | ASI10 Rogue Agents | 某個 agent 行為超出角色 | Policy Engine 白名單；最小權限；所有呼叫都寫入 audit |
 
-**ASI09 抽查頻率 [H]**（M2 起，由 Gate Service 自動抽樣；抽查人不得是原核准人）：
+**ASI09 抽查頻率 [H]**（M2 起，由 Gate Service 自動抽樣；抽查人不得是原核准人。Lite 只有一個人，無法滿足這條：Lite 的抽查改為由同一人在 run 結束 7 天後重看抽中的項目，報告標示「自行抽查」[H]）。v0.4 把**沒有人看過的項目**也納入母體：v0.3 只抽已核准的決定，自動駁回與沒進 G2 的項目從來沒人看，正式使用時的漏報率因此無從量測：
 
 | 對象 | 抽樣 | 期限 | 觸發升級 |
 |---|---|---|---|
 | 所有 `CONFIRMED_*` 裁決（W3、W4、B5 產生的最新版；多數不經過 G2） | 每個 run 抽 10%，至少 3 筆（不足 3 筆則全抽） | run 結束後 5 個工作天內 | 抽查推翻率 >20%，或任一筆 High 以上被推翻 → 該 run 的所有 `CONFIRMED_CORROBORATED` 全數複審，並檢查對應的校準權重 |
 | G2 的決定（accept／reject） | 每個 run 抽 10%，至少 2 筆 | 同上 | 抽查推翻率 >20% → 該核准人接下來 2 個 run 全數複審 |
 | G3 已核准的威脅、G4 已核准的測試案例 | 每個 run 各抽 10%，至少 2 筆 | 同上 | 發現超出 ROE 的測試案例 → 立即 `policy_violation`，停止該 engagement 的 B4 |
+| 自動駁回的叢集（v0.4）：R0 與 R4（θ_reject）產生的 `REJECTED`，沒有人看過 | 每個 run 抽 10%，至少 3 筆 | run 結束後 5 個工作天內 | 抽到任一筆真實缺陷 → 該 run 的自動駁回全數複審；R4 的推翻 → 回報校準（05 §5.7 的 θ_reject 檢查） |
+| 只列報告的低優先叢集、超出 G2 上限的項目、G2 逾時未決的項目（v0.4） | 每類每個 run 抽 10%，至少 2 筆 | 同上 | 抽到 high 以上的真實缺陷 → 調整剪枝條件或佇列上限，並記入報告 |
 | G5 已核准的 S2 job | 全數（S2 數量少） | 執行後 2 個工作天內 | 任一筆不符 → 該 engagement 從下一個 run 起改用 Full 模式：G5 需兩位不同的資安審查者核准（validator 強制，`E-G5-TWO-PERSON`；[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 
 - 抽查結果寫入稽核（`gate_decision`，`actor.kind = human`，`payload.review_kind = spot_check`）。
@@ -140,6 +150,7 @@
   - W0 的預設 secrets 掃描器用 MIT 授權的 Betterleaks 或 gitleaks（§2.3）。W0 在 G0b 之前執行，所以要不要用 TruffleHog 只看工具包層級的法務閘門（§2.3），不看 ROE 的 `legal_review`。
 - **資料等級採 fail-closed**，送往 LLM 的端點與參數受白名單限制（[03 §8.4](03-system-architecture.md#84-資料治理)）。
 - **PII**：B4 前抽樣檢查 staging 回應；一旦偵測到個資就觸發停止條件，B5 改用自架模型。
+- **W0 個資掃描**（v0.4）[H]：受測 repo 本身可能含真實個資（測試 fixture、種子資料 dump、提交進來的日誌）。W0 在 secrets 掃描之後，以確定性偵測器（候選為 Presidio，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）掃描所有文字檔，命中的值像 secrets 一樣替換成遮罩代號，記入遮罩對照表（`kind: pii`，只存位置與 HMAC）。偵測器有漏報，所以這只降低風險；委任設定的資料等級仍是 C。
 - **Audit Log 與 DB 快照**：加密、與原始碼同等級、設保留期限、限制存取、遮罩 secrets。
 - **重現證據**：只保存「對 ROE 目標 ID 的失敗安全斷言」；不建立通用 payload 庫；以 C 級（機密）權限保存。
 
@@ -213,7 +224,7 @@
   - tamper-evident log 的安全性來自**外部稽核者持有的先前承諾**；hash chain 的證明大小與 log 長度成正比 [V][E:orchestration-51]。
   - 即使是 Merkle tree 的透明化 log，也可能對不同客戶端呈現不一致的視圖，需要外部監看 [V][E:orchestration-50]。
 - **本設計的定位 [H]**：
-  - 預設錨點寫在同一個 Postgres 的 run 紀錄中，只能偵測意外損壞與單點竄改。
+  - 預設錨點寫在同一個 Postgres 的 run 紀錄中；v0.4 起每個錨點另有 Z3 Executor 金鑰的副簽（`E-AUDIT-ANCHOR-SIG`，[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)），只控制 Z1 的人無法重寫鏈。
   - 尾端保護：run 紀錄的每個錨點是 `{seq, line_sha256}`（錨點事件自己那一行的 sha256），必須對應稽核檔中的錨點行，且與稽核檔中所有 `audit_anchor` 事件一一對應（`E-AUDIT-TRUNCATED`、`E-AUDIT-ANCHOR-MISMATCH`、`E-AUDIT-ANCHOR`）；稽核檔的寫入與讀取都只以 `\n` 分行；終態的 run（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）最後一行必須是 `run_end` 錨點（`E-AUDIT-TAIL`）；非終態的 run（含 `SUSPENDED`、`STOPPED`）在稽核檔中最後一個錨點事件之後的行只有警告 `W-AUDIT-UNANCHORED-TAIL`（這段被截斷無法偵測）。見 §3 #16。
   - 若 engagement 需要防管理者竄改，必須把錨點另外寫到管理者無法修改的系統，例如：
     - 客戶方的 WORM 儲存
@@ -280,6 +291,9 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 ### 2.2 資料、個資與跨境
 - 把原始碼與測試資料送到境外的 LLM 供應商，可能涉及資料保護與跨境傳輸義務。
 - 使用前，應由法律顧問檢視當地的電腦濫用法規、個資法規、跨境傳輸規定，並以 §2.1.1 的 `legal_review` 聲明記錄。
+- **白箱階段的跨境聲明在 G0a**（v0.4）[H]：W2 在 G0b 之前就把 C 級程式碼送往雲端模型，所以只在 ROE 聲明為時已晚。委任設定的 `data_transfer` 寫明 `source_jurisdiction`、聲明者（必須是委任設定的簽署人）與 `transfers[]`：每個能收 C 級資料的雲端家族一筆，區域等於 `providers[].region`（不得為 null），跨出來源法域時要有傳輸機制（`adequacy`、`contract`〔標準契約條款／標準合同〕、`certification`、`security_assessment`、`consent`、`other`）與文件參照（`E-ENG-TRANSFER`，[03 §8.4](03-system-architecture.md#84-資料治理)）。不同法域的機制不同（例如 GDPR、PIPL、台灣個資法各有規定），工具包只檢查聲明存在且一致，不判斷機制在法律上是否有效（§3 #24）。
+- **ROE 的 `cross_border`** 涵蓋 B 階段（Relay、Result Analyst 的 LLM 呼叫）；委任設定已宣告跨境傳輸時，它不能寫「不適用」（`E-ROE-TRANSFER`）。
+- **事故應變**（v0.4）[H]：ROE 的 `incident_response` 寫明測試造成意外時誰會被通知、多快通知（1–72 小時）、依哪份程序處理、依哪份條款決定責任。必須涵蓋四種情況：`data_exposure`（測試回應出現真實個資或機密）、`third_party_side_effect`（觸發真實的寄信、簡訊、金流；工具包只控制 Z3 的出站，管不到 staging 自己的出站）、`shared_platform_impact`（波及共享平台上的其他租戶）、`staging_outage`（`E-ROE-INCIDENT`）。工具包只檢查宣告，不評估程序內容。
 - **本工具包不會讓任何使用行為變得合法**。本文件只提供一般性提醒，不是法律意見。
 
 #### 2.2.1 保留期限的優先順序 [H]
@@ -462,7 +476,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 13 | Nemotron 託管端點的結構化輸出**未確認**；NIM 2.x **只有部分查證** | [P][E:providers-18] | 一律用 Pydantic 在用戶端驗證 |
 | 14 | **廠商宣稱的準確率，本研究都沒有找到獨立驗證**（Semgrep AI triage、Claude Security、Codex Security、Copilot Autofix、CodeRabbit、Cursor Bugbot 等） | 研究限制（ledger whitebox 主題）；v0.2 新增的產品數字也是自報 [P][E:reference_systems-39][E:reference_systems-45] | 以 Calibration Lab 自測；文件中一律標「廠商宣稱」 |
 | 15 | **行動 App 不在本版範圍**；**沒有儀表板**（M5 只交付靜態 HTML＋SARIF＋JSON，D14）；模型 ID 與版本變動快（例如 GPT-6 Sol、Luna 2026-09-22 才發布 [P][E:providers-31][E:providers-46]） | — | 實作時重新查證；分類版本寫在每筆威脅裡；真實 run 中任何 agent 可達的佔位模型 ID（主要模型或 fallback）→ `E-MODEL-PLACEHOLDER`，G0a 不通過（[03 §8.1](03-system-architecture.md#81-模型登錄家族與-fallback)）[H] |
-| 16 | **稽核的 hash chain 只能偵測竄改，不能防止**：同時控制稽核檔與 run 紀錄的人，可以把整條鏈重寫。**尾端截斷只能偵測到最後一個錨點為止**：最後一個錨點之後的行（未錨定的尾端）被刪掉，鏈本身看不出來 | tamper-evident log 依靠外部持有的承諾 [V][E:orchestration-51]；透明化 log 也需要外部監看 [V][E:orchestration-50] | validator 強制尾端保護（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)）：錨點 `{seq, line_sha256}` 必須對應稽核檔中的錨點行，且與所有錨點事件一一對應（`E-AUDIT-TRUNCATED`／`E-AUDIT-ANCHOR-MISMATCH`／`E-AUDIT-ANCHOR`）；非終態 run 的未錨定尾端 → `W-AUDIT-UNANCHORED-TAIL`；終態 run 最後一行不是 `run_end` 錨點 → `E-AUDIT-TAIL`。需要防管理者時，把錨點寫到該人無法修改的外部系統（客戶方 WORM、簽章寄送）（§1.7） |
+| 16 | **稽核的 hash chain 只能偵測竄改，不能防止**：v0.4 起錨點由 Z3 副簽，只控制稽核檔與 run 紀錄的人重寫鏈會讓錨點簽章失效（`E-AUDIT-ANCHOR-SIG`）；同時控制 Z1 與 Z3 金鑰的人，仍可以把整條鏈重寫。**尾端截斷只能偵測到最後一個錨點為止**：最後一個錨點之後的行（未錨定的尾端）被刪掉，鏈本身看不出來 | tamper-evident log 依靠外部持有的承諾 [V][E:orchestration-51]；透明化 log 也需要外部監看 [V][E:orchestration-50] | validator 強制尾端保護（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)）：錨點 `{seq, line_sha256}` 必須對應稽核檔中的錨點行，且與所有錨點事件一一對應（`E-AUDIT-TRUNCATED`／`E-AUDIT-ANCHOR-MISMATCH`／`E-AUDIT-ANCHOR`）；非終態 run 的未錨定尾端 → `W-AUDIT-UNANCHORED-TAIL`；終態 run 最後一行不是 `run_end` 錨點 → `E-AUDIT-TAIL`。需要防管理者時，把錨點寫到該人無法修改的外部系統（客戶方 WORM、簽章寄送）（§1.7） |
 | 17 | **DB 快照與還原無法撤銷外部副作用**（email、webhook、第三方 API 呼叫） | 還原只作用在受測 DB（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）[H] | ROE 要求外部整合一律在 sandbox／test 模式，否則在出站層封鎖（§2.1） |
 | 18 | **DB 端點無法用 DNS TXT 或 well-known path 證明所有權** | 這兩種方法只適用 HTTP 主機 [H] | DB 的授權只依基礎設施擁有者在 ROE 上的簽章；DB 目標（`endpoint` 的 host 部分；格式 `host:port` 或 `[IPv6]:port`，無法解析即拒絕）與 `db_access.endpoint` 的主機，正規化（去掉結尾的 `.`、大小寫摺疊、IDNA）後要對照 ROE 的 `exclusions.hosts`，且 `db_access.endpoint` 必須是 ROE 的 DB 目標主機（validator 強制，`E-ROE-DB-SCOPE`；04 §5 第 4 步命中 → S3）；報告中標示「所有權未以技術方式驗證」 |
 | 19 | **工具包無法證明 ZAP 等工具自身的限速與範圍設定真的被遵守** | 工具內部行為不在工具包控制內 [H] | 只信任 Scope Proxy 在網路層的強制（白名單、每 job 請求白名單、每主機預算）；工具設定只視為第二層 |
@@ -471,7 +485,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 22 | **範例設定中的模型可能很快退役**：Claude Haiku 4.5 最早 2026-10-15 退役 | [V][E:providers-49] | `models.yaml` 記錄每個模型的最早退役日；距退役 <30 天時 Gateway 警告，並要求換成同家族的替代模型，重跑該模型的校準 [H]。範例已換成 Claude Opus 4.8（最早 2027-05-28 退役 [V][單源][E:providers-52]；08 §10 U-11），但它已是 legacy，仍需再排替換 |
 | 23 | **NVIDIA 託管 API 不能用於客戶工作或安全測試本身** | 只限內部測試與評估；禁止測試其服務 [V][E:providers-41] | 只用於工具包開發期的評估；客戶工作用自架 |
 | 24 | **工具包不能判斷法律問題**（AGPL 的適用、NIM 的「測試」用途、跨境傳輸是否合法） | 屬法律判斷；FSF 也說界線最終由法院決定 [V][E:blackbox-61] | §2.1.1 的 `legal_review` 聲明＋§2.3 的法務閘門；工具包只檢查聲明存在且簽章有效 |
-| 25 | **簽署時間是簽署者自己宣告的，沒有時間戳記機構** | `issued_at`、關卡 `timestamp`、稽核 `ts` 都由簽署端寫入 [H]；金鑰以非 `compromised` 原因撤銷後，持有私鑰的人仍可倒填時間，簽出「撤銷前」的有效簽章 | 撤銷後盡快把金鑰改標為 `compromised`（若有疑慮）；以稽核鏈錨點（§1.7）交叉比對時間；需要更強保證的 engagement 另接外部時間戳記服務 [H] |
+| 25 | **簽署時間沒有時間戳記機構** | v0.4 起，關卡決定的時間以 Audit Writer 的收件時間為準，核准者自填的 `timestamp` 與它相差超過 5 分鐘就是錯誤（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)），所以關卡決定無法倒填。委任設定與 ROE 的 `issued_at` 是自行宣告的，但 v0.4 起以非 `compromised` 原因撤銷的金鑰，其簽章只有在該文件第一次被驗章（G0a／G0b 紀錄的收件時間）早於 `revoked_at` 時才有效（`E-SIG-BACKDATED`），所以撤銷之後無法再倒填出新文件。仍做不到的部分：撤銷之前簽好、尚未驗章的文件可以改寫 `issued_at`；收件時間來自 Audit Writer 主機的時鐘，同時控制 Audit Writer 與其時鐘的人仍能偽造 [H] | 撤銷後盡快把金鑰改標為 `compromised`（若有疑慮）；以稽核鏈錨點（§1.7）交叉比對時間；需要更強保證的 engagement 另接外部時間戳記服務 [H] |
 | 26 | **單人使用（Lite 模式）無法提供職責分離** | 同一個人同時是發起者、核准者與測試負責人時，關卡只剩「自己確認自己」[H] | 必須在 engagement 明確聲明一人兼多角色（`role_consolidation`）；只允許 S0／S1；報告首頁標示「單人模式，未經職責分離」；需要 S2 或對外交付的結果，改用 Team 模式（[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 | 27 | **staging 的結果不等於正式環境的結果** | 設定、資料、secrets、WAF、feature flag、平台方案都可能不同；版本識別只證明跑的是同一個 commit，不證明設定相同 [H] | B0 以 `build_identity` 確認 commit（不一致就不執行）；G1 宣告已知的環境差異；報告寫明「只代表 staging 在測試時的狀態」 |
 | 28 | **PASS 不代表沒有漏洞** | 測試只覆蓋有限的條件；PASS 永遠不會單獨讓叢集變成 `REJECTED`（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）[H] | 報告一律寫「在測試條件下未重現」；報告敘事 linter 禁止「沒有漏洞」等說法（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）；沒有正對照的 PASS 另行標示 |
@@ -506,6 +520,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 可用於正式環境的 Nemotron 雲端路徑 | NVIDIA 託管沒有 ZDR [V][E:providers-42]；第三方託管的條款未審 | 逐家審 DPA；未審完只給 P 級 | toolkit_maintainer＋legal_reviewer | M2 前 |
 | Nemotron 託管端點的 json_schema 支援 | 未確認 | Gateway 整合測試實測 | toolkit_maintainer | M2 |
 | PrimeVul 樣本的重製 | 資料集授權未單獨標示 [P][E:vibe_risks-35] | 法務確認；未確認則只作內部評估 | legal_reviewer | M2 前 |
+| 04 §4.3 F 表的框架行為（Next.js middleware 曾可被請求標頭繞過、Server Actions 以 action ID 呼叫、Supabase UPDATE 政策缺 `WITH CHECK` 的效果、MCP 工具描述投毒、GitHub Actions `pull_request_target` 與表達式注入） | 未查證 [H] | 查官方文件與公告並登入證據帳本；查證前這些列只作為 W1 規則與 G3 的提示 | toolkit_maintainer | M2 前 |
 | OpenRouter 條款 | 未審 | 審條款；未審則不使用 | toolkit_maintainer | M2 前 |
 | MAESTRO、LINDDUN 的授權 | 未查 | 補查 | toolkit_maintainer | M3 前 |
 | AGPL：k6 | 事實已查 [V][E:blackbox-25][E:blackbox-59] | 法務確認；未確認則限流驗證改用其他工具 | legal_reviewer | **M4 前** |

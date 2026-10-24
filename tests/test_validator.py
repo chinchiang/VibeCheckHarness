@@ -121,9 +121,18 @@ def test_g5_approver_is_initiator(b):
 
 
 def test_g5_decided_outside_window(b, keys):
+    """v0.4: the Audit Writer's receive time (gate_decision ts, Monday 21:50) decides the window, not the
+    approver's own timestamp. Narrowing the Monday window to end at 21:45 puts the decision outside it."""
+    doc(b, "roe.yaml").data["validity"]["windows"][0]["end"] = "21:45"
+    assert "E-G5-WINDOW" in codes(b)
+
+
+def test_g5_self_declared_timestamp_cannot_move_the_decision(b, keys):
+    """A timestamp 80 minutes away from the receive time is E-AUDIT-GATE; the window check still uses 21:50."""
     doc(b, G5).data["timestamp"] = "2026-10-05T23:10:00+08:00"   # Monday window ends 23:00
     resign_gate(b, G5, keys)
-    assert "E-G5-WINDOW" in codes(b)
+    got = codes(b)
+    assert "E-AUDIT-GATE" in got and "E-G5-WINDOW" not in got
 
 
 def test_g4_approver_not_initiator(b):
@@ -290,7 +299,7 @@ def test_tampered_testcase_breaks_g4_hash(b):
 
 
 def test_calibration_weight_recomputed(b):
-    doc(b, "calibration.yaml").data["result"]["weights"][0]["w"] = 0.9
+    doc(b, "calibration.yaml").data["result"]["weights"][0]["support"]["w"] = 0.9
     assert "E-CAL-WEIGHT" in codes(b)
 
 

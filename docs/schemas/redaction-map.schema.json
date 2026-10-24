@@ -1,4 +1,4 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"redaction-map.schema.json","title":"Redaction Map（secrets 遮罩對照表）","description":"W0 產出。只記錄位置、偵測器與帶金鑰的 hash（HMAC-SHA256，金鑰在 Z1 secret store），永遠不含 secret 值本身；用來在回應中辨識被遮罩的位置與判斷同一 secret 是否重複出現。沒有此表時 Gateway 拒絕送出任何程式碼。[H]","type":"object","additionalProperties":false,
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"redaction-map.schema.json","title":"Redaction Map（secrets 遮罩對照表）","description":"W0 產出。只記錄位置、偵測器與帶金鑰的 hash（HMAC-SHA256；v0.4：每個 run 一把臨時金鑰，由 Z1 KMS 產生並包裝後交給 W0 job，只存在該 job 的 tmpfs，hmac_key_ref 指向 KMS 中包裝後的版本，docs/03 §8.4），永遠不含 secret 值本身；用來在回應中辨識被遮罩的位置與判斷同一 secret 是否重複出現。沒有此表時 Gateway 拒絕送出任何程式碼。[H]","type":"object","additionalProperties":false,
 "properties":{
 "run_id":{"$ref":"common.schema.json#/$defs/run_id"},
 "repo_commit":{"type":"string","pattern":"^[0-9a-f]{7,64}$"},
@@ -11,7 +11,7 @@
   "line":{"type":"integer","minimum":1},
   "col_start":{"type":"integer","minimum":1},
   "col_end":{"type":"integer","minimum":1},
-  "kind":{"enum":["secret","pii"]},
+  "kind":{"enum":["secret","pii"],"description":"secret＝W0 secrets 掃描；pii＝v0.4 W0 個資掃描（repo 中的 fixture、種子 dump、日誌）"},
   "detector":{"type":"string","description":"例如 betterleaks:<rule-id>"},
   "value_hmac":{"type":"string","pattern":"^hmac-sha256:[0-9a-f]{64}$"},
   "placeholder":{"type":"string","pattern":"^<REDACTED:[A-Za-z0-9_-]+>$","description":"送 LLM 時替換成的字樣"}},

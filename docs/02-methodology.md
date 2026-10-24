@@ -2,6 +2,17 @@
 
 > 標記說明見 [README](../README.md#標記說明)。證據 ID 對應 [evidence/ledger.md](evidence/ledger.md)。
 
+## v0.4 變更摘要
+
+依 [2026-10-24 設計審查](evidence/review-2026-10-24.md) 的第一優先項目修正裁決規則與 validator（規則細節見 [05 v0.4 變更摘要](05-bias-calibration.md#v04-變更摘要)；`rule_version` 為 `05-v0.4`）：
+- **R0** 在叢集另有 SARIF 或 FAIL 類測試證據時不成立；**R10**：G2 駁回後出現 `E_proof` → `CONFIRMED_EXECUTABLE`（加註 `post_g2_conflict`）；**R11** 只有在 PASS 有正對照（`oracle_can_fail`）時才降級。
+- 只有 `NOT_CHECKED` 證據的發現項不計入獨立家族；程式片段至少 12 個非空白字元並含識別字，且必須在發現項的切片中。
+- SARIF 只佐證自己位置（檔案、符號、桶）的叢集；黑箱叢集不收 SARIF。
+- CMD-1 計畫必須涵蓋 run 的**每個**切片，且每個切片的 reviewer 至少 min(2, 合格家族數) 個家族（`E-PLAN-COVERAGE`、`E-PLAN-FAMILIES`）。
+- 自架（Z4）模型改由 `toolkit.yaml` 的 `z4_model_hosts` 確切主機名稱判定，不再看 `z4-` 前綴。
+- `graphql_operation: query／introspection` 只在 ROE 為該目標宣告的 GraphQL 路徑（`targets[].graphql_paths`）、方法為 GET／POST 時才算讀取；其他帶這個標籤的請求一律 S3。
+- **第二優先**（v0.4 第二輪）：G0a 增加跨境聲明（`data_transfer`，`E-ENG-TRANSFER`）與設定檔釘選（`config_pins`，`E-ENG-CONFIG-PIN`）；W0 增加個資掃描（遮罩表 `kind: pii`）；ROE 增加事故應變（`incident_response`，`E-ROE-INCIDENT`）；關卡時間以 Audit Writer 收件時間為準。架構面的修正見 [03 v0.4](03-system-architecture.md#v04-變更摘要)。
+
 ## v0.3 變更摘要
 
 - **保證等級**：新增 [§1.7](#17-保證等級liteteamfull)，定義 `lite`／`team`／`full` 三種等級：
@@ -190,7 +201,7 @@ flowchart TD
 |---|---|---|---|---|
 | G0a／G0b | 離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續。例外（只 G0b）：ROE 尚未生效（`not_before` 未到）或不在測試時間窗內時，結果仍是 `VERIFIED`，另記「不在有效期間或時間窗內」，run → `SUSPENDED`，時間到了再 resume | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0a：委任設定已過期 → `ABORTED`。G0b（ROE 的 `not_after` 或 `legal_review.expires_at` 已過）：**進入 B 階段時**已過期 → 跳到 B6 → `COMPLETED_WITH_GAPS`（沒有提供 ROE 時也這樣處理）；**B 階段已開始後**（resume 或 `B4_preflight`）才到期 → `SUSPENDED`，等新的有效 ROE |
 | G1 | 進入 W1 | 附審查意見回到 W0.5 重擬，最多 3 輪；第 3 輪仍未通過 → `ABORTED` | 同 REJECTED（共用 3 輪上限） | `SUSPENDED` |
-| G2 | 逐項：accept → 維持狀態，成為種子威脅。整關結果只有 `APPROVED` 或 `EXPIRED` | 只能逐項（不接受整關 `REJECTED`）：該叢集 → `REJECTED`（附理由；為最終決定，之後的證據只註記 `post_g2_conflict`，05 R10） | 逐項：維持 `DISPUTED`／`UNCORROBORATED`，成為種子威脅並在報告列出 | 未決項視同 NEEDS_INFO，run 繼續 [H] |
+| G2 | 逐項：accept → 維持狀態，成為種子威脅。整關結果只有 `APPROVED` 或 `EXPIRED` | 只能逐項（不接受整關 `REJECTED`）：該叢集 → `REJECTED`（附理由；對投票、SARIF 與 `E_fail_u` 是最終決定，之後的這類證據只註記 `post_g2_conflict`。例外：之後出現可執行證明 `E_proof` → `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict` 並列入 B6 人工複核，05 R10，v0.4） | 逐項：維持 `DISPUTED`／`UNCORROBORATED`，成為種子威脅並在報告列出 | 未決項視同 NEEDS_INFO，run 繼續 [H] |
 | G3 | 已接受的威脅進入 B3；被駁回的種子威脅在 B6 列為「未做黑箱驗證（G3 駁回：理由）」 | 全部駁回 → 跳到 B6（只含白箱結果）→ `COMPLETED_WITH_GAPS` | 回到 `B2_merge_critic` 補充，最多 3 輪；之後仍 NEEDS_INFO 的項目視同駁回 [H] | `SUSPENDED` |
 | G4 | 已核准的測試案例進入 B4 | 全部駁回 → 跳到 B6 → `COMPLETED_WITH_GAPS`；部分駁回的測試案例不執行，列入 B6 | 該測試案例回到 `B3_derive` 重做，最多 2 輪；之後視同駁回 [H] | `SUSPENDED` [H] |
 | G5 | 執行該 S2 job（`full`：兩位不同的資安審查者都要 APPROVED） | 該 job 略過並記錄 | 該 job 略過並記錄（可在後續執行重提）[H] | 該 job 略過並記錄 |
@@ -272,6 +283,7 @@ flowchart TD
 - **做法**（全部是確定性工具與解析器，**不用 LLM**）：
   1. **Secrets 掃描最先跑**：**預設**用 Betterleaks [P][E:whitebox-09] 或 gitleaks（已宣布只修安全問題），兩者都是 MIT 授權。TruffleHog（AGPL-3.0）[V][E:whitebox-10] 是**選用**：[06 §2.3](06-security-legal-limitations.md#23-授權登錄表) 把它列為法務閘門；只有在工具包層級的法務閘門已結案（[07 §3](07-roadmap.md#3-入口閘門法務與查證) 確認、`trufflehog:scan` 已註冊，見 [08 §2.3](08-implementation-spec.md#23-擴充介面)）時，W0 才能使用它 [H]。這個判斷不讀 ROE 的 `legal_review`（ROE 此時尚未驗章）；ROE 的 `component_licenses` 只在 G0b 用來過濾 B 階段的元件（06 L-6）。TruffleHog 的驗證會把找到的憑證送到供應商 API → W0 一律 `--no-verification`；若要驗證，那是 B 階段的另一個步驟：必須寫進 ROE（`secrets_verification`），通過 G0b 與所有權驗證後從 Z3 發出、留紀錄，否則建議直接輪替。
   2. **路徑黑名單**（`.env*`、金鑰與憑證檔、auth-state 目錄、CI secrets 檔）**完全不進任何後續產物**。
+  2a. **個資掃描**（v0.4）[H]：secrets 之後，以確定性個資偵測器（候選為 Presidio，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）掃描所有文字檔；repo 中的測試 fixture、種子 dump、提交進來的日誌可能含真實個資。命中的值像 secrets 一樣遮罩，記入遮罩對照表（`kind: pii`）。偵測器有漏報，只能降低風險（[06 §1.3](06-security-legal-limitations.md#13-秘密與資料)）。
   3. **遮罩對照表 `secrets-redaction-map`**（`redaction-map.schema.json`，run 以 `redaction_map_ref` 參照）：`hash_alg`、`hmac_key_ref` 與 `entries[]`；每筆只存位置、類型、值的 **HMAC** 與遮罩代號，**不存值**；再以 pattern＋entropy 作第二層遮罩規則（掃描器 recall 不完美，Betterleaks 的 98.6% recall 只是廠商宣稱 [P][E:whitebox-09]）。
   4. 以遮罩後的檔案，由各框架的確定性抽取器（`inventory:<name>`）建立 `inventory.json`，欄位見下表。支援矩陣與各抽取器的限制見 [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)。
   5. 相依清單；Syft 產生 SBOM（CycloneDX／SPDX）[V][E:whitebox-14]。
@@ -372,11 +384,11 @@ flowchart TD
 - **規劃（CMD-1）** [H]：
   - 程式碼先從 W0 inventory 產生**覆蓋下限計畫**：每個切片 × 每個必要面向（見下）× 預設 reviewer。
   - Commander（LLM）收到的是程式碼建立的**型別化視圖**：切片 ID、entry point 的 `kind` 與數量、必要面向、可用家族、預算；**不含** repo 的文字或其他 LLM 的輸出。Commander **沒有任何工具**，不能讀 Blackboard。
-  - 它的計畫必須是覆蓋下限計畫的**超集合**：只能加切片、面向或 agent，不能減。Policy Engine 檢查覆蓋、必要面向（`E-PLAN-FACETS`）、資料等級與模型相容、預算。輸出不合規 → 修復 ≤2 次 → 改用覆蓋下限計畫。
+  - 它的計畫必須是覆蓋下限計畫的**超集合**：只能加切片、面向或 agent，不能減。Policy Engine 檢查覆蓋、必要面向（`E-PLAN-FACETS`）、資料等級與模型相容、預算。v0.4 起 validator 另外檢查：run 的每個切片都在計畫中（`E-PLAN-COVERAGE`），每個切片指派的 reviewer 至少來自 min(2, 合格 reviewer 家族數) 個不同家族（`E-PLAN-FAMILIES`；合格家族的定義見 [05 §3 規則 3 的 quorum](05-bias-calibration.md#3-設計規則)）。v0.3 只檢查計畫列出的切片有沒有必要面向，計畫可以漏掉切片或每個切片只派一個家族。輸出不合規 → 修復 ≤2 次 → 改用覆蓋下限計畫。
   - Commander 是使用者要求的核心元件，所以保留；但它比覆蓋下限計畫**多帶來什麼**（多確認的問題、多花的 token），要逐里程碑量測：[07 M2-X12](07-roadmap.md#m2-白箱多家族審查) 要求報告列出 Commander 在下限之外加派的切片、面向與 CMD-2 輪次，以及其中產生 `LIKELY` 以上叢集的比例（只量測、不設門檻）。
 - **審查方式**：
   - 同一切片平行交給 N 個不同家族的 reviewer。**第一輪彼此看不到對方結果**。多輪辯論中模型常由對轉錯，原因未定，作者列出從眾、諂媚等可能因素 [P][E:multi_llm_bias-21]；多數決本身就拿到辯論的大部分效益 [V][E:multi_llm_bias-16]。
-  - **審查面向（facet）**：共 12 個，分成 3 組。
+  - **審查面向（facet）**：共 13 個，分成 3 組（v0.4 新增 `cicd_iac`）。
     - 每次呼叫處理一組（切片 × 面向組 × agent），只問該組中必要或計畫加入的面向；一組都沒有就不呼叫。
     - 所以 [03 §11](03-system-architecture.md#11-成本與延遲模型) 成本模型中的 G＝面向組數（≤3）[H]。
 
@@ -394,6 +406,7 @@ flowchart TD
 | | `file_handling` | 檔案上傳、下載與路徑 | `path_traversal`、`deserialization`、`injection`、`config` |
 | | `frontend_client` | 前端 bundle、XSS sink、瀏覽器直接呼叫 BaaS | `secrets`、`config`、`injection`、`authn` |
 | | `crypto` | 加密、雜湊、簽章與隨機數 | `crypto`、`secrets` |
+| | `cicd_iac`（v0.4） | 受測應用自己的 CI／CD workflow 與 IaC／平台設定：`pull_request_target` 搭配 checkout PR head、`${{ github.event.* }}` 注入 `run:`、`vercel.json`／`supabase/config.toml` 的設定 | `injection`、`secrets`、`config`、`authz` |
 
   - **對照表**就是 `tools/vchlib/facets.py` 的 `FACET_BUCKETS`。validator 檢查每個發現項所屬叢集的 `cwe_bucket` 落在該發現項 `facet` 的範圍內（`E-FINDING-FACET`）。
   - **分組與對照表是設計假設** [H]：
@@ -407,6 +420,7 @@ flowchart TD
     - 有 `webhook_inbound` → 加 `webhooks_integrations`
     - 有 `frontend_bundle`，或任何 `env_vars[]` 的 `public_prefix` 為 true → 加 `frontend_client`
     - 有 `crypto` → 加 `crypto`
+    - 有 `ci_workflows` 或 `iac`（v0.4）→ 加 `cicd_iac`
     - 規則實作在 `facets.mandatory_facets`（別名 `MANDATORY_FACETS`）。範例 inventory 有 `llm_integrations[]` 與 `file_upload`，所以必要面向是基本 6 個再加 `llm_integration`、`file_handling`。
   - reviewer 沒有 shell、沒有網路，工具只有 `read_slice`。系統提示明確區分「指令」與「待審資料」。
 - **發現項要求**：每個發現項至少有一項證據，種類三選一（`finding.schema.json` 的 `evidence[].kind`）[H]：
@@ -417,6 +431,8 @@ flowchart TD
 | `inventory_fact` | `fact_ref`：指向本 run W0 inventory 的 JSON Pointer（例如 `/db/tables/0/rls_enabled`）；`asserted`：主張的值（例如 `false`） | 「缺少某物」的問題，例如沒有 RLS、沒有 auth middleware |
 | `config_fact` | `file`＋`key_path`（指向解析後、已遮罩設定檔的 JSON Pointer）＋`asserted`（值，或 `"<absent>"` 表示該鍵不存在） | 設定錯誤或缺少設定 |
 
+  - `code_snippet` 的片段必須有實質內容（v0.4）：正規化後至少 12 個非空白字元，並含一個 3 字元以上的識別字；`file` 必須是該發現項切片中的檔案。不符 → `NOT_FOUND`，validator 報 `E-FINDING-EVIDENCE` [H]。
+
   每個發現項另附 CWE（可多個）、嚴重度、推理、引用的 G1 條目（若有）。模型只填這些內容；`finding_id`、`snippet_sha256`、`match`、`status` 等欄位由 harness 填。
 - **比對**（harness，程式碼）：
   - `code_snippet` 比對的對象是**遮罩後**的切片文字：
@@ -424,7 +440,8 @@ flowchart TD
     2. 在 `line_start − 3` 到 `line_end + 3` 的範圍內搜尋。
     3. 結果：在原位置找到 → `MATCHED`；位移後找到 → `MATCHED_SHIFTED`，由 harness 改寫行號；找不到 → `NOT_FOUND`；沒有檢查 → `NOT_CHECKED`。
   - `inventory_fact`：pointer 解析得到，且值等於 `asserted` → `MATCHED`；否則 `NOT_FOUND`。`config_fact` 同理（`"<absent>"` 在該鍵不存在時成立）。
-  - 發現項的證據全部 `NOT_FOUND` → 發現項標 `UNVERIFIED`，但不刪除（STRIDE-GPT 的證據比對做法）[V][E:threat_modeling-15]。叢集要所有成員的每一項證據都 `NOT_FOUND`，才依 R0 成為 `REJECTED`（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
+  - 發現項的證據全部 `NOT_FOUND` → 發現項標 `UNVERIFIED`，但不刪除（STRIDE-GPT 的證據比對做法）[V][E:threat_modeling-15]。叢集要所有成員的每一項證據都 `NOT_FOUND`，**而且**沒有已解析的 SARIF、也沒有 FAIL 類測試證據，才依 R0 成為 `REJECTED`（v0.4；[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
+  - 只有已接地（`MATCHED`／`MATCHED_SHIFTED`）證據的發現項才計入獨立家族；只有 `NOT_CHECKED` 證據的不計入（v0.4）。
 - **輸出**：`findings[]`（依 [schemas/finding.schema.json](schemas/finding.schema.json)）。
 - **完成條件**：覆蓋下限（每個切片 × 每個必要面向）都有結果，或有記錄在案的缺票原因。
 
@@ -436,7 +453,7 @@ flowchart TD
   3. **與工具結果相互佐證**（由程式碼）[H]：Aggregator 把對應同一位置與 CWE 桶的 SARIF 結果分成兩級：
      - **強佐證**（`tool_corroboration`）：該結果的 `(adapter, rule_id, tool_version)` 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90；設在校準檔，不在 `toolkit.yaml`）。`rule_id` 與 `tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.sarif_results[]` 與 `payload.tool_version`。校準之前這份清單是空的，所以沒有強佐證。
      - **弱訊號**（`tool_signal`）：其他所有 SARIF 結果，以及 W4／B5 的 `E_fail_u`。弱 SARIF 與 `E_fail_u` 各只算**一個**獨立來源（`independent_sources`），不能單獨確認。
-  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R13：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`。裁決的 `rule_version` 是 `05-v0.3`。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
+  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R13：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`。裁決的 `rule_version` 是 `05-v0.4`。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
   5. **CMD-2 加派** [H]：
      - 對 `DISPUTED` 與 `UNCORROBORATED` 叢集加派審查者或驗證者，**最多 2 輪**（`E-PLAN-ROUNDS`）。
      - Commander 收到的是程式碼建立的型別化視圖：叢集 ID、狀態、CWE 桶、嚴重度、家族、票數。視圖不含發現項的推理，也不含 repo 的文字。
@@ -445,7 +462,8 @@ flowchart TD
      - 輸出不合規 → 修復 ≤2 次 → 不加派。
   6. **G2 佇列**（加派結束後，由程式碼計算）[H]：
      - 所有 `DISPUTED` 叢集；
-     - 成員最高嚴重度為 `critical` 或 `high` 的 `UNCORROBORATED` 叢集。
+     - 叢集的 rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)，由程式碼計算）為 `critical` 或 `high` 的 `UNCORROBORATED` 叢集。v0.4 起路由改用 rubric：v0.3 用成員自報的最高嚴重度，單一家族的 reviewer 自報 critical 就能把叢集送進 G2，自報 low 就能讓它跳過。rubric 在 W3 以 inventory、G1 規格與確定性 DFD 骨幹計算（可達性未知時視同 `internet`）；reviewer 自報的嚴重度照樣保存並在 G2 畫面並列。
+     - **佇列上限與排序**（v0.4）[H]：每個 run 的 G2 佇列預設最多 30 項（`toolkit.yaml` 的 `gate_queues.g2_max_items`），依 rubric 嚴重度、再依 `DISPUTED` 優先排序；超出上限的項目不進 G2，照常成為種子威脅，在報告中列為「超出 G2 上限、未經人審」（report-manifest `over_cap_items`，`E-REPORT-QUEUE`）。G2 結束時逾時（未決）比例超過 50%（`gate_queues.g2_timeout_warn_ratio`） → 寫入 `gate_load_warning` 稽核事件並在報告首頁標示；這類未決項目另列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
      - 其他 `UNCORROBORATED` 叢集不進 G2，直接成為種子威脅並在報告中列出。
      - `no_eligible_verifier` 的叢集（所有 verifier 家族都已回報，沒有人能驗證）通常是 `LIKELY`，不進 G2；它們成為種子威脅，由 W4 與 B 階段的測試確認（[05 §3](05-bias-calibration.md#3-設計規則)）。
      - **佇列為空就略過 G2**（稽核事件 `gate_skipped`，附原因）。
@@ -456,7 +474,7 @@ flowchart TD
 ### W4 白箱測試（oracle 只取自 G1 規格）
 - **輸入**：
   - G1 已簽核規格；
-  - 叢集：裁決為 `LIKELY` 以上者、**所有 `DISPUTED`**、成員最高嚴重度為 critical／high 的 `UNCORROBORATED`；
+  - 叢集：裁決為 `LIKELY` 以上者、**所有 `DISPUTED`**、rubric 嚴重度為 critical／high 的 `UNCORROBORATED`（v0.4）；
   - 遮罩後的程式碼（經 Slicer）。
   - W4 要化解爭議，所以必須拿到爭議叢集；v0.2 只給 `LIKELY` 以上，與「化解跨家族爭議」的目的矛盾。
 - **節點**：`W4_testgen`（Z1，LLM）→ `W4_exec`（Z2，無網路）→ `W4_readjudicate`（Z1，程式碼；解讀未事先登記時才呼叫 Result Analyst 池）。
@@ -483,6 +501,7 @@ flowchart TD
   - **本地 RLS 測試** [H]：inventory 有 `db.tables[]`，且 repo 有 migration 時：
     - 在 Z2 啟動一個**拋棄式本地 Postgres**（無網路，run 結束即銷毀），套用 repo 的 migration 與合成種子。
     - 以 G1 矩陣中各角色的身分查詢，斷言 `access_matrix[].ownership`（例如 `tenant_field`）成立。
+    - v0.4：寫入也要測。以各角色對種子列做 INSERT、UPDATE、DELETE，斷言 RLS 拒絕跨擁有者的寫入，且 UPDATE／INSERT 不能把資料列改到別人名下（政策要有 `WITH CHECK`；只有 `USING` 的 UPDATE 政策會放行這種改寫）[H]。v0.3 只測 SELECT。
     - **只在本地，永遠不連 staging**。staging 上的實際設定（包括只在後台改過的設定）由 B 階段經 Scope Proxy 測試。
   - `W4_readjudicate`：測試結果寫回相關叢集，由 Aggregator 重新裁決（規則見 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
     - **不需要 LLM 的證明**：下列條件都成立 → `E_proof`（依 R1 → `CONFIRMED_EXECUTABLE`）[H]。
@@ -493,7 +512,7 @@ flowchart TD
       - 理由：這個 FAIL 代表什麼，在結果出來之前已經由人簽核；對照證明 oracle 不是永遠失敗。
     - **解讀未事先登記時**：由 **Result Analyst 池**中的一位確認 → `E_proof`。池中每個家族一位；選家族與血統都不在叢集中的那一位；有個資時只用自架模型。沒有合格的分析者 → `E_fail_u`（弱工具訊號）。
     - 只有 `LLM_GRADER` 或 `HUMAN` 判定違反 → `E_inc`。
-    - G2 已 `REJECTED` 的叢集維持 `REJECTED`；之後出現的可執行證明只註記 `post_g2_conflict`（05 R10），列入 W5 報告。
+    - G2 已 `REJECTED` 的叢集：之後出現的 `E_fail_u` 只註記 `post_g2_conflict`，維持 `REJECTED`；之後出現的可執行證明（`E_proof`）→ `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict`（05 R10，v0.4）。兩者都列入 W5 報告與 B6 的人工複核清單。
     - 重新裁決後才轉為 `DISPUTED` 的叢集**不重開 G2**；它們照常成為種子威脅，並在種子清單中標為「W4 後轉為爭議」，由人在 G3 處理 [H]。
     - 合格的測試 PASS 不會自動使叢集變成 `REJECTED`（05 R11）。
 - **輸出**：測試檔、執行結果（`testresult.schema.json`，`phase: W4`，含 `controls[]` 的結果與 `fail_oracles`）、覆蓋率、mutation score、新版裁決。
@@ -510,6 +529,13 @@ flowchart TD
   LLM 只**提議**標籤與邊界，由人在 G3 確認。pytm 也是從明確的模型產生 DFD，不是推論出來的 [V：該條只有日期與數字被更正，此部分成立][E:threat_modeling-11]。
 - **種子威脅**：除了 `REJECTED` 以外的叢集（`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`，以及 W4 已升級的 `CONFIRMED_EXECUTABLE`）都轉成 B2 的種子威脅，帶 `source_cluster_id` 與 `source_finding_ids`。
   - **規則（v0.2）**：每個種子威脅**必須出現在 B2 威脅模型中**；之後要嘛有 ≥1 個 B3 測試案例，要嘛有 **G3 駁回紀錄（理由必填）**。被 G3 駁回的叢集保留其白箱狀態，B6 列為「未做黑箱驗證（G3 駁回：理由）」。
+  - **只列報告的叢集**（v0.4 剪枝）[H]：v0.3 讓每個非 `REJECTED` 叢集都成為種子威脅，而每個種子威脅都要有測試或 G3 駁回理由，所以 LLM 的誤報會直接變成 G3 的人工負擔。v0.4 起，同時符合下列條件的叢集**不轉成種子威脅**，只列在白箱報告的「低優先、未驗證」清單（report-manifest `report_only_clusters`；validator 檢查每項是白箱叢集、最新裁決為 `UNCORROBORATED`、沒有對應的種子威脅，`E-REPORT-QUEUE`）：
+    - 裁決是 `UNCORROBORATED`（獨立來源 ≤ 1）；
+    - rubric 嚴重度是 `medium` 以下；
+    - 不符合 [B2 高風險威脅](#b2-威脅建模g3-強制簽核) 的任何一條（跨租戶或認證邊界且涉及機密或個資、涉及需人確認的 LLM 工具）；
+    - 不是 W4 後才轉為爭議的叢集。
+    - G3 審查者可以把清單中的任何一項拉回種子威脅。清單的 10% 列入 ASI09 抽查，以量測剪枝造成的漏報（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
+  - **G3 佇列**（v0.4）[H]：種子威脅依「高風險 → rubric 嚴重度 → 裁決狀態」排序呈現；高風險威脅與 `critical`／`high` 不受任何上限限制，其他項目每個 run 預設最多 50 項需要逐項決定（`gate_queues.g3_max_items`），超出的照 G3 `NEEDS_INFO` 逾時規則處理（視同駁回，理由自動填「超出 G3 上限」，列入 B6 與 report-manifest `over_cap_items`）。
   - `W4_readjudicate` 時才轉為 `DISPUTED` 的叢集（前一版裁決不是 `DISPUTED`，例如 `LIKELY` 經 R11 → `DISPUTED`；與 G2 是否已決定無關）在裁決上加註 `w4_became_disputed`；種子威脅與 run 的 `disputed_after_g2` 由這些註記推導，G3 呈現時標為「W4 後轉為爭議」[H]（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
   - 這樣動態測試可以把確認升級為 `CONFIRMED_EXECUTABLE`、化解跨家族爭議，並替已確認的問題留下回歸測試。
 - **跨 run 指紋與基準狀態** [H]：
@@ -614,7 +640,7 @@ flowchart TD
   1. `risk.impact = high`，且 `risk.likelihood ∈ {high, medium}`；
   2. 威脅的 DFD 元素跨越**租戶邊界或認證邊界**，且涉及資料分級為機密或個資的 data store（依 G1 資料分級）；
   3. 涉及 G1 LLM 工具權限矩陣中標為「需人確認」的高影響動作；
-  4. 來自種子威脅，其來源叢集為 `CONFIRMED_*` 或 `LIKELY`，且成員最高嚴重度為 `critical` 或 `high`。
+  4. 來自種子威脅，其來源叢集為 `CONFIRMED_*` 或 `LIKELY`，且來源叢集的 rubric 嚴重度為 `critical` 或 `high`（v0.4；v0.3 用成員自報的嚴重度）。
 
   LLM 給的 likelihood／impact 只當**下限**：程式碼計算的結果與 LLM 提議取較高者；人在 G3 可以提高，降低時必須附理由（寫入 GateRecord）。
 - **OWASP LLM Top 10 的版本**：
@@ -651,11 +677,17 @@ flowchart TD
 - `safety_class` 由程式碼計算。
 - **對照（`controls[]`）**：每個測試案例至少有一個 `reachability` 對照，例如「合法角色的請求到達目標端點並通過認證」（`E-TC-CONTROLS`）；可以再加 `oracle_can_pass`／`oracle_can_fail`。對照與測試案例一起在 G4 核准。欄位見 [04 §3](04-threat-to-testcase.md#3-測試案例欄位)。
 - **所有寫入都綁種子** [H]：
-  - 每個 `POST`／`PUT`／`PATCH`／`DELETE`（以及 `graphql_operation: mutation` 的請求；`query` 與 `introspection` 算讀取）只能：
+  - 每個 `POST`／`PUT`／`PATCH`／`DELETE`（以及 `graphql_operation: mutation` 的請求；`query` 與 `introspection` 只在 ROE 為該目標宣告的 GraphQL 路徑 `targets[].graphql_paths`、方法為 GET／POST 時算讀取，其他帶 `graphql_operation` 的請求一律 S3，v0.4）只能：
     - 以 `{seed:<id>}` 指向 seed manifest 中的既有物件，而且該種子必須屬於這條路徑的資源（該種子的 `path_templates[]` 含這條路徑）；或
     - 是對 seed manifest `create_only_endpoints[]`（`target_id`、`method`、`path_template`）中端點的建立請求，在 run 命名空間（`namespace`，例如 `vc-{run_id}-`）建立新物件。
   - 之後的步驟以 `{created:<step_id>}` 指向同一份 `request_allowlist` 中較早、帶該 `step_id`、在同一目標上的建立請求。
   - 其他寫入一律 S3（`E-TC-MUTATION-SCOPE`；演算法見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)）。
+  - **v0.4 補充**：
+    - 路徑沒有變數段的寫入（Next.js Server Action、GraphQL mutation、PostgREST 的過濾條件）以 `object_refs` 指出它在 body 或 query 中碰的種子；Scope Proxy 把 body 與 query 的 ID 類欄位綁到這些值，並移除 method override 標頭。
+    - 會改變狀態的 GET 列在 seed manifest 的 `state_changing_reads`，算寫入；W0 inventory 判定會寫入（`endpoints[].writes`）的 GET 都必須列入（`E-SEED-SIDE-EFFECT`）。以 POST 送出的唯讀端點列在 `read_only_endpoints`，算讀取。
+    - create-only 端點宣告請求層看不到的副作用（`side_effects: external`〔寄信、金流〕或 `llm_tools`〔agent 可呼叫有寫入的工具〕）；基礎設施擁有者沒有聲明 `contained: true` 時至少 S2（G5＋快照）。
+    - seed manifest 的內容 hash 由基礎設施擁有者在 ROE 簽署（`db_access.seed_manifest_sha256`，`E-ROE-SEED-MANIFEST`），因為上面三份清單直接決定 S1 或 S3。
+    - 種子重置改為只處理本 run 命名空間的種子腳本；整庫快照還原只用於 S2，避免在共用 staging 上回滾其他人的資料。
 - **`lite`**：只允許 S0／S1 的測試案例；算出 S2 的測試案例改為 `MANUAL`（附原因）[H]。validator 對 `lite` 中 `tool_binding.kind` 不是 `MANUAL` 的測試案例檢查算出的安全等級是 S0／S1，run 的每個 job 也一樣（`E-PROFILE-SAFETY`）；`MANUAL` 測試案例不受此限，因為工具包不會執行它。
 - 產物驗證（`B3_validate_artifacts`）失敗 → 回到 `B3_derive` 修復，最多 2 次；仍失敗 → 該測試案例改為 `MANUAL`（附原因）[H]。
 - 測試計畫與每個產物都要在 **G4** 綁定 hash 核准；G4 可逐測試案例部分核准。`lite`，或測試計畫只有 S0／S1 job 時，G3 與 G4 可以在同一次審查中處理（[§1.7](#17-保證等級liteteamfull)）。
@@ -703,7 +735,7 @@ flowchart TD
   - 這個叢集帶 `threat_id`、沒有成員發現項，位置用端點（`canonical_location.endpoint`：`target_id`、`method`、`path_template`，必須是該威脅某個測試案例 `request_allowlist` 中的請求）。
   - 它走同一套規則，例如 R1 → `CONFIRMED_EXECUTABLE`。v0.2 這類結果沒有裁決路徑。
   - 範例：T-033 → TC-033-01（S0）的確定性 FAIL → K-201 → V-201-1 `CONFIRMED_EXECUTABLE`（R1，沒有分析者）；T-027 → TC-027-01 的 ZAP PASS → K-202 → V-202-1 `UNCORROBORATED`（R7，R11 加註 `test_not_reproduced`）。細節見 [05 §4.1](05-bias-calibration.md#41-叢集鍵clusterer確定性)。
-- **PASS 與不確定結果**：合格的 PASS 會把 `CONFIRMED_CORROBORATED`／`LIKELY` 降為 `DISPUTED`、在 `UNCORROBORATED` 上加註記，但**永遠不會自動變成 `REJECTED`**（05 R11）；不確定的結果只註記（05 R12）。
+- **PASS 與不確定結果**：有正對照（`oracle_can_fail` 對照 PASS）的合格 PASS 會把 `CONFIRMED_CORROBORATED`／`LIKELY` 降為 `DISPUTED`；沒有正對照的合格 PASS（例如 G4 核准的 ZAP 通用掃描）只加註 `test_not_reproduced`（v0.4）。PASS **永遠不會自動變成 `REJECTED`**（05 R11）；不確定的結果只註記（05 R12）。
 - **重新裁決**（`B5_readjudicate`）：結果寫回相關叢集，由 Aggregator 重新裁決，保留每一版。此時才轉為 `DISPUTED` 的叢集不回到 G2 或 G3，而是列入 B6 的人工複核清單 [H]。
 - **PII**：若在回應中偵測到個資，觸發停止條件，B5 的解讀改成只用自架模型。候選的確定性偵測器是 Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]；[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）。
 
@@ -760,12 +792,12 @@ flowchart TD
 
 | 步驟 | 輸入 | 輸出 | 區 | LLM | 失敗處理 | 完成條件 | schema | 里程碑 |
 |---|---|---|---|---|---|---|---|---|
-| G0a | `engagement.yaml`（含 `signatures[]`、`assurance_profile`、`gate_approvers`）、`key-registry.yaml`、`toolkit.yaml`（根金鑰指紋） | G0a GateRecord（`signatures: []`＋`verification` 區塊）、run 紀錄 | Z1 | 否 | 驗章失敗、金鑰撤銷、過期、模型不在允許清單 → `ABORTED` | 簽章有效、角色相符、簽署人在 `gate_approvers.G0a`、在有效期間內、每個 agent 的模型都在該資料等級的允許清單中 | engagement、key-registry、toolkit-config、gate-record、run | M1 |
+| G0a | `engagement.yaml`（含 `signatures[]`、`assurance_profile`、`gate_approvers`、v0.4 的 `data_transfer` 與 `config_pins`）、`key-registry.yaml`、`toolkit.yaml`（根金鑰指紋） | G0a GateRecord（`signatures: []`＋`verification` 區塊）、run 紀錄 | Z1 | 否 | 驗章失敗、金鑰撤銷、過期、模型不在允許清單、跨境聲明不完整（`E-ENG-TRANSFER`）、設定檔與釘選 hash 不符（`E-ENG-CONFIG-PIN`）→ `ABORTED` | 簽章有效、角色相符、簽署人在 `gate_approvers.G0a`、在有效期間內、每個 agent 的模型都在該資料等級的允許清單中 | engagement、key-registry、toolkit-config、gate-record、run | M1 |
 | W0 | repo（commit SHA）、路徑黑名單、G0a 已驗章的委任設定（不讀 ROE） | `inventory.json`（`frameworks`、`endpoints`、`db`、`auth`、`env_vars`、`features`、`blind_spots`）、SBOM、`secrets-redaction-map`、secrets 發現（位置＋hash；預設 Betterleaks／gitleaks） | Z2 | 否（G0a 之後第一步；之前沒有 LLM 呼叫） | 任何子步驟失敗 → `FAILED` | 每個框架有支援程度；entry point 都有 `kind` 與 handler；table 都有 `rls_enabled`（`null` 時附 `blind_spots`）；遮罩對照表已登錄 | run（`inventory_ref`、`redaction_map_ref`）、inventory、redaction-map | M1 |
 | W0.5 | W0 inventory（名稱與事實，不含程式碼）、G1 問卷答案、ASVS 5.0 L1＋`level_triggers`、（followup）威脅衍生需求 | `invariants.yaml` 草稿 | Z1 | 是（Invariant Drafter；工具只有 `read_inventory`、`write_blackboard`） | schema 修復 ≤2 次；仍失敗 → 只交 ASVS 基準＋空白矩陣給 G1，由人補齊 | 草稿通過 schema；L2 以上的引用都有觸發（`E-INVARIANT-LEVEL`） | invariants、requirement、inventory | M2 |
 | G1 | 不變量草稿、問卷答案對照、與上一版的差異 | GateRecord（G1）、已簽核 `invariants.yaml` | Z1 | 否 | REJECTED／NEEDS_INFO → W0.5，≤3 輪 → `ABORTED`；EXPIRED → `SUSPENDED` | APPROVED 且簽章、hash 綁定有效；核准者在 `gate_approvers.G1` | gate-record、invariants、engagement | M2 |
 | W1 | repo、SBOM、遮罩對照表、W0 inventory | `w1.sarif`、`deps-check.json`（只給 Clusterer／Aggregator） | Z2 | 否 | 單一工具失敗 → 列為缺口、其他繼續；全部失敗 → `FAILED`；前端 build 失敗 → 只做名稱規則 | 全部工具以鎖定版本跑完（含 RLS 與前端公開變數規則）；失敗已列出 | tool-registry（工具版本）；SARIF 2.1.0 | M1 |
-| W2 | inventory、已簽核不變量、遮罩後切片、CMD-1 計畫（**不含 SARIF**） | `findings[]`（證據附 `kind` 與 `match`）、缺票、多樣性旗標 | Z1（Slicer 為程式碼） | 是（多家族 reviewer，每組面向一次呼叫；Commander 只收型別化視圖、沒有工具） | 重試上限用盡 → 缺票；低於 quorum → R8 封頂；計畫不合規或缺必要面向（`E-PLAN-FACETS`）→ 修復 ≤2 次後改用覆蓋下限計畫；預算觸頂 → GB | 每個切片 × 必要面向都有結果或缺票紀錄；每項證據都有 `match` | slice、commander-plan、finding、inventory | M2 |
+| W2 | inventory、已簽核不變量、遮罩後切片、CMD-1 計畫（**不含 SARIF**） | `findings[]`（證據附 `kind` 與 `match`）、缺票、多樣性旗標 | Z1（Slicer 為程式碼） | 是（多家族 reviewer，每組面向一次呼叫；Commander 只收型別化視圖、沒有工具） | 重試上限用盡 → 缺票；低於 quorum（[05 §3 規則 3](05-bias-calibration.md#3-設計規則)）→ 獨立家族數變少（不是 R8 封頂），報告列出；計畫不合規或缺必要面向（`E-PLAN-FACETS`）→ 修復 ≤2 次後改用覆蓋下限計畫；預算觸頂 → GB | 每個切片 × 必要面向都有結果或缺票紀錄；每項證據都有 `match` | slice、commander-plan、finding、inventory | M2 |
 | W3 | findings；`w1.sarif`（只進 Clusterer／Aggregator） | clusters（含 `fingerprint`）、verdicts（含 `rule_trace`、`tool_corroboration`、`tool_signal`、`independent_sources`、`provisional`）、G2 佇列 | Z1 | 是（verifier，不收 SARIF；Commander 只收型別化視圖）；裁決為程式碼 | 無合格驗證者 → `no_eligible_verifier`（通常 `LIKELY`，不進 G2，交給測試）；CMD-2 加派 ≤2 輪（`E-PLAN-ROUNDS`）；計畫不合規 → 修復 ≤2 次 → 不加派 | 每個叢集都有裁決與 `rule_trace` | cluster、verdict、commander-plan、calibration | M2 |
 | G2 | G2 佇列（DISPUTED＋高嚴重度 UNCORROBORATED） | GateRecord（G2）、逐項決定 | Z1 | 否 | 佇列為空 → 略過；逾時 → 未決項視同 NEEDS_INFO，run 繼續（不阻擋）；見 [§1.4](#14-關卡結果與-run-狀態) | 每項有決定或已標逾時；核准者在 `gate_approvers.G2` | gate-record、verdict、engagement | M2 |
 | W4 | 已簽核不變量；叢集（`LIKELY` 以上、`DISPUTED`、critical／high 的 `UNCORROBORATED`）；遮罩後切片 | 測試檔、測試結果（含 `controls[]`、`fail_oracles`）、覆蓋率、mutation score、新版裁決 | Z1（產生）＋Z2（執行；拋棄式本地 Postgres） | 是（Test Generator／Test Critic，不同家族；Result Analyst 池只在解讀未事先登記時） | 生成失敗 → 修復 ≤2 次；沙箱失敗 → 重試 1 次後記 `ERROR`；對照未通過 → `INVALID`；CoverUp 迭代 ≤3 輪 | 每條不變量有測試或 `MANUAL`；每個結果有對照結果；結果已回寫並重新裁決 | testresult（`phase: W4`）、testcase、verdict、requirement | M2 |

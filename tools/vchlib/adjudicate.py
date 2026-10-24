@@ -11,12 +11,24 @@ see W1 tool output; tools enter adjudication only through the deterministic Clus
     pre-registered interpretation or eligible analyst) stays in `evidence`.
     Weak signals never confirm on their own: they count as one extra independent source
     each (R6: sources >= 2 -> LIKELY) and turn a lone refutation into DISPUTED (R4 row 7).
+
+v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a real defect unseen.
+  - R0 needs that the cluster has nothing else: no resolved SARIF (strong or weak) and no
+    FAIL-class test evidence (E_proof / E_fail_u). A mis-located LLM snippet no longer rejects a
+    cluster that a scanner or a reproduced FAIL also points at.
+  - R10: a G2 rejection stays final against votes, SARIF and E_fail_u, but not against an
+    executable proof (E_proof): the cluster becomes CONFIRMED_EXECUTABLE with post_g2_conflict
+    and goes to the B6 human review list. A pre-registered, replayed deterministic FAIL is
+    stronger evidence than a judgement made before the test existed.
+  - R11 downgrades CONFIRMED_CORROBORATED / LIKELY to DISPUTED only when a qualified PASS has a
+    positive control (an oracle_can_fail control that PASSed). A PASS without one only adds
+    test_not_reproduced: a test that was never shown able to fail cannot refute.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.3"
+RULE_VERSION = "05-v0.4"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -25,6 +37,7 @@ class Inputs:
     lane_a: bool = False
     g2_rejected: bool = False
     all_snippets_fail: bool = False                       # every evidence item of every member is NOT_FOUND (False without members)
+    pass_positive: bool = False                           # some E_pass result has a PASSed oracle_can_fail control (R11, v0.4)
     evidence: set[str] = field(default_factory=set)       # classes present among linked results
     weighted_support: bool = False
     weighted_refute: bool = False
@@ -63,6 +76,17 @@ def independent_sources(x: Inputs) -> int:
     return x.independent_families + int(bool(x.weak_sarif)) + int("E_fail_u" in x.evidence)
 
 
+def fail_class(x: Inputs) -> bool:
+    """A FAIL-class test result (E_proof or E_fail_u) is linked to the cluster."""
+    return bool({"E_proof", "E_fail_u"} & x.evidence)
+
+
+def r0_applies(x: Inputs) -> bool:
+    """R0 (v0.4): every member evidence item is NOT_FOUND and nothing else points at the cluster
+    (no resolved SARIF of either tier, no FAIL-class test evidence)."""
+    return x.all_snippets_fail and not (x.strong_tool or x.weak_sarif or fail_class(x))
+
+
 def _annotate(x: Inputs, out: Outcome) -> Outcome:
     """R12 / R13 annotations (any status) and the W4 phase annotation; appends fired rules in order."""
     if "E_inc" in x.evidence:
@@ -94,14 +118,16 @@ def _decide(x: Inputs) -> Outcome:
     notes: set[str] = set()
 
     if x.lane_a:
-        if x.all_snippets_fail:
+        if r0_applies(x):
             return Outcome("REJECTED", 1, ["R9"], "UNCORROBORATED", True, notes)
         return Outcome("UNCORROBORATED", 2, ["R9"], "UNCORROBORATED", True, notes)
     if x.g2_rejected:
-        if "E_proof" in x.evidence or "E_fail_u" in x.evidence:
+        if fail_class(x):
             notes.add("post_g2_conflict")
+        if ev == "E_proof":                                   # v0.4: an executable proof is not overridden
+            return Outcome("CONFIRMED_EXECUTABLE", 5, ["R10", "R1"], None, False, notes)
         return Outcome("REJECTED", 3, ["R10"], None, False, notes)
-    if x.all_snippets_fail:
+    if r0_applies(x):
         return Outcome("REJECTED", 4, ["R0"], None, False, notes)
     if ev == "E_proof":
         return Outcome("CONFIRMED_EXECUTABLE", 5, ["R1"], None, False, notes)
@@ -132,10 +158,10 @@ def _decide(x: Inputs) -> Outcome:
         status, cap = "LIKELY", "LIKELY"
         rules.append("R8")
     if "E_pass" in x.evidence:
-        if status in ("CONFIRMED_CORROBORATED", "LIKELY"):
+        if status in ("CONFIRMED_CORROBORATED", "LIKELY") and x.pass_positive:
             status = "DISPUTED"
             rules.append("R11")
-        elif status == "UNCORROBORATED":
-            notes.add("test_not_reproduced")
+        elif status in ("CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED"):
+            notes.add("test_not_reproduced")                 # v0.4: no positive control -> annotate only
             rules.append("R11")
     return Outcome(status, row, rules, cap, False, notes)

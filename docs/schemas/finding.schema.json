@@ -29,7 +29,8 @@
         "ssrf_outbound",
         "frontend_client",
         "webhooks_integrations",
-        "crypto"
+        "crypto",
+        "cicd_iac"
       ],
       "description": "審查面向（E7）；發現項所屬叢集的 cwe_bucket 必須在 vchlib FACET_BUCKETS[facet] 中（E-FINDING-FACET）"
     },

@@ -284,6 +284,30 @@ def silent_verify(c: Ctx, payload: bytes, sig: dict, at) -> bool:
     return verify_signature(scratch, c, "", payload, sig, at) is not None
 
 
+def first_verification(c: Ctx, gate: str) -> dt.datetime | None:
+    """Audit Writer receive time of the earliest G0a/G0b record that verified the current document
+    (verification.document_ref = its hash): the first moment the signed bytes provably existed."""
+    times = [decision_time(c, g.data) for g in c.docs("gate-record")
+             if g.data.get("gate") == gate and (g.data.get("verification") or {}).get("document_ref") is not None
+             and (g.data.get("verification") or {}).get("document_ref") == derive.gate_artifact(c.ix, g.data)]
+    times = [t for t in times if t is not None]
+    return min(times) if times else None
+
+
+def check_backdating(R: Report, c: Ctx, where: str, doc: dict, first_seen: dt.datetime | None):
+    """v0.4 (06 §3 #25): issued_at is self-declared. A signature by a key later revoked for a reason
+    other than compromise only counts if the document was first verified before revoked_at; otherwise
+    the signer could have back-dated issued_at after losing the key (E-SIG-BACKDATED)."""
+    for sig in doc.get("signatures") or []:
+        e = c.by_fp.get(sig.get("key_fingerprint")) or {}
+        rv = ts(R, e.get("revoked_at"), "key-registry.yaml", "revoked_at")
+        if rv is None or e.get("revocation_reason") == "compromised":
+            continue
+        R.check(first_seen is not None and first_seen < rv, "E-SIG-BACKDATED", where,
+                f"{sig.get('signer')}: key {sig.get('key_fingerprint')} was revoked at {e.get('revoked_at')}, but the document "
+                f"was first verified {'never' if first_seen is None else 'at ' + first_seen.isoformat()}; issued_at alone cannot prove it was signed before")
+
+
 def check_signed_doc(R: Report, c: Ctx, where: str, doc: dict, signers: list[dict]):
     """signers: [{person_id, role, key_fingerprint}] that must each have one valid signature."""
     sigs = doc.get("signatures") or []
@@ -439,6 +463,7 @@ def g_key_registry(R: Report, c: Ctx):
 def g_signatures(R: Report, c: Ctx):
     if c.engagement:
         check_signed_doc(R, c, "engagement.yaml", c.engagement, c.engagement.get("signatories") or [])
+        check_backdating(R, c, "engagement.yaml", c.engagement, first_verification(c, "G0a"))
     if c.roe:
         lr = c.roe.get("legal_review") or {}
         signers = list(c.roe.get("signatories") or [])
@@ -450,10 +475,12 @@ def g_signatures(R: Report, c: Ctx):
             if not any(s.get("person_id") == att for s in signers):
                 signers.append({"person_id": att, "role": role, "key_fingerprint": fp})
         check_signed_doc(R, c, "roe.yaml", c.roe, signers)
+        check_backdating(R, c, "roe.yaml", c.roe, first_verification(c, "G0b"))
     for d in c.docs("gate-record"):
         with doc_guard(R, d.path):
             rec = d.data
-            at = ts(R, rec.get("timestamp"), d.path)
+            # v0.4 (E4): key validity is judged at the Audit Writer's receive time, not the self-declared timestamp
+            at = decision_time(c, rec) or ts(R, rec.get("timestamp"), d.path)
             if rec.get("gate") in ("G0a", "G0b"):
                 R.check(rec.get("signatures") == [], "E-GATE-G0-SIG", d.path, "G0a/G0b are system verifications: signatures must be []")
                 doc = c.engagement if rec.get("gate") == "G0a" else c.roe
@@ -484,12 +511,18 @@ def g_signatures(R: Report, c: Ctx):
         for ev in d.data:
             where = f"{d.path} seq {ev.get('seq')}"
             actor = ev.get("actor") or {}
+            if ev.get("event_type") in SIGNED_EVENTS:
+                # v0.4: a claim or a resume is a person's act; actor.kind system / agent must not skip the signature
+                R.check(actor.get("kind") == "human", "E-AUDIT-ACTOR", where,
+                        f"{ev.get('event_type')} must have actor.kind human (got {actor.get('kind')!r}); it is always signed")
             if ev.get("event_type") in SIGNED_EVENTS and actor.get("kind") == "human":
                 sig = ev.get("signature")
                 if not R.check(isinstance(sig, dict), "E-AUDIT-SIG", where, f"{ev.get('event_type')} by a human must be signed"):
                     continue
                 R.check(sig.get("signer") == actor.get("id"), "E-SIG-SIGNER", where, "signature signer != actor.id")
-                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where))
+                # v0.4: only a test_lead may resume a run (docs/03 §5.6)
+                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where),
+                                 "test_lead" if ev.get("event_type") == "run_resume" else None)
             else:
                 R.check(ev.get("signature") is None, "E-AUDIT-SIG", where, "only human initiator_claim / run_resume events are signed")
 
@@ -600,18 +633,26 @@ def g_engagement(R: Report, c: Ctx):
         R.check(rc.get("person_id") in c.persons and bool(rc.get("statement")), "E-ENG-PROFILE", w,
                 "an acknowledged role_consolidation needs a registry person_id and a statement")
     provider_rules(R, c)
+    transfer_rules(R, c)
+    config_pin_rules(R, c)
     R.check(e.get("telemetry_disabled") is True, "E-ENG-TELEMETRY", w, "telemetry_disabled must be true")
 
 
-Z4_HOST_PREFIX = "z4-"      # self-hosted model servers live in Z4 (models.yaml api_base http://z4-...)
+def z4_hosts(c: Ctx) -> set[str]:
+    """toolkit.yaml z4_model_hosts: the exact host names of the Z4 self-hosted model servers."""
+    hosts = c.toolkit.get("z4_model_hosts") if isinstance(c.toolkit, dict) else None
+    return {safety.norm_host(h) for h in hosts if isinstance(h, str)} if isinstance(hosts, list) else set()
 
 
-def self_hosted(m: dict) -> bool:
+def self_hosted(m: dict, c: Ctx) -> bool:
+    """v0.4 (D2): a model is self-hosted in Z4 iff its api_base host equals a toolkit.yaml z4_model_hosts entry.
+
+    v0.3 accepted any host that started with "z4-", so https://z4-evil.attacker.example could take C data."""
     try:
         host = urlsplit(m.get("api_base") or "").hostname or ""
     except ValueError:
         return False
-    return host.startswith(Z4_HOST_PREFIX)
+    return bool(host) and safety.norm_host(host) in z4_hosts(c)
 
 
 def provider_rules(R: Report, c: Ctx):
@@ -623,7 +664,7 @@ def provider_rules(R: Report, c: Ctx):
     prov = {p.get("family"): p for p in e.get("providers") or [] if isinstance(p, dict)}
     for k, users in sorted(reachable_models(c).items()):
         m = c.model(k)
-        if not m or "C" not in (m.get("data_classes") or []) or self_hosted(m):
+        if not m or "C" not in (m.get("data_classes") or []) or self_hosted(m, c):
             continue
         p = prov.get(m.get("family")) or {}
         R.check(p.get("zdr") == "confirmed" and p.get("dpa_signed") is True, "E-ENG-PROVIDER", w,
@@ -631,7 +672,86 @@ def provider_rules(R: Report, c: Ctx):
                 f"zdr confirmed with a signed DPA (and the model is not self-hosted in Z4)")
 
 
+def c_cloud_families(c: Ctx) -> dict[str, list[str]]:
+    """family -> model keys of the models agents can reach that may receive C data and are not self-hosted in Z4."""
+    out: dict[str, list[str]] = {}
+    if (c.engagement or {}).get("data_class") != "C":
+        return out
+    for k in sorted(reachable_models(c)):
+        m = c.model(k)
+        if m and "C" in (m.get("data_classes") or []) and not self_hosted(m, c) and isinstance(m.get("family"), str):
+            out.setdefault(m["family"], []).append(k)
+    return out
+
+
+def transfer_rules(R: Report, c: Ctx):
+    """v0.4 (C1): the cross-border declaration is verified at G0a, before W2 sends code to any cloud model.
+
+    Every cloud family that can receive C data has a providers[].region (not null) and a data_transfer.transfers
+    entry with the same region; a region other than source_jurisdiction needs a mechanism other than
+    same_jurisdiction and a reference. The declarer is an engagement signatory, so the G0a signature covers it.
+    v0.3 only had legal_review.scope.cross_border in the ROE, which no node before G0b reads."""
+    e, w = c.engagement, "engagement.yaml"
+    dt = e.get("data_transfer")
+    if not R.check(isinstance(dt, dict), "E-ENG-TRANSFER", w, "data_transfer is required (checked at G0a)"):
+        return
+    R.check(dt.get("attested_by") in {s.get("person_id") for s in e.get("signatories") or [] if isinstance(s, dict)},
+            "E-ENG-TRANSFER", w, f"data_transfer.attested_by {dt.get('attested_by')!r} must be an engagement signatory")
+    src = dt.get("source_jurisdiction")
+    prov = {p.get("family"): p for p in e.get("providers") or [] if isinstance(p, dict)}
+    transfers = [t for t in dt.get("transfers") or [] if isinstance(t, dict)]
+    for fam, keys in sorted(c_cloud_families(c).items()):
+        region = (prov.get(fam) or {}).get("region")
+        if not R.check(isinstance(region, str), "E-ENG-TRANSFER", w,
+                       f"providers.{fam}.region is null, but {keys} can receive C data: the processing region must be declared"):
+            continue
+        t = next((t for t in transfers if t.get("family") == fam and t.get("region") == region), None)
+        if not R.check(t is not None, "E-ENG-TRANSFER", w,
+                       f"no data_transfer.transfers entry for {fam} in {region} ({keys} can receive C data)"):
+            continue
+        if region == src:
+            R.check(t.get("mechanism") == "same_jurisdiction", "E-ENG-TRANSFER", w,
+                    f"{fam}: region {region} equals source_jurisdiction, so mechanism must be same_jurisdiction")
+        else:
+            R.check(t.get("mechanism") != "same_jurisdiction" and bool(t.get("reference")), "E-ENG-TRANSFER", w,
+                    f"{fam}: {src} -> {region} is a cross-border transfer; it needs a mechanism other than same_jurisdiction and a reference")
+
+
+def cross_border_declared(c: Ctx) -> bool:
+    """Some engagement transfer leaves the source jurisdiction."""
+    dt = (c.engagement or {}).get("data_transfer") or {}
+    return any(isinstance(t, dict) and t.get("region") != dt.get("source_jurisdiction") for t in dt.get("transfers") or [])
+
+
+CONFIG_PIN_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "licenses": "licenses"}
+
+
+def config_pin_rules(R: Report, c: Ctx):
+    """v0.4 (E1): models / agents / tools / licenses are pinned by content hash in the signed engagement.
+    v0.3 did not sign them, although they decide C-data routing, family diversity, S0/S2 and the legal gate."""
+    pins = (c.engagement or {}).get("config_pins")
+    if not R.check(isinstance(pins, dict), "E-ENG-CONFIG-PIN", "engagement.yaml", "config_pins is required"):
+        return
+    for key, kind in CONFIG_PIN_KINDS.items():
+        data = c.b.data(kind)
+        got = content_hash(data) if data is not None else None
+        R.check(pins.get(key) == got, "E-ENG-CONFIG-PIN", "engagement.yaml",
+                f"config_pins.{key} {pins.get(key)} != content hash of the loaded {kind} {got}: "
+                "the configuration changed after the engagement was signed")
+
+
 # ============================================================== 8 ROE (+ L-1..L-6)
+MAX_CLOCK_SKEW = dt.timedelta(minutes=5)
+
+
+def decision_time(c: Ctx, rec: dict) -> dt.datetime | None:
+    """v0.4 (E4): the ts of the gate_decision audit event of `rec` (the Audit Writer's receive clock), or None.
+
+    v0.3 used the approver's self-declared timestamp for validity, timeout and time-window checks, so a key holder
+    could back-date a decision (e.g. before a role_change / retired revocation, or inside an expired ROE)."""
+    return c.ix.decision_time(rec)
+
+
 def g_roe(R: Report, c: Ctx):
     r, e, tk, w = c.roe, c.engagement, c.toolkit, "roe.yaml"
     if not r:
@@ -698,6 +818,10 @@ def g_roe(R: Report, c: Ctx):
             R.check(h is not None, "E-ROE-TARGETS", w, f"{t.get('id')}: unparseable base_url {t.get('base_url')!r} (no host)")
             R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-TARGETS", w,
                     f"{t.get('id')}: base_url host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
+        # v0.4 (BL-15): CDN edge ranges are public CIDRs on http targets only; the Scope Proxy enforces them (safety.ip_in_ranges)
+        for cidr in t.get("edge_ip_ranges") or []:
+            prob = safety.edge_range_problem(cidr) if t.get("kind") == "http" else "only http targets have edge ranges"
+            R.check(prob is None, "E-ROE-EDGE-RANGE", w, f"{t.get('id')}: edge_ip_ranges {prob}")
     for tr in r.get("test_roles", []):
         R.check((tr.get("login") or {}).get("target_id") in targets, "E-ROE-TARGETS", w, f"test role {tr.get('role')}: login target not in ROE")
     db = r.get("db_access")
@@ -752,6 +876,7 @@ def g_roe(R: Report, c: Ctx):
         missing = [k for k in need if bi.get(k) is None]
         R.check(not extra and not missing, "E-ROE-TARGETS", w,
                 f"{t.get('id')}: build_identity method {bi.get('method')!r} needs {list(need)} and null {extra or 'others'}")
+    seed_manifest_rules(R, c, targets)
     for ce in c.manifest.get("create_only_endpoints") or []:
         R.check(ce.get("target_id") in targets and (targets.get(ce.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST",
                 "seed-manifest.yaml", f"create_only_endpoints: {ce.get('target_id')} is not an http target of the ROE")
@@ -773,7 +898,24 @@ def g_roe(R: Report, c: Ctx):
             f"data_handling.retention_days {rrd} above the toolkit.yaml maximum {lim}")
     for u in r.get("upstream_llm_providers") or []:
         R.check(u.get("terms_confirmed_by") in c.persons, "E-PERSON-UNKNOWN", w, "upstream terms_confirmed_by must be a registry person")
+    incident_rules(R, c)
     legal(R, c)
+
+
+INCIDENT_COVERS = {"data_exposure", "third_party_side_effect", "shared_platform_impact", "staging_outage"}
+
+
+def incident_rules(R: Report, c: Ctx):
+    """v0.4 (C5): the ROE says who is told, how fast, under which procedure and liability terms, when a test leaks
+    data, triggers a real third-party side effect, hits another tenant of a shared platform or takes staging down."""
+    ir, w = c.roe.get("incident_response"), "roe.yaml"
+    if not R.check(isinstance(ir, dict), "E-ROE-INCIDENT", w, "incident_response is required"):
+        return
+    for p in ir.get("contacts") or []:
+        R.check(p in c.persons, "E-ROE-INCIDENT", w, f"incident_response contact {p!r} is not a registry person")
+    R.check(bool(ir.get("contacts")), "E-ROE-INCIDENT", w, "incident_response needs at least one contact")
+    miss = sorted(INCIDENT_COVERS - set(ir.get("covers") or []))
+    R.check(not miss, "E-ROE-INCIDENT", w, f"incident_response.covers misses {miss}")
 
 
 def legal(R: Report, c: Ctx):
@@ -785,6 +927,11 @@ def legal(R: Report, c: Ctx):
     for k, val in (lr.get("scope") or {}).items():
         ok = val is True or (isinstance(val, dict) and (val.get("value") is True or bool(val.get("not_applicable_reason"))))
         R.check(ok, "E-L1", w, f"legal_review.scope.{k} must be true or carry not_applicable_reason")
+    # v0.4: the ROE cannot call cross-border "not applicable" when the signed engagement declares a cross-border transfer
+    cb = (lr.get("scope") or {}).get("cross_border")
+    if cross_border_declared(c):
+        R.check(cb is True or (isinstance(cb, dict) and cb.get("value") is True), "E-ROE-TRANSFER", w,
+                "engagement data_transfer leaves the source jurisdiction, so legal_review.scope.cross_border must be true")
     # L-2
     att = lr.get("attested_by")
     live = [x for x in c.entries if x.get("person_id") == att and not x.get("revoked_at")]
@@ -821,6 +968,32 @@ def legal(R: Report, c: Ctx):
     if gated:
         R.check((lr.get("scope") or {}).get("component_licenses") is True, "E-L6", w,
                 f"enabled tools {gated} are 法務閘門 in licenses.yaml: legal_review.scope.component_licenses must be true")
+
+
+def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
+    """v0.4 (write scope):
+    - E-ROE-SEED-MANIFEST: ROE db_access.seed_manifest_sha256 is the content hash of the loaded seed manifest, so
+      the infrastructure owner signs create_only_endpoints / state_changing_reads / read_only_endpoints;
+    - E-SEED-SIDE-EFFECT: every W0 inventory GET / HEAD endpoint with writes true is declared in
+      state_changing_reads (same method and path template, any target); declared endpoints are http targets."""
+    w = "roe.yaml"
+    db = c.roe.get("db_access") if isinstance(c.roe, dict) else None
+    if isinstance(db, dict) and c.manifest:
+        R.check(db.get("seed_manifest_sha256") == content_hash(c.manifest), "E-ROE-SEED-MANIFEST", w,
+                f"db_access.seed_manifest_sha256 {db.get('seed_manifest_sha256')} != content hash of the seed manifest "
+                f"{content_hash(c.manifest)}: the infrastructure owner must sign the manifest the run uses")
+    declared = {(e.get("method"), e.get("path_template")) for e in c.manifest.get("state_changing_reads") or [] if isinstance(e, dict)}
+    for key in ("state_changing_reads", "read_only_endpoints"):
+        for e in c.manifest.get(key) or []:
+            if isinstance(e, dict):
+                R.check((targets.get(e.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST", "seed-manifest.yaml",
+                        f"{key} target {e.get('target_id')!r} must be an http ROE target")
+    for d in c.docs("inventory"):
+        for ep in d.data.get("endpoints") or []:
+            if isinstance(ep, dict) and ep.get("method") in ("GET", "HEAD") and ep.get("writes") is True:
+                R.check((ep.get("method"), ep.get("path")) in declared, "E-SEED-SIDE-EFFECT", d.path,
+                        f"{ep.get('method')} {ep.get('path')} writes (W0) but is not in the seed manifest's state_changing_reads: "
+                        "requests to it would be classified as reads (S0)")
 
 
 def platform_of(host: str | None) -> str | None:
@@ -1080,6 +1253,9 @@ def g_gates(R: Report, c: Ctx):
             opened, at = ts(R, rec.get("opened_at"), w), ts(R, rec.get("timestamp"), w)
             if not (opened and at):
                 continue
+            # v0.4 (E4): the Audit Writer's receive time is the authority for every time rule of a decision;
+            # the signer's own timestamp only has to agree with it within MAX_CLOCK_SKEW (E-AUDIT-GATE)
+            at = decision_time(c, rec) or at
             R.check(opened <= at, "E-GATE-TIME", w, "opened_at after timestamp")
             R.check(enb and ena and enb <= at <= ena, "E-GATE-ENGAGEMENT", w, "decided outside the engagement validity")
             roles = {a.get("role") for a in rec.get("approvers", [])}
@@ -1119,6 +1295,11 @@ def g_gates(R: Report, c: Ctx):
             limit = tmo.get(gate)
             if limit is not None and gate != "G5":
                 R.check(at - opened <= dt.timedelta(hours=limit), "E-GATE-TIMEOUT", w, f"decided {at - opened} after opening; timeout {limit} h")
+                # v0.4: EXPIRED is the one unsigned outcome; it is only valid once the timeout has really elapsed by the
+                # Audit Writer's clock. Otherwise a forged EXPIRED could skip G2 (the run continues past a timed-out G2).
+                if rec.get("outcome") == "EXPIRED":
+                    R.check(at - opened >= dt.timedelta(hours=limit), "E-GATE-EXPIRED-EARLY", w,
+                            f"EXPIRED {at - opened} after opening, before the {limit} h timeout elapsed")
             # outcome vs decisions
             decs = [x.get("decision") for x in rec.get("decisions", [])]
             if rec.get("outcome") == "PARTIALLY_APPROVED":
@@ -1391,6 +1572,11 @@ def result_controls(R: Report, c: Ctx, x: Doc, tc: dict):
         R.check(tr.get("outcome") != "INVALID", "E-RESULT-INVALID", w, "INVALID needs at least one control that did not PASS")
     fo = tr.get("fail_oracles") or []
     R.check((tr.get("outcome") == "FAIL") == bool(fo), "E-RESULT-ORACLE", w, "fail_oracles must be non-empty iff the outcome is FAIL")
+    trials = tr.get("trials") or {}
+    ne, nn, kk = trials.get("n_effective"), trials.get("n"), trials.get("k")
+    # v0.4: n' (trials whose precondition was reached) is recorded; it bounds k and is bounded by n
+    R.check(isinstance(ne, int) and isinstance(nn, int) and isinstance(kk, int) and kk <= ne <= nn, "E-RESULT-TRIALS", w,
+            f"trials must satisfy k <= n_effective <= n (got k={kk}, n_effective={ne}, n={nn})")
     R.check(set(fo) <= derive.oracle_types(tc), "E-RESULT-ORACLE", w,
             f"fail_oracles {sorted(set(fo) - derive.oracle_types(tc))} are not oracle.types of {tc.get('testcase_id')}")
     pr = (tr.get("precondition_reached") or {}).get("value")
@@ -1553,7 +1739,7 @@ def g_testcases(R: Report, c: Ctx):
             prop = tc.get("safety_class_proposed") or "S0"
             R.check(safety.ORDER.index(level) >= safety.ORDER.index(prop), "E-TC-SAFETY", w, "computed class below the LLM proposal")
             R.check(safety.admissible(level, r), "E-TC-ADMISSIBLE", w, f"class {level} cannot enter G4 ({'; '.join(trace)})")
-            scope = safety.mutation_scope_problems(tc, mk)
+            scope = safety.mutation_scope_problems(tc, mk, r)
             R.check(not scope, "E-TC-MUTATION-SCOPE", w, "every mutation must be seed-bound or a create in the run namespace (B6): "
                     + "; ".join(scope))
             dn = tc.get("data_needed") or {}
@@ -1718,12 +1904,16 @@ def derived_diversity_degraded(c: Ctx, v: dict, cluster: dict) -> bool:
 
 def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
     """E5 (H-E11): calibration_version null, or theta_confirm null, or every eligible verifier model of the
-    cluster (E(cluster), from the registries, not from the votes present) has calibration weight 0 in the
-    cluster's CWE bucket. A verdict without votes is therefore provisional iff the pool is uncalibrated."""
+    cluster (E(cluster), from the registries, not from the votes present) has calibration weight 0 (both sides)
+    in the cluster's CWE bucket. v0.4: false for black-box clusters and for statuses decided by rows 1-5."""
+    # v0.4: provisional marks only verdicts that votes could have decided. A status fixed by R9 / R10 / R0 / R1
+    # (rows 1-5) does not depend on calibration, and a black-box cluster never has votes.
+    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row <= 5:
+        return False
     if v.get("calibration_version") is None or v.get("theta_confirm") is None:
         return True
-    return all(c.ix.weight(k, cluster.get("cwe_bucket"), v.get("calibration_version")) == 0
-               for k in eligible_verifier_models(c, cluster))
+    return all(c.ix.weight(k, cluster.get("cwe_bucket"), v.get("calibration_version"), st) == 0
+               for k in eligible_verifier_models(c, cluster) for st in ("SUPPORT", "REFUTE"))
 
 
 LICENSE_CLEARED = ("OK", "注意")     # licenses.yaml statuses that may run; 法務閘門 / 不採用 / 待查 / 參考 may not (N-7)
@@ -1762,9 +1952,32 @@ def _resolving_event(c: Ctx, cluster: dict, ref) -> tuple[dict | None, str | Non
             reasons.append(f"seq {e.get('seq')}: event zone {e.get('zone')!r} is not Z2")
         elif p.get("ok") is not True:
             reasons.append(f"seq {e.get('seq')}: invocation of {adapter} failed (payload.ok is not true)")
+        elif (why := sarif_location_problem(cluster, ref, p)) is not None:
+            reasons.append(f"seq {e.get('seq')}: {why}")
         else:
             return e, None
     return None, f"SARIF ref {ref}: " + "; ".join(reasons)
+
+
+def sarif_location_problem(cluster: dict, ref, payload: dict) -> str | None:
+    """v0.4 (D1): a SARIF result supports only the cluster at its own location.
+
+    The normaliser (docs/08 §11.2 steps 3-5) records the result's repo-relative `file`, innermost
+    `symbol` and `cwe_bucket` in its payload.sarif_results[] entry; they must equal the cluster key
+    (canonical_location.file / .symbol and cwe_bucket). Black-box clusters have no source location and
+    take no SARIF. v0.3 checked only that the ref was in the audit log, so any one-family cluster could
+    borrow an unrelated result as a weak signal and reach LIKELY (R6)."""
+    if cluster.get("origin") == "black_box":
+        return "black_box clusters take no SARIF (they have no source location)"
+    entry = next((x for x in payload.get("sarif_results") or [] if isinstance(x, dict) and x.get("ref") == ref), None)
+    if entry is None:
+        return "no payload.sarif_results entry for the ref"
+    loc = cluster.get("canonical_location") or {}
+    want = {"file": loc.get("file"), "symbol": loc.get("symbol"), "cwe_bucket": cluster.get("cwe_bucket")}
+    got = {k: entry.get(k) for k in want}
+    if got != want:
+        return f"result location {got} is not the cluster key {want}"
+    return None
 
 
 def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
@@ -1773,7 +1986,9 @@ def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
     A SARIF ref counts only when the audit log of the cluster's run has a `tool_invocation_end`
     event that lists the ref in payload_refs, whose payload.adapter is a tools.yaml tool:mode of a
     white-box tool (tool zone Z2, mode b4_executable false) whose licenses.yaml status is cleared
-    (OK / 注意; not 法務閘門, N-7), with event zone Z2 and payload.ok true.
+    (OK / 注意; not 法務閘門, N-7), with event zone Z2 and payload.ok true, and whose
+    payload.sarif_results[] entry has the cluster's file, symbol and CWE bucket (v0.4,
+    sarif_location_problem; black_box clusters take no SARIF).
     """
     return _resolving_event(c, cluster, ref)[1]
 
@@ -1852,7 +2067,8 @@ def derived_independent_sources(c: Ctx, v: dict, cluster: dict) -> int:
 
 
 def all_evidence_not_found(c: Ctx, cluster: dict) -> bool:
-    """R0 (v0.3): every evidence item of every member finding is NOT_FOUND; False when there are no members."""
+    """R0 input: every evidence item of every member finding is NOT_FOUND; False when there are no members.
+    (v0.4: R0 itself also needs no resolved SARIF and no FAIL-class test evidence, adjudicate.r0_applies.)"""
     members = [c.ix.finding(f) for f in cluster.get("member_finding_ids") or []]
     if not members or any(m is None for m in members):
         return False
@@ -1872,6 +2088,10 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         g2_rejected=g2_rej,
         all_snippets_fail=all_fail,
         evidence={x.get("class") for x in (v.get("test_evidence") or {}).get("results", [])},
+        # R11 (v0.4): only a qualified PASS with a PASSed oracle_can_fail control may downgrade; the per-result
+        # positive_control is recomputed from the testresult (E-RESULT-CONTROLS), not taken from the verdict
+        pass_positive=any(x.get("class") == "E_pass" and x.get("positive_control") is True
+                          for x in (v.get("test_evidence") or {}).get("results", []) if isinstance(x, dict)),
         weighted_support=any(x.get("stance") == "SUPPORT" for x in votes),
         weighted_refute=any(x.get("stance") == "REFUTE" for x in votes),
         score=v.get("score") or 0.0,
@@ -1950,6 +2170,10 @@ def g_verdicts(R: Report, c: Ctx):
                 if vt.get("valid"):
                     R.check(vt.get("voter_family") not in cl.data.get("families", []) and vt.get("voter_lineage") not in cl.data.get("lineages", []),
                             "E-VERDICT-VOTE", w, f"self-review vote by {vt.get('voter_agent_id')} counted as valid")
+                anon, rand = derive.verifier_template_controls(c.ix, cl.data)
+                R.check(vt.get("anonymized") is anon and vt.get("order_randomized") is rand, "E-VERDICT-VOTE", w,
+                        f"vote by {vt.get('voter_agent_id')}: anonymized/order_randomized {vt.get('anonymized')}/{vt.get('order_randomized')} "
+                        f"must equal the run's {derive.VERIFIER_TEMPLATE_ID} template ({anon}/{rand}); a vote cannot declare them")
             if v.get("supersedes_verdict_id"):
                 old = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"])
                 R.check(old is not None and old.data.get("cluster_id") == v.get("cluster_id"), "E-TRACE", w, "supersedes a verdict of another cluster")
@@ -2001,6 +2225,12 @@ def finding_evidence(R: Report, c: Ctx, d: Doc):
             want = evidence.match_fact(inv, ev)
             R.check(ev.get("match") == want, "E-FINDING-MATCH", w,
                     f"evidence[{i}].match {ev.get('match')} but the inventory fact gives {want}")
+        if ev.get("kind") == "code_snippet":
+            sl = c.ix.first("slice", slice_id=f.get("slice_id"))
+            files = {x.get("path") for x in (sl.data.get("files") if sl else None) or [] if isinstance(x, dict)}
+            R.check(sl is None or ev.get("file") in files, "E-FINDING-EVIDENCE", w,
+                    f"evidence[{i}].file {ev.get('file')!r} is not a file of the finding's slice (v0.4: a snippet can only be "
+                    "matched against the redacted slice the reviewer saw)")
         if ev.get("kind") == "config_fact" and inv is not None:
             R.check(ev.get("file") in {x.get("path") for x in inv.get("files") or []}, "E-INVENTORY-REF", w,
                     f"evidence[{i}].file {ev.get('file')!r} is not an inventory file")
@@ -2107,6 +2337,55 @@ def plan_facets(R: Report, c: Ctx, d: Doc):
         for i, s in enumerate(d.data.get("slices") or []):
             miss = sorted(need - set(s.get("facets") or []))
             R.check(not miss, "E-PLAN-FACETS", d.path, f"slices[{i}] misses mandatory facets {miss} (W0 inventory of {rid})")
+
+
+def eligible_reviewer_families(c: Ctx, sl: dict) -> set[str]:
+    """Registry families of agents.yaml reviewers whose model the engagement allows for its data class and
+    that the slice does not exclude (slice.excluded_models: the model cannot fit the slice)."""
+    e = c.engagement or {}
+    allowed = set((e.get("allowed_models") or {}).get(e.get("data_class"), []))
+    excluded = {x.get("model_key") for x in sl.get("excluded_models") or [] if isinstance(x, dict)}
+    fams = set()
+    for a in c.agents.values():
+        if isinstance(a, dict) and a.get("role") == "reviewer" and a.get("model") in allowed and a.get("model") not in excluded:
+            m = c.model(a.get("model"))
+            if m and isinstance(m.get("family"), str):
+                fams.add(m["family"])
+    return fams
+
+
+def plan_coverage(R: Report, c: Ctx, d: Doc):
+    """v0.4 (D3): a CMD-1 plan is a superset of the coverage floor, not only for facets.
+
+    - E-PLAN-COVERAGE: every slice of a (non-Lane-A) run that lists the plan is in plan.slices;
+    - E-PLAN-FAMILIES: each planned slice is assigned reviewers of at least min(2, |eligible families|)
+      distinct registry families (docs/02 W2: N reviewers of different families per slice).
+    v0.3 checked only the facets of the slices the plan happened to list, so a plan could drop slices or
+    send each slice to one family and still pass E-PLAN-FACETS."""
+    p = d.data
+    if p.get("decision_node") != "CMD-1":
+        return
+    planned = {s.get("slice_id"): s for s in p.get("slices") or [] if isinstance(s, dict)}
+    for rid, run in c.runs.items():
+        if p.get("plan_id") not in run.get("plan_ids", []) or run.get("run_kind") == "lane_a":
+            continue
+        for sd in c.docs("slice"):
+            sl = sd.data
+            if sl.get("run_id") != rid:
+                continue
+            ps = planned.get(sl.get("slice_id"))
+            if not R.check(ps is not None, "E-PLAN-COVERAGE", d.path,
+                           f"slice {sl.get('slice_id')} of {rid} is not in the CMD-1 plan (the plan must cover every slice)"):
+                continue
+            fams = set()
+            for a in ps.get("agents") or []:
+                m = c.model((c.agents.get(a) or {}).get("model"))
+                if m and isinstance(m.get("family"), str):
+                    fams.add(m["family"])
+            need = min(2, len(eligible_reviewer_families(c, sl)))
+            R.check(len(fams) >= need, "E-PLAN-FAMILIES", d.path,
+                    f"slice {sl.get('slice_id')} of {rid} is assigned reviewer families {sorted(fams)}; "
+                    f"at least {need} distinct families are required (eligible: {sorted(eligible_reviewer_families(c, sl))})")
 
 
 def g_trace(R: Report, c: Ctx):
@@ -2261,6 +2540,7 @@ def g_trace(R: Report, c: Ctx):
     for d in c.docs("commander-plan"):
         with doc_guard(R, d.path):
             plan_facets(R, c, d)
+            plan_coverage(R, c, d)
             plan_checks(R, c, d)
             for tid in d.data.get("testcase_ids", []):
                 R.check(ix.first("testcase", testcase_id=tid) is not None, "E-TRACE", d.path, f"testcase {tid} not found")
@@ -2275,6 +2555,40 @@ def g_trace(R: Report, c: Ctx):
             R.check(c.ix.first("commander-plan", plan_id=pid) is not None, "E-TRACE", rid, f"plan {pid} not found")
 
 
+def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
+    """v0.4 (BL-26, docs/02 W3 / W5): report_only_clusters and over_cap_items (E-REPORT-QUEUE).
+
+    report_only: a white-box cluster, latest verdict UNCORROBORATED and no seed threat from it (the pruning rule; rubric severity
+    and the high-risk conditions are the toolkit's to compute). over_cap G2: a cluster of the run that became
+    a seed without a G2 decision, while the run's G2 queue was full (exactly g2_max_items decisions). over_cap
+    G3: a seed threat of the run whose threat_id has no G3 decision."""
+    rid = rm.get("run_id")
+    caps = c.toolkit.get("gate_queues") or {}
+    seeds = [sd for d in c.docs("seed-threats") if d.data.get("run_id") == rid for sd in d.data.get("seeds", [])]
+    seed_clusters = {sd.get("source_cluster_id") for sd in seeds}
+    for cid in rm.get("report_only_clusters") or []:
+        cl = c.ix.first("cluster", cluster_id=cid)
+        white = cl is not None and cl.data.get("origin") != "black_box"
+        R.check(white and status.get(cid) == "UNCORROBORATED" and cid not in seed_clusters, "E-REPORT-QUEUE", w,
+                f"report_only_clusters: {cid} must be a white-box cluster of the run whose latest verdict is UNCORROBORATED "
+                f"(got {status.get(cid)}) and that is not a seed threat")
+    decided = {g: {dec.get("item_id") for rec in c.ix.gate_records(rid, g) for dec in rec.data.get("decisions", [])}
+               for g in ("G2", "G3")}
+    g2 = c.ix.gate_records(rid, "G2")
+    g2_full = bool(g2) and len(g2[-1].data.get("decisions", [])) == caps.get("g2_max_items", 30)
+    seen = set()
+    for it in rm.get("over_cap_items") or []:
+        g, iid = it.get("gate"), it.get("item_id")
+        if g == "G2":
+            ok = status.get(iid) in ("DISPUTED", "UNCORROBORATED") and iid in seed_clusters and iid not in decided["G2"] and g2_full
+            why = "a DISPUTED / UNCORROBORATED seed cluster without a G2 decision, while the G2 queue held exactly g2_max_items"
+        else:
+            ok = any(sd.get("seed_id") == iid and sd.get("threat_id") not in decided["G3"] for sd in seeds)
+            why = "a seed threat of the run whose threat has no G3 decision"
+        R.check(ok and (g, iid) not in seen, "E-REPORT-QUEUE", w, f"over_cap_items: {g} {iid} must be {why}, listed once")
+        seen.add((g, iid))
+
+
 # ============================================================== 15 audit log
 def g_audit(R: Report, c: Ctx):
     interval = (c.toolkit.get("audit") or {}).get("anchor_interval_events", 500)
@@ -2285,7 +2599,7 @@ def g_audit(R: Report, c: Ctx):
             run = c.runs.get(rid)
             if not R.check(run is not None, "E-AUDIT-RUN", w, f"run {rid} not found"):
                 continue
-            prev_t, since = None, 0
+            prev_t, since, seen_keys = None, 0, set()
             for i, ev in enumerate(evs):
                 where = f"{w} seq {ev.get('seq')}"
                 # type(...) is int: a float literal such as 3e0 / 3.0 (or a bool) is not a seq
@@ -2303,15 +2617,34 @@ def g_audit(R: Report, c: Ctx):
                 et = ev.get("event_type")
                 since = 0 if et == "audit_anchor" else since + 1
                 R.check(since <= interval, "E-AUDIT-ANCHOR", where, f"more than {interval} events without an anchor")
+                if et == "audit_anchor":
+                    # v0.4: the Z3 executor countersigns {run_id, seq, prev_hash}; whoever controls both the
+                    # audit log and the run record still cannot rewrite the chain without the Z3 key
+                    cs = (ev.get("payload") or {}).get("z3_countersignature")
+                    scratch = Report()
+                    ok = isinstance(cs, dict) and cs.get("signer") == crypto.ANCHOR_SIGNER and verify_signature(
+                        scratch, c, where, crypto.anchor_payload(ev), cs, t, need_role="z3_executor") is not None
+                    R.check(ok, "E-AUDIT-ANCHOR-SIG", where, "audit_anchor needs a valid z3_countersignature by "
+                            f"{crypto.ANCHOR_SIGNER} (role z3_executor) over {{run_id, seq, prev_hash}}"
+                            + (": " + "; ".join(f"{x.code} {x.msg}" for x in scratch.issues) if scratch.issues else ""))
                 if et == "gate_decision":
                     nxt = evs[i + 1] if i + 1 < len(evs) else {}
                     R.check(nxt.get("event_type") == "audit_anchor", "E-AUDIT-ANCHOR", where, "every gate_decision must be followed by an audit_anchor")
                     p = ev.get("payload") or {}
                     rec = c.record(p.get("gate_record_id"))
+                    signed_at = ts(R, rec.get("timestamp"), where) if rec is not None else None
                     R.check(rec is not None and rec.get("gate") == p.get("gate") and rec.get("outcome") == p.get("outcome")
-                            and ts(R, rec.get("timestamp"), where) == t, "E-AUDIT-GATE", where, "gate_decision does not match its gate record")
+                            and signed_at is not None and t is not None and abs(t - signed_at) <= MAX_CLOCK_SKEW, "E-AUDIT-GATE", where,
+                            "gate_decision does not match its gate record (gate, outcome, or the signed timestamp differs from the "
+                            f"Audit Writer's receive time by more than {MAX_CLOCK_SKEW})")
                 if et == "initiator_claim":
                     R.check(actor.get("id") in run.get("initiators", []), "E-AUDIT-INITIATOR", where, "claimed initiator not in run.initiators")
+                # v0.4: idempotency keys are run_id:node:<key> and unique within the run (re-written events are deduplicated by it)
+                ik = ev.get("idempotency_key")
+                parts = ik.split(":", 2) if isinstance(ik, str) else []
+                R.check(len(parts) == 3 and parts[0] == ev.get("run_id") and parts[1] == ev.get("node") and ik not in seen_keys,
+                        "E-AUDIT-IDEMPOTENCY", where, f"idempotency_key {ik!r} must be '<run_id>:<node>:<key>' for this event and unique in the run")
+                seen_keys.add(ik)
                 if et == "verdict_changed":
                     p = ev.get("payload") or {}
                     v = c.ix.first("verdict", verdict_id=p.get("verdict_id"))
@@ -2416,12 +2749,13 @@ def g_calibration(R: Report, c: Ctx):
         reg = c.model(mk)
         R.check(reg is not None and reg.get("family") == m.get("family") and reg.get("lineage") == m.get("lineage"), "E-CAL-MODEL", w,
                 f"config.models {mk}: family/lineage disagree with models.yaml")
-    for mk in {r.get("model_key") for r in rows}:
-        mine = [r for r in rows if r.get("model_key") == mk]
-        tn = sum(r.get("n", 0) for r in mine)
-        abar = sum(r.get("correct", 0) for r in mine) / tn if tn else 0
-        for r in mine:
-            where = f"{w} weights {mk}/{r.get('cwe_bucket')}"
+    for mk, side_key in sorted({(r.get("model_key"), sk) for r in rows for sk in ("support", "refute")}, key=str):
+        # v0.4: the support side (true defects) and the refute side (known non-defects) are computed separately
+        mine = [(r, r.get(side_key) or {}) for r in rows if r.get("model_key") == mk]
+        tn = sum(x.get("n", 0) for _, x in mine)
+        abar = sum(x.get("correct", 0) for _, x in mine) / tn if tn else 0
+        for row, r in mine:
+            where = f"{w} weights {mk}/{row.get('cwe_bucket')}/{side_key}"
             R.check(mk in keys, "E-CAL-MODEL", where, "model not in config.models")
             n, cc = r.get("n", 0), r.get("correct", 0)
             a = (cc + k * abar) / (n + k) if n + k else 0
@@ -2602,6 +2936,7 @@ def g_misc(R: Report, c: Ctx):
             got_m = rm.get("metrics") or {}
             R.check(derive._equal(got_m, want_m), "E-REPORT-METRICS", w, f"metrics {got_m} != recomputed {want_m} (the run's testresults and controls)")
             R.check(sorted(rm.get("manual_review_clusters", [])) == sorted(run.get("manual_review_clusters", [])), "E-REPORT", w, "manual_review_clusters differ from the run")
+            check_report_queues(R, c, w, rm, {v.get("cluster_id"): v.get("status") for v in final})
             for a in rm.get("artifacts", []):
                 if a.get("kind") == "audit_log":
                     R.check(c.b.doc(a.get("ref", "")) is not None, "E-REPORT", w, f"audit log {a.get('ref')} not found")

@@ -145,6 +145,18 @@ def load_events(text: str) -> list:
     return [jsonstrict.loads(ln) for ln in read_jsonl_lines(text)]
 
 
+def sign_event_in_place(ev: dict, registry, by_fp) -> None:
+    """Re-sign one audit event whose prev_hash is already set: human SIGNED_EVENTS get the actor's
+    signature; every audit_anchor gets the Z3 executor's countersignature over {run_id, seq, prev_hash}."""
+    ev["signature"] = None
+    at = timeutil.parse_dt(ev["ts"])
+    if ev["event_type"] == "audit_anchor" and isinstance(ev.get("payload"), dict):
+        ev["payload"]["z3_countersignature"] = crypto.countersign_anchor(
+            ev, current_key(registry, crypto.ANCHOR_SIGNER, at, by_fp))
+    if ev["event_type"] in SIGNED_EVENTS and ev["actor"]["kind"] == "human":
+        ev["signature"] = crypto.sign_event(ev, ev["actor"]["id"], current_key(registry, ev["actor"]["id"], at, by_fp))
+
+
 def rebuild_audit(by_fp) -> int:
     registry = yamlstrict.load((CONFIG / "key-registry.yaml").read_text(encoding="utf-8"))
     n = 0
@@ -153,12 +165,7 @@ def rebuild_audit(by_fp) -> int:
         prev = hashlib.sha256(events[0]["run_id"].encode()).hexdigest()
         for ev in events:
             ev["prev_hash"] = "sha256:" + prev
-            if ev["event_type"] in SIGNED_EVENTS and ev["actor"]["kind"] == "human":
-                key = current_key(registry, ev["actor"]["id"], timeutil.parse_dt(ev["ts"]), by_fp)
-                ev["signature"] = None
-                ev["signature"] = crypto.sign_event(ev, ev["actor"]["id"], key)
-            else:
-                ev["signature"] = None
+            sign_event_in_place(ev, registry, by_fp)
             line = json.dumps(ev, ensure_ascii=False, separators=(",", ":"))
             prev = hashlib.sha256(line.encode("utf-8")).hexdigest()
         n += write(p, dump_jsonl(events))

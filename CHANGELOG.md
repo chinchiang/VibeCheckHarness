@@ -2,6 +2,79 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
+## v0.4（2026-10-24）
+
+依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一到第三優先項目：修正裁決規則的邊界與 validator 的繞過；把跨境聲明移到 G0a、補上事故應變、釘選設定檔、修正信任錨與 Scope Proxy；在 MVP-1 前加入核心假設的前導實驗、降低人工關卡負擔、修正對照表與範例。其餘審查項目與理由見該紀錄 §5。
+
+### 裁決規則（語意改變，`rule_version` 改為 `05-v0.4`）
+- **R0** 只在叢集沒有任何其他證據時成立：除了成員證據全部 `NOT_FOUND`，還要沒有已解析的 SARIF、沒有 `E_proof`／`E_fail_u`。（A1）
+- **R10**：G2 駁回後出現 `E_proof` → `CONFIRMED_EXECUTABLE`（R10、R1），加註 `post_g2_conflict` 並列入 B6 人工複核；對投票、SARIF 與 `E_fail_u` 仍是最終決定。（A4）
+- **R11** 只有在合格 PASS 有正對照（`oracle_can_fail` PASS）時才把 `CONFIRMED_CORROBORATED`／`LIKELY` 降為 `DISPUTED`；否則只加註 `test_not_reproduced`。（A3）
+- 只有 `NOT_CHECKED` 證據的發現項不計入獨立家族。（A2）
+- 補上 quorum 與 `single_best_resampled` 下的裁決定義。（A8、A9）
+
+### validator
+- `E-SARIF-REF`：`payload.sarif_results[]` 新增 `file`、`symbol`、`cwe_bucket`，必須等於叢集鍵；黑箱叢集不收 SARIF。（D1）
+- 自架（Z4）模型改由 `toolkit.yaml` 新增的 `z4_model_hosts` 確切主機名稱判定，不再看 `z4-` 前綴。（D2）
+- 新增 `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES`：CMD-1 計畫涵蓋 run 的每個切片，每個切片的 reviewer 至少 min(2, 合格家族數) 個家族。（D3）
+- `E-FINDING-EVIDENCE`：程式片段至少 12 個非空白字元並含識別字，檔案必須在發現項的切片中。（D4）
+- `graphql_operation: query／introspection` 只在 ROE 新增的 `targets[].graphql_paths` 宣告的路徑、GET／POST 上算讀取；其他帶這個標籤的請求一律 S3。（B1）
+- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 576 個。
+
+### 第二優先：資料出境、法務與信任錨
+- **跨境聲明移到 G0a**：委任設定新增 `data_transfer`（來源法域、聲明者、逐家族的區域與傳輸機制）；能收 C 級資料的雲端家族 `providers[].region` 不得為 null（`E-ENG-TRANSFER`）。委任設定宣告跨境時，ROE 的 `cross_border` 不能寫不適用（`E-ROE-TRANSFER`）；範例 ROE 改為 true。（C1）
+- **ROE 事故應變**：新增 `incident_response`（聯絡人、1–72 小時內通報、四種事故、處理程序與責任條款，`E-ROE-INCIDENT`）。（C5）
+- **W0 個資掃描**：secrets 之後以確定性偵測器掃描 repo，命中的值遮罩並記入遮罩表（`kind: pii`）。（C3）
+- **設定檔釘選**：委任設定新增 `config_pins`，釘選 `models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 的內容 hash（`E-ENG-CONFIG-PIN`）。（E1）
+- **關卡時間以 Audit Writer 收件時間為準**：GateRecord 的自填 `timestamp` 與 `gate_decision` 事件 `ts` 相差不超過 5 分鐘（`E-AUDIT-GATE`）；金鑰效期、ROE 有效期、逾時與 G5 時間窗都以收件時間判定。（E4）
+- **執行期狀態**（03 §5.8、08 §6–§7）：B4 job 的權威帳本在 Z3、不受 checkpoint 回溯影響；每個 run 一把 advisory lock；kill switch 走圖外通道；有副作用的節點用同步 checkpoint；LLM 快取鍵加入 `engagement_id`、資料等級與取樣序號。（E3、E7、E9）
+- **HMAC 遮罩金鑰**改為每個 run 一把、只存在 W0 job 內的臨時金鑰，解決「金鑰在 Z1、遮罩在 Z2」的矛盾。（E6）
+- **Z3 工具容器需求表**（03 §2）：每個 job 一個 gVisor／microVM、只能連 Scope Proxy、沒有 DNS、只解密本角色的 storageState、沒有 Relay 憑證。（E2）
+- **Scope Proxy**：參考實作 `safety.ip_problem`（擋 NAT64、IPv4-mapped、6to4、Teredo、ULA、`fec0::/10`、multicast 與一切非公開位址）；封鎖 h2c、QUIC 與 CONNECT 後的非 TLS 流量；路徑的 `\`／`%5C` 視為 `/`；共享平台網域加入 `lovable.app`、`replit.app`、`workers.dev`、`github.io` 等 12 個，實作版以 Public Suffix List 為來源。（B8、B9）
+- 新增 `tests/test_v04_legal_trust.py`、`tests/test_v04_scope_proxy.py`；`test_validator.py` 的 G5 時間窗測試改以收件時間為準。
+
+### 第三優先：路線圖、人工關卡負擔、對照表與範例
+- **前導實驗**（07 §1.2、MVP0-X6）：MVP-1 之前，在 ≥10 個不是工具包團隊撰寫的應用上，比較多家族與單一最佳模型取樣 3 次；依預先登記的規則決定 MVP-1 起的 `w2_review.strategy`，並報告只有 LLM 找到的缺陷比例。正式檢定仍是 05 §5.6；M2 的預設值必須照它的結果切換（M2-X13）。
+- **法務閘門綁到 MVP-0**（MVP0-X7）：MVP-0 用到的雲端模型條款與 ZDR 必須先結案。
+- **Lite 使用者 pilot**（07 §1.3、MVP0-X8）：≥3 位外部單人開發者；第一份報告中位數 ≤ 1 個工作天、人工關卡總耗時中位數 ≤ 2 小時；未達門檻時的降階路徑（白箱快速模式、精簡問卷、託管控制面）。
+- **路由改用 rubric 嚴重度**：G2 佇列、W4 輸入、B2 高風險條件 4 不再採信 reviewer 自報的嚴重度（08 §11.17）。
+- **人工關卡負擔**：G2 每個 run 預設最多 30 項、G3 50 項（高風險與 critical／high 不受限），依嚴重度排序；G2 逾時比例超過 50% 時告警；低嚴重度、單一來源的 `UNCORROBORATED` 叢集只列報告、不轉成種子威脅（G3 可拉回）。設定欄位尚未進 schema（09 BL-26）。
+- **ASI09 抽查**納入沒有人看過的項目：R0／R4 的自動駁回、只列報告的叢集、超出 G2 上限與 G2 逾時的項目；Lite 改為自行延後抽查。
+- **對照表**：`zap-api-scan.py` 用於 `zap:baseline` 時必須帶 `-S`（依 E:blackbox-07，否則是主動掃描）；open redirect 不再誤對 `WSTG-v42-CLNT-04`；CSRF 的 SameSite 驗證改為 `MANUAL`；認證控制列寫清楚 oracle 的範圍；ASI04／05／08 列改以注入內容觸發、以工具端效果判定。
+- **範例**：範例 B 更正為工具端授權（confused deputy），不是第三方內容的間接注入；oracle 查詢新增 `returns: row_hash`（偵測 PUT 就地修改）與 `Q-unconfirmed-refunds`；測試結果新增 `trials.n_effective`（`E-RESULT-TRIALS`）；K-015 改由 W4 本地 RLS 測試確認。
+- 新增 `tests/test_v04_examples.py`。
+
+### 寫入範圍的其餘項目
+- **路徑沒有變數段的寫入**（BL-24 延伸）：`request_allowlist[].object_refs` 指出請求在 body、query、GraphQL variables、Server Action 參數或 PostgREST 過濾條件中碰的種子；有效時就在寫入範圍內，Next.js Server Actions 與 PostgREST 不再一律 S3。
+- **Scope Proxy 的內容綁定**：寫入請求 body 與 query 中的 ID 類欄位必須是本請求綁定的種子或建立物件（參考實作 `safety.body_id_problem`）；移除 method override 標頭、擋下 `_method`。
+- **會改變狀態的 GET**：seed manifest 新增 `state_changing_reads`，算寫入；W0 inventory 新增 `endpoints[].writes`，會寫入的 GET 都必須列入（`E-SEED-SIDE-EFFECT`）。B1 爬行的跳過關鍵字擴充。
+- **唯讀的 POST**（BL-25）：seed manifest 新增 `read_only_endpoints`，算讀取。
+- **看不到的副作用**：`create_only_endpoints[]` 新增 `side_effects`（`none`／`external`／`llm_tools`）與 `contained`；沒有聲明 contained 就至少 S2。範例的聊天端點宣告 `llm_tools`、`contained: true`。
+- **seed manifest 由基礎設施擁有者簽署**：ROE `db_access.seed_manifest_sha256`（`E-ROE-SEED-MANIFEST`）。
+- **種子重置**改為只處理本 run 命名空間的種子腳本，`teardown: delete_namespace`；整庫快照還原只用於 S2。
+- **Schemathesis** 的 S1 模式只跑 GET／HEAD 操作。
+- 新增 `tests/test_v04_write_scope.py`。
+
+### 第五輪：審查紀錄 §5 的剩餘項目
+- **支持／反駁權重分開**：`calibration.yaml` 的每列改為 `support` 與 `refute` 兩側，各自 n、correct、a、w、near_zero；SUPPORT 票用 `support.w`，REFUTE 票用 `refute.w`。
+- **`provisional` 只標在受投票影響的裁決**：R0、R1、R9、R10 決定的裁決與黑箱叢集一律 false；範例 K-202 改為 false。
+- **合格票的引用必須與叢集相關**：至少一項落在叢集的 canonical 檔案或等於成員的 inventory 事實，否則視為棄權。
+- **旗標與排序**：`anonymized`／`order_randomized` 由 run 的 verifier prompt 範本推導（`run.prompt_templates[].anonymizes_candidates`／`randomizes_order`）；G4「最新紀錄」以 Audit Writer 收件時間排序；`initiator_claim`、`run_resume` 必須是 `human`，`run_resume` 要 `test_lead`。
+- **`E-GATE-EXPIRED-EARLY`**：無簽章的 EXPIRED 不能早於 `opened_at`＋逾時。**`E-AUDIT-IDEMPOTENCY`**：`idempotency_key` 必填、格式 `run_id:node:<鍵>`、同 run 不重複。
+- **稽核錨點由 Z3 副簽**：`audit_anchor` 的 `payload.z3_countersignature`（`E-AUDIT-ANCHOR-SIG`）。
+- **`E-SIG-BACKDATED`**：以非 compromised 原因撤銷的金鑰，文件第一次被驗章必須早於撤銷時間。
+- **CDN 邊緣 IP 範圍**（BL-15）：ROE `targets[].edge_ip_ranges`（`E-ROE-EDGE-RANGE`）、`safety.ip_in_ranges`。
+- **Public Suffix List 比對**：`tools/check_platform_suffixes.py`（選用，不在 CI 執行）；`safety.PSL_EXCEPTIONS`。
+- **G2／G3 佇列欄位**（BL-26）：`toolkit.yaml` `gate_queues`；report-manifest `over_cap_items`、`report_only_clusters`（`E-REPORT-QUEUE`）。
+- **框架與平台的威脅列**（04 §4.3 F 表）：Next.js 只靠 middleware 授權、Server Actions、Supabase RLS 寫入與 `WITH CHECK`、MCP 工具描述投毒、受測應用的 CI／CD 與 IaC。inventory `features` 新增 `ci_workflows`、`iac`；新面向 `cicd_iac`（共 13 個）；G1 `llm_tools[]` 新增 `mcp_server`、`description_sha256`；W4 本地 RLS 測試加入寫入。
+- **範例 B′**（04 §6.3）：第三方文件的間接注入；seed manifest 新增 `u2_doc`。
+- **BL-27**：W4 測試案例的 schema（K-015 的 W4 確認範例等它）。
+- 新增 `tests/test_v04_round5_adjudication.py`、`tests/test_v04_round5_trust.py`、`tests/test_v04_round5_examples.py`。
+
+### 文件
+- README 新增系統架構圖（`docs/architecture.svg`：四個信任區、元件、資料流與人／LLM／程式碼的分界）與 v0.4 的術語。
+- docs/00、02、03、04、05、06、07、08、09 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
+
 ## v0.3（2026-09-26）
 
 依 [2026-09-26 深度審查](docs/evidence/review-2026-09-26.md) 修正 v0.2。高、中優先項目本輪處理；低優先與延後項目見 [docs/09-backlog.md](docs/09-backlog.md)。

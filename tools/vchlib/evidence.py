@@ -11,6 +11,11 @@ line endings unified, every line stripped at both ends, runs of spaces / tabs co
 space, blank lines around the snippet ignored. The snippet is searched in the window
 [line_start - 3, line_end + 3]: found at the claimed lines -> MATCHED; found at shifted lines ->
 MATCHED_SHIFTED and the harness rewrites line_start / line_end; otherwise NOT_FOUND.
+
+v0.4 (D4): a snippet must carry content of its own (snippet_content_problem): at least
+MIN_SNIPPET_CHARS non-whitespace characters and one identifier-like token. A lone "}" or ");"
+occurs in almost every window, so v0.3 accepted it as grounded evidence. Too-short snippets are
+NOT_FOUND in match_snippet and an E-FINDING-EVIDENCE shape problem in the validator.
 """
 from __future__ import annotations
 
@@ -18,7 +23,9 @@ import re
 
 SHIFT_WINDOW = 3
 ABSENT = "<absent>"
+MIN_SNIPPET_CHARS = 12
 _WS = re.compile(r"[ \t]+")
+_IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
 _MISSING = object()
 
 
@@ -37,11 +44,23 @@ def _snippet_lines(snippet: str) -> list[str]:
     return lines
 
 
+def snippet_content_problem(snippet) -> str | None:
+    """None when the snippet has enough content to ground a claim (v0.4, D4), else the reason."""
+    text = "".join(_snippet_lines(snippet if isinstance(snippet, str) else ""))
+    chars = len(re.sub(r"\s", "", text))
+    if chars < MIN_SNIPPET_CHARS:
+        return f"snippet has {chars} non-whitespace characters (minimum {MIN_SNIPPET_CHARS})"
+    if not _IDENT.search(text):
+        return "snippet has no identifier of 3 or more characters"
+    return None
+
+
 def match_snippet(slice_text: str, ev: dict) -> tuple[str, int | None, int | None]:
     """Tolerant code match of a code_snippet evidence item against the redacted file text."""
     ls, le = ev.get("line_start"), ev.get("line_end")
     snip = _snippet_lines(ev.get("snippet") or "")
-    if not snip or not isinstance(ls, int) or not isinstance(le, int) or le < ls:
+    if (not snip or not isinstance(ls, int) or not isinstance(le, int) or le < ls
+            or snippet_content_problem(ev.get("snippet")) is not None):
         return "NOT_FOUND", ls, le
     lines = normalize_lines(slice_text)
     n = len(snip)
@@ -123,6 +142,10 @@ def shape_problems(ev: dict) -> list[str]:
     ls, le = ev.get("line_start"), ev.get("line_end")
     if isinstance(ls, int) and isinstance(le, int) and le < ls:
         out.append("line_end before line_start")
+    if kind == "code_snippet" and isinstance(ev.get("snippet"), str):
+        why = snippet_content_problem(ev["snippet"])
+        if why:
+            out.append(why)
     return out
 
 
@@ -138,4 +161,4 @@ def finding_status(evidence: list[dict]) -> str:
 
 
 __all__ = ["match_snippet", "match_fact", "match_config", "resolve_pointer", "resolves", "normalize_lines", "shape_problems",
-           "finding_status", "SHIFT_WINDOW", "ABSENT"]
+           "finding_status", "snippet_content_problem", "SHIFT_WINDOW", "ABSENT", "MIN_SNIPPET_CHARS"]
