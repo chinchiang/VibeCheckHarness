@@ -19,7 +19,7 @@
 - 新增 `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES`：CMD-1 計畫涵蓋 run 的每個切片，每個切片的 reviewer 至少 min(2, 合格家族數) 個家族。（D3）
 - `E-FINDING-EVIDENCE`：程式片段至少 12 個非空白字元並含識別字，檔案必須在發現項的切片中。（D4）
 - `graphql_operation: query／introspection` 只在 ROE 新增的 `targets[].graphql_paths` 宣告的路徑、GET／POST 上算讀取；其他帶這個標籤的請求一律 S3。（B1）
-- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 559 個。
+- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 576 個。
 
 ### 第二優先：資料出境、法務與信任錨
 - **跨境聲明移到 G0a**：委任設定新增 `data_transfer`（來源法域、聲明者、逐家族的區域與傳輸機制）；能收 C 級資料的雲端家族 `providers[].region` 不得為 null（`E-ENG-TRANSFER`）。委任設定宣告跨境時，ROE 的 `cross_border` 不能寫不適用（`E-ROE-TRANSFER`）；範例 ROE 改為 true。（C1）
@@ -43,6 +43,17 @@
 - **對照表**：`zap-api-scan.py` 用於 `zap:baseline` 時必須帶 `-S`（依 E:blackbox-07，否則是主動掃描）；open redirect 不再誤對 `WSTG-v42-CLNT-04`；CSRF 的 SameSite 驗證改為 `MANUAL`；認證控制列寫清楚 oracle 的範圍；ASI04／05／08 列改以注入內容觸發、以工具端效果判定。
 - **範例**：範例 B 更正為工具端授權（confused deputy），不是第三方內容的間接注入；oracle 查詢新增 `returns: row_hash`（偵測 PUT 就地修改）與 `Q-unconfirmed-refunds`；測試結果新增 `trials.n_effective`（`E-RESULT-TRIALS`）；K-015 改由 W4 本地 RLS 測試確認。
 - 新增 `tests/test_v04_examples.py`。
+
+### 寫入範圍的其餘項目
+- **路徑沒有變數段的寫入**（BL-24 延伸）：`request_allowlist[].object_refs` 指出請求在 body、query、GraphQL variables、Server Action 參數或 PostgREST 過濾條件中碰的種子；有效時就在寫入範圍內，Next.js Server Actions 與 PostgREST 不再一律 S3。
+- **Scope Proxy 的內容綁定**：寫入請求 body 與 query 中的 ID 類欄位必須是本請求綁定的種子或建立物件（參考實作 `safety.body_id_problem`）；移除 method override 標頭、擋下 `_method`。
+- **會改變狀態的 GET**：seed manifest 新增 `state_changing_reads`，算寫入；W0 inventory 新增 `endpoints[].writes`，會寫入的 GET 都必須列入（`E-SEED-SIDE-EFFECT`）。B1 爬行的跳過關鍵字擴充。
+- **唯讀的 POST**（BL-25）：seed manifest 新增 `read_only_endpoints`，算讀取。
+- **看不到的副作用**：`create_only_endpoints[]` 新增 `side_effects`（`none`／`external`／`llm_tools`）與 `contained`；沒有聲明 contained 就至少 S2。範例的聊天端點宣告 `llm_tools`、`contained: true`。
+- **seed manifest 由基礎設施擁有者簽署**：ROE `db_access.seed_manifest_sha256`（`E-ROE-SEED-MANIFEST`）。
+- **種子重置**改為只處理本 run 命名空間的種子腳本，`teardown: delete_namespace`；整庫快照還原只用於 S2。
+- **Schemathesis** 的 S1 模式只跑 GET／HEAD 操作。
+- 新增 `tests/test_v04_write_scope.py`。
 
 ### 文件
 - docs/00、02、03、04、05、06、07、08、09 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。

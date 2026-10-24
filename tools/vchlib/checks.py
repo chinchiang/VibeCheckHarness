@@ -848,6 +848,7 @@ def g_roe(R: Report, c: Ctx):
         missing = [k for k in need if bi.get(k) is None]
         R.check(not extra and not missing, "E-ROE-TARGETS", w,
                 f"{t.get('id')}: build_identity method {bi.get('method')!r} needs {list(need)} and null {extra or 'others'}")
+    seed_manifest_rules(R, c, targets)
     for ce in c.manifest.get("create_only_endpoints") or []:
         R.check(ce.get("target_id") in targets and (targets.get(ce.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST",
                 "seed-manifest.yaml", f"create_only_endpoints: {ce.get('target_id')} is not an http target of the ROE")
@@ -939,6 +940,32 @@ def legal(R: Report, c: Ctx):
     if gated:
         R.check((lr.get("scope") or {}).get("component_licenses") is True, "E-L6", w,
                 f"enabled tools {gated} are 法務閘門 in licenses.yaml: legal_review.scope.component_licenses must be true")
+
+
+def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
+    """v0.4 (write scope):
+    - E-ROE-SEED-MANIFEST: ROE db_access.seed_manifest_sha256 is the content hash of the loaded seed manifest, so
+      the infrastructure owner signs create_only_endpoints / state_changing_reads / read_only_endpoints;
+    - E-SEED-SIDE-EFFECT: every W0 inventory GET / HEAD endpoint with writes true is declared in
+      state_changing_reads (same method and path template, any target); declared endpoints are http targets."""
+    w = "roe.yaml"
+    db = c.roe.get("db_access") if isinstance(c.roe, dict) else None
+    if isinstance(db, dict) and c.manifest:
+        R.check(db.get("seed_manifest_sha256") == content_hash(c.manifest), "E-ROE-SEED-MANIFEST", w,
+                f"db_access.seed_manifest_sha256 {db.get('seed_manifest_sha256')} != content hash of the seed manifest "
+                f"{content_hash(c.manifest)}: the infrastructure owner must sign the manifest the run uses")
+    declared = {(e.get("method"), e.get("path_template")) for e in c.manifest.get("state_changing_reads") or [] if isinstance(e, dict)}
+    for key in ("state_changing_reads", "read_only_endpoints"):
+        for e in c.manifest.get(key) or []:
+            if isinstance(e, dict):
+                R.check((targets.get(e.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST", "seed-manifest.yaml",
+                        f"{key} target {e.get('target_id')!r} must be an http ROE target")
+    for d in c.docs("inventory"):
+        for ep in d.data.get("endpoints") or []:
+            if isinstance(ep, dict) and ep.get("method") in ("GET", "HEAD") and ep.get("writes") is True:
+                R.check((ep.get("method"), ep.get("path")) in declared, "E-SEED-SIDE-EFFECT", d.path,
+                        f"{ep.get('method')} {ep.get('path')} writes (W0) but is not in the seed manifest's state_changing_reads: "
+                        "requests to it would be classified as reads (S0)")
 
 
 def platform_of(host: str | None) -> str | None:

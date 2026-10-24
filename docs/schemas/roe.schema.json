@@ -54,8 +54,9 @@
   "oracle_readonly_credential_ref":{"type":"string"},
   "oracle_readonly_attested":{"const":true,"description":"基礎設施擁有者聲明 oracle 憑證只有 oracle_tables 的 SELECT 權限"},
   "oracle_tables":{"type":"array","items":{"type":"string"},"minItems":1},
-  "seed_manifest_ref":{"type":"string"}},
-  "required":["target_id","endpoint","snapshot_method","snapshot_credential_ref","oracle_readonly_credential_ref","oracle_readonly_attested","oracle_tables","seed_manifest_ref"]},{"type":"null"}],"description":"docs/03 §7.6；由基礎設施擁有者在 ROE 中簽署"},
+  "seed_manifest_ref":{"type":"string"},
+  "seed_manifest_sha256":{"$ref":"common.schema.json#/$defs/sha256","description":"v0.4：seed manifest 內容的 hash（sha256(JCS)），由基礎設施擁有者在 ROE 上簽署。create_only_endpoints、state_changing_reads、read_only_endpoints 直接決定一個請求是 S1 還是 S3，所以必須由基礎設施擁有者簽署，而不只是在 G4 綁 hash（E-ROE-SEED-MANIFEST）"}},
+  "required":["target_id","endpoint","snapshot_method","snapshot_credential_ref","oracle_readonly_credential_ref","oracle_readonly_attested","oracle_tables","seed_manifest_ref","seed_manifest_sha256"]},{"type":"null"}],"description":"docs/03 §7.6；由基礎設施擁有者在 ROE 中簽署"},
 "legal_review":{"type":"object","additionalProperties":false,"description":"docs/06 §2.1.1；attested_by 的簽章必須出現在本 ROE 的 signatures 中（L-3）",
   "properties":{
   "attested_by":{"$ref":"common.schema.json#/$defs/person_id"},

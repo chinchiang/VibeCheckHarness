@@ -26,6 +26,17 @@ counts as a read only on a path the signed ROE declares as GraphQL for that targ
 (targets[].graphql_paths) and only over GET / POST; any other request that carries a
 graphql_operation is S3. v0.3 trusted the label on every path, so `POST /api/admin/purge` marked
 `query` skipped the seed-binding check.
+
+v0.4 (write scope, the rest): the seed manifest (signed by the infrastructure owner through ROE
+db_access.seed_manifest_sha256) also declares
+  - state_changing_reads: GET / HEAD endpoints that change state; a request to one is a mutation;
+  - read_only_endpoints: POST endpoints that do not change state (BL-25); a request to one is a read;
+  - create_only_endpoints[].side_effects / .contained: an endpoint whose effects are invisible at the
+    request layer (external, llm_tools) and not declared contained raises the level to >= S2.
+A request may name the objects it addresses outside the path in `object_refs` ({seed:key} or
+{created:step_id}). A path without variable segments (Server Action, GraphQL mutation, PostgREST
+filter) is then in scope when every ref is valid for this path (BL-24). The Scope Proxy binds the
+body / query object IDs to the resolved refs (body_id_problem) and strips method-override headers.
 """
 from __future__ import annotations
 
@@ -177,15 +188,82 @@ def graphql_declared(r: dict, gql: dict[str, set[str]] | None) -> bool:
     return r.get("method") in GRAPHQL_METHODS and r.get("path") in (gql or {}).get(r.get("target_id"), set())
 
 
-def is_mutation(r: dict, gql: dict[str, set[str]] | None = None) -> bool:
+def _endpoint_in(manifest, key: str, r: dict) -> dict | None:
+    """The seed-manifest `key` entry (same target, same method, same path shape) for request r, or None."""
+    segs = segments(r.get("path", ""))
+    for e in (manifest or {}).get(key) or [] if isinstance(manifest, dict) else []:
+        if isinstance(e, dict) and e.get("target_id") == r.get("target_id") and e.get("method") == r.get("method") \
+                and _shape_matches(segs, e.get("path_template", "")):
+            return e
+    return None
+
+
+def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None) -> bool:
     """POST / PUT / PATCH / DELETE and GraphQL mutations. A GraphQL query / introspection is a read only on
-    a ROE-declared GraphQL path (v0.4); elsewhere the label is ignored and the HTTP method decides."""
+    a ROE-declared GraphQL path (v0.4); elsewhere the label is ignored and the HTTP method decides.
+    v0.4: a GET / HEAD in the manifest's state_changing_reads is a mutation; a POST in read_only_endpoints
+    is not."""
     op = r.get("graphql_operation")
     if op == "mutation":
         return True
     if op in READ_ONLY_GRAPHQL and graphql_declared(r, gql):
         return False
+    if _endpoint_in(manifest, "state_changing_reads", r) is not None:
+        return True
+    if r.get("method") == "POST" and _endpoint_in(manifest, "read_only_endpoints", r) is not None:
+        return False
     return r.get("method") in STATE_CHANGING
+
+
+SEED_REF_RE = re.compile(r"^\{seed:([a-z0-9_]+)\}$")
+CREATED_REF_RE = re.compile(r"^\{created:([a-z][a-z0-9_]*)\}$")
+
+
+def object_ref_problems(r: dict, manifest, creates: dict[str, dict]) -> list[str]:
+    """v0.4: every object_refs entry is a manifest seed declared for this request's path, or an earlier create
+    request of the same allow-list on the same target."""
+    out = []
+    seeds = _manifest_seeds(manifest)
+    segs = segments(r.get("path", ""))
+    for ref in r.get("object_refs") or []:
+        if (m := SEED_REF_RE.match(ref)) is not None:
+            spec = seeds.get(m.group(1))
+            if not isinstance(spec, dict):
+                out.append(f"object_refs {ref} is not a seed-manifest key")
+            elif not any(_shape_matches(segs, t) for t in spec.get("path_templates") or [] if isinstance(t, str)):
+                out.append(f"object_refs {ref} is not declared for {r.get('path')} (seed path_templates {spec.get('path_templates')})")
+        elif (m := CREATED_REF_RE.match(ref)) is not None:
+            src = creates.get(m.group(1))
+            if src is None or src.get("target_id") != r.get("target_id"):
+                out.append(f"object_refs {ref} is not an earlier create request of this allow-list on the same target")
+        else:
+            out.append(f"object_refs {ref!r} is neither {{seed:key}} nor {{created:step_id}}")
+    return out
+
+
+ID_KEY_RE = re.compile(r"^(id|.*_id|.*Id|.*ID)$")
+
+
+def body_id_problem(payload, allowed: set[str]) -> str | None:
+    """v0.4 reference rule for the Scope Proxy (docs/08 §11.7): every scalar under an id-like key
+    (id, *_id, *Id, *ID) anywhere in a JSON body or query mapping must be one of the resolved seed /
+    created values `allowed`. None = in scope."""
+    stack = [payload]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            for k, v in cur.items():
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+                elif isinstance(k, str) and ID_KEY_RE.match(k) and v is not None and str(v) not in allowed:
+                    return f"{k}={v!r} is not a seed or created object of this request"
+        elif isinstance(cur, list):
+            stack.extend(cur)
+    return None
+
+
+METHOD_OVERRIDE_HEADERS = frozenset({"x-http-method-override", "x-http-method", "x-method-override"})
+METHOD_OVERRIDE_PARAMS = frozenset({"_method"})
 
 
 def _create_endpoint(manifest, r: dict) -> dict | None:
@@ -217,17 +295,20 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
         prob = seed_path_problem(path, manifest)
         if prob:
             out.append(f"{where}: {prob}")
+        refs = object_ref_problems(r, manifest, creates)
+        out.extend(f"{where}: {p}" for p in refs)
         if r.get("graphql_operation") is not None and not graphql_declared(r, gql):
             out.append(f"{where}: graphql_operation {r.get('graphql_operation')!r} on a path the ROE does not declare as GraphQL "
                        f"for {r.get('target_id')} (targets[].graphql_paths), or not over GET/POST")
-        if is_mutation(r, gql):
+        if is_mutation(r, gql, manifest):
             var = [s for s in segments(path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
             create = _create_endpoint(manifest, r)
             if unbound:
                 out.append(f"{where}: mutation addresses {unbound} that are neither {{seed:key}} nor {{created:step_id}}")
-            elif create is None and not var:
-                out.append(f"{where}: mutation of a non-seed object (not a seed-manifest create_only_endpoints entry)")
+            elif create is None and not var and not (r.get("object_refs") and not refs):
+                out.append(f"{where}: mutation of a non-seed object (not a seed-manifest create_only_endpoints entry, "
+                           "and no valid object_refs)")
             if create is not None and r.get("step_id"):
                 creates[r["step_id"]] = r
     return out
@@ -449,6 +530,15 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
     if any(r["method"] in STATE_CHANGING for r in reqs):
         level = hi(level, "S1")
         trace.append("state-changing method -> >=S1")
+    if any(_endpoint_in(manifest, "state_changing_reads", r) is not None for r in reqs):
+        level = hi(level, "S1")
+        trace.append("state-changing GET/HEAD (seed manifest state_changing_reads) -> >=S1")
+    for r in reqs:
+        ce = _create_endpoint(manifest, r)
+        if ce is not None and ce.get("side_effects", "none") != "none" and ce.get("contained") is not True:
+            level = hi(level, "S2")
+            trace.append(f"{r['method']} {r['path']}: create-only endpoint with uncontained {ce.get('side_effects')} side effects -> >=S2")
+            break
     if tc["rate_limit"]["max_requests"] > roe["rate_limits"]["s1_request_cap"]:
         level = hi(level, "S2")
         trace.append("max_requests > s1_request_cap -> >=S2")

@@ -166,6 +166,7 @@ db_access:                       # docs/03 §7.6；由 infrastructure_owner（da
   oracle_readonly_attested: true
   oracle_tables: [invoices, agent_tool_calls, orders]
   seed_manifest_ref: "docs/examples/seed-manifest.yaml"
+  seed_manifest_sha256: "sha256:e9f789189c5f46828b1f0dae3ac7c45dfe12e608e1d99e700fcf67e2a7fb4585"   # v0.4：seed manifest 內容 hash，由 dave（基礎設施擁有者）隨 ROE 簽署（E-ROE-SEED-MANIFEST）
 
 legal_review:                    # docs/06 §2.1.1；grace 必須也簽這份 ROE（L-3），且不能是 test_lead（L-5）
   attested_by: grace
@@ -196,16 +197,16 @@ signatures:                      # 每位 signatory 與 legal_review.attested_by
   - signer: alice
     key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    value: "zsEJUEqmEjjAc0ETi726C7H6E13YUWCM8BQ9O+7zYXcvKZpXgr+r5/iqB6quzYWo7IOuLbWxav/wozmlxO2HDA=="
+    value: "ygVL+82tj77SDybbJMgxdOt1NjjDLjWJGnz5rv3GhMKBL2njZvm9X6xrFxqrKouRlkJLfbCWd1t8E3Cc5uYVAw=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "fo2WRqZqJAkJDC8qjH8sbb5bjObSDSTprsHXdE9ym71rTfSPARuG3mgaMrcE0xf1qL1IZKx/7LihmT55SYxiCw=="
+    value: "/fY0fvZtPwgnDJ7z24XeU2OpJ8aEQp4+qNGJqWcZue1vQ/LuPC8X3V3spdwcWdktwcbQkqQGOB8oqzLGozPkCg=="
   - signer: dave
     key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    value: "+8VaMRcji/iIIC48hvunRGECh0gi8vF7BZG5CsACbauwEKgACwbfgOiskvvX+PzWLHasSxXq//I1qzulgVXaBQ=="
+    value: "FyuQi4XHKjuzPPeuOj6NrkVwKtPRnQ5G2zwd8T18+9sRT2GkUvj0Xs2fa+8XA2EMBWTTxowrZZ7ROsNMkPFKDA=="
   - signer: grace
     key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
     alg: ed25519
-    value: "UHlIioMoT4Y1OJmQQK7eSQFmYN626vkAwIrkg9U1JBMQbtr+iMf7vVUEJMIBaIQ9TZ6Il6WRGusO/dyVAm95BA=="
+    value: "Aao7RHn4X55Vl/04NMtjz6i4xpxkMzrLfdo9kU/8mBgoteIW9lfG29DeKEHuPUU1hhSE61jB9u3Wjljd7CTkCw=="

@@ -43,6 +43,6 @@
 | BL-18 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 誤報回饋 | 回饋紀錄的 schema | 回饋先以人工整理進校準語料 | 待辦 |
 | BL-19 | [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣) 排程工作 | inventory `endpoints[].kind` 沒有排程工作（cron／job）的值 | 排程工作記為 `blind_spots`（`other`） | 待辦 |
 | BL-20 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 覆蓋指標 | report-manifest `metrics` 只有結果數、INVALID 數與對照通過率；沒有存取矩陣格與 entry point 的覆蓋率 | 覆蓋率先寫在報告正文 | 待辦 |
-| BL-24 | [04 §5](04-threat-to-testcase.md#5-安全等級計算規則) GraphQL mutation | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | 送到固定 `/graphql` 端點的 mutation 一律 S3，除非該端點列為 create-only（保守，會漏測） | 待辦 |
-| BL-25 | [04 §4.3](04-threat-to-testcase.md#43-binding-表) BaaS RPC | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | 非 GraphQL 的 POST 一律視為寫入：未列為 create-only 就是 S3（保守，會漏測） | 待辦 |
+| BL-24 | [04 §5](04-threat-to-testcase.md#5-安全等級計算規則) GraphQL mutation | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | 送到固定 `/graphql` 端點的 mutation 一律 S3，除非該端點列為 create-only（保守，會漏測） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（`object_refs`＋Scope Proxy 的 body ID 綁定） |
+| BL-25 | [04 §4.3](04-threat-to-testcase.md#43-binding-表) BaaS RPC | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | 非 GraphQL 的 POST 一律視為寫入：未列為 create-only 就是 S3（保守，會漏測） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（seed manifest `read_only_endpoints`） |
 | BL-26 | [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 人工關卡負擔（v0.4） | `toolkit.yaml` 沒有 G2／G3 佇列上限與逾時比例告警門檻的欄位；run／report-manifest 沒有「超出上限」「只列報告」清單的欄位 | 預設值寫在程式碼常數（G2 30 項、G3 50 項、逾時比例 50%），並記入 run manifest；清單先寫在報告正文 | 待辦 |

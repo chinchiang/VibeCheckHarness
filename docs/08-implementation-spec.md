@@ -1511,6 +1511,8 @@ class SeedService(Protocol):
 - 正規化後符合任何排除樣板 → 擋下（fail-closed）。例如排除 `/admin/billing/*` 時，`/Admin/billing/x`、`/admin;jsessionid=1/billing/x`、`/admin/%62illing/x` 都會被擋下。
 - 解碼一次之後仍含「`%`＋兩個十六進位字元」（雙重編碼）→ 擋下 [H]。
 - **反斜線**（v0.4）：解碼後的 `\` 一律視為 `/`（部分伺服器把 `\` 當成路徑分隔，例如 IIS 與部分 Node 路由器）；`/admin%5Cbilling/x` 正規化為 `/admin/billing/x`，會被 `/admin/billing/*` 擋下。
+- **method override**（v0.4）[H]：請求中的 `X-HTTP-Method-Override`、`X-HTTP-Method`、`X-Method-Override` 標頭一律移除並記錄，query 或表單 body 中的 `_method` 參數 → 擋下（`safety.METHOD_OVERRIDE_HEADERS`／`METHOD_OVERRIDE_PARAMS`）。否則一個核准為 GET 或 POST 的請求可以在伺服器端變成 DELETE。
+- **body 與 query 的物件 ID 綁定**（v0.4）[H]：白名單只約束目標、方法與路徑；寫入請求的 body 或 query 若含 ID 類欄位（鍵名為 `id`、`*_id`、`*Id`、`*ID`，任何巢狀層級），值必須是本請求路徑上的 `{seed:}`／`{created:}` 或 `object_refs` 解析後的值之一，否則擋下（參考實作 `safety.body_id_problem`，parity 測試對齊）。這也涵蓋 Next.js Server Action 的參數、GraphQL variables 與 PostgREST 的 `?id=eq.<值>` 過濾條件（BL-24）。限制：不是 ID 類鍵名的欄位（例如 `invoice` 物件裡的 `ref`）無法用鍵名辨識，靠 G4 審查產物 [H]。
 - **協定**（v0.4）[H]：請求帶 `Upgrade: h2c` → 拒絕（h2c smuggling）；回應的 `Alt-Svc` 標頭被移除，UDP 443 在 job 的網路命名空間中封鎖（HTTP/3／QUIC 不經 TCP proxy）；CONNECT 之後的第一個位元組不是 TLS ClientHello → 斷線。
 - Scope Proxy 與 `policy/safety.py`（移植自 `vchlib/safety.py`）使用**同一個**正規化函式，由 parity 測試比對（§2.4）。
 
@@ -1530,7 +1532,7 @@ class SeedService(Protocol):
 |---|---|
 | 方法 | 只有 GET、HEAD、OPTIONS；其他方法一律擋下，包括頁面自己發出的背景請求 |
 | 路徑 | 目標的所有路徑，扣掉 ROE 的排除清單 |
-| 跳過的連結 | 正規化後的路徑、查詢字串或連結文字含 `logout`、`log-out`、`signout`、`sign-out`、`delete`、`remove`、`unsubscribe`（不分大小寫），或中文介面的「登出」「刪除」「移除」「取消訂閱」 |
+| 跳過的連結 | 正規化後的路徑、查詢字串或連結文字含 `logout`、`log-out`、`signout`、`sign-out`、`delete`、`remove`、`unsubscribe`（不分大小寫），或中文介面的「登出」「刪除」「移除」「取消訂閱」。v0.4 加上 `approve`、`confirm`、`reset`、`cron`、`send`、`pay`、`toggle`、`activate`、`publish`（「核准」「確認」「重設」「送出」「付款」「發布」），以及 seed manifest `state_changing_reads` 中的每個端點；關鍵字清單只是第二道防線，W0 判定會寫入的 GET 才是主要依據 |
 | 表單 | 不送出 |
 | 範圍 | 只限同一個 origin，不跟到第三方 |
 | 請求上限 | 每個目標 200 個請求、深度 5；ROE 可以再調低 |

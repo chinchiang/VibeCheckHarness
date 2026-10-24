@@ -314,6 +314,15 @@
                 "type": "null"
               }
             ]
+          },
+          "object_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^\\{(seed:[a-z0-9_]+|created:[a-z][a-z0-9_]*)\\}$"
+            },
+            "uniqueItems": true,
+            "description": "v0.4（BL-24／BL-25 延伸）：請求在路徑以外（body、query、GraphQL variables、Server Action 參數、PostgREST 過濾條件）指向的物件。路徑沒有變數段的寫入（Server Action、GraphQL mutation、PostgREST），只要這裡至少一項、每一項都是有效的 {seed:key}（種子的 path_templates 含這條路徑）或較早的 {created:step_id}，就在寫入範圍內。Scope Proxy 強制 body 與 query 中的物件 ID 只能是這些值解析後的結果（docs/08 §11.7）。沒有時為空陣列"
           }
         },
         "required": [
@@ -321,7 +330,8 @@
           "method",
           "path",
           "step_id",
-          "graphql_operation"
+          "graphql_operation",
+          "object_refs"
         ]
       },
       "minItems": 1,

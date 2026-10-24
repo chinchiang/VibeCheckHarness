@@ -13,6 +13,13 @@
 - **ASI04／05／08 列**：oracle 寫成「請 agent ……」，看起來像直接 prompt；改寫為「以注入內容觸發，違反以工具端效果判定」，與 §4.3 的直接注入範圍聲明一致。
 - **範例的 oracle**：計數查詢偵測不到 PUT 就地修改，seed manifest 的 oracle 查詢新增 `returns: row_hash`；範例 B 新增 `Q-unconfirmed-refunds`，涵蓋對 U1 自己訂單的未確認退款；測試結果新增 `trials.n_effective`（n′，`E-RESULT-TRIALS`）。
 - **K-015**：API 層的黑箱測試無法證實「沒有 RLS」，K-015 的確認要靠 W4 的本地 RLS 測試；範例 A 的說明改寫。
+- **寫入範圍的其餘部分**（§5）：
+  - 會改變狀態的 GET（seed manifest `state_changing_reads`）算寫入；W0 inventory 判定會寫入的 GET 都必須列入（`E-SEED-SIDE-EFFECT`）。
+  - 以 POST 送出的唯讀端點（`read_only_endpoints`，BL-25）算讀取。
+  - 路徑沒有變數段的寫入（Next.js Server Actions、GraphQL mutation、PostgREST 過濾條件）以 `object_refs` 綁定種子（BL-24）；Scope Proxy 把 body 與 query 中的物件 ID 綁到解析後的值，並移除 method override。
+  - create-only 端點宣告看不到的副作用（`side_effects: external／llm_tools`）；沒有宣告 `contained` 就至少 S2。
+  - seed manifest 的內容 hash 由基礎設施擁有者在 ROE 簽署（`E-ROE-SEED-MANIFEST`）。
+  - Schemathesis 的 S1 模式只跑 GET／HEAD 操作；寫入操作改用綁種子的 GENERATED_SCRIPT。
 
 ## v0.3 變更摘要
 
@@ -219,7 +226,7 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 
 | Adapter（`tool:mode`） | 工具語意 | 需求 oracle 如何對應 |
 |---|---|---|
-| `schemathesis:check` | 14 個 check，除了 `max_response_time` 都預設啟用；例如 `ignored_auth` 驗證有強制認證、`use_after_free` 偵測刪除後仍可存取的資源 [V][E:blackbox-14] | 需求「未認證不得存取」→ `ignored_auth`；需求「刪除後不可存取」→ `use_after_free` 需 stateful 階段，執行即 S3，改用綁種子的 GENERATED_SCRIPT（§4.2）。check 失敗＝需求未滿足 |
+| `schemathesis:check` | 14 個 check，除了 `max_response_time` 都預設啟用；例如 `ignored_auth` 驗證有強制認證、`use_after_free` 偵測刪除後仍可存取的資源 [V][E:blackbox-14] | 需求「未認證不得存取」→ `ignored_auth`；需求「刪除後不可存取」→ `use_after_free` 需 stateful 階段，執行即 S3，改用綁種子的 GENERATED_SCRIPT（§4.2）。check 失敗＝需求未滿足。**v0.4**：Schemathesis 自己產生路徑參數與 body，寫入操作會打到非種子物件；認證真的缺失時（正是要測的漏洞），`ignored_auth` 對 POST／PUT／DELETE 送出的不帶憑證請求就會成功寫入。所以 S1 的 `schemathesis:*` 一律只跑 GET／HEAD 操作（adapter render 加上方法過濾，產物驗證抽取參數，缺少就拒絕）；寫入操作的同一需求改用綁種子或 `object_refs` 的 GENERATED_SCRIPT |
 | `zap:baseline`（passive＋alert filter） | 被動規則產生 alert。<br>・`zap-api-scan.py`：**必須帶 `-S`**（safe mode，只跑 baseline）；不帶 `-S` 時它會匯入 API 定義後跑主動掃描 [V][E:blackbox-07]，那屬於 `zap:active`（S2）。adapter 的 render 一律加上 `-S`，產物驗證（B3_validate_artifacts）抽取參數，缺少就拒絕 [H]。`-c` 設定檔可把各規則設為 IGNORE／INFO／FAIL，alert 預設為 WARN；exit code 0＝成功、1＝至少一個 FAIL、2＝只有 WARN、3＝其他失敗 [V][E:blackbox-07]<br>・Automation Framework：有 `alertFilter` 與 `exitStatus` job，exit code 0＝ok、1＝error、2＝warnings [V][E:blackbox-04] | 需求對應的規則設為 FAIL。<br>・**需求未滿足**：api-scan exit 1（或 AF 的 error 等級），**且**對應規則的 alert ID 確實出現<br>・exit 2：人工檢視 WARN，不直接判定<br>・exit 3 或 AF 的 plan／job 錯誤：屬於**執行失敗**，列入「未能測試清單」，不算需求未滿足 |
 | `zap:active` | 規則式主動掃描（S2） | 同上；每次 G5。`params` 的界限見下方「ZAP 參數」 |
 | `nuclei:signed_templates` | 模板比對 | 模板的 matcher＝需求的反例條件 |
@@ -533,16 +540,34 @@ def graphql_declared(r, roe) -> bool:
     return r.method in {"GET", "POST"} and r.path in roe.target(r.target_id).graphql_paths
 
 
-def is_mutation(r, roe) -> bool:
+def is_mutation(r, roe, manifest) -> bool:
     """寫入＝POST／PUT／PATCH／DELETE 與 GraphQL mutation；graphql_operation 為 query 或
     introspection 的請求只有在 graphql_declared 時才是讀取（即使以 POST 送出）。
     graphql_operation 是測試設計者（LLM）的宣稱：v0.3 在任何路徑都採信它，
-    `POST /api/admin/purge` 標成 query 就能跳過綁種子檢查。"""
+    `POST /api/admin/purge` 標成 query 就能跳過綁種子檢查。
+    v0.4：seed manifest 的 state_changing_reads（會改變狀態的 GET／HEAD）是寫入；
+    read_only_endpoints（以 POST 送出的唯讀端點）不是。兩份清單隨 seed manifest 由基礎設施擁有者簽署。"""
     if r.graphql_operation == "mutation":
         return True
     if r.graphql_operation in READ_ONLY_GRAPHQL and graphql_declared(r, roe):
         return False
+    if endpoint_in(manifest, "state_changing_reads", r):
+        return True
+    if r.method == "POST" and endpoint_in(manifest, "read_only_endpoints", r):
+        return False
     return r.method in STATE_CHANGING
+
+
+def object_ref_problems(r, manifest, creates) -> list[str]:
+    """v0.4（BL-24）：object_refs 的每一項必須是為這條路徑宣告的種子（種子的 path_templates 含這條路徑），
+    或本 allow-list 較早、同一目標的建立請求。Scope Proxy 另外強制 body／query 中的物件 ID
+    只能是這些值解析後的結果（08 §11.7 body_id_problem）。"""
+    ...
+
+
+def endpoint_in(manifest, key, r):
+    """v0.4：manifest[key]（state_changing_reads、read_only_endpoints）中同目標、同方法、路徑同形的條目；沒有則 None。"""
+    ...
 
 
 def create_endpoint(manifest, r):
@@ -568,13 +593,15 @@ def mutation_scope_problems(tc, manifest, roe) -> list[str]:
             problems.append(p)
         if r.graphql_operation is not None and not graphql_declared(r, roe):
             problems.append("graphql_operation 不在 ROE 宣告的 GraphQL 路徑上")  # v0.4
-        if is_mutation(r, roe):
+        refs = object_ref_problems(r, manifest, creates)
+        problems.extend(refs)
+        if is_mutation(r, roe, manifest):
             var = [s for s in segments(r.path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
             create = create_endpoint(manifest, r)
             if unbound:
                 problems.append("寫入指向的物件既不是 {seed:key} 也不是 {created:step_id}")
-            elif create is None and not var:
+            elif create is None and not var and not (r.object_refs and not refs):   # v0.4：object_refs 綁定
                 problems.append("集合層級的寫入不是 create_only_endpoints 的條目")
             if create is not None and r.step_id:
                 creates[r.step_id] = r              # 之後的請求可用 {created:<step_id>} 指向它建立的物件
@@ -702,6 +729,12 @@ def compute_safety_class(tc, roe, tools, manifest) -> str:
     level = entry.base_class or "S2"                   # 已登錄但未分類 → 至少 S2
     if any(r.method in STATE_CHANGING for r in reqs):  # 看 HTTP 方法：以 POST 送出的 GraphQL 查詢也 ≥ S1
         level = hi(level, "S1")
+    if any(endpoint_in(manifest, "state_changing_reads", r) for r in reqs):   # v0.4：會改變狀態的 GET
+        level = hi(level, "S1")
+    for r in reqs:                                     # v0.4：請求層看不到的副作用
+        ce = create_endpoint(manifest, r)
+        if ce and ce.side_effects != "none" and ce.contained is not True:
+            level = hi(level, "S2")
     if tc.rate_limit.max_requests > roe.rate_limits.s1_request_cap:
         level = hi(level, "S2")
 
@@ -721,7 +754,7 @@ def admissible(level: str, roe) -> bool:
 |---|---|---|
 | `zap:baseline` | S0 | 被動規則 |
 | `playwright:api`、`playwright:ui` | S0 | 等級由 HTTP 方法與量決定；多角色測試通常由提議值拉到 S1 |
-| `schemathesis:check`、`schemathesis:hook` | S1 | 產生大量合規與不合規輸入 |
+| `schemathesis:check`、`schemathesis:hook` | S1 | 產生大量合規與不合規輸入；v0.4 起只跑 GET／HEAD 操作（寫入操作會打到非種子物件） |
 | `nuclei:signed_templates` | S1 | 只跑自簽章模板 |
 | `k6:threshold` | S1 | 只做低量限流驗證 |
 | `promptfoo:eval`、`promptfoo:redteam_local`、`pyrit:orchestrator` | S1 | 受 ROE 花費上限約束 |

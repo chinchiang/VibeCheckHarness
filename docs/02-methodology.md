@@ -679,6 +679,12 @@ flowchart TD
     - 是對 seed manifest `create_only_endpoints[]`（`target_id`、`method`、`path_template`）中端點的建立請求，在 run 命名空間（`namespace`，例如 `vc-{run_id}-`）建立新物件。
   - 之後的步驟以 `{created:<step_id>}` 指向同一份 `request_allowlist` 中較早、帶該 `step_id`、在同一目標上的建立請求。
   - 其他寫入一律 S3（`E-TC-MUTATION-SCOPE`；演算法見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)）。
+  - **v0.4 補充**：
+    - 路徑沒有變數段的寫入（Next.js Server Action、GraphQL mutation、PostgREST 的過濾條件）以 `object_refs` 指出它在 body 或 query 中碰的種子；Scope Proxy 把 body 與 query 的 ID 類欄位綁到這些值，並移除 method override 標頭。
+    - 會改變狀態的 GET 列在 seed manifest 的 `state_changing_reads`，算寫入；W0 inventory 判定會寫入（`endpoints[].writes`）的 GET 都必須列入（`E-SEED-SIDE-EFFECT`）。以 POST 送出的唯讀端點列在 `read_only_endpoints`，算讀取。
+    - create-only 端點宣告請求層看不到的副作用（`side_effects: external`〔寄信、金流〕或 `llm_tools`〔agent 可呼叫有寫入的工具〕）；基礎設施擁有者沒有聲明 `contained: true` 時至少 S2（G5＋快照）。
+    - seed manifest 的內容 hash 由基礎設施擁有者在 ROE 簽署（`db_access.seed_manifest_sha256`，`E-ROE-SEED-MANIFEST`），因為上面三份清單直接決定 S1 或 S3。
+    - 種子重置改為只處理本 run 命名空間的種子腳本；整庫快照還原只用於 S2，避免在共用 staging 上回滾其他人的資料。
 - **`lite`**：只允許 S0／S1 的測試案例；算出 S2 的測試案例改為 `MANUAL`（附原因）[H]。validator 對 `lite` 中 `tool_binding.kind` 不是 `MANUAL` 的測試案例檢查算出的安全等級是 S0／S1，run 的每個 job 也一樣（`E-PROFILE-SAFETY`）；`MANUAL` 測試案例不受此限，因為工具包不會執行它。
 - 產物驗證（`B3_validate_artifacts`）失敗 → 回到 `B3_derive` 修復，最多 2 次；仍失敗 → 該測試案例改為 `MANUAL`（附原因）[H]。
 - 測試計畫與每個產物都要在 **G4** 綁定 hash 核准；G4 可逐測試案例部分核准。`lite`，或測試計畫只有 S0／S1 job 時，G3 與 G4 可以在同一次審查中處理（[§1.7](#17-保證等級liteteamfull)）。
