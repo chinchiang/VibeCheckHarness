@@ -135,7 +135,7 @@
      - **弱**（工具訊號）：其他所有已解析的 SARIF 結果，以及 `E_fail_u` 測試結果（§4.2）。弱 SARIF（不論幾筆）只算 **1 個獨立來源**，`E_fail_u`（不論幾筆）也只算 1 個（R2、R6）；弱訊號本身不能確認。
      - 為什麼要分級：SAST 整體的誤報率很高。§2.3 引用的研究中，SAST 在 OWASP Benchmark 上的誤報率超過 92%（預印本）[V][E:whitebox-33]。該研究只給整體數字；「各規則之間的精準度差很多」是本設計的假設 [H]。所以只有實測精準度夠高的規則，才能單獨讓叢集確認。
 6. **校準加權**：投票權重取自各模型在校準語料上、分 CWE 桶的實測投票正確率（公式見 §4.3），不是等權。只有驗證者有權重；reviewer 不投票（§4.3）。
-7. **分歧→人工（G2）**：這是 **[H] 設計假設**，需要量測 DISPUTED 佇列的精準度（§5.3 M-6）。G2 佇列＝所有 `DISPUTED` 叢集＋最高嚴重度為 critical／high 的 `UNCORROBORATED` 叢集；其他 `UNCORROBORATED` 不進 G2（見 [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。`LIKELY`（含 `no_eligible_verifier` 的多家族叢集）也不進 G2（規則 2）。Trust or Escalate（ICLR 2025）支持「信心不足就不自動判定」，但它是升級給**更強的 LLM 評審**並選擇棄權，**不是交給人**，而且用的是單一評審的校準信心，不是跨廠商分歧 [P][E:multi_llm_bias-34]。
+7. **分歧→人工（G2）**：這是 **[H] 設計假設**，需要量測 DISPUTED 佇列的精準度（§5.3 M-6）。G2 佇列＝所有 `DISPUTED` 叢集＋rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)；v0.4 起取代成員自報的最高嚴重度）為 critical／high 的 `UNCORROBORATED` 叢集，每個 run 預設最多 30 項（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）；其他 `UNCORROBORATED` 不進 G2（見 [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。`LIKELY`（含 `no_eligible_verifier` 的多家族叢集）也不進 G2（規則 2）。Trust or Escalate（ICLR 2025）支持「信心不足就不自動判定」，但它是升級給**更強的 LLM 評審**並選擇棄權，**不是交給人**，而且用的是單一評審的校準信心，不是跨廠商分歧 [P][E:multi_llm_bias-34]。
 8. **防注入**：受測 repo 一律視為不可信資料（[06 §1](06-security-legal-limitations.md#1-工具包自身的安全)）。
 
 ## 4. 叢集與裁決
@@ -211,7 +211,7 @@
 與叢集相連的每一筆測試結果（W4 的 Z2 沙箱單元／性質測試，或 B5 的黑箱測試；依 [schemas/testresult.schema.json](schemas/testresult.schema.json)）先由程式碼分成四類 [H]。黑箱起源叢集以 `threat_id` 與測試結果相連（§4.1）。叢集的測試證據取**最強的一類**，強弱順序為 `E_proof` ＞ `E_fail_u` ＞ `E_pass` ＞ `E_inc` ＞ 無；同時存在 FAIL 類與 `E_pass` 時兩者都保留（R11 與 R12 會處理衝突）。
 
 分類用到下列定義 [H]：
-- **確定性 oracle 類型**：測試案例的 `oracle.types` 是陣列，一個測試可以同時用多種 oracle（例如 [04 §6.2](04-threat-to-testcase.md#62-範例-bllm-功能的間接-prompt-injection-與工具濫用) 的範例 B 用 `TOOL_CALL_LOG`、`CANARY`、`STATE_DIFF`）。除了 `HUMAN` 與 `LLM_GRADER` 以外的類型都是確定性的。測試結果的 `fail_oracles` 列出回報違反的 oracle 類型：`FAIL` 時非空、其他結果為空，且必須是 `oracle.types` 的子集（validator `E-RESULT-ORACLE`）。
+- **確定性 oracle 類型**：測試案例的 `oracle.types` 是陣列，一個測試可以同時用多種 oracle（例如 [04 §6.2](04-threat-to-testcase.md#62-範例-bllm-功能的-prompt-injection-與工具濫用confused-deputy) 的範例 B 用 `TOOL_CALL_LOG`、`CANARY`、`STATE_DIFF`）。除了 `HUMAN` 與 `LLM_GRADER` 以外的類型都是確定性的。測試結果的 `fail_oracles` 列出回報違反的 oracle 類型：`FAIL` 時非空、其他結果為空，且必須是 `oracle.types` 的子集（validator `E-RESULT-ORACLE`）。
 - **對照（controls）**：每個測試案例都有 `controls[]`（寫法見 [04 §3](04-threat-to-testcase.md#3-測試案例欄位)），種類有三：
   - `reachability`：證明測試真的到達要測的地方。W4：sink 行被覆蓋；B5：請求帶著有效 session 到達目標端點，並通過認證／授權前置步驟。每個測試案例至少一個（`E-TC-CONTROLS`）。
   - `oracle_can_pass`：在已知正常的條件下，oracle 判 PASS。證明測試不是「怎樣都失敗」。

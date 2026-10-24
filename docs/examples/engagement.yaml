@@ -82,7 +82,7 @@ data_transfer:                # v0.4：G0a 驗章的跨境聲明（W2 在 G0b �
 config_pins:                  # v0.4：影響安全判斷的設定檔內容 hash（E-ENG-CONFIG-PIN）；改設定就要重簽委任設定
   models: "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
   agents: "sha256:6b436102c1d67adc1b28d10a0772368bfe34acf9fbb1f20385134646dbb8807c"
-  tools: "sha256:312f04aace19149014ee420f44844b93cca29bc5c19259100c2126cea42bb145"
+  tools: "sha256:71eacee12bbf289fb22be286c66923059d9a6a93226bebba92c3b8fe037f91e8"
   licenses: "sha256:3cc53257d103fb15b759f7a2729426d74eba37d08cfbd9b73f32ddb307e5b7ec"
 
 assurance_profile: team       # lite／team／full（docs/03 §6）；team：ROE 每個簽署角色由不同人擔任
@@ -92,8 +92,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "MtQL4g9w4+LBKkDPL5FEhyTb8PbuDzxPC1c424ejmmMNSUrnhvdxDwGtmXguRIUlKSbRFXCRNCFmth8zLyUcAg=="
+    value: "ZgdDHOhh+/rDLwER7Zb8wbOKstCvmwivCVAS2/ScG9VtvrAygJJhwKNICw/gqjAqsNH/QF0YYbpWf5r8nAhiBA=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "LN+ySdxpEwQtsl8kvHGNs/dTA0KesisAE0XXMH9cfL/zKh/l3oRf8xptoNtbhuGLbclCyqEddzSYtQp6MfBfCQ=="
+    value: "ZW/ztcvt61L8ikQUz2YlfoamYCTs9GVJZQZU3kDGMW/4W0ex1qRZPw/faT+6xwz4ojcv84TNpC+xnOsXrr3RAw=="

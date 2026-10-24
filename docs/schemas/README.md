@@ -114,6 +114,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 |---|---|
 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-RULE-VERSION` | 裁決的推導欄位（第 13 組） |
 | `E-RESULT-ORACLE` | `fail_oracles` 非空 ⇔ outcome FAIL，且 ⊆ testcase `oracle.types` |
+| `E-RESULT-TRIALS` | v0.4：`trials` 滿足 k ≤ `n_effective` ≤ n；機率型 PASS 以 `n_effective`（n′）≥ 30 判定 `E_pass` |
 | `E-TC-CONTROLS`、`E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-PRECONDITION` | testcase 至少一個 reachability 對照；結果恰好涵蓋所有對照；任何對照沒有 PASS → outcome 必須是 INVALID；`precondition_reached`＝所有 reachability 對照 PASS；`positive_control`＝oracle_can_fail 對照 PASS（沒有時為 null） |
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate）由 run 的測試結果重算 |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |

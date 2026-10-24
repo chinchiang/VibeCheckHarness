@@ -621,7 +621,7 @@ stateDiagram-v2
 - **W2 的呼叫單位是面向組** [H]：12 個審查面向分成 3 組，每組 4 個；每次呼叫審一個切片的一個面向組，所以 fan-out 是 `slice × 面向組 × agent`（分組見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。只有必要面向與 Commander 加入的面向會被審；某一組完全沒有要審的面向時不送出該組。
 - **G2 之後的爭議** [H]：`W4_readjudicate` 產生的 `DISPUTED` 不回到 `G2_gate`（圖中沒有 W4 → G2 的邊），而是在該版裁決加註 `w4_became_disputed`（前一版不是 `DISPUTED`、W4 重新裁決後為 `DISPUTED`，與 G2 是否已決定無關），種子威脅與 run 的 `disputed_after_g2` 由此推導，G3 另列「W4 後轉為爭議」一區；`B5_readjudicate` 經 R11 產生的 `DISPUTED` 不加此註記、不進 `disputed_after_g2`，而是列入 B6 人工複核清單。G2 已 `REJECTED` 的叢集之後只註記 `post_g2_conflict`（05 R10）。
 - G2 GateRecord 的整關 `outcome` 只有 `APPROVED` 或 `EXPIRED`；逐項的 reject／needs_info 記在 `decisions[]`，不接受整關 `REJECTED`／`NEEDS_INFO`（validator 檢查）[H]。
-- G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`，以及成員最高嚴重度為 `critical`／`high` 的 `UNCORROBORATED`（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
+- G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`，以及 rubric 嚴重度（v0.4，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）為 `critical`／`high` 的 `UNCORROBORATED`；上限、排序與逾時比例告警（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
 - `W4_exec` 在 Z2（無網路）；`W4_testgen` 與 `W4_exec` 只透過 Blackboard／CAS 交換產物。
 - 自動觸發（`schedule`、`merge`）的 run：在沒有人認領之前，只能執行到 W3；`claim_run` 是 interrupt，認領寫入 `initiators` 與稽核事件 `initiator_claim`。
 
@@ -1049,7 +1049,7 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 | 快照與還原憑證 | `snapshot_credential_ref`：只能對 staging DB 做快照與還原，不能碰其他 DB；只在 `B4_s2_snapshot`、`B4_s2_restore`、`abort_handler`、還原演練中使用 |
 | oracle 讀取憑證 | `oracle_readonly_credential_ref`：DB 唯讀角色，只對 `oracle_tables` 有 SELECT 權限；用於測試前後的狀態比對（例如 [04 §6](04-threat-to-testcase.md#6-完整範例) 範例 A 的發票資料列比對） |
 | 測試前狀態擷取 | `oracle_capture(run_id, job_id, tables)`：在 job 執行前，用 **oracle 唯讀憑證**（不是快照憑證）擷取 `oracle_tables` 中相關資料列的 hash，存在 Z3，回傳 `before_ref`。S1 job 沒有 DB 快照，也能用這個方法做前後比對 |
-| 計數型 oracle | `oracle_count(query_id, params)`：只執行 **G4 核准**的參數化 `SELECT COUNT(*)` 查詢（查詢文字以產物 hash 綁定在測試案例中，參數只能是 seed manifest 中的 ID 或測試案例宣告的常數），只回傳整數。例如「工具呼叫紀錄表中沒有未確認的 `refund` 呼叫」（[04 §6](04-threat-to-testcase.md#6-完整範例) 範例 B）[H] |
+| 計數型 oracle | `oracle_count(query_id, params)`：只執行 **G4 核准**的參數化 `SELECT COUNT(*)` 查詢；v0.4 另有 `returns: row_hash`（每一列正規化內容的 sha256，只回傳 hash、不回傳值），用來偵測 PUT／PATCH 這類不改變列數的就地修改（查詢文字以產物 hash 綁定在測試案例中，參數只能是 seed manifest 中的 ID 或測試案例宣告的常數），只回傳整數。例如「工具呼叫紀錄表中沒有未確認的 `refund` 呼叫」（[04 §6](04-threat-to-testcase.md#6-完整範例) 範例 B）[H] |
 | 回傳 Z1 的內容 | 只回傳**比對結果**：每個資料列的 hash 是否改變、改變的欄位名稱與列數；**不回傳欄位值** |
 | 種子資料 | seed manifest（`seed-manifest.schema.json`）的 `seeds.<key>` 列出每個種子物件的 `id`、`table`、`owner_role` 與所屬資源的路徑樣板 `path_templates[]`，`reset` 記錄重置方式，`create_only_endpoints[]` 列出可建立新物件的端點（§7.1 寫入範圍規則）；有狀態改變的 S1 job 結束後、S2 還原後都依 manifest 重置。**生命週期**（v0.3，細節見 [08 §11.6](08-implementation-spec.md#116-種子資料生命週期)）：每個 run 有自己的命名空間前綴（`namespace`，例如 `vc-{run_id}-`）；建立種子本身是一個冪等的 S1 job（`seeding: {job_kind: S1_seed, idempotent: true}`），同樣經 Scope Proxy 執行、受 S1 的規則約束；LLM 機率型測試可設 `reseed_per_trial`，每次試驗前重建；run 結束時依 `teardown.method`（`delete_namespace`／`restore_snapshot`／`manual`）清除。範例 manifest 是 `vc-{run_id}-`、`restore_snapshot`、`reseed_per_trial: true`；這些生命週期欄位只由 schema 檢查形狀，`create_only_endpoints[]` 的目標必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。**重置失敗**：之後所有使用同一份 seed manifest 的 job 標 `SKIPPED`（`skip_reason: seed_reset_failed`），寫稽核事件 `seed_reset_failed`，列入 B6 未能測試清單；其他 job 繼續 [H] |
 | 還原演練 | 「快照 → 修改一筆種子資料 → 還原 → 驗證 checksum」，結果寫成 `restore_drill` 稽核事件並存 `restore_drill_ref`。**每個 S2 job 開始前**，必須有一筆成功的 `restore_drill` 事件，且距今不超過 `toolkit.restore_drill_interval_days`（預設 7 天）；沒有就由 `B4_preflight` 先做一次演練。演練失敗 → 該 run 的所有 S2 job 略過 |

@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "test_plan",
-    "sha256": "sha256:de6d5e13717c7216e1227ef9f6ca489579ef190640816ea7cbecdec4caff189e"
+    "sha256": "sha256:75f71e22c67a117fe9ff11099c043bfc2c4568d94c3e428e06d79e90ab5c1f00"
   },
   "job_id": null,
   "initiator": "alice",
@@ -21,7 +21,7 @@
   "decisions": [
     {
       "item_id": "TC-012-01",
-      "item_sha256": "sha256:a1a307cd1031a1e3c44a50fff3a4c496386d6ec9cb5c43a6c8f21b0295cae68d",
+      "item_sha256": "sha256:a5cc16fbefea0cd9bb9dc130d68b0112e6e40bc0cc4a19d15936c3d6a237c510",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -35,7 +35,7 @@
     },
     {
       "item_id": "TC-031-01",
-      "item_sha256": "sha256:b33d8b722a653214cafcc3942a2858007b4d378910303a93b2effb55195ba7c5",
+      "item_sha256": "sha256:525ad6706b912f9968880a341dd89f35096afa948a6c30af98219fa1a5b9a8ab",
       "decision": "accept",
       "risk_override": null,
       "note": null
@@ -57,7 +57,7 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "VqTgUo7Apobga74xvlSGNCbm2iGYy1v/qvo3LHWivW1K7gXyMu9TPpFKYks7ODkjqREGDox4L8Xn553LSkciBQ=="
+      "value": "9tUPlT0vMtW0KLlWw15yZtqNwEtN4A3OXEah0dRN1pnbknUYpW1Mt+qNom+mjxMC06YhMkttysskctezMrdyAA=="
     }
   ]
 }

@@ -48,7 +48,7 @@
     "conditions": [
       "status in {403, 404}",
       "response body 不含 B 的發票欄位",
-      "Q-invoice-b-row 前後計數相同（B 的發票資料列未被改動）"
+      "Q-invoice-b-row 前後的列 hash 相同（B 的發票資料列未被改動，包括 PUT 就地修改；v0.4 由計數改為 row_hash）"
     ],
     "requirement_refs": [
       "REQ-ASVS-8.2.2",

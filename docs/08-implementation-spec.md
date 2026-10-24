@@ -917,7 +917,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | 應用 | 內容 | 對應 | 首次使用 |
 |---|---|---|---|
 | `invoices-app` | Express（TypeScript）＋PostgreSQL 的多租戶發票 API。`GET /api/invoices/{id}`（handler 在 `routes/invoices.ts:40`）在第 42 行讀取發票時沒有檢查租戶（IDOR；K-005 的 sink）；`invoices` 資料表沒有 RLS；角色 `tenantA_user`、`tenantB_user`。另外植入的漏洞讓總數 ≥10，以符合 ST 的語料要求 | [04 §6.1](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 範例 A（TC-012-01、K-005） | M1（W0／W1／B0）、M2（W2–W5）、M4（B3–B5） |
-| `support-agent-app` | FastAPI 的客服 agent：`refund(order_id)` 工具、可上傳 PDF、`agent_tool_calls` 資料表。它的上游 LLM 在 CI 中是**我方的腳本式假模型**：植入版以固定種子、固定機率遵循 PDF 內的指令；修正版在呼叫 `refund` 前要求人確認。也是 W4 工具防護測試（假模型輸出，§11.17）的範例 | [04 §6.2](04-threat-to-testcase.md#62-範例-bllm-功能的間接-prompt-injection-與工具濫用) 範例 B（TC-031-01、K-011，n＝60、k＝0 規則） | M1（W0／W1）、M2（白箱，含 W4 防護測試）、M5（完整） |
+| `support-agent-app` | FastAPI 的客服 agent：`refund(order_id)` 工具、可上傳 PDF、`agent_tool_calls` 資料表。它的上游 LLM 在 CI 中是**我方的腳本式假模型**：植入版以固定種子、固定機率遵循 PDF 內的指令；修正版在呼叫 `refund` 前要求人確認。也是 W4 工具防護測試（假模型輸出，§11.17）的範例 | [04 §6.2](04-threat-to-testcase.md#62-範例-bllm-功能的-prompt-injection-與工具濫用confused-deputy) 範例 B（TC-031-01、K-011，n＝60、k＝0 規則） | M1（W0／W1）、M2（白箱，含 W4 防護測試）、M5（完整） |
 | `notes-rls-app` | **Next.js（App Router）＋Supabase 型**的筆記應用：`supabase/migrations/*.sql` 定義資料表與 RLS policy，前端以 BaaS 用戶端直接讀寫資料表（`baas_direct`，§11.1）。植入：<br>① 一張**沒有啟用 RLS** 的資料表 `shared_notes`，只能以 `inventory_fact` 證據回報；<br>② 一條 RLS policy 錯誤（條件漏了擁有者欄位）；<br>③ 前端 bundle 中一個**公開前綴**的 secret 樣式變數（`NEXT_PUBLIC_` 開頭，值是 canary）；<br>④ `package.json` 中一個**幻覺套件**名稱。<br>CI 以本地的 PostgreSQL 與認證函式替身執行，不連任何雲端平台 | 05 §5.1 的重點類別；G-07 需要的第 3 個應用；07 分段 MVP 的 MVP0-X1 | MVP-0（W0–W5、Z2 本地 RLS 測試、套件存在性）、MVP-1（本地目標）、M4（G-07） |
 | `canary-server` | 對應 ROE 的 `tgt-canary`：記錄所有請求；另有一個「ROE 以外」的接收器，**任何一次**命中都算 ST-1 失敗 | [docs/examples/roe.yaml](examples/roe.yaml) | M1 |
 | 故障注入代理 | 放在目標前面，可以注入 5xx、延遲、429、健康檢查失敗、PII 回應 | 03 §7.3 停止條件表的每一列 | M4 |
@@ -1937,7 +1937,7 @@ class SessionProvider(Protocol):
 5. 結果夾在 0 到 4 之間：4＝`critical`、3＝`high`、2＝`medium`、1＝`low`、0＝`info`。
 
 - reviewer 提議的嚴重度照樣保存，報告同時列出兩者。人在 G2 或 G3 可以改，調低要附理由。
-- rubric 不改變裁決或路由：G2 佇列仍依 [05 §3](05-bias-calibration.md#3-設計規則) 規則 7（成員的最高嚴重度）。
+- rubric 不改變裁決，但 v0.4 起**決定路由**：G2 佇列、W4 輸入、B2 高風險條件 4 與「只列報告的叢集」都用 rubric 嚴重度（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅)）。v0.3 用成員自報的最高嚴重度，等於讓單一家族的 LLM 決定哪些項目給人看。W3 時 DFD 只有確定性骨幹，可達性無法判定就視同 `internet`。
 
 #### 報告敘事 linter
 

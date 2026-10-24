@@ -21,7 +21,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:3fc4c9d620d82550e04c1c2b71ed3996ce8b7f55457402166e4a6c5c312f7eaf",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:48da48622d02284185690c5e278de5d69a92f42dd98c0859d0f390cadc0e126a",
+  "engagement_ref": "sha256:92fe716d9afee3663e63cf892542e84f5e918693e1639b48be0ce7fb7fc48049",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -33,7 +33,7 @@
     },
     "tools": {
       "path": "docs/examples/tools.yaml",
-      "sha256": "sha256:312f04aace19149014ee420f44844b93cca29bc5c19259100c2126cea42bb145"
+      "sha256": "sha256:71eacee12bbf289fb22be286c66923059d9a6a93226bebba92c3b8fe037f91e8"
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
@@ -45,7 +45,7 @@
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:513c0a9d13b6fc049b077a8b86e08403a9758752d3de0d1615e74b3b143a4ef5"
+      "sha256": "sha256:e6fca115994d814f5c2a6b7214e4c84a650df6a762a4d21d27ed028939b5696b"
     }
   },
   "prompt_templates": [
@@ -105,12 +105,12 @@
   "threat_model_ref": null,
   "b1_diff_dispositions_ref": null,
   "g3_round": 0,
-  "testplan_ref": "sha256:56667827937a5f0224517cc69d0b1e296af6ea61c95a4889a80b860c13ef95c9",
+  "testplan_ref": "sha256:ba6529d26147462ad6a421f3e635f11a0adff08f1ce913c15ccdc7e02cb7ff9a",
   "testcase_ids": [
     "TC-012-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:a1a307cd1031a1e3c44a50fff3a4c496386d6ec9cb5c43a6c8f21b0295cae68d"
+    "TC-012-01": "sha256:a5cc16fbefea0cd9bb9dc130d68b0112e6e40bc0cc4a19d15936c3d6a237c510"
   },
   "g4_round": 1,
   "approved_testcase_ids": [],
@@ -129,7 +129,7 @@
       "gate_record_id": "GR-G0a-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:48da48622d02284185690c5e278de5d69a92f42dd98c0859d0f390cadc0e126a",
+      "subject_hash": "sha256:92fe716d9afee3663e63cf892542e84f5e918693e1639b48be0ce7fb7fc48049",
       "job_id": null,
       "opened_at": "2026-10-07T10:00:00+08:00",
       "decided_at": "2026-10-07T10:01:00+08:00"
@@ -149,7 +149,7 @@
       "gate_record_id": null,
       "outcome": null,
       "round": 1,
-      "subject_hash": "sha256:56667827937a5f0224517cc69d0b1e296af6ea61c95a4889a80b860c13ef95c9",
+      "subject_hash": "sha256:ba6529d26147462ad6a421f3e635f11a0adff08f1ce913c15ccdc7e02cb7ff9a",
       "job_id": null,
       "opened_at": "2026-10-07T10:30:00+08:00",
       "decided_at": null

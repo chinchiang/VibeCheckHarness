@@ -122,11 +122,17 @@
         "k": {
           "type": "integer",
           "minimum": 0
+        },
+        "n_effective": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v0.4：有效次數 n′＝前置條件（reachability 對照）有到達的次數，≤ n（E-RESULT-TRIALS）。機率型 PASS 需要 k＝0 且 n′ ≥ 30 才是 E_pass（docs/04 §4.4）；v0.3 沒有這個欄位，validator 只能用 n"
         }
       },
       "required": [
         "n",
-        "k"
+        "k",
+        "n_effective"
       ]
     },
     "replays": {

@@ -70,13 +70,15 @@
 | ASI09 Human-Agent Trust Exploitation | 人在關卡上「照單全收」LLM 的敘事 | 關卡顯示證據（file:line、片段、工具結果），不只是敘事；可部分核准；Reporter 不能改裁決；**定期抽查已核准項目**（頻率見下） |
 | ASI10 Rogue Agents | 某個 agent 行為超出角色 | Policy Engine 白名單；最小權限；所有呼叫都寫入 audit |
 
-**ASI09 抽查頻率 [H]**（M2 起，由 Gate Service 自動抽樣；抽查人不得是原核准人）：
+**ASI09 抽查頻率 [H]**（M2 起，由 Gate Service 自動抽樣；抽查人不得是原核准人。Lite 只有一個人，無法滿足這條：Lite 的抽查改為由同一人在 run 結束 7 天後重看抽中的項目，報告標示「自行抽查」[H]）。v0.4 把**沒有人看過的項目**也納入母體：v0.3 只抽已核准的決定，自動駁回與沒進 G2 的項目從來沒人看，正式使用時的漏報率因此無從量測：
 
 | 對象 | 抽樣 | 期限 | 觸發升級 |
 |---|---|---|---|
 | 所有 `CONFIRMED_*` 裁決（W3、W4、B5 產生的最新版；多數不經過 G2） | 每個 run 抽 10%，至少 3 筆（不足 3 筆則全抽） | run 結束後 5 個工作天內 | 抽查推翻率 >20%，或任一筆 High 以上被推翻 → 該 run 的所有 `CONFIRMED_CORROBORATED` 全數複審，並檢查對應的校準權重 |
 | G2 的決定（accept／reject） | 每個 run 抽 10%，至少 2 筆 | 同上 | 抽查推翻率 >20% → 該核准人接下來 2 個 run 全數複審 |
 | G3 已核准的威脅、G4 已核准的測試案例 | 每個 run 各抽 10%，至少 2 筆 | 同上 | 發現超出 ROE 的測試案例 → 立即 `policy_violation`，停止該 engagement 的 B4 |
+| 自動駁回的叢集（v0.4）：R0 與 R4（θ_reject）產生的 `REJECTED`，沒有人看過 | 每個 run 抽 10%，至少 3 筆 | run 結束後 5 個工作天內 | 抽到任一筆真實缺陷 → 該 run 的自動駁回全數複審；R4 的推翻 → 回報校準（05 §5.7 的 θ_reject 檢查） |
+| 只列報告的低優先叢集、超出 G2 上限的項目、G2 逾時未決的項目（v0.4） | 每類每個 run 抽 10%，至少 2 筆 | 同上 | 抽到 high 以上的真實缺陷 → 調整剪枝條件或佇列上限，並記入報告 |
 | G5 已核准的 S2 job | 全數（S2 數量少） | 執行後 2 個工作天內 | 任一筆不符 → 該 engagement 從下一個 run 起改用 Full 模式：G5 需兩位不同的資安審查者核准（validator 強制，`E-G5-TWO-PERSON`；[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 
 - 抽查結果寫入稽核（`gate_decision`，`actor.kind = human`，`payload.review_kind = spot_check`）。

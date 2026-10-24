@@ -13,7 +13,7 @@
     "class": "E_pass",
     "results": [
       {
-        "result_ref": "sha256:02352b779c01ff62b010668fabfabdf2701a70609ce020a67ecd2239ed3f3bcf",
+        "result_ref": "sha256:d269befd4e7bd60514d6c648a77c657994ca89d836b50a5b5b400763b53c6700",
         "class": "E_pass",
         "positive_control": null,
         "reason": "PASS；reachability 對照 PASS；確定性 oracle（TOOL_CHECK、STATE_DIFF），G4 預先登記解讀"

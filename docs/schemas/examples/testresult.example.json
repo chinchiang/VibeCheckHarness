@@ -27,7 +27,8 @@
   ],
   "trials": {
     "n": 1,
-    "k": 1
+    "k": 1,
+    "n_effective": 1
   },
   "replays": 2,
   "replay_k": 2,

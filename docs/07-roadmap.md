@@ -11,6 +11,15 @@
 >
 > 里程碑的切分與出口準則都是設計選擇 [H]。
 
+## v0.4 變更摘要
+
+依 [2026-10-24 設計審查](evidence/review-2026-10-24.md) 的第三優先項目：
+- **核心假設在 MVP-1 之前先做一次決策**（§1.2、MVP0-X6）：v0.3 明文不把「多家族勝過單一最佳模型多次取樣」當成出口條件，校準又排在 MVP-3 之後，所以 MVP-0～2 期間整套多家族機制都在未經檢驗的假設上運作。v0.4 在 MVP-0 結束前加入預先登記的**前導實驗**：在不是工具包團隊寫的應用上比較兩種設定，依預先寫好的規則決定 MVP-1 起的預設值。它的樣本小、不是統計證明；正式檢定仍是 05 §5.6（M2-X1）。
+- **M2 的預設值必須照 §5.6 的結果切換**（M2-X13）：主要假設的結果仍不擋出場，但「照結果切換預設值」是出口條件。
+- **法務閘門綁到 MVP 切片**（MVP0-X7）：MVP-0 已經用雲端模型跑 W2，所以它用到的供應商條款與 ZDR（§3 的 M1 前、M2 前中相關項目）必須在 MVP-0 出貨前結案。
+- **Lite 使用者 pilot**（§1.3、MVP0-X8）：至少 3 位不屬於工具包團隊的單人開發者，以各自的應用跑 Lite 的 MVP-0，量測「拿到第一份報告的時間」與「人工關卡總耗時」；未達門檻就啟用降階路徑。
+- **W2 的加值要在外部應用上量**（MVP0-X6 的報告項目）：MVP0-X1 的三個植入問題都能由 W0／W1 確定性找到，沒有測到 LLM 審查本身。
+
 ## v0.3 變更摘要
 
 - **分段 MVP**（§1.1）：
@@ -64,7 +73,7 @@
 
 | 階段 | 交付什麼 | 不包含 | 可用的模式 | 沿用的 M 準則 |
 |---|---|---|---|---|
-| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W0.5／G1<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11 |
+| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W0.5／G1<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11；§3 中 MVP-0 用到的元件的入口閘門（MVP0-X7） |
 | **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`；ROE 只對 `localhost`、`127.0.0.1`、`[::1]` 允許 `http://`，其他一律 `https://`，`E-ROE-URL`），跑 B0–B6：<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M3-X1、X5；M4-X2～X5、X7 |
 | **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• G0b 與 `legal_review`（Lite 的兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁標示聲明為自行簽署，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X1～X3、X8、X9；M4-X3、X8 |
 | **MVP-3 以後** | 依序加入：<br>• staging 的 S2＋G5（Full 模式需兩人核准）<br>• LLM 功能測試，先做 G4 核准的腳本式多輪（M5）<br>• Calibration Lab 與 `high_precision_rules`（M2-X1）<br>• CI Lane B 完整版<br>• 靜態 HTML 報告<br>• adaptive relay（只限 Full，[09 BL-10](09-backlog.md)） | — | 依功能而定 | M2-X1～X3、X5、X7～X9、X12；M4 其餘；M5 全部 |
@@ -78,6 +87,9 @@
 | MVP0-X3 | SARIF 通過 SARIF 2.1.0 schema 驗證，並符合 §3.27.9–3.27.10 的 `kind`／`level` 規則（`kind` 不是 `fail` 的 result，`level` 為 `none`）[V][E:whitebox-59]；在同一個 commit 上重跑時，所有叢集的 `baseline_state` 都是 `unchanged` | `fast` 線＋整合測試 | 驗證失敗，或指紋不穩定 |
 | MVP0-X4 | 沒有校準資料時，每個裁決都是 `provisional`；沒有可執行證明的叢集不會是 `CONFIRMED_*` | 性質測試 | 有任何一例 |
 | MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator（`E-ENG-PROFILE`、`E-GATE-SOD`）＋報告測試 | 缺少聲明卻通過（一人在同一份關卡紀錄中兼任兩個角色而沒有 `E-GATE-SOD`），或報告沒有標示 |
+| MVP0-X6 | **前導實驗**（§1.2）已依預先登記執行，決定已寫入 `calibration.yaml` 的 `recommended_defaults`（MVP-1 起的 `w2_review.strategy`）與報告 | 前導實驗報告：預先登記的 hash、每個應用的原始結果、決定 | 沒有預先登記就解盲；應用中有工具包團隊撰寫的；報告缺少決定，或 MVP-1 的預設值與決定不符 |
+| MVP0-X7 | MVP-0 會用到的元件，其 §3 入口閘門都已結案：「M1 前」的 Anthropic API 條款、Semgrep／CodeQL（不啟用則免）；「M2 前」的 OpenAI API 條款（G-13）、GPT-6 的 ZDR 書面確認（G-06）、NIM 用途（使用 `nemotron_self` 時）。v0.3 的 MVP-0 只沿用 M1-X4～X7，雲端模型的條款還沒確認就能出貨 | 驗收包中的法務紀錄，或證明該元件已停用的設定檔（engagement 的 `allowed_models`、`config_pins`） | 有未結案的項目，而對應的模型或工具仍然啟用 |
+| MVP0-X8 | **Lite 使用者 pilot**（§1.3）：≥3 位不屬於工具包團隊的單人開發者，各自以自己的應用跑 Lite 的 MVP-0。門檻 [H]：從開始安裝到拿到第一份白箱報告的中位數 ≤ 1 個工作天；每個 run 的人工關卡總耗時（G0a 簽署、G1 問卷與簽核、GB）中位數 ≤ 2 小時；沒有人因為金鑰與簽章設定而放棄 | pilot 紀錄（各步驟時間戳記、放棄原因） | 任一門檻沒有達到，且沒有啟用 §1.3 的降階路徑 |
 | MVP1-X1 | 範例 A 在本地目標上：<br>• 植入版的 TC-012-01 FAIL，並且**不經 LLM 分析者**就裁決為 `CONFIRMED_EXECUTABLE`（G4 已事先登記解讀）<br>• 修正版 PASS，且所有 control 都通過 | 整合測試 | 任一步不符 |
 | MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點（沒有綁定的測試案例算出 S3，`E-TC-MUTATION-SCOPE`） | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
 | MVP1-X3 | 故障注入（session 過期、路徑錯誤、種子遺失）時，結果是 `INVALID`，不是 PASS；報告列出 control 通過率 | 整合測試 | 有任何一例被當成 PASS |
@@ -86,6 +98,28 @@
 | MVP2-X2 | 共享平台網域的目標沒有 `platform_project` 證明與同一平台的 `platform_policies` 時，G0b 拒絕（`E-ROE-PLATFORM`） | `security` 線 | 被接受 |
 | MVP2-X3 | 每一批測試前，每個角色都先通過 whoami；需要 CAPTCHA 或第三方 IdP、卻沒有 staging 旁路的角色，其測試標 `SKIPPED` 並列入 B6 | 整合測試 | 未驗證身分就執行，或沒有列出略過的測試 |
 | MVP2-X4 | ST-1＝0：canary-server 的「ROE 以外」接收器沒有任何命中 | `selftest-report.json` | 大於 0 |
+
+### 1.2 前導實驗：MVP-1 之前的預設值決策 [H]
+
+05 §5.6 的正式檢定需要約 40 個應用的保留切分（M2-X1），要到校準語料完成才能做（09 BL-11，依 U-10）。在那之前，MVP-0～2 若一律假設多家族比較好，就是在未經檢驗的前提上花三倍的供應商成本。所以 MVP-0 結束前先做一次小型、預先登記的前導實驗，只用來決定**預設值**，不當成科學證明。
+
+- **應用**：≥10 個**不是工具包團隊撰寫**的 vibe-coded 應用，例如請外部開發者以 vibe coding 工具生成、或 git 歷史中有已修正安全問題的公開 repo（以修正前的 commit 當受測版本）。每個應用都有人工確認的已知缺陷清單；生成工具的家族盡量平衡（05 §5.1）。
+- **兩組**：③ 多家族（3 個家族各 1 次，≥2 個家族回報才接受）對照 ②a 單一最佳模型取樣 3 次（≥2 次回報才接受）。M\* 在另外 3 個應用上選出，不在這 10 個應用上選。
+- **預先登記的決策規則**（解盲前寫入 `calibration.yaml` 的 `preregistration`，含本節版本的 hash）：
+  - Δrecall＝recall(③) − recall(②a) 的點估計 ≥ +5 個百分點，**而且** precision(③) − precision(②a) ≥ −5 個百分點 → MVP-1 起維持 `w2_review.strategy: multi_family`；
+  - 否則 → MVP-1 起預設 `single_best_resampled`（05 §5.6 的定義），多家族降為選用；跨家族 verifier 保留（它的價值另由 M-4 判斷）。
+  - 不論結果如何，M2 的正式檢定（05 §5.6）照常進行，並依它的結果再切換一次（M2-X13）。
+- **報告另外列出**：每個已確認缺陷是由 W0／W1 的確定性規則、還是只由 W2 的 LLM 審查找到。只有 LLM 找到的比例，是 W2 值不值得花費的第一個實測訊號（MVP0-X1 的三個植入問題都能由確定性規則找到）。
+- **誠實說明**：10 個應用（約 50–100 個缺陷）偵測不到小於約 10 個百分點的差距，點估計的誤差也大；這個規則只保證「沒有看到明顯效益時，不預設花三倍的錢」。
+
+### 1.3 Lite 的使用者 pilot 與降階路徑 [H]
+
+Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自建組織根金鑰與金鑰登錄、以 Ed25519 簽署委任設定、回答 G1 問卷，B 階段還要三角色 ROE、法務聲明、seed manifest、whoami 端點與 `build_identity` 標頭。這些對目標使用者（不讀程式碼的 vibe coder）可能是放棄的理由，必須實測（MVP0-X8）。
+
+**pilot 未達門檻時的降階路徑**（擇一或並用，選擇記入 08 §10 的待決事項）：
+- **Lite 白箱快速模式**：只跑 MVP-0（白箱、不連網、沒有 G0b 與 B 階段）。`vibecheck init` 在本機產生一把金鑰，建立只有一個人的金鑰登錄與委任設定，使用者只需確認一次；報告首頁標示「單人、自行簽署、只有白箱」。安全底線（先遮罩再送 LLM、跨境聲明、設定檔釘選）不變。
+- **G1 問卷精簡**：只問存取控制矩陣的核心題（每個角色 × 有個資的資源），其他條目用 ASVS L1 基準與預設值，在報告中標示「未經使用者確認」。
+- **託管控制面**：由可信的第三方代管 Z1／Z2 與金鑰登錄，使用者只用硬體金鑰或 passkey 簽署。這改變信任模型（託管方看得到遮罩後的程式碼），需要另外的法務與威脅模型審查，不在 v0.4 範圍。
 
 ## 2. 元件與節點的歸屬
 
@@ -189,7 +223,7 @@
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| M2-X1 | 在**保留切分**上，[05 §5.3](05-bias-calibration.md#53-指標) 的 M-1–M-11 全部達到該表的門檻：每個模型×桶 ≥20 票，否則標 `near_zero`；`CONFIRMED_*` 的 precision ≥0.90 且 Wilson 下界 ≥0.80；CONFIRMED∪LIKELY 的 recall ≥0.60；M-4 的家族排除 100%；M-5 的翻轉率 ≤0.10；M-6 ≥30 個 DISPUTED；M-7 缺票率 ≤0.05。<br>預先登記在解盲前完成；主要假設（③ 優於 ②）**不論結果如何都要報告**，但它不是出口條件 | `calibrate report` | 任一個有門檻的指標沒有達標；解盲前沒有預先登記；`holdout_access_log` 有預先登記前的存取 |
+| M2-X1 | （依 09 BL-11：校準語料需要 U-10 決定標註人力與預算；在那之前 M2 只能部分驗收，M2-X1 以外的準則照常驗收）在**保留切分**上，[05 §5.3](05-bias-calibration.md#53-指標) 的 M-1–M-11 全部達到該表的門檻：每個模型×桶 ≥20 票，否則標 `near_zero`；`CONFIRMED_*` 的 precision ≥0.90 且 Wilson 下界 ≥0.80；CONFIRMED∪LIKELY 的 recall ≥0.60；M-4 的家族排除 100%；M-5 的翻轉率 ≤0.10；M-6 ≥30 個 DISPUTED；M-7 缺票率 ≤0.05。<br>預先登記在解盲前完成；主要假設（③ 優於 ②）**不論結果如何都要報告**，但它不是出口條件 | `calibrate report` | 任一個有門檻的指標沒有達標；解盲前沒有預先登記；`holdout_access_log` 有預先登記前的存取 |
 | M2-X2 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的白箱部分：`invoices-app` 的 IDOR（K-005）裁決為 ≥`LIKELY`；W5 產出對應的種子威脅 | 整合測試（真實供應商跑在 manual 線；CI 用錄製的回應） | K-005 沒有達到 `LIKELY`，或沒有種子威脅 |
 | M2-X3 | ST-2＝0；ST-4：`CONFIRMED_*` 為 0、`LIKELY` ≤5%；ST-5 ≤10 個百分點（≥3 次 run） | `selftest-report.json` | 任一項沒有達標 |
 | M2-X4 | Lane A 的結果永遠不會是 `CONFIRMED_*`（R9） | 性質測試＋ST | 出現任何一例 |
@@ -200,6 +234,7 @@
 | M2-X9 | 模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已換成 `claude_opus_48`（U-11 已決定 [V][單源][E:providers-52]），且替代模型已完成 05 §5.8 的最小重跑 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
 | M2-X10 | [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的最小重跑：`model_key` 改變後，完成重跑之前該模型的權重 w＝0 | 整合測試 | 重跑前 w≠0 |
 | M2-X11 | 每個 LLM 輸出都通過 schema 驗證，或有記錄在案的修復或缺票 | 稽核查核 | 有未驗證的輸出進入 Blackboard |
+| M2-X13 | **預設值照 §5.6 的結果切換**：主要假設的結果（不論哪一方勝出）寫入 `calibration.yaml` 的 `recommended_defaults`，組態載入時套用；使用者覆寫時報告標示「未採用校準建議」（05 §5.6） | `config validate`＋報告 | 預設值與 §5.6 的結果不符，且沒有標示覆寫 |
 | M2-X12 | 指揮官的加值：每份計畫都包含確定性的覆蓋下限（必要面向，`E-PLAN-FACETS`）；報告列出指揮官在下限之外加派的切片、面向與 CMD-2 輪次，以及其中產生有效叢集（`LIKELY` 以上）的比例 | 計畫檔＋報告 | 有計畫少於覆蓋下限；沒有報告加派結果（只量測、不設門檻） |
 
 ### M3 威脅建模
@@ -210,7 +245,7 @@
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| M3-X1 | 範例 A 與[範例 B](04-threat-to-testcase.md#62-範例-bllm-功能的間接-prompt-injection-與工具濫用) 的威脅模型都通過 G3。每個種子威脅都要在模型中，或在 G3 以理由駁回；每個 `b1_diff` 項目都已處置 | 整合測試 | 有種子威脅沒有處置；有 `b1_diff` 項目沒有處置，G3 卻已開啟 |
+| M3-X1 | 範例 A 與[範例 B](04-threat-to-testcase.md#62-範例-bllm-功能的-prompt-injection-與工具濫用confused-deputy) 的威脅模型都通過 G3。每個種子威脅都要在模型中，或在 G3 以理由駁回；每個 `b1_diff` 項目都已處置 | 整合測試 | 有種子威脅沒有處置；有 `b1_diff` 項目沒有處置，G3 卻已開啟 |
 | M3-X2 | G-08：在範例應用上以人工標註的威脅清單比較 B2 與 pytm 規則輸出的 recall（只供 B2 設計參考，不設門檻） | 報告附原始資料 | 沒有報告 |
 | M3-X3 | INJ-DOC 對 B1／B2 的影響：植入 twin 的威脅模型漏列種子威脅 → 失敗 | `selftest-report.json` | 有任何一例 |
 | M3-X4 | OWASP LLM Top 10 的預設版本為 `owasp-llm@2026`（§3 已結案）；toolkit.yaml 與 crosswalk.yaml 的 `owasp_llm_default` 一致，2025 版委任可經對照表轉換 | 設定檔＋validator | 設定檔不一致，或 2025 版委任無法轉換 |
@@ -243,7 +278,7 @@
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| M5-X1 | 範例 B 端到端：`support-agent-app` 植入版的 TC-031-01 在 n＝60 下判定 FAIL；修正版在 n＝60、k＝0 時依 04 §4.4 的上界公式報告殘餘率上界，而且**不寫成 PASS** | 整合測試 | 判定或上界不符 |
+| M5-X1 | 範例 B 端到端：`support-agent-app` 植入版的 TC-031-01 在 n＝60 下判定 FAIL；修正版在 n＝60、k＝0 時依 04 §4.4 的上界公式報告殘餘率上界，報告中不得寫成「沒有漏洞」（`outcome` 仍是 `PASS`，但殘餘率上界必須並列）。受測應用的上游模型固定為驗收包指定的模型與版本，並記入測試結果；植入版是否 FAIL 取決於上游模型會不會被注入，與工具包無關，所以另以腳本式假模型（W4 的工具防護測試）確認工具包的判定路徑 | 整合測試 | 判定或上界不符；沒有記錄上游模型與版本 |
 | M5-X2 | Relay 的回合數與花費上限生效（`relay.max_turns`、`max_spend_usd_per_job`、`max_spend_usd_per_run`）；INJ-LLMAPP 不改變裁決 | `security` 線＋ST | 超過上限仍繼續；INJ-LLMAPP 改變了裁決 |
 | M5-X3 | promptfoo 沒有任何雲端出站 | 出站紀錄 | 有任何一筆 |
 | M5-X4 | HTML 報告是靜態檔案，不需要伺服器或外部資源；內容與 JSON 報告一致 | 測試 | 有外部請求，或與 JSON 不一致 |

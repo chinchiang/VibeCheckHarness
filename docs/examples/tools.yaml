@@ -17,7 +17,7 @@ tools:
     description: "OWASP ZAP（B1 被動探索、B4 主動掃描）"
     license_ref: ZAP
     modes:
-      baseline: {description: "被動規則", base_class: S0, b4_executable: true, toolkit_denied: false}
+      baseline: {description: "被動規則；以 zap-api-scan.py 執行時必須帶 -S（safe mode），否則它會跑主動掃描（E:blackbox-07）", base_class: S0, b4_executable: true, toolkit_denied: false}
       active: {description: "主動掃描；每個 job 都要 G5", base_class: S2, b4_executable: true, toolkit_denied: false}
   playwright:
     zone: Z3

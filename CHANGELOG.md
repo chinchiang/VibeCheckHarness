@@ -4,7 +4,7 @@
 
 ## v0.4（2026-10-24）
 
-依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一、第二優先項目：修正裁決規則的邊界與 validator 的繞過，並把跨境聲明移到 G0a、補上事故應變、釘選設定檔、修正信任錨與 Scope Proxy。其餘審查項目與理由見該紀錄 §5。
+依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一到第三優先項目：修正裁決規則的邊界與 validator 的繞過；把跨境聲明移到 G0a、補上事故應變、釘選設定檔、修正信任錨與 Scope Proxy；在 MVP-1 前加入核心假設的前導實驗、降低人工關卡負擔、修正對照表與範例。其餘審查項目與理由見該紀錄 §5。
 
 ### 裁決規則（語意改變，`rule_version` 改為 `05-v0.4`）
 - **R0** 只在叢集沒有任何其他證據時成立：除了成員證據全部 `NOT_FOUND`，還要沒有已解析的 SARIF、沒有 `E_proof`／`E_fail_u`。（A1）
@@ -19,7 +19,7 @@
 - 新增 `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES`：CMD-1 計畫涵蓋 run 的每個切片，每個切片的 reviewer 至少 min(2, 合格家族數) 個家族。（D3）
 - `E-FINDING-EVIDENCE`：程式片段至少 12 個非空白字元並含識別字，檔案必須在發現項的切片中。（D4）
 - `graphql_operation: query／introspection` 只在 ROE 新增的 `targets[].graphql_paths` 宣告的路徑、GET／POST 上算讀取；其他帶這個標籤的請求一律 S3。（B1）
-- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 553 個。
+- 新增 `tests/test_v04_adjudication.py`、`tests/test_v04_validator.py`（每項修正都有正反向案例）；測試由 454 個增加到 559 個。
 
 ### 第二優先：資料出境、法務與信任錨
 - **跨境聲明移到 G0a**：委任設定新增 `data_transfer`（來源法域、聲明者、逐家族的區域與傳輸機制）；能收 C 級資料的雲端家族 `providers[].region` 不得為 null（`E-ENG-TRANSFER`）。委任設定宣告跨境時，ROE 的 `cross_border` 不能寫不適用（`E-ROE-TRANSFER`）；範例 ROE 改為 true。（C1）
@@ -33,8 +33,19 @@
 - **Scope Proxy**：參考實作 `safety.ip_problem`（擋 NAT64、IPv4-mapped、6to4、Teredo、ULA、`fec0::/10`、multicast 與一切非公開位址）；封鎖 h2c、QUIC 與 CONNECT 後的非 TLS 流量；路徑的 `\`／`%5C` 視為 `/`；共享平台網域加入 `lovable.app`、`replit.app`、`workers.dev`、`github.io` 等 12 個，實作版以 Public Suffix List 為來源。（B8、B9）
 - 新增 `tests/test_v04_legal_trust.py`、`tests/test_v04_scope_proxy.py`；`test_validator.py` 的 G5 時間窗測試改以收件時間為準。
 
+### 第三優先：路線圖、人工關卡負擔、對照表與範例
+- **前導實驗**（07 §1.2、MVP0-X6）：MVP-1 之前，在 ≥10 個不是工具包團隊撰寫的應用上，比較多家族與單一最佳模型取樣 3 次；依預先登記的規則決定 MVP-1 起的 `w2_review.strategy`，並報告只有 LLM 找到的缺陷比例。正式檢定仍是 05 §5.6；M2 的預設值必須照它的結果切換（M2-X13）。
+- **法務閘門綁到 MVP-0**（MVP0-X7）：MVP-0 用到的雲端模型條款與 ZDR 必須先結案。
+- **Lite 使用者 pilot**（07 §1.3、MVP0-X8）：≥3 位外部單人開發者；第一份報告中位數 ≤ 1 個工作天、人工關卡總耗時中位數 ≤ 2 小時；未達門檻時的降階路徑（白箱快速模式、精簡問卷、託管控制面）。
+- **路由改用 rubric 嚴重度**：G2 佇列、W4 輸入、B2 高風險條件 4 不再採信 reviewer 自報的嚴重度（08 §11.17）。
+- **人工關卡負擔**：G2 每個 run 預設最多 30 項、G3 50 項（高風險與 critical／high 不受限），依嚴重度排序；G2 逾時比例超過 50% 時告警；低嚴重度、單一來源的 `UNCORROBORATED` 叢集只列報告、不轉成種子威脅（G3 可拉回）。設定欄位尚未進 schema（09 BL-26）。
+- **ASI09 抽查**納入沒有人看過的項目：R0／R4 的自動駁回、只列報告的叢集、超出 G2 上限與 G2 逾時的項目；Lite 改為自行延後抽查。
+- **對照表**：`zap-api-scan.py` 用於 `zap:baseline` 時必須帶 `-S`（依 E:blackbox-07，否則是主動掃描）；open redirect 不再誤對 `WSTG-v42-CLNT-04`；CSRF 的 SameSite 驗證改為 `MANUAL`；認證控制列寫清楚 oracle 的範圍；ASI04／05／08 列改以注入內容觸發、以工具端效果判定。
+- **範例**：範例 B 更正為工具端授權（confused deputy），不是第三方內容的間接注入；oracle 查詢新增 `returns: row_hash`（偵測 PUT 就地修改）與 `Q-unconfirmed-refunds`；測試結果新增 `trials.n_effective`（`E-RESULT-TRIALS`）；K-015 改由 W4 本地 RLS 測試確認。
+- 新增 `tests/test_v04_examples.py`。
+
 ### 文件
-- docs/02、03、04、05、06、08 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
+- docs/00、02、03、04、05、06、07、08、09 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
 
 ## v0.3（2026-09-26）
 

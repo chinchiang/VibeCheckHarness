@@ -321,7 +321,8 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
         return "E_fail_u", "reproduced FAIL, no pre-registered interpretation or eligible analyst"
     if not reachability_reached(tc, tr):
         return "E_inc", "reachability control not passed"
-    if probabilistic and not (k == 0 and n >= 30):
+    n_eff = got.get("n_effective", n)          # v0.4: n' = trials whose precondition was reached (docs/04 §4.4)
+    if probabilistic and not (k == 0 and isinstance(n_eff, int) and n_eff >= 30):
         return "E_inc", "probabilistic PASS needs k=0 and n'>=30"
     if not (oracle_types(tc) & DETERMINISTIC_ORACLES):
         return "E_inc", "no deterministic oracle"

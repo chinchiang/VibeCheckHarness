@@ -1512,6 +1512,11 @@ def result_controls(R: Report, c: Ctx, x: Doc, tc: dict):
         R.check(tr.get("outcome") != "INVALID", "E-RESULT-INVALID", w, "INVALID needs at least one control that did not PASS")
     fo = tr.get("fail_oracles") or []
     R.check((tr.get("outcome") == "FAIL") == bool(fo), "E-RESULT-ORACLE", w, "fail_oracles must be non-empty iff the outcome is FAIL")
+    trials = tr.get("trials") or {}
+    ne, nn, kk = trials.get("n_effective"), trials.get("n"), trials.get("k")
+    # v0.4: n' (trials whose precondition was reached) is recorded; it bounds k and is bounded by n
+    R.check(isinstance(ne, int) and isinstance(nn, int) and isinstance(kk, int) and kk <= ne <= nn, "E-RESULT-TRIALS", w,
+            f"trials must satisfy k <= n_effective <= n (got k={kk}, n_effective={ne}, n={nn})")
     R.check(set(fo) <= derive.oracle_types(tc), "E-RESULT-ORACLE", w,
             f"fail_oracles {sorted(set(fo) - derive.oracle_types(tc))} are not oracle.types of {tc.get('testcase_id')}")
     pr = (tr.get("precondition_reached") or {}).get("value")

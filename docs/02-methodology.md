@@ -460,7 +460,8 @@ flowchart TD
      - 輸出不合規 → 修復 ≤2 次 → 不加派。
   6. **G2 佇列**（加派結束後，由程式碼計算）[H]：
      - 所有 `DISPUTED` 叢集；
-     - 成員最高嚴重度為 `critical` 或 `high` 的 `UNCORROBORATED` 叢集。
+     - 叢集的 rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)，由程式碼計算）為 `critical` 或 `high` 的 `UNCORROBORATED` 叢集。v0.4 起路由改用 rubric：v0.3 用成員自報的最高嚴重度，單一家族的 reviewer 自報 critical 就能把叢集送進 G2，自報 low 就能讓它跳過。rubric 在 W3 以 inventory、G1 規格與確定性 DFD 骨幹計算（可達性未知時視同 `internet`）；reviewer 自報的嚴重度照樣保存並在 G2 畫面並列。
+     - **佇列上限與排序**（v0.4）[H]：每個 run 的 G2 佇列預設最多 30 項（設定欄位見 [09 BL-26](09-backlog.md)），依 rubric 嚴重度、再依 `DISPUTED` 優先排序；超出上限的項目不進 G2，照常成為種子威脅，在報告中列為「超出 G2 上限、未經人審」。G2 結束時逾時（未決）比例超過 50% → 寫入 `gate_load_warning` 稽核事件並在報告首頁標示；這類未決項目另列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
      - 其他 `UNCORROBORATED` 叢集不進 G2，直接成為種子威脅並在報告中列出。
      - `no_eligible_verifier` 的叢集（所有 verifier 家族都已回報，沒有人能驗證）通常是 `LIKELY`，不進 G2；它們成為種子威脅，由 W4 與 B 階段的測試確認（[05 §3](05-bias-calibration.md#3-設計規則)）。
      - **佇列為空就略過 G2**（稽核事件 `gate_skipped`，附原因）。
@@ -471,7 +472,7 @@ flowchart TD
 ### W4 白箱測試（oracle 只取自 G1 規格）
 - **輸入**：
   - G1 已簽核規格；
-  - 叢集：裁決為 `LIKELY` 以上者、**所有 `DISPUTED`**、成員最高嚴重度為 critical／high 的 `UNCORROBORATED`；
+  - 叢集：裁決為 `LIKELY` 以上者、**所有 `DISPUTED`**、rubric 嚴重度為 critical／high 的 `UNCORROBORATED`（v0.4）；
   - 遮罩後的程式碼（經 Slicer）。
   - W4 要化解爭議，所以必須拿到爭議叢集；v0.2 只給 `LIKELY` 以上，與「化解跨家族爭議」的目的矛盾。
 - **節點**：`W4_testgen`（Z1，LLM）→ `W4_exec`（Z2，無網路）→ `W4_readjudicate`（Z1，程式碼；解讀未事先登記時才呼叫 Result Analyst 池）。
@@ -525,6 +526,13 @@ flowchart TD
   LLM 只**提議**標籤與邊界，由人在 G3 確認。pytm 也是從明確的模型產生 DFD，不是推論出來的 [V：該條只有日期與數字被更正，此部分成立][E:threat_modeling-11]。
 - **種子威脅**：除了 `REJECTED` 以外的叢集（`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`，以及 W4 已升級的 `CONFIRMED_EXECUTABLE`）都轉成 B2 的種子威脅，帶 `source_cluster_id` 與 `source_finding_ids`。
   - **規則（v0.2）**：每個種子威脅**必須出現在 B2 威脅模型中**；之後要嘛有 ≥1 個 B3 測試案例，要嘛有 **G3 駁回紀錄（理由必填）**。被 G3 駁回的叢集保留其白箱狀態，B6 列為「未做黑箱驗證（G3 駁回：理由）」。
+  - **只列報告的叢集**（v0.4 剪枝）[H]：v0.3 讓每個非 `REJECTED` 叢集都成為種子威脅，而每個種子威脅都要有測試或 G3 駁回理由，所以 LLM 的誤報會直接變成 G3 的人工負擔。v0.4 起，同時符合下列條件的叢集**不轉成種子威脅**，只列在白箱報告的「低優先、未驗證」清單：
+    - 裁決是 `UNCORROBORATED`（獨立來源 ≤ 1）；
+    - rubric 嚴重度是 `medium` 以下；
+    - 不符合 [B2 高風險威脅](#b2-威脅建模g3-強制簽核) 的任何一條（跨租戶或認證邊界且涉及機密或個資、涉及需人確認的 LLM 工具）；
+    - 不是 W4 後才轉為爭議的叢集。
+    - G3 審查者可以把清單中的任何一項拉回種子威脅。清單的 10% 列入 ASI09 抽查，以量測剪枝造成的漏報（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
+  - **G3 佇列**（v0.4）[H]：種子威脅依「高風險 → rubric 嚴重度 → 裁決狀態」排序呈現；高風險威脅與 `critical`／`high` 不受任何上限限制，其他項目每個 run 預設最多 50 項需要逐項決定，超出的照 G3 `NEEDS_INFO` 逾時規則處理（視同駁回，理由自動填「超出 G3 上限」，列入 B6）。
   - `W4_readjudicate` 時才轉為 `DISPUTED` 的叢集（前一版裁決不是 `DISPUTED`，例如 `LIKELY` 經 R11 → `DISPUTED`；與 G2 是否已決定無關）在裁決上加註 `w4_became_disputed`；種子威脅與 run 的 `disputed_after_g2` 由這些註記推導，G3 呈現時標為「W4 後轉為爭議」[H]（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
   - 這樣動態測試可以把確認升級為 `CONFIRMED_EXECUTABLE`、化解跨家族爭議，並替已確認的問題留下回歸測試。
 - **跨 run 指紋與基準狀態** [H]：
@@ -629,7 +637,7 @@ flowchart TD
   1. `risk.impact = high`，且 `risk.likelihood ∈ {high, medium}`；
   2. 威脅的 DFD 元素跨越**租戶邊界或認證邊界**，且涉及資料分級為機密或個資的 data store（依 G1 資料分級）；
   3. 涉及 G1 LLM 工具權限矩陣中標為「需人確認」的高影響動作；
-  4. 來自種子威脅，其來源叢集為 `CONFIRMED_*` 或 `LIKELY`，且成員最高嚴重度為 `critical` 或 `high`。
+  4. 來自種子威脅，其來源叢集為 `CONFIRMED_*` 或 `LIKELY`，且來源叢集的 rubric 嚴重度為 `critical` 或 `high`（v0.4；v0.3 用成員自報的嚴重度）。
 
   LLM 給的 likelihood／impact 只當**下限**：程式碼計算的結果與 LLM 提議取較高者；人在 G3 可以提高，降低時必須附理由（寫入 GateRecord）。
 - **OWASP LLM Top 10 的版本**：
