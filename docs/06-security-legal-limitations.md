@@ -520,6 +520,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 可用於正式環境的 Nemotron 雲端路徑 | NVIDIA 託管沒有 ZDR [V][E:providers-42]；第三方託管的條款未審 | 逐家審 DPA；未審完只給 P 級 | toolkit_maintainer＋legal_reviewer | M2 前 |
 | Nemotron 託管端點的 json_schema 支援 | 未確認 | Gateway 整合測試實測 | toolkit_maintainer | M2 |
 | PrimeVul 樣本的重製 | 資料集授權未單獨標示 [P][E:vibe_risks-35] | 法務確認；未確認則只作內部評估 | legal_reviewer | M2 前 |
+| 04 §4.3 F 表的框架行為（Next.js middleware 曾可被請求標頭繞過、Server Actions 以 action ID 呼叫、Supabase UPDATE 政策缺 `WITH CHECK` 的效果、MCP 工具描述投毒、GitHub Actions `pull_request_target` 與表達式注入） | 未查證 [H] | 查官方文件與公告並登入證據帳本；查證前這些列只作為 W1 規則與 G3 的提示 | toolkit_maintainer | M2 前 |
 | OpenRouter 條款 | 未審 | 審條款；未審則不使用 | toolkit_maintainer | M2 前 |
 | MAESTRO、LINDDUN 的授權 | 未查 | 補查 | toolkit_maintainer | M3 前 |
 | AGPL：k6 | 事實已查 [V][E:blackbox-25][E:blackbox-59] | 法務確認；未確認則限流驗證改用其他工具 | legal_reviewer | **M4 前** |

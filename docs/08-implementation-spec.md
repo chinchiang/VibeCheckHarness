@@ -662,7 +662,7 @@ class ToolAdapter(ABC):
 | run 紀錄 | `config_refs`（`models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`）、`prompt_templates[]`、`tool_versions[]`、`rule_version`、`baseline_run_id` | run manifest | `config_refs.*.sha256` 重算（`E-DERIVED`）；路徑的檔案種類、`tool_versions` 與稽核事件一致（`E-RUN-CONFIG`）；`rule_version`（`E-RUN-RULE-VERSION`）；`baseline_run_id`（`E-CLUSTER-BASELINE`） | §11.13 |
 | `invariants.yaml` | `data_classification[]`、`llm_tools[]`、`limits[]`、`policies[]`、`access_matrix[].ownership`；頂層的 `level_triggers[]` 與 `baseline_levels`（`asvs`、`aisvs`） | G1 規格 | `E-INVARIANT-LEVEL`、`E-INVARIANT-REF` | §11.4 |
 | `inventory.json` | `frameworks[]`；`endpoints[]` 的 `kind`、`auth_required`、`middleware_refs`；`db`、`auth`、`env_vars[]`、`blind_spots[]`、`features[]` | W0 的產出 | `E-INVENTORY`、`E-INVENTORY-REF`、`E-PLAN-FACETS` | §11.1 |
-| 發現項（finding） | 證據的 `kind`（`code_snippet`、`inventory_fact`、`config_fact`）、`fact_ref`、`key_path`、`asserted`；`match` 新增 `MATCHED_SHIFTED`；`facet`（12 個面向） | 不是程式片段的證據；審查面向 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-INVENTORY-REF`；所屬叢集的桶必須在 `FACET_BUCKETS[facet]` 中（`E-FINDING-FACET`） | §11.1、[05 §3](05-bias-calibration.md#3-設計規則) |
+| 發現項（finding） | 證據的 `kind`（`code_snippet`、`inventory_fact`、`config_fact`）、`fact_ref`、`key_path`、`asserted`；`match` 新增 `MATCHED_SHIFTED`；`facet`（13 個面向） | 不是程式片段的證據；審查面向 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-INVENTORY-REF`；所屬叢集的桶必須在 `FACET_BUCKETS[facet]` 中（`E-FINDING-FACET`） | §11.1、[05 §3](05-bias-calibration.md#3-設計規則) |
 | 切片（slice） | `redaction_map_sha256`、`prompt_template_sha256` | 新的 `slice_id` | `slice_id` 重算（`E-DERIVED`）；範本不是 run 的 `prompt_templates` 之一，或遮罩表不是 run 的 `redaction_map_ref` → `E-SLICE-IDENTITY` | §11.3 |
 | 叢集（cluster） | `origin`（`white_box`、`black_box`）、`threat_id`、`canonical_location.endpoint`、`fingerprint`、`baseline_state`、`reopened` | 黑箱起源的叢集；跨 run 的指紋 | `E-CLUSTER-ORIGIN`、`E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | §11.16 |
 | 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為 `05-v0.3` | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
@@ -1181,7 +1181,7 @@ class InventoryExtractor(ABC):
 **validator**：
 - threat 與 finding 引用的 inventory 事實必須能解析（`E-INVENTORY-REF`）。
 - inventory 內部的一致性（`E-INVENTORY`）：`middleware_refs` 要對到 `auth.middleware[].middleware_id`；每個來源檔都要在 `files` 中；`table_id` 不重複；`public_prefix` 必須等於「名稱以 `NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_` 開頭」。
-- 必要面向（`E-PLAN-FACETS`）由 `vchlib/facets.py` 的 `mandatory_facets` 計算：固定的 6 個（`authz`、`authn_session`、`injection`、`data_access`、`secrets_config`、`business_logic`）；`llm_integrations` 不是空的 → 加 `llm_integration`；`file_upload` → `file_handling`、`outbound_http` → `ssrf_outbound`、`webhook_inbound` → `webhooks_integrations`、`frontend_bundle` 或任何 `public_prefix: true` 的變數 → `frontend_client`、`crypto` → `crypto`。`payments`、`oauth`、`llm_tools` 不增加面向，只影響 G1 問卷與 `level_triggers`（§11.4）。
+- 必要面向（`E-PLAN-FACETS`）由 `vchlib/facets.py` 的 `mandatory_facets` 計算：固定的 6 個（`authz`、`authn_session`、`injection`、`data_access`、`secrets_config`、`business_logic`）；`llm_integrations` 不是空的 → 加 `llm_integration`；`file_upload` → `file_handling`、`outbound_http` → `ssrf_outbound`、`webhook_inbound` → `webhooks_integrations`、`frontend_bundle` 或任何 `public_prefix: true` 的變數 → `frontend_client`、`crypto` → `crypto`、`ci_workflows` 或 `iac` → `cicd_iac`（v0.4）。`payments`、`oauth`、`llm_tools` 不增加面向，只影響 G1 問卷與 `level_triggers`（§11.4）。
 
 ### 11.2 工具結果正規化與合併
 
@@ -1697,7 +1697,7 @@ class SessionProvider(Protocol):
 |---|---|---|
 | W0.5 | 1–3 次（G1 的重擬輪數） | 輸入是遮罩後 inventory 的摘要 |
 | CMD-1–CMD-5 | 每個決策點 1 次，修復 ≤2 次 | 輸入是型別化視圖，很小 |
-| W2 | S × V × G | 03 §11；G＝每個切片要審的面向組數（12 個面向分成 3 組） |
+| W2 | S × V × G | 03 §11；G＝每個切片要審的面向組數（13 個面向分成 3 組） |
 | CMD-2 加派 | ≤2 輪 × 加派數 | 依 `UNCORROBORATED` 與 `DISPUTED` 叢集數估計 |
 | W3 | K × M | 校準前 M＝1（§11.11） |
 | W4 | 每條不變量 × ≤3 輪 × 2（生成＋critic） | — |

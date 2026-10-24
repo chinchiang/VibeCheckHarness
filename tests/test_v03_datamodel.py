@@ -226,7 +226,7 @@ def test_mandatory_facets_rule():
         base | {"ssrf_outbound", "webhooks_integrations", "crypto"}
     assert "frontend_client" in facets.mandatory_facets({"env_vars": [{"name": "NEXT_PUBLIC_X", "public_prefix": True}]})
     assert "frontend_client" in facets.mandatory_facets({"features": ["frontend_bundle"]})
-    assert set(facets.FACET_BUCKETS) == set(facets.FACETS) and len(facets.FACETS) == 12
+    assert set(facets.FACET_BUCKETS) == set(facets.FACETS) and len(facets.FACETS) == 13
 
 
 def test_plan_must_cover_mandatory_facets(b):

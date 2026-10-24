@@ -619,7 +619,7 @@ stateDiagram-v2
 ```
 
 - **W1 輸出不給 reviewer 與 verifier** [H]：`W2_review`（含 CMD-2 加派的審查）與 `W3_verify_fanout` 的驗證者都收不到 W1 的工具輸出（SARIF、相依漏洞、secrets、套件存在性）。W1 結果經 ToolResult 正規化器（§1、[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）後只交給 `W3_cluster`（Clusterer）與 `W3_adjudicate`（Aggregator）。這樣 reviewer 的發現與工具結果才是兩個獨立來源；工具結果分成強佐證與弱訊號，規則見 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)。
-- **W2 的呼叫單位是面向組** [H]：12 個審查面向分成 3 組，每組 4 個；每次呼叫審一個切片的一個面向組，所以 fan-out 是 `slice × 面向組 × agent`（分組見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。只有必要面向與 Commander 加入的面向會被審；某一組完全沒有要審的面向時不送出該組。
+- **W2 的呼叫單位是面向組** [H]：13 個審查面向分成 3 組，每組 4～5 個（v0.4 新增 `cicd_iac`）；每次呼叫審一個切片的一個面向組，所以 fan-out 是 `slice × 面向組 × agent`（分組見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。只有必要面向與 Commander 加入的面向會被審；某一組完全沒有要審的面向時不送出該組。
 - **G2 之後的爭議** [H]：`W4_readjudicate` 產生的 `DISPUTED` 不回到 `G2_gate`（圖中沒有 W4 → G2 的邊），而是在該版裁決加註 `w4_became_disputed`（前一版不是 `DISPUTED`、W4 重新裁決後為 `DISPUTED`，與 G2 是否已決定無關），種子威脅與 run 的 `disputed_after_g2` 由此推導，G3 另列「W4 後轉為爭議」一區；`B5_readjudicate` 經 R11 產生的 `DISPUTED` 不加此註記、不進 `disputed_after_g2`，而是列入 B6 人工複核清單。G2 已 `REJECTED` 的叢集之後只註記 `post_g2_conflict`（05 R10）。
 - G2 GateRecord 的整關 `outcome` 只有 `APPROVED` 或 `EXPIRED`；逐項的 reject／needs_info 記在 `decisions[]`，不接受整關 `REJECTED`／`NEEDS_INFO`（validator 檢查）[H]。
 - G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`，以及 rubric 嚴重度（v0.4，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）為 `critical`／`high` 的 `UNCORROBORATED`；上限、排序與逾時比例告警（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
@@ -1165,7 +1165,7 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 |---|---|---|---|---|
 | W | Inventory、Secrets（W0）、Static Runner、Supply-chain（W1） | 不在 `agents.yaml`；工具模式登錄在 `tools.yaml`（例如 `inventory:fastapi`、`opengrep:scan`） | **否** | Z2，唯讀；Inventory 是各框架的確定性抽取器（[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）；W1 輸出經 ToolResult 正規化後只給 Clusterer／Aggregator |
 | W | Invariant Drafter | `invariant_drafter`（`gpt_flagship`） | 是 | 工具只有 `read_inventory`、`write_blackboard`；只收遮罩後的 inventory，不讀切片；只起草；G1 簽核 |
-| W | Reviewer ×N | `rev_a`（`claude_sonnet`）、`rev_b`（`gpt_flagship`）、`rev_c`（`nemotron_self`） | 是（不同家族） | 只讀切片（`read_slice`）；**看不到 W1 工具輸出**；無 shell、無網路、無寫入；每位都列出全部 12 個面向，每次審一個面向組 |
+| W | Reviewer ×N | `rev_a`（`claude_sonnet`）、`rev_b`（`gpt_flagship`）、`rev_c`（`nemotron_self`） | 是（不同家族） | 只讀切片（`read_slice`）；**看不到 W1 工具輸出**；無 shell、無網路、無寫入；每位都列出全部 13 個面向，每次審一個面向組 |
 | W | Refuter／Verifier ×M | `ver_1`（`nemotron_self`）、`ver_2`（`claude_sonnet`）、`ver_3`（`gpt_oss_self`） | 是 | 只讀切片；家族與血統都和叢集的回報者不同；看不到來源模型，也**看不到 W1 工具輸出** |
 | W | Test Generator／Test Critic | `test_gen`（`gpt_flagship`）、`test_critic`（`claude_sonnet`） | 是（不同家族） | 產物在 Z2 執行；只能用鎖定的相依套件 |
 | W | Lane A Diff Reviewer | `lane_a`（`claude_opus_48`，角色 `lane_a_reviewer`） | 是（單一家族） | 只有參考性；結果最高 `UNCORROBORATED` |
@@ -1214,7 +1214,7 @@ erDiagram
 | Schema | 用途（「v0.3：」後是本輪新增的主要欄位） |
 |---|---|
 | `inventory.schema.json` | W0 盤點。v0.3：`frameworks[]`（含支援程度）、endpoint 的 `kind`／`auth_required`／`middleware_refs`、`db`（表、RLS、policy、函式、storage）、`auth`、`env_vars[]`（只有名稱與公開前綴旗標）、`blind_spots[]`、`features[]` |
-| `finding.schema.json` | reviewer 發現項（含 Evidence）。v0.3：evidence 分三種 `kind`（`code_snippet`、`inventory_fact`、`config_fact`），各用 `file`／`line_start`／`line_end`／`snippet`、`fact_ref`（W0 inventory 的 JSON Pointer）或 `file`＋`key_path`，後兩種以 `asserted` 寫主張的值，用不到的欄位為 null；`match` 為 `MATCHED`／`MATCHED_SHIFTED`／`NOT_FOUND`／`NOT_CHECKED`（對遮罩後文字做容錯比對）；12 個面向 |
+| `finding.schema.json` | reviewer 發現項（含 Evidence）。v0.3：evidence 分三種 `kind`（`code_snippet`、`inventory_fact`、`config_fact`），各用 `file`／`line_start`／`line_end`／`snippet`、`fact_ref`（W0 inventory 的 JSON Pointer）或 `file`＋`key_path`，後兩種以 `asserted` 寫主張的值，用不到的欄位為 null；`match` 為 `MATCHED`／`MATCHED_SHIFTED`／`NOT_FOUND`／`NOT_CHECKED`（對遮罩後文字做容錯比對）；13 個面向（v0.4 新增 `cicd_iac`） |
 | `cluster.schema.json` | 叢集鍵、成員、家族。v0.3：`origin`（`white_box`／`black_box`）與 `threat_id`（只有黑箱起源叢集有值）、`canonical_location.endpoint`（`{target_id, method, path_template}`，黑箱起源叢集的位置）、`fingerprint`、`baseline_state`（`new`／`unchanged`／`updated`／`absent`／null）、`reopened` |
 | `verdict.schema.json` | 驗證票與裁決狀態。v0.3：`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為 `05-v0.3` |
 | `threat.schema.json` | 威脅（含分類版本、證據、簽核狀態、種子來源、attack tree 參照） |
@@ -1253,7 +1253,7 @@ erDiagram
 |---|---|---|
 | W0.5 不變量起草 | ≈ R_g1 ×（1＋修復） | R_g1＝G1 輪數（≤ 3）；修復 ≤ 2 |
 | CMD-1～CMD-5 | 每個節點 1＋修復 | 修復 ≤ 2；不合規時改用程式碼的保底計畫（§4），不再呼叫 |
-| W2 審查 | ≈ S × V × G | S＝切片數、V＝家族數、G＝每個切片要審的**面向組數**。12 個面向分成 3 組、每組 4 個，一次呼叫審一組（[02 W2](02-methodology.md#w2-多家族獨立審查)）；G ≤ 3 |
+| W2 審查 | ≈ S × V × G | S＝切片數、V＝家族數、G＝每個切片要審的**面向組數**。13 個面向分成 3 組、每組 4～5 個，一次呼叫審一組（[02 W2](02-methodology.md#w2-多家族獨立審查)）；G ≤ 3 |
 | CMD-2 加派 | ≤ 2 輪 × 每輪加派數 | 加派的審查同樣以面向組為單位 |
 | W3 驗證 | ≈ K × M | K＝叢集數、M＝每個叢集的驗證者數 |
 | W4 測試 | ≈ R_w4 × N_b × 2 | R_w4＝CoverUp 迭代輪數（≤ 3）、N_b＝不變量批次數；生成＋Test Critic |

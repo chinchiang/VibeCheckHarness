@@ -17,9 +17,9 @@
   "resume_node": null,
   "resume_deadline": null,
   "data_class": "C",
-  "toolkit_config_ref": "sha256:3fc4c9d620d82550e04c1c2b71ed3996ce8b7f55457402166e4a6c5c312f7eaf",
+  "toolkit_config_ref": "sha256:219369fe47edd3f03a84732178cad355b34f64c38ba30016af544fdb6d1417ef",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:bfdd95b6e2c11ea0f3af07a6eb5c85bf97de308f9534256e2f93bfd1beba2441",
+  "engagement_ref": "sha256:7ae00fb558e90df99808bd3520c17f41fb1c889ede59a9607bf2f84ddaa98cd3",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -27,7 +27,7 @@
     },
     "agents": {
       "path": "docs/examples/agents.yaml",
-      "sha256": "sha256:6b436102c1d67adc1b28d10a0772368bfe34acf9fbb1f20385134646dbb8807c"
+      "sha256": "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
     },
     "tools": {
       "path": "docs/examples/tools.yaml",
@@ -39,11 +39,11 @@
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
-      "sha256": "sha256:5314c9aaf339cf4a7dd8aefff5a6d6bf367db2442683c2f7f76c0750de88cfab"
+      "sha256": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff"
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:e9f789189c5f46828b1f0dae3ac7c45dfe12e608e1d99e700fcf67e2a7fb4585"
+      "sha256": "sha256:915bdd71068bce5651eb29788e4849436d6e979ca3bd321a21265d491682554d"
     }
   },
   "prompt_templates": [
@@ -108,14 +108,14 @@
     }
   ],
   "rule_version": "05-v0.4",
-  "roe_ref": "sha256:5b58ac57cee629c526ef1a12215366946d214926a266623b6c221bba890e9875",
+  "roe_ref": "sha256:3e69977166a93ad4d011007188c9eb479f867bad67854e3bb745b21b4fcfa359",
   "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
   "inventory_ref": "sha256:b282c525fc15d27e3e7582528b3ced52c2db3a445a9838e7e7c4234656f052aa",
   "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f",
   "redaction_map_ref": "sha256:f1513e18bd39bade630c8a0c2defd46194d3d21ed8c828b7a4a47139f24b236f",
-  "invariants_ref": "sha256:5314c9aaf339cf4a7dd8aefff5a6d6bf367db2442683c2f7f76c0750de88cfab",
+  "invariants_ref": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff",
   "invariants_changed": false,
   "g1_round": 1,
   "w1_sarif_ref": "sha256:ec3d31408b0d361ed7d343838dc9cba76123659054384e89bccf6962b50f92a1",
@@ -303,14 +303,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:c24919aaf600c49c7442a1db18f6bd810c27f70b2de2928e9051969e324e1a0d",
+  "report_manifest_ref": "sha256:174388a3457c682f72641ae72e0122e09abe2460417f4c26cd14852e5fadbf40",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:bfdd95b6e2c11ea0f3af07a6eb5c85bf97de308f9534256e2f93bfd1beba2441",
+      "subject_hash": "sha256:7ae00fb558e90df99808bd3520c17f41fb1c889ede59a9607bf2f84ddaa98cd3",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"
@@ -320,7 +320,7 @@
       "gate_record_id": "GR-G1-0001",
       "outcome": "APPROVED",
       "round": 1,
-      "subject_hash": "sha256:527581300dba7336a5f2226855331fb17c53fb348960c39bdffd87d36d30767a",
+      "subject_hash": "sha256:7670231dce457b9d88161ebfd9389cbb752b01e9cb56e09370ba70ca367f3fb5",
       "job_id": null,
       "opened_at": "2026-09-23T15:00:00+08:00",
       "decided_at": "2026-09-24T11:00:00+08:00"
@@ -350,7 +350,7 @@
       "gate_record_id": "GR-G0b-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:5b58ac57cee629c526ef1a12215366946d214926a266623b6c221bba890e9875",
+      "subject_hash": "sha256:3e69977166a93ad4d011007188c9eb479f867bad67854e3bb745b21b4fcfa359",
       "job_id": null,
       "opened_at": "2026-10-01T08:59:00+08:00",
       "decided_at": "2026-10-01T09:00:00+08:00"

@@ -166,7 +166,7 @@ db_access:                       # docs/03 §7.6；由 infrastructure_owner（da
   oracle_readonly_attested: true
   oracle_tables: [invoices, agent_tool_calls, orders]
   seed_manifest_ref: "docs/examples/seed-manifest.yaml"
-  seed_manifest_sha256: "sha256:e9f789189c5f46828b1f0dae3ac7c45dfe12e608e1d99e700fcf67e2a7fb4585"   # v0.4：seed manifest 內容 hash，由 dave（基礎設施擁有者）隨 ROE 簽署（E-ROE-SEED-MANIFEST）
+  seed_manifest_sha256: "sha256:915bdd71068bce5651eb29788e4849436d6e979ca3bd321a21265d491682554d"   # v0.4：seed manifest 內容 hash，由 dave（基礎設施擁有者）隨 ROE 簽署（E-ROE-SEED-MANIFEST）
 
 legal_review:                    # docs/06 §2.1.1；grace 必須也簽這份 ROE（L-3），且不能是 test_lead（L-5）
   attested_by: grace
@@ -197,16 +197,16 @@ signatures:                      # 每位 signatory 與 legal_review.attested_by
   - signer: alice
     key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    value: "ygVL+82tj77SDybbJMgxdOt1NjjDLjWJGnz5rv3GhMKBL2njZvm9X6xrFxqrKouRlkJLfbCWd1t8E3Cc5uYVAw=="
+    value: "gk74RxLX9/15KnWfvgz0rrTP+gp1jpH6pcAuVud3VPI+fTk432elgCFl05UJSaxQIEo6ybAWdx9zI7UencSgBg=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "/fY0fvZtPwgnDJ7z24XeU2OpJ8aEQp4+qNGJqWcZue1vQ/LuPC8X3V3spdwcWdktwcbQkqQGOB8oqzLGozPkCg=="
+    value: "AlxQUc2GfbcufZfbI4BKtd5mhlR7NkZ2oLpGgzQ8lffk5EfPL+Qp7hMTTBk0HVmLbnd3da8pkMIhK891SWZqCA=="
   - signer: dave
     key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    value: "FyuQi4XHKjuzPPeuOj6NrkVwKtPRnQ5G2zwd8T18+9sRT2GkUvj0Xs2fa+8XA2EMBWTTxowrZZ7ROsNMkPFKDA=="
+    value: "H1i9MUS70JBf18fe5TKlqHavYo2eeQpvk7DdC7+sQsEDA/pI4tDyC3SlEQIJvyPpTXxItgrtJPkqScLkc8l8BQ=="
   - signer: grace
     key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
     alg: ed25519
-    value: "Aao7RHn4X55Vl/04NMtjz6i4xpxkMzrLfdo9kU/8mBgoteIW9lfG29DeKEHuPUU1hhSE61jB9u3Wjljd7CTkCw=="
+    value: "R7f84jSprMJNy9SOrlfWokMVwP3kVHcazdjwUn0UOUGph9fL44j/1IYYVAwdZh9Vty61npo5Lqx+seolo+OVCA=="

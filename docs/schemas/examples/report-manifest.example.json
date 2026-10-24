@@ -82,12 +82,12 @@
     {
       "kind": "gate_record",
       "ref": "GR-G0a-0001",
-      "sha256": "sha256:6a7669b90b8d59cafae07c4700795f88a13a1e176f64cbb34cee7979d27034ce"
+      "sha256": "sha256:791897c5dda7ec698967def15aff6eecc32713b343f97add201d115749ffedb2"
     },
     {
       "kind": "gate_record",
       "ref": "GR-G1-0001",
-      "sha256": "sha256:fbec3d72058e887f2042767d23310384feca81636c86c2a98fdc68b4508c97b4"
+      "sha256": "sha256:7f80a0c024aa08023c66cc663e0913efc5448011e9bd491423fcbe89911d5989"
     },
     {
       "kind": "gate_record",
@@ -102,7 +102,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G0b-0001",
-      "sha256": "sha256:c7c237166ddc66f4ceebd3e3e2a21851c92517ed7363216f20f4641b3a09df08"
+      "sha256": "sha256:ac80c2063da95c86ef797fff22bc963dd5032bf35e4c32fbe2649782e9bf33a7"
     },
     {
       "kind": "gate_record",
@@ -147,5 +147,7 @@
     "control_pass_rate": 1.0
   },
   "build_unverified_targets": [],
-  "absent_fingerprints": []
+  "absent_fingerprints": [],
+  "over_cap_items": [],
+  "report_only_clusters": []
 }

@@ -65,7 +65,11 @@
 - **`E-SIG-BACKDATED`**：以非 compromised 原因撤銷的金鑰，文件第一次被驗章必須早於撤銷時間。
 - **CDN 邊緣 IP 範圍**（BL-15）：ROE `targets[].edge_ip_ranges`（`E-ROE-EDGE-RANGE`）、`safety.ip_in_ranges`。
 - **Public Suffix List 比對**：`tools/check_platform_suffixes.py`（選用，不在 CI 執行）；`safety.PSL_EXCEPTIONS`。
-- 新增 `tests/test_v04_round5_adjudication.py`、`tests/test_v04_round5_trust.py`。
+- **G2／G3 佇列欄位**（BL-26）：`toolkit.yaml` `gate_queues`；report-manifest `over_cap_items`、`report_only_clusters`（`E-REPORT-QUEUE`）。
+- **框架與平台的威脅列**（04 §4.3 F 表）：Next.js 只靠 middleware 授權、Server Actions、Supabase RLS 寫入與 `WITH CHECK`、MCP 工具描述投毒、受測應用的 CI／CD 與 IaC。inventory `features` 新增 `ci_workflows`、`iac`；新面向 `cicd_iac`（共 13 個）；G1 `llm_tools[]` 新增 `mcp_server`、`description_sha256`；W4 本地 RLS 測試加入寫入。
+- **範例 B′**（04 §6.3）：第三方文件的間接注入；seed manifest 新增 `u2_doc`。
+- **BL-27**：W4 測試案例的 schema（K-015 的 W4 確認範例等它）。
+- 新增 `tests/test_v04_round5_adjudication.py`、`tests/test_v04_round5_trust.py`、`tests/test_v04_round5_examples.py`。
 
 ### 文件
 - docs/00、02、03、04、05、06、07、08、09 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。

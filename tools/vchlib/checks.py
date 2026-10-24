@@ -2555,6 +2555,40 @@ def g_trace(R: Report, c: Ctx):
             R.check(c.ix.first("commander-plan", plan_id=pid) is not None, "E-TRACE", rid, f"plan {pid} not found")
 
 
+def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
+    """v0.4 (BL-26, docs/02 W3 / W5): report_only_clusters and over_cap_items (E-REPORT-QUEUE).
+
+    report_only: a white-box cluster, latest verdict UNCORROBORATED and no seed threat from it (the pruning rule; rubric severity
+    and the high-risk conditions are the toolkit's to compute). over_cap G2: a cluster of the run that became
+    a seed without a G2 decision, while the run's G2 queue was full (exactly g2_max_items decisions). over_cap
+    G3: a seed threat of the run whose threat_id has no G3 decision."""
+    rid = rm.get("run_id")
+    caps = c.toolkit.get("gate_queues") or {}
+    seeds = [sd for d in c.docs("seed-threats") if d.data.get("run_id") == rid for sd in d.data.get("seeds", [])]
+    seed_clusters = {sd.get("source_cluster_id") for sd in seeds}
+    for cid in rm.get("report_only_clusters") or []:
+        cl = c.ix.first("cluster", cluster_id=cid)
+        white = cl is not None and cl.data.get("origin") != "black_box"
+        R.check(white and status.get(cid) == "UNCORROBORATED" and cid not in seed_clusters, "E-REPORT-QUEUE", w,
+                f"report_only_clusters: {cid} must be a white-box cluster of the run whose latest verdict is UNCORROBORATED "
+                f"(got {status.get(cid)}) and that is not a seed threat")
+    decided = {g: {dec.get("item_id") for rec in c.ix.gate_records(rid, g) for dec in rec.data.get("decisions", [])}
+               for g in ("G2", "G3")}
+    g2 = c.ix.gate_records(rid, "G2")
+    g2_full = bool(g2) and len(g2[-1].data.get("decisions", [])) == caps.get("g2_max_items", 30)
+    seen = set()
+    for it in rm.get("over_cap_items") or []:
+        g, iid = it.get("gate"), it.get("item_id")
+        if g == "G2":
+            ok = status.get(iid) in ("DISPUTED", "UNCORROBORATED") and iid in seed_clusters and iid not in decided["G2"] and g2_full
+            why = "a DISPUTED / UNCORROBORATED seed cluster without a G2 decision, while the G2 queue held exactly g2_max_items"
+        else:
+            ok = any(sd.get("seed_id") == iid and sd.get("threat_id") not in decided["G3"] for sd in seeds)
+            why = "a seed threat of the run whose threat has no G3 decision"
+        R.check(ok and (g, iid) not in seen, "E-REPORT-QUEUE", w, f"over_cap_items: {g} {iid} must be {why}, listed once")
+        seen.add((g, iid))
+
+
 # ============================================================== 15 audit log
 def g_audit(R: Report, c: Ctx):
     interval = (c.toolkit.get("audit") or {}).get("anchor_interval_events", 500)
@@ -2902,6 +2936,7 @@ def g_misc(R: Report, c: Ctx):
             got_m = rm.get("metrics") or {}
             R.check(derive._equal(got_m, want_m), "E-REPORT-METRICS", w, f"metrics {got_m} != recomputed {want_m} (the run's testresults and controls)")
             R.check(sorted(rm.get("manual_review_clusters", [])) == sorted(run.get("manual_review_clusters", [])), "E-REPORT", w, "manual_review_clusters differ from the run")
+            check_report_queues(R, c, w, rm, {v.get("cluster_id"): v.get("status") for v in final})
             for a in rm.get("artifacts", []):
                 if a.get("kind") == "audit_log":
                     R.check(c.b.doc(a.get("ref", "")) is not None, "E-REPORT", w, f"audit log {a.get('ref')} not found")

@@ -7,7 +7,7 @@
 #   - lane_a 的 model 必須等於 engagement.yaml lane_a_model；Lane A 結果最高 UNCORROBORATED（docs/05 R9）
 #   - aggregator、scope_proxy、executor 是確定性元件（model: null）
 #   - 工具權限：reviewer／verifier 只能 read_slice；commander 沒有工具；invariant_drafter 不能 read_slice（E-AGENT-TOOLS）
-#   - reviewer 列出全部 12 個面向；每個 slice 的面向由 W0 inventory 的 MANDATORY_FACETS 規則決定（E-PLAN-FACETS）
+#   - reviewer 列出全部 13 個面向（v0.4 新增 cicd_iac）；每個 slice 的面向由 W0 inventory 的 MANDATORY_FACETS 規則決定（E-PLAN-FACETS）
 # 注意：若某叢集被 3 個家族都回報，就沒有「家族不在叢集中」的驗證者（no_eligible_verifier）→ 依 docs/05 §4.2 R6 處理
 
 commander:
@@ -23,19 +23,19 @@ invariant_drafter:
 rev_a:
   model: claude_sonnet
   role: reviewer
-  facets: [authz, authn_session, injection, data_access, secrets_config, business_logic, llm_integration, file_handling, ssrf_outbound, frontend_client, webhooks_integrations, crypto]
+  facets: [authz, authn_session, injection, data_access, secrets_config, business_logic, llm_integration, file_handling, ssrf_outbound, frontend_client, webhooks_integrations, crypto, cicd_iac]
   tools: [read_slice]
 
 rev_b:
   model: gpt_flagship
   role: reviewer
-  facets: [authz, authn_session, injection, data_access, secrets_config, business_logic, llm_integration, file_handling, ssrf_outbound, frontend_client, webhooks_integrations, crypto]
+  facets: [authz, authn_session, injection, data_access, secrets_config, business_logic, llm_integration, file_handling, ssrf_outbound, frontend_client, webhooks_integrations, crypto, cicd_iac]
   tools: [read_slice]
 
 rev_c:
   model: nemotron_self
   role: reviewer
-  facets: [authz, authn_session, injection, data_access, secrets_config, business_logic, llm_integration, file_handling, ssrf_outbound, frontend_client, webhooks_integrations, crypto]
+  facets: [authz, authn_session, injection, data_access, secrets_config, business_logic, llm_integration, file_handling, ssrf_outbound, frontend_client, webhooks_integrations, crypto, cicd_iac]
   tools: [read_slice]
 
 ver_1:

@@ -1,6 +1,6 @@
 # 09 待辦清單（低優先與延後項目）
 
-> **2026-10-24 設計審查**中本輪（v0.4）沒有處理的項目，列在該審查紀錄的 [§5](evidence/review-2026-10-24.md#5-本輪沒有處理的項目)，尚未編入下表。
+> **2026-10-24 設計審查**中工具包本身做不到的項目（實驗結果、元件本體、託管控制面），列在該審查紀錄的 [§5](evidence/review-2026-10-24.md#5-本輪沒有處理的項目)；其餘已在 v0.4 處理或編入下表。
 >
 > 本清單收錄 [2026-09-26 深度審查](evidence/review-2026-09-26.md) 中**本輪沒有修正**的項目：低優先（L）項目，以及刻意延後、需要更多資訊才能處理的部分。高、中優先項目本輪都已處理，或在此寫明延後的理由。
 >
@@ -45,4 +45,5 @@
 | BL-20 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 覆蓋指標 | report-manifest `metrics` 只有結果數、INVALID 數與對照通過率；沒有存取矩陣格與 entry point 的覆蓋率 | 覆蓋率先寫在報告正文 | 待辦 |
 | BL-24 | [04 §5](04-threat-to-testcase.md#5-安全等級計算規則) GraphQL mutation | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | 送到固定 `/graphql` 端點的 mutation 一律 S3，除非該端點列為 create-only（保守，會漏測） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（`object_refs`＋Scope Proxy 的 body ID 綁定） |
 | BL-25 | [04 §4.3](04-threat-to-testcase.md#43-binding-表) BaaS RPC | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | 非 GraphQL 的 POST 一律視為寫入：未列為 create-only 就是 S3（保守，會漏測） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（seed manifest `read_only_endpoints`） |
-| BL-26 | [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 人工關卡負擔（v0.4） | `toolkit.yaml` 沒有 G2／G3 佇列上限與逾時比例告警門檻的欄位；run／report-manifest 沒有「超出上限」「只列報告」清單的欄位 | 預設值寫在程式碼常數（G2 30 項、G3 50 項、逾時比例 50%），並記入 run manifest；清單先寫在報告正文 | 待辦 |
+| BL-26 | [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 人工關卡負擔（v0.4） | `toolkit.yaml` 沒有 G2／G3 佇列上限與逾時比例告警門檻的欄位；run／report-manifest 沒有「超出上限」「只列報告」清單的欄位 | 預設值寫在程式碼常數（G2 30 項、G3 50 項、逾時比例 50%），並記入 run manifest；清單先寫在報告正文 | v0.4 已處理：`toolkit.yaml` `gate_queues`；report-manifest `over_cap_items`、`report_only_clusters`（`E-REPORT-QUEUE`） |
+| BL-27 | [02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格) 白箱測試案例（v0.4） | `testcase.schema.json` 只描述黑箱測試：`target_ids` 必須是 ROE 目標，且需要 `threat_id`、`request_allowlist`；W4 在 Z2 對單元測試與拋棄式本地 Postgres 執行，兩者都沒有 | testresult（`phase: W4`）與 verdict（`W4_readjudicate`）已支援；W4 測試案例只記在 run manifest 與 CAS。K-015 的 W4 確認範例（本地 RLS 測試 → R1 `CONFIRMED_EXECUTABLE`）等這個 schema | 待辦 |

@@ -81,7 +81,7 @@ data_transfer:                # v0.4：G0a 驗章的跨境聲明（W2 在 G0b �
 
 config_pins:                  # v0.4：影響安全判斷的設定檔內容 hash（E-ENG-CONFIG-PIN）；改設定就要重簽委任設定
   models: "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
-  agents: "sha256:6b436102c1d67adc1b28d10a0772368bfe34acf9fbb1f20385134646dbb8807c"
+  agents: "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
   tools: "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
   licenses: "sha256:3cc53257d103fb15b759f7a2729426d74eba37d08cfbd9b73f32ddb307e5b7ec"
 
@@ -92,8 +92,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "GCIr+vtrJ/S0Vb+Okfj8Q5QmITdiv72mqpl+hzLuf53l3e0yhKS4QwXlLAak4p1IbyXUxSiQpfU+zqiQfoxhCA=="
+    value: "XRt6eGtqdNE8tIzjksuICZywNet3WcGAgbA2mDZlz1kvUFFOFfTsqyJ5Mol/d91jUJCd+EtMjA+knzPWk+PXDg=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "gImAluCYAtXM1KBl1BtXvV85dr/t2I4KefujA3fMG+zq+G7/I77Ge9eH+zCA12Wuk32j5Z4x1JFrVgnyWOIeDw=="
+    value: "e0mJfhV90fjUOzjSpimkPJtxEkbWEHPMc7nj6atFS9VHsmFxfC9Zr4RSt0wVY/ABnKgKUawjHEjvKCSVTPqPCg=="

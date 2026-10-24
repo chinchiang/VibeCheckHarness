@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Review facets (E7, H-F1): the 12 facets, the CWE buckets each facet may produce, and the facets every
+"""Review facets (E7, H-F1): the 13 facets (12 + cicd_iac in v0.4), the CWE buckets each facet may produce, and the facets every
 commander plan must cover, derived deterministically from the W0 inventory."""
 from __future__ import annotations
 
 FACETS = ("authz", "authn_session", "injection", "data_access", "secrets_config", "business_logic", "llm_integration",
-          "file_handling", "ssrf_outbound", "frontend_client", "webhooks_integrations", "crypto")
+          "file_handling", "ssrf_outbound", "frontend_client", "webhooks_integrations", "crypto", "cicd_iac")
 
 # facet -> CWE buckets (common.schema.json cwe_bucket) a finding of that facet may be clustered into
 FACET_BUCKETS: dict[str, frozenset[str]] = {
@@ -20,6 +20,9 @@ FACET_BUCKETS: dict[str, frozenset[str]] = {
     "frontend_client": frozenset({"secrets", "config", "injection", "authn"}),
     "webhooks_integrations": frozenset({"authn", "crypto", "ssrf", "config"}),
     "crypto": frozenset({"crypto", "secrets"}),
+    # v0.4: the app's own CI/CD workflows and IaC / platform config (pull_request_target, expression injection
+    # into run:, vercel.json / supabase/config.toml)
+    "cicd_iac": frozenset({"injection", "secrets", "config", "authz"}),
 }
 
 BASE_FACETS = frozenset({"authz", "authn_session", "injection", "data_access", "secrets_config", "business_logic"})
@@ -29,13 +32,16 @@ FEATURE_FACETS = {                     # inventory.features value -> facet it ma
     "webhook_inbound": "webhooks_integrations",
     "frontend_bundle": "frontend_client",
     "crypto": "crypto",
+    "ci_workflows": "cicd_iac",          # v0.4
+    "iac": "cicd_iac",                   # v0.4
 }
 
 
 def mandatory_facets(inventory: dict | None) -> set[str]:
     """MANDATORY_FACETS rule: the 6 base facets; + llm_integration when inventory.llm_integrations is non-empty;
     + file_handling (file_upload), ssrf_outbound (outbound_http), webhooks_integrations (webhook_inbound),
-    frontend_client (frontend_bundle, or any env var with a public prefix), crypto (crypto)."""
+    frontend_client (frontend_bundle, or any env var with a public prefix), crypto (crypto),
+    cicd_iac (ci_workflows or iac, v0.4)."""
     inv = inventory or {}
     out = set(BASE_FACETS)
     if inv.get("llm_integrations"):

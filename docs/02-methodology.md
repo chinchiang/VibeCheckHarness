@@ -388,7 +388,7 @@ flowchart TD
   - Commander 是使用者要求的核心元件，所以保留；但它比覆蓋下限計畫**多帶來什麼**（多確認的問題、多花的 token），要逐里程碑量測：[07 M2-X12](07-roadmap.md#m2-白箱多家族審查) 要求報告列出 Commander 在下限之外加派的切片、面向與 CMD-2 輪次，以及其中產生 `LIKELY` 以上叢集的比例（只量測、不設門檻）。
 - **審查方式**：
   - 同一切片平行交給 N 個不同家族的 reviewer。**第一輪彼此看不到對方結果**。多輪辯論中模型常由對轉錯，原因未定，作者列出從眾、諂媚等可能因素 [P][E:multi_llm_bias-21]；多數決本身就拿到辯論的大部分效益 [V][E:multi_llm_bias-16]。
-  - **審查面向（facet）**：共 12 個，分成 3 組。
+  - **審查面向（facet）**：共 13 個，分成 3 組（v0.4 新增 `cicd_iac`）。
     - 每次呼叫處理一組（切片 × 面向組 × agent），只問該組中必要或計畫加入的面向；一組都沒有就不呼叫。
     - 所以 [03 §11](03-system-architecture.md#11-成本與延遲模型) 成本模型中的 G＝面向組數（≤3）[H]。
 
@@ -406,6 +406,7 @@ flowchart TD
 | | `file_handling` | 檔案上傳、下載與路徑 | `path_traversal`、`deserialization`、`injection`、`config` |
 | | `frontend_client` | 前端 bundle、XSS sink、瀏覽器直接呼叫 BaaS | `secrets`、`config`、`injection`、`authn` |
 | | `crypto` | 加密、雜湊、簽章與隨機數 | `crypto`、`secrets` |
+| | `cicd_iac`（v0.4） | 受測應用自己的 CI／CD workflow 與 IaC／平台設定：`pull_request_target` 搭配 checkout PR head、`${{ github.event.* }}` 注入 `run:`、`vercel.json`／`supabase/config.toml` 的設定 | `injection`、`secrets`、`config`、`authz` |
 
   - **對照表**就是 `tools/vchlib/facets.py` 的 `FACET_BUCKETS`。validator 檢查每個發現項所屬叢集的 `cwe_bucket` 落在該發現項 `facet` 的範圍內（`E-FINDING-FACET`）。
   - **分組與對照表是設計假設** [H]：
@@ -419,6 +420,7 @@ flowchart TD
     - 有 `webhook_inbound` → 加 `webhooks_integrations`
     - 有 `frontend_bundle`，或任何 `env_vars[]` 的 `public_prefix` 為 true → 加 `frontend_client`
     - 有 `crypto` → 加 `crypto`
+    - 有 `ci_workflows` 或 `iac`（v0.4）→ 加 `cicd_iac`
     - 規則實作在 `facets.mandatory_facets`（別名 `MANDATORY_FACETS`）。範例 inventory 有 `llm_integrations[]` 與 `file_upload`，所以必要面向是基本 6 個再加 `llm_integration`、`file_handling`。
   - reviewer 沒有 shell、沒有網路，工具只有 `read_slice`。系統提示明確區分「指令」與「待審資料」。
 - **發現項要求**：每個發現項至少有一項證據，種類三選一（`finding.schema.json` 的 `evidence[].kind`）[H]：
@@ -461,7 +463,7 @@ flowchart TD
   6. **G2 佇列**（加派結束後，由程式碼計算）[H]：
      - 所有 `DISPUTED` 叢集；
      - 叢集的 rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)，由程式碼計算）為 `critical` 或 `high` 的 `UNCORROBORATED` 叢集。v0.4 起路由改用 rubric：v0.3 用成員自報的最高嚴重度，單一家族的 reviewer 自報 critical 就能把叢集送進 G2，自報 low 就能讓它跳過。rubric 在 W3 以 inventory、G1 規格與確定性 DFD 骨幹計算（可達性未知時視同 `internet`）；reviewer 自報的嚴重度照樣保存並在 G2 畫面並列。
-     - **佇列上限與排序**（v0.4）[H]：每個 run 的 G2 佇列預設最多 30 項（設定欄位見 [09 BL-26](09-backlog.md)），依 rubric 嚴重度、再依 `DISPUTED` 優先排序；超出上限的項目不進 G2，照常成為種子威脅，在報告中列為「超出 G2 上限、未經人審」。G2 結束時逾時（未決）比例超過 50% → 寫入 `gate_load_warning` 稽核事件並在報告首頁標示；這類未決項目另列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
+     - **佇列上限與排序**（v0.4）[H]：每個 run 的 G2 佇列預設最多 30 項（`toolkit.yaml` 的 `gate_queues.g2_max_items`），依 rubric 嚴重度、再依 `DISPUTED` 優先排序；超出上限的項目不進 G2，照常成為種子威脅，在報告中列為「超出 G2 上限、未經人審」（report-manifest `over_cap_items`，`E-REPORT-QUEUE`）。G2 結束時逾時（未決）比例超過 50%（`gate_queues.g2_timeout_warn_ratio`） → 寫入 `gate_load_warning` 稽核事件並在報告首頁標示；這類未決項目另列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
      - 其他 `UNCORROBORATED` 叢集不進 G2，直接成為種子威脅並在報告中列出。
      - `no_eligible_verifier` 的叢集（所有 verifier 家族都已回報，沒有人能驗證）通常是 `LIKELY`，不進 G2；它們成為種子威脅，由 W4 與 B 階段的測試確認（[05 §3](05-bias-calibration.md#3-設計規則)）。
      - **佇列為空就略過 G2**（稽核事件 `gate_skipped`，附原因）。
@@ -499,6 +501,7 @@ flowchart TD
   - **本地 RLS 測試** [H]：inventory 有 `db.tables[]`，且 repo 有 migration 時：
     - 在 Z2 啟動一個**拋棄式本地 Postgres**（無網路，run 結束即銷毀），套用 repo 的 migration 與合成種子。
     - 以 G1 矩陣中各角色的身分查詢，斷言 `access_matrix[].ownership`（例如 `tenant_field`）成立。
+    - v0.4：寫入也要測。以各角色對種子列做 INSERT、UPDATE、DELETE，斷言 RLS 拒絕跨擁有者的寫入，且 UPDATE／INSERT 不能把資料列改到別人名下（政策要有 `WITH CHECK`；只有 `USING` 的 UPDATE 政策會放行這種改寫）[H]。v0.3 只測 SELECT。
     - **只在本地，永遠不連 staging**。staging 上的實際設定（包括只在後台改過的設定）由 B 階段經 Scope Proxy 測試。
   - `W4_readjudicate`：測試結果寫回相關叢集，由 Aggregator 重新裁決（規則見 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
     - **不需要 LLM 的證明**：下列條件都成立 → `E_proof`（依 R1 → `CONFIRMED_EXECUTABLE`）[H]。
@@ -526,13 +529,13 @@ flowchart TD
   LLM 只**提議**標籤與邊界，由人在 G3 確認。pytm 也是從明確的模型產生 DFD，不是推論出來的 [V：該條只有日期與數字被更正，此部分成立][E:threat_modeling-11]。
 - **種子威脅**：除了 `REJECTED` 以外的叢集（`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`，以及 W4 已升級的 `CONFIRMED_EXECUTABLE`）都轉成 B2 的種子威脅，帶 `source_cluster_id` 與 `source_finding_ids`。
   - **規則（v0.2）**：每個種子威脅**必須出現在 B2 威脅模型中**；之後要嘛有 ≥1 個 B3 測試案例，要嘛有 **G3 駁回紀錄（理由必填）**。被 G3 駁回的叢集保留其白箱狀態，B6 列為「未做黑箱驗證（G3 駁回：理由）」。
-  - **只列報告的叢集**（v0.4 剪枝）[H]：v0.3 讓每個非 `REJECTED` 叢集都成為種子威脅，而每個種子威脅都要有測試或 G3 駁回理由，所以 LLM 的誤報會直接變成 G3 的人工負擔。v0.4 起，同時符合下列條件的叢集**不轉成種子威脅**，只列在白箱報告的「低優先、未驗證」清單：
+  - **只列報告的叢集**（v0.4 剪枝）[H]：v0.3 讓每個非 `REJECTED` 叢集都成為種子威脅，而每個種子威脅都要有測試或 G3 駁回理由，所以 LLM 的誤報會直接變成 G3 的人工負擔。v0.4 起，同時符合下列條件的叢集**不轉成種子威脅**，只列在白箱報告的「低優先、未驗證」清單（report-manifest `report_only_clusters`；validator 檢查每項是白箱叢集、最新裁決為 `UNCORROBORATED`、沒有對應的種子威脅，`E-REPORT-QUEUE`）：
     - 裁決是 `UNCORROBORATED`（獨立來源 ≤ 1）；
     - rubric 嚴重度是 `medium` 以下；
     - 不符合 [B2 高風險威脅](#b2-威脅建模g3-強制簽核) 的任何一條（跨租戶或認證邊界且涉及機密或個資、涉及需人確認的 LLM 工具）；
     - 不是 W4 後才轉為爭議的叢集。
     - G3 審查者可以把清單中的任何一項拉回種子威脅。清單的 10% 列入 ASI09 抽查，以量測剪枝造成的漏報（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
-  - **G3 佇列**（v0.4）[H]：種子威脅依「高風險 → rubric 嚴重度 → 裁決狀態」排序呈現；高風險威脅與 `critical`／`high` 不受任何上限限制，其他項目每個 run 預設最多 50 項需要逐項決定，超出的照 G3 `NEEDS_INFO` 逾時規則處理（視同駁回，理由自動填「超出 G3 上限」，列入 B6）。
+  - **G3 佇列**（v0.4）[H]：種子威脅依「高風險 → rubric 嚴重度 → 裁決狀態」排序呈現；高風險威脅與 `critical`／`high` 不受任何上限限制，其他項目每個 run 預設最多 50 項需要逐項決定（`gate_queues.g3_max_items`），超出的照 G3 `NEEDS_INFO` 逾時規則處理（視同駁回，理由自動填「超出 G3 上限」，列入 B6 與 report-manifest `over_cap_items`）。
   - `W4_readjudicate` 時才轉為 `DISPUTED` 的叢集（前一版裁決不是 `DISPUTED`，例如 `LIKELY` 經 R11 → `DISPUTED`；與 G2 是否已決定無關）在裁決上加註 `w4_became_disputed`；種子威脅與 run 的 `disputed_after_g2` 由這些註記推導，G3 呈現時標為「W4 後轉為爭議」[H]（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
   - 這樣動態測試可以把確認升級為 `CONFIRMED_EXECUTABLE`、化解跨家族爭議，並替已確認的問題留下回歸測試。
 - **跨 run 指紋與基準狀態** [H]：
