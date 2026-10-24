@@ -72,6 +72,7 @@
 - 新增 `tests/test_v04_round5_adjudication.py`、`tests/test_v04_round5_trust.py`、`tests/test_v04_round5_examples.py`。
 
 ### 文件
+- README 新增系統架構圖（`docs/architecture.svg`：四個信任區、元件、資料流與人／LLM／程式碼的分界）與 v0.4 的術語。
 - docs/00、02、03、04、05、06、07、08、09 與 schemas README 依上述修改；新增 [docs/evidence/review-2026-10-24.md](docs/evidence/review-2026-10-24.md)。
 
 ## v0.3（2026-09-26）
