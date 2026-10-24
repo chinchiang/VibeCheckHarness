@@ -1,5 +1,7 @@
 # 04 威脅 → 需求 → 測試案例
 
+> **v0.5（2026-10-25）**：仍屬設計階段。本輪僅實作驗證設計必要的安全分類與資源宣告檢查；快照隔離、CAS、代理與機率取樣執行器只有契約，尚未建置。v0.4 的其餘實作缺口仍未完成。
+
 > 本文件說明黑箱階段 B3 如何把**已簽核**（G3）的威脅轉成可執行測試，以及如何保持可追溯。標記說明見 [README](../README.md#標記說明)。本工具包只測使用者自己擁有、列在已簽署 ROE 中的 staging 應用；本文件描述的是**需求驗證**（測試意圖、oracle、由哪個標準工具執行），不收錄攻擊步驟或 payload。
 
 ## v0.3 變更摘要
@@ -171,7 +173,7 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 | `safety_class_computed` | 由 §5 的程式碼計算，以此為準 |
 | `rate_limit` | `requests_per_second`、`max_requests`；不可高於 ROE（高於即 S3，見 §5）。**重播是獨立 job，不計入本 job 的 `max_requests`**（§6、[02 B5](02-methodology.md#b5-結果驗證)） |
 | `request_allowlist` | 每項 `{target_id, method, path, step_id, graphql_operation}`：目標 ID × HTTP 方法 × 路徑樣板；Scope Proxy 只放行這些請求。**正對照／reachability 請求與 canary 紀錄讀取都必須列在此**，否則會被 Scope Proxy 擋掉。`step_id`（`^[a-z][a-z0-9_]*$` 或 null）是這一步的名稱，打到 create-only 端點的請求以它讓後續請求用 `{created:<step_id>}` 引用；`graphql_operation` 為 `query`／`mutation`／`introspection`／null，`query` 與 `introspection` 不算寫入 |
-| `seed_manifest_ref` | 種子資料清單的 ref，例如 `docs/examples/seed-manifest.yaml`；必須等於 ROE `db_access.seed_manifest_ref` 與 manifest 自己的 `manifest_ref`（不相等時等級計算視為沒有 manifest）。路徑中的種子是**完整一段** `{seed:<key>}`，key 在 manifest 的 `seeds` 中，且該種子的 `path_templates` 要有一個與路徑同形的樣板（所有請求都檢查）；每個寫入（POST／PUT／PATCH／DELETE、GraphQL mutation）的每個變數段都必須是 `{seed:key}` 或 `{created:<step_id>}`，沒有變數段的寫入必須是 `create_only_endpoints` 的建立請求；`{created:<step_id>}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點的那一步（§5） |
+| `seed_manifest_ref` | 種子資料清單的 ref，例如 `docs/examples/seed-manifest.yaml`；必須等於 ROE `db_access.seed_manifest_ref` 與 manifest 自己的 `manifest_ref`（不相等時等級計算視為沒有 manifest）。路徑中的種子是**完整一段** `{seed:<key>}`，key 在 manifest 的 `seeds` 中，且該種子的 `path_templates` 要有一個與路徑同形的樣板（所有請求都檢查）；每個寫入（POST／PUT／PATCH／DELETE、GraphQL mutation）的每個變數段都必須是 `{seed:key}` 或 `{created:<step_id>}`，沒有變數段的寫入必須是 `create_only_endpoints` 的建立請求；`{created:<step_id>}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點的那一步，且符合 `created_resource` 宣告的路徑（§5；完整契約見 08 §13.1） |
 | `data_needed` | `seed_data[]`（manifest 的種子鍵）、`roles[]`；需要 DB oracle 時列出 `db_tables[]`，必須 ⊆ ROE `db_access.oracle_tables`（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)） |
 | `trials` | `n`、`fail_k_min`（FAIL 門檻，1 ≤ `fail_k_min` ≤ n）、`replay_n`、`multi_turn_max_turns`（只在 `multi_turn: true` 時填，≤ ROE `relay.max_turns`；否則 `null`）、`pass_rule`（說明文字）、`record[]`（§4.4） |
 | `multi_turn` | 多輪 LLM 測試為 `true`，並綁定 G4 核准的策略模板 hash（[03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)） |
@@ -363,7 +365,9 @@ vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器 [H
 
 ### 4.4 機率型測試的次數與上界
 
-LLM 功能的結果每次可能不同，所以同一設定跑 n 次（固定目標模型、版本、temperature，能固定 seed 時也固定，全部記錄在 `trials.record`）。規則全部 [H]：
+以下二項上界只在獨立同分布等取樣前提成立時適用；有效樣本、快取、重置及重播分離以 [08 §13.4](08-implementation-spec.md#134-獨立取樣與可重現重播) 為準。無法支持前提就只報觀察結果，不提供該上界。
+
+LLM 功能的結果每次可能不同，所以同一設定跑 n 次（固定目標模型、版本、temperature，機率估計採預先登記的不同 seed 序列，固定 seed 僅用於重播，全部記錄在 `trials.record`）。規則全部 [H]：
 
 - **判定**：確定性 oracle 在 n 次中違反 k 次。FAIL 門檻是 `trials.fail_k_min`（1 ≤ `fail_k_min` ≤ n，validator 檢查）；安全需求的預設是 **`fail_k_min: 1`，即 k ≥ 1 即 FAIL**（一次未經確認的工具呼叫就已違反需求）。`trials.pass_rule` 只是給人看的文字說明。05 §4.2 `E_inc` 中的「k 未達門檻」指的就是 `fail_k_min`。
 - **k ≥ 1 時**：報告 k／n 與 Clopper-Pearson 95% 信賴區間。例如 3／60＝5.0%，區間約 1.0%–13.9%。
@@ -516,48 +520,110 @@ def seed_path_problem(path: str, manifest) -> str | None:
     return None
 
 
-def is_mutation(r) -> bool:
-    """寫入＝POST／PUT／PATCH／DELETE 與 GraphQL mutation；graphql_operation 為 query 或
-    introspection 的請求是讀取（即使以 POST 送出）。"""
-    if r.graphql_operation == "mutation":
+# v0.5：以下函式使用 dict，與參考實作相同；其餘虛擬碼使用屬性記法。
+def is_mutation(r: dict) -> bool:
+    """Only GET / POST may use a declared GraphQL read exception; no runtime parsing here."""
+    op = r.get("graphql_operation")
+    if op == "mutation":
         return True
-    if r.graphql_operation in READ_ONLY_GRAPHQL:
+    if op in READ_ONLY_GRAPHQL and r.get("method") in {"GET", "POST"}:
         return False
-    return r.method in STATE_CHANGING
+    return r.get("method") in STATE_CHANGING
 
 
-def create_endpoint(manifest, r):
-    """r 對應的 create_only_endpoints 條目（同目標、同方法、路徑同形）；沒有則 None。"""
-    for e in (manifest.create_only_endpoints if manifest else []):
-        if e.target_id == r.target_id and e.method == r.method \
-                and shape_matches(segments(r.path), e.path_template):
+def _create_endpoint(manifest, r: dict) -> dict | None:
+    segs = segments(r.get("path", ""))
+    for e in (manifest or {}).get("create_only_endpoints") or [] if isinstance(manifest, dict) else []:
+        if isinstance(e, dict) and e.get("target_id") == r.get("target_id") and e.get("method") == r.get("method") \
+                and _shape_matches(segs, e.get("path_template", "")):
             return e
     return None
 
 
-def mutation_scope_problems(tc, manifest) -> list[str]:
-    """寫入範圍（H-B3、L-11；E-TC-MUTATION-SCOPE）：回傳違規說明，空清單＝全部在範圍內。
-    依 allow-list 的順序檢查；creates 記錄較早的建立請求（step_id → 請求）。"""
-    problems, creates = [], {}
-    for r in tc.request_allowlist:
-        for step in created_refs(r.path):          # 只能指向較早、同一目標的建立請求
-            src = creates.get(step)
-            if src is None or src.target_id != r.target_id:
-                problems.append(f"{{created:{step}}} 不是本 allow-list 較早、同一目標的建立請求")
-        p = seed_path_problem(r.path, manifest)
-        if p is not None:
-            problems.append(p)
+def created_resource_problem(endpoint: dict) -> str | None:
+    """Validate the minimal declarative resource contract; no response execution here."""
+    resource = endpoint.get("created_resource")
+    if not isinstance(resource, dict):
+        return "missing created_resource"
+    if not isinstance(resource.get("type"), str) or not re.fullmatch(r"[a-z][a-z0-9_]*", resource["type"]):
+        return "invalid created_resource type"
+    pointer = resource.get("id_pointer")
+    if not isinstance(pointer, str) or not re.fullmatch(r"(?:/(?:[^~/]|~[01])*)+", pointer):
+        return "invalid created_resource id_pointer"
+    parent = segments(endpoint.get("path_template", ""))
+    if not is_normalized(endpoint.get("path_template", "")):
+        return "invalid creation path"
+    names = [x for x in parent if is_placeholder(x)]
+    if len(names) != len(set(names)) or "{created_id}" in names:
+        return "ambiguous creation variables"
+    paths = resource.get("path_templates")
+    if not isinstance(paths, list) or not paths:
+        return "missing created_resource path_templates"
+    for path in paths:
+        if not isinstance(path, str) or not is_normalized(path):
+            return "invalid created_resource path"
+        parts = segments(path)
+        if parts.count("{created_id}") != 1 or any(
+            is_placeholder(x) and x != "{created_id}" and x not in names for x in parts
+        ):
+            return "unbound created_resource variable"
+    return None
+
+
+def created_path_allowed(path: str, step: str, source: dict, endpoint: dict) -> bool:
+    """Bind parent variables to the exact creation request, not arbitrary resource IDs."""
+    if created_resource_problem(endpoint):
+        return False
+    bindings = {key: value for key, value in zip(segments(endpoint["path_template"]), segments(source["path"]))
+                if is_placeholder(key)}
+    bindings["{created_id}"] = "{created:" + step + "}"
+    return any(segments(path) == [bindings.get(x, x) for x in segments(template)]
+               for template in endpoint["created_resource"]["path_templates"])
+
+
+def mutation_scope_problems(tc: dict, manifest) -> list[str]:
+    """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope)."""
+    out = []
+    creates: dict[str, dict] = {}                   # step_id -> earlier create request
+    for i, r in enumerate(tc.get("request_allowlist") or []):
+        if not isinstance(r, dict):
+            continue
+        path = r.get("path", "")
+        where = f"{r.get('method')} {path}"
+        if r.get("graphql_operation") is not None and (
+            r.get("method") not in {"GET", "POST"}
+            or (r.get("graphql_operation") == "mutation" and r.get("method") != "POST")
+        ):
+            out.append(f"{where}: incompatible GraphQL method/operation")
+        for s in created_refs(path):
+            src = creates.get(s)
+            if src is None:
+                out.append(f"{where}: {{created:{s}}} is not an earlier create request of this allow-list")
+            elif src.get("target_id") != r.get("target_id"):
+                out.append(f"{where}: {{created:{s}}} was created on another target")
+            elif not created_path_allowed(path, s, src, _create_endpoint(manifest, src) or {}):
+                out.append(f"{where}: {{created:{s}}} is not declared for this resource path")
+        prob = seed_path_problem(path, manifest)
+        if prob:
+            out.append(f"{where}: {prob}")
         if is_mutation(r):
-            var = [s for s in segments(r.path) if is_placeholder(s)]
+            var = [s for s in segments(path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
-            create = create_endpoint(manifest, r)
+            create = _create_endpoint(manifest, r)
             if unbound:
-                problems.append("寫入指向的物件既不是 {seed:key} 也不是 {created:step_id}")
+                out.append(f"{where}: mutation addresses {unbound} that are neither {{seed:key}} nor {{created:step_id}}")
             elif create is None and not var:
-                problems.append("集合層級的寫入不是 create_only_endpoints 的條目")
-            if create is not None and r.step_id:
-                creates[r.step_id] = r              # 之後的請求可用 {created:<step_id>} 指向它建立的物件
-    return problems
+                out.append(f"{where}: mutation of a non-seed object (not a seed-manifest create_only_endpoints entry)")
+            if create is not None:
+                problem = created_resource_problem(create)
+                if problem:
+                    out.append(f"{where}: {problem}")
+                elif r.get("step_id"):
+                    if r["step_id"] in creates:
+                        out.append(f"{where}: duplicate creation step_id")
+                    else:
+                        creates[r["step_id"]] = r
+    return out
 
 
 def norm_host(host) -> str:
@@ -713,7 +779,7 @@ def admissible(level: str, roe) -> bool:
   - **以路徑定址既有物件**：路徑的每個變數段都是 `{seed:key}` 或 `{created:step_id}`。`{seed:key}` 的 key 必須在 seed manifest 的 `seeds` 中，而且該種子的 `path_templates` 有一個與請求路徑同形的樣板（D11，`seed_path_problem`；例如 `tenant_b_invoice` 只宣告 `/api/invoices/{id}`，所以 `DELETE /api/users/{seed:tenant_b_invoice}` → S3；見 [seed-manifest](examples/seed-manifest.yaml)）。`{created:step_id}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點並帶 `step_id` 的請求；
   - **集合層級建立**：路徑沒有變數段時，該請求必須對應 seed manifest `create_only_endpoints[]` 的某一條（同目標、同方法、路徑同形），在 run 命名空間中建立新物件；帶 `step_id` 的建立請求，之後的請求才能用 `{created:<step_id>}` 指向它。create-only 樣板本身可以有變數段（例如 `/api/chat/sessions/{session}/messages`），請求在那個位置用 `{created:…}`。
   - 種子路徑規則（D11）對所有請求都檢查，不只寫入：GET `/api/users/{seed:tenant_b_invoice}` 同樣 S3。
-  - GraphQL：allow-list 項目以 `graphql_operation` 標示操作。`query`／`introspection` 不算寫入，不需綁種子，但以 POST 送出，第 7 步仍使等級 ≥ S1。`mutation` 一律算寫入；validator 只看路徑，GraphQL 端點（例如 `/graphql`）沒有變數段，所以 mutation 只有在該端點列為 `create_only_endpoints` 時才在範圍內，否則 S3。mutation 的 variables 中引用的物件 ID 目前沒有欄位可以表達，也沒有檢查。
+  - GraphQL：allow-list 項目以 `graphql_operation` 標示操作。`query`／`introspection` 只有 GET／POST 可用唯讀例外；DELETE／PUT／PATCH 不相容而拒絕。靜態宣告不等於實際唯讀證明，執行期必須先解析核對操作，否則拒絕例外，但以 POST 送出，第 7 步仍使等級 ≥ S1。`mutation` 一律算寫入；validator 只看路徑，GraphQL 端點（例如 `/graphql`）沒有變數段，所以 mutation 只有在該端點列為 `create_only_endpoints` 時才在範圍內，否則 S3。mutation 的 variables 中引用的物件 ID 目前沒有欄位可以表達，也沒有檢查。
 - **驗證器強韌性修正（C-1／C-2／C-3）**：
   - 排除比對前先 `normalize_for_match`（百分號解碼一次、去每段的 `;params`、收合 `//`、解析 dot 段、轉小寫），所以 `/Admin/billing/x`、`/admin;jsessionid=1/billing/x` 都會命中 `/admin/billing/*` → S3；含 `%` 的樣板本身就不是正規化路徑（`is_normalized`），同樣 S3。
   - `exclusions.hosts` 支援 `*.example.com`（`host_matches`：比對任何深度的子網域，不比對 apex；雙方先經 `norm_host`，schema 也限制樣式）。

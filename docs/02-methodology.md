@@ -1,5 +1,9 @@
 # 02 方法論：先白箱、後黑箱（威脅建模強制在前）
 
+> **v0.5（2026-10-25）**：仍屬設計階段。本輪僅實作驗證設計必要的安全分類與資源宣告檢查；快照隔離、CAS、代理與機率取樣執行器只有契約，尚未建置。v0.4 的其餘實作缺口仍未完成。
+
+> **v0.4 設計修訂（2026-10-24）**：本輪只更新文件。Schema、validator、範例與 `05-v0.3` 規則版本仍維持 v0.3；新增契約尚未實作，既有測試通過不代表新增契約已被驗證。
+
 > 標記說明見 [README](../README.md#標記說明)。證據 ID 對應 [evidence/ledger.md](evidence/ledger.md)。
 
 ## v0.3 變更摘要
@@ -48,7 +52,7 @@
   - （A-4、H-A3、M-G5）
 - **W5**：
   - 叢集有跨 run 的指紋與 `baseline_state`（new／unchanged／updated／absent）。
-  - 核准綁定逐項 hash，下一個 run 只重審變更的項目；G5 永遠不沿用。
+  - 核准綁定逐項 hash；跨 run G1／G3 沿用完成來源驗證前停用，G4／G5 永不沿用。
   - 報告加入覆蓋指標。
   - （H-B5、M-G5）
 - **關卡核准者的來源**：G0a／G1／G2 取自委任設定的 `gate_approvers`；G0b／G3／G4／G5 取自 ROE；G3／G4／G5 必須在 ROE 有效期間內決定，G0b 除外（它本身就是發現 ROE 未生效並讓 run 暫停的檢查；[§1.3](#13-人工關卡一覽)）。（H-D2）
@@ -190,7 +194,7 @@ flowchart TD
 |---|---|---|---|---|
 | G0a／G0b | 離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續。例外（只 G0b）：ROE 尚未生效（`not_before` 未到）或不在測試時間窗內時，結果仍是 `VERIFIED`，另記「不在有效期間或時間窗內」，run → `SUSPENDED`，時間到了再 resume | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0a：委任設定已過期 → `ABORTED`。G0b（ROE 的 `not_after` 或 `legal_review.expires_at` 已過）：**進入 B 階段時**已過期 → 跳到 B6 → `COMPLETED_WITH_GAPS`（沒有提供 ROE 時也這樣處理）；**B 階段已開始後**（resume 或 `B4_preflight`）才到期 → `SUSPENDED`，等新的有效 ROE |
 | G1 | 進入 W1 | 附審查意見回到 W0.5 重擬，最多 3 輪；第 3 輪仍未通過 → `ABORTED` | 同 REJECTED（共用 3 輪上限） | `SUSPENDED` |
-| G2 | 逐項：accept → 維持狀態，成為種子威脅。整關結果只有 `APPROVED` 或 `EXPIRED` | 只能逐項（不接受整關 `REJECTED`）：該叢集 → `REJECTED`（附理由；為最終決定，之後的證據只註記 `post_g2_conflict`，05 R10） | 逐項：維持 `DISPUTED`／`UNCORROBORATED`，成為種子威脅並在報告列出 | 未決項視同 NEEDS_INFO，run 繼續 [H] |
+| G2 | 逐項：accept → 維持狀態，成為種子威脅。整關結果只有 `APPROVED` 或 `EXPIRED` | 只能逐項（不接受整關 `REJECTED`）：該叢集 → `REJECTED`（附理由；保留歷史決定；新 `E_proof` 必須重新送審，見 05 §4.2 的 v0.4 契約，現有 R10 尚未更新） | 逐項：維持 `DISPUTED`／`UNCORROBORATED`，成為種子威脅並在報告列出 | 未決項視同 NEEDS_INFO，run 繼續 [H] |
 | G3 | 已接受的威脅進入 B3；被駁回的種子威脅在 B6 列為「未做黑箱驗證（G3 駁回：理由）」 | 全部駁回 → 跳到 B6（只含白箱結果）→ `COMPLETED_WITH_GAPS` | 回到 `B2_merge_critic` 補充，最多 3 輪；之後仍 NEEDS_INFO 的項目視同駁回 [H] | `SUSPENDED` |
 | G4 | 已核准的測試案例進入 B4 | 全部駁回 → 跳到 B6 → `COMPLETED_WITH_GAPS`；部分駁回的測試案例不執行，列入 B6 | 該測試案例回到 `B3_derive` 重做，最多 2 輪；之後視同駁回 [H] | `SUSPENDED` [H] |
 | G5 | 執行該 S2 job（`full`：兩位不同的資安審查者都要 APPROVED） | 該 job 略過並記錄 | 該 job 略過並記錄（可在後續執行重提）[H] | 該 job 略過並記錄 |
@@ -202,7 +206,7 @@ flowchart TD
 ### 1.5 自動觸發與發起者
 - 排程或合併到主幹觸發的 Lane B run，只能自動執行 **W0–W3**：沒有網路出站（Z2 只到鏡像）、不執行受測程式（W4 執行屬於「執行」）。紀錄上的發起者是委任設定指定的人類 **`run_owner`** [H]。
 - 在做任何 **G1 決定**、進入 **W4** 或任何 **B 階段節點**之前，必須有一位人類以 `vibecheck run claim` **認領**該 run（稽核事件 `initiator_claim`，附簽章）。狀態機中是 `claim_run` 節點（interrupt）。
-- 若 G1 可沿用上一版已簽核規格（[§1.6](#16-執行種類與後續執行)），自動觸發的 run 可以一路跑到 W3 後才停在 `claim_run`。
+- 自動觸發的 run 在 G1 前先停於 `claim_run`，認領並取得本 run G1 核准後才可繼續；不得把重用規格視為已核准。
 - 認領者成為發起者；**G5 核准者 ≠ 發起者**，G4 核准者也計入發起者集合。
 
 ### 1.6 執行種類與後續執行
@@ -210,17 +214,13 @@ flowchart TD
 | `run_kind` | 用途 | 從哪裡開始 | 關卡重簽規則 |
 |---|---|---|---|
 | `initial` | 第一次完整評估 | W0 | 全部 |
-| `followup` | B2 衍生的新需求回寫、CMD-5 追加的測試 | W0（新 commit 時重算）→ W0.5 帶入「威脅衍生需求」草稿 | G1 只在不變量有變時重簽；G3、G4 只審新增或變更的項目（逐項 hash，見 [W5](#w5-白箱報告dfd種子威脅)）；G5 每個 S2 job 都要 |
-| `regression` | 修正後重跑已確認問題的白箱回歸測試與對應黑箱測試 | W0 → W1 → W4（只跑回歸集）→ B 階段只跑對應測試案例 | 同上；通常沿用 G1 與 G3 |
+| `followup` | B2 衍生的新需求回寫、CMD-5 追加的測試 | W0（新 commit 時重算）→ W0.5 帶入「威脅衍生需求」草稿 | G1／G3 來源鏈驗證完成前重新核准；G4 每個 run、G5 每個 S2 job 都重新核准 |
+| `regression` | 修正後重跑已確認問題的白箱回歸測試與對應黑箱測試 | W0 → W0.5／認領與 G1 → W1 → W4（只跑回歸集）→ B 階段只跑對應測試案例 | 同上；G1 與 G3 目前須重新核准 |
 | `lane_a` | 每個 PR 的同步檢查 | W0 → W1 →（可選）單一家族 diff 審查 → 結束 | 只需 G0a；不進 B 階段 |
 
 - 每個 run 有 `parent_run_id`（`initial` 可為空）與 `reuse` 清單：以 content hash 引用上一個 run 的產物。只有當產物的**所有輸入 hash**（repo commit 或切片 `slice_id`、設定、模型 ID 與版本）都相同時才能沿用，否則重算 [H]。
 - `followup`／`regression` run 另以 `baseline_run_id` 指定比較基準（通常就是 `parent_run_id`；`initial` 為 `null`）。W5 用它計算每個叢集的 `baseline_state`。
-- **逐項沿用核准** [H]：
-  - 新 run 仍有自己的 G3／G4 GateRecord；一個 run 只能列出自己的關卡紀錄。
-  - 某個項目的 `item_sha256` 與基準 run 已核准的項目相同，而且 ROE 是同一份、仍在有效期間內時，標為「沿用」；審查者只需對新增或變更的項目做決定。
-  - **G5 永遠不沿用**。
-  - **紀錄方式**：沿用的項目仍逐項列在新 run 的 GateRecord `decisions[]`（`item_id`、`item_sha256`、`decision`），由該關卡的合格核准者簽署整份紀錄；validator 從項目內容重算每一項的 `item_sha256`。`decisions[]` 目前**沒有**標示「沿用」或指回基準 run 紀錄的欄位，validator 也不比對跨 run 的沿用。run 層級只有 `reuse[]` 列出沿用產物的 hash（範例 `followup` run 沿用上一個 run 的不變量與威脅模型）。
+- **逐項核准** [H]：跨 run G1／G3 沿用在來源鏈驗證完成前停用，改為本 run 重新核准；G4／G5 永不跨 run 沿用。內容重用不等於授權重用，來源鏈與驗收以 [03 §6.3](03-system-architecture.md#63-核准者來源與逐項核准) 為準。
 - **G0a／G0b 簽章每次 run 開始（與每次 resume）都重新驗證**，不能沿用。
 - 回饋不在同一張圖內迴圈：CMD-5 只**建立**後續 run 的草稿（`followup` 或 `regression`），由人啟動或認領。
 
@@ -493,7 +493,7 @@ flowchart TD
       - 理由：這個 FAIL 代表什麼，在結果出來之前已經由人簽核；對照證明 oracle 不是永遠失敗。
     - **解讀未事先登記時**：由 **Result Analyst 池**中的一位確認 → `E_proof`。池中每個家族一位；選家族與血統都不在叢集中的那一位；有個資時只用自架模型。沒有合格的分析者 → `E_fail_u`（弱工具訊號）。
     - 只有 `LLM_GRADER` 或 `HUMAN` 判定違反 → `E_inc`。
-    - G2 已 `REJECTED` 的叢集維持 `REJECTED`；之後出現的可執行證明只註記 `post_g2_conflict`（05 R10），列入 W5 報告。
+    - G2 駁回後出現新可執行證明必須重新送審；W5／B6 醒目呈現待複核及原決定，規格見 05 §4.2（現有 R10 尚未更新）。
     - 重新裁決後才轉為 `DISPUTED` 的叢集**不重開 G2**；它們照常成為種子威脅，並在種子清單中標為「W4 後轉為爭議」，由人在 G3 處理 [H]。
     - 合格的測試 PASS 不會自動使叢集變成 `REJECTED`（05 R11）。
 - **輸出**：測試檔、執行結果（`testresult.schema.json`，`phase: W4`，含 `controls[]` 的結果與 `fail_oracles`）、覆蓋率、mutation score、新版裁決。
@@ -520,9 +520,9 @@ flowchart TD
     - `updated`：指紋相同，但證據改變。
     - `absent`：基準中有、本次沒有；只出現在報告清單的 `absent_fingerprints[]`。「本次沒有再出現」不等於「已修正」。
     - 沒有基準 run 時為 `null`。本次為 `new`、但更早的 run 曾是 `absent` 的叢集，另標 `reopened`（只供參考）。
-  - **只重審變更的項目**：
+  - **逐項核准與跨 run 限制**：
     - GateRecord 的逐項決定都綁定該項目的 `item_sha256`；核准綁的是逐項 hash，不是整份檔案。
-    - 下一個 run 中，hash 沒變的 G1 條目、G3 威脅、G4 測試案例可以沿用上次的決定（條件見 [§1.6](#16-執行種類與後續執行)）；新增或變更的才要重新核准。
+    - 下一個 run 目前重新核准 G1／G3；G4 每個 run 都重新核准，不能因 hash 相同而沿用（條件見 [§1.6](#16-執行種類與後續執行)）。
     - **G5 永遠不沿用**：每個 S2 job 每次都要核准。
 - **覆蓋指標** [H]（寫入白箱報告；B6 延續）：
   - 存取控制矩陣：G1 矩陣中至少有一個測試的格數 ÷ 總格數。
@@ -741,7 +741,7 @@ flowchart TD
 | W0.5（G1） | W4、B3 | `invariants.yaml` | oracle 只能引用 G1 已核准條目；L2 以上的引用須有觸發 |
 | W3 | W4 | `LIKELY` 以上、`DISPUTED`、critical／high 的 `UNCORROBORATED` 叢集 | 解讀事先登記的確定性 FAIL → `E_proof`，不需要 LLM |
 | W5 | B1、B2 | `dfd.json`、`seed-threats.json` | 除 `REJECTED` 外的叢集都成為種子威脅；每個都要在 B2 模型中，且有 ≥1 個 B3 測試或 G3 駁回紀錄 |
-| W5 | 下一個 run | 叢集 `fingerprint`、`baseline_state`、逐項核准的 `item_sha256` | 只重審新增或變更的項目；G5 永遠不沿用 |
+| W5 | 下一個 run | 叢集 `fingerprint`、`baseline_state`、逐項核准的 `item_sha256` | 跨 run 核准依 §1.6；G4／G5 永不沿用 |
 | G0b | B0–B4 | G0b GateRecord 的驗證結果（含 L-6 元件授權過濾後的允許工具清單） | B 階段只用這份清單；G0b 之前的節點不讀任何 ROE 欄位 [H] |
 | B0 | B1–B4 | 所有權與版本識別結果、出站白名單 | 未通過的目標不測；版本不符的目標不測；`none` 的目標列入 `build_unverified_targets[]`（`tester_controlled` 除外） |
 | B1 | B2 | `b1_diff` | B2 critic 逐項處置（納入或駁回附理由） |

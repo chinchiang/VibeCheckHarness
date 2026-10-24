@@ -25,8 +25,20 @@ reset:
   verify_query_id: Q-seed-count
 
 create_only_endpoints:           # 在 run 命名空間中建立新物件；後續請求以 {created:step_id} 指向
-  - {target_id: tgt-staging-app, method: POST, path_template: "/api/chat/sessions"}
-  - {target_id: tgt-staging-app, method: POST, path_template: "/api/chat/sessions/{session}/messages"}
+  - target_id: tgt-staging-app
+    method: POST
+    path_template: "/api/chat/sessions"
+    created_resource:
+      type: chat_session
+      id_pointer: /id
+      path_templates: ["/api/chat/sessions/{created_id}", "/api/chat/sessions/{created_id}/messages"]
+  - target_id: tgt-staging-app
+    method: POST
+    path_template: "/api/chat/sessions/{session}/messages"
+    created_resource:
+      type: chat_message
+      id_pointer: /id
+      path_templates: ["/api/chat/sessions/{session}/messages/{created_id}"]
 
 seeds:
   tenant_a_invoice:

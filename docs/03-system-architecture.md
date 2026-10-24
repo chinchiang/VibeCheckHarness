@@ -1,5 +1,13 @@
 # 03 系統架構
 
+> v0.5：快照還原的資源排他權、CAS 隔離以 [08 §13](08-implementation-spec.md#13-v05-安全分類與執行邊界) 為準；job 租約與內容 hash 不能替代這些控制。
+
+> **v0.5（2026-10-25）**：仍屬設計階段。本輪僅實作驗證設計必要的安全分類與資源宣告檢查；快照隔離、CAS、代理與機率取樣執行器只有契約，尚未建置。v0.4 的其餘實作缺口仍未完成。
+
+> Job 的原子領取、租約、fencing 與結果不明處置，以 [08 §12](08-implementation-spec.md#12-v04-實作前置契約) 為主要規格；checkpoint 與冪等鍵本身不提供外部副作用保證。
+
+> **v0.4 設計修訂（2026-10-24）**：本輪只更新文件。Schema、validator、範例與 `05-v0.3` 規則版本仍維持 v0.3；新增契約尚未實作，既有測試通過不代表新增契約已被驗證。
+
 > 標記說明見 [README](../README.md#標記說明)。本文件是設計，尚未實作；所有數值都是設計假設，除非另附證據。
 
 ## v0.3 變更摘要
@@ -12,7 +20,7 @@
 - **Result Analyst 池**（§5.5、§9、§14.3）：`result_analyst_a`（`claude_sonnet`）、`result_analyst_b`（`gpt_flagship`）、`result_analyst`（`nemotron_self`）；有 PII 時只用自架模型；事先登記解讀的確定性 FAIL 不需要 LLM；B5 為黑箱起源的問題建立 `origin: black_box` 叢集（H-A3）。
 - **遮罩是通往 LLM 的唯一路徑**（§1、§8.4、§9）：Inventory 不用 LLM；Invariant Drafter 的工具改為 `read_inventory`、`write_blackboard`（H-C1）。
 - **run manifest**（§5.1）：RunState 與 run 紀錄加入 `config_refs`、`prompt_templates`、`tool_versions`、`rule_version`、`baseline_run_id`（N-5、H-E13）。
-- **核准者來源、逐項核准與保證等級**（§6、新增 §6.3、§6.4）：G0a／G1／G2 看委任設定的 `gate_approvers`，G0b／G3／G4／G5 看 ROE；G3／G4／G5 須在 ROE 有效期內決定（v0.3 起 G3 也檢查，`E-GATE-ROE-VALIDITY`；G0b 是發現 ROE 尚未生效的系統驗證，不受此限）；核准綁逐項 approval hash（validator 重算 `item_sha256`），未變項目依規則沿用（沿用本身尚未由 validator 檢查，§6.3）、G5 永不沿用，取代「產物有任何變動，核准就失效」；叢集以 `fingerprint` 與 `baseline_state` 跨 run 對應；Lite 兼任需明示聲明、Team 的 ROE 角色須不同人（`E-ROE-SOD`）、Full 的 G5 需兩位資安審查者（`E-G5-TWO-PERSON`）（H-D2、H-B5、M-G3、N-11）。
+- **核准者來源、逐項核准與保證等級**（§6、新增 §6.3、§6.4）：G0a／G1／G2 看委任設定的 `gate_approvers`，G0b／G3／G4／G5 看 ROE；G3／G4／G5 須在 ROE 有效期內決定（v0.3 起 G3 也檢查，`E-GATE-ROE-VALIDITY`；G0b 是發現 ROE 尚未生效的系統驗證，不受此限）；核准綁逐項 approval hash（validator 重算 `item_sha256`），跨 run 沿用在來源鏈驗證完成前停用（§6.3）、G4／G5 永不沿用，取代「產物有任何變動，核准就失效」；叢集以 `fingerprint` 與 `baseline_state` 跨 run 對應；Lite 兼任需明示聲明、Team 的 ROE 角色須不同人（`E-ROE-SOD`）、Full 的 G5 需兩位資安審查者（`E-G5-TWO-PERSON`）（H-D2、H-B5、M-G3、N-11）。
 - **寫入範圍與排除清單**（§2、§7.1）：所有寫入都要綁種子或 create-only 端點（`E-TC-MUTATION-SCOPE`）；路徑先正規化再不分大小寫比對；主機排除支援 `*.` 萬用字元；目標 URL 只接受 `https://`（localhost 例外）（H-B3、C-1、C-2、C-3）。
 - **build 識別**（§5.5、§7、§15）：`B4_preflight` 依 ROE `build_identity.method`（`header`／`endpoint`／`none`）確認受測版本；`none` 的目標列入 `build_unverified_targets`（H-B4）。
 - **Scope Proxy、Session、種子、共享平台網域**（§2、§7.4、§7.6）：TLS 以 Z3 本地 CA 終結、HTTP/2／WebSocket／SSE、DNS 固定與 CDN（08 §11.7）；MFA、CAPTCHA staging 略過、第三方 IdP、每批 whoami、加密 storageState（08 §11.8）；種子命名空間、建立與 teardown（08 §11.6）；共享平台網域改用 `platform_project` 證明（08 §11.9）（H-E7、H-E8、H-E6、H-D3）。
@@ -559,8 +567,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> W0_inventory
-  W0_inventory --> W05_draft_invariants: 需要新規格
-  W0_inventory --> W1_static: 沿用已簽核不變量
+  W0_inventory --> W05_draft_invariants: 新建或載入未變規格，仍須本 run G1
   W05_draft_invariants --> claim_run: 自動觸發且未認領
   claim_run --> G1_gate: 已認領
   W05_draft_invariants --> G1_gate: 已有發起者
@@ -596,11 +603,11 @@ stateDiagram-v2
 
 - **W1 輸出不給 reviewer 與 verifier** [H]：`W2_review`（含 CMD-2 加派的審查）與 `W3_verify_fanout` 的驗證者都收不到 W1 的工具輸出（SARIF、相依漏洞、secrets、套件存在性）。W1 結果經 ToolResult 正規化器（§1、[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）後只交給 `W3_cluster`（Clusterer）與 `W3_adjudicate`（Aggregator）。這樣 reviewer 的發現與工具結果才是兩個獨立來源；工具結果分成強佐證與弱訊號，規則見 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)。
 - **W2 的呼叫單位是面向組** [H]：12 個審查面向分成 3 組，每組 4 個；每次呼叫審一個切片的一個面向組，所以 fan-out 是 `slice × 面向組 × agent`（分組見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。只有必要面向與 Commander 加入的面向會被審；某一組完全沒有要審的面向時不送出該組。
-- **G2 之後的爭議** [H]：`W4_readjudicate` 產生的 `DISPUTED` 不回到 `G2_gate`（圖中沒有 W4 → G2 的邊），而是在該版裁決加註 `w4_became_disputed`（前一版不是 `DISPUTED`、W4 重新裁決後為 `DISPUTED`，與 G2 是否已決定無關），種子威脅與 run 的 `disputed_after_g2` 由此推導，G3 另列「W4 後轉為爭議」一區；`B5_readjudicate` 經 R11 產生的 `DISPUTED` 不加此註記、不進 `disputed_after_g2`，而是列入 B6 人工複核清單。G2 已 `REJECTED` 的叢集之後只註記 `post_g2_conflict`（05 R10）。
+- **G2 之後的爭議** [H]：`W4_readjudicate` 產生的 `DISPUTED` 不回到 `G2_gate`（圖中沒有 W4 → G2 的邊），而是在該版裁決加註 `w4_became_disputed`（前一版不是 `DISPUTED`、W4 重新裁決後為 `DISPUTED`，與 G2 是否已決定無關），種子威脅與 run 的 `disputed_after_g2` 由此推導，G3 另列「W4 後轉為爭議」一區；`B5_readjudicate` 經 R11 產生的 `DISPUTED` 不加此註記、不進 `disputed_after_g2`，而是列入 B6 人工複核清單。G2 已駁回後出現新 `E_proof`，必須建立獨立的再審工作；目前圖與 R10 尚未實作此支線，主規格見 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)。
 - G2 GateRecord 的整關 `outcome` 只有 `APPROVED` 或 `EXPIRED`；逐項的 reject／needs_info 記在 `decisions[]`，不接受整關 `REJECTED`／`NEEDS_INFO`（validator 檢查）[H]。
 - G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`，以及成員最高嚴重度為 `critical`／`high` 的 `UNCORROBORATED`（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
 - `W4_exec` 在 Z2（無網路）；`W4_testgen` 與 `W4_exec` 只透過 Blackboard／CAS 交換產物。
-- 自動觸發（`schedule`、`merge`）的 run：在沒有人認領之前，只能執行到 W3；`claim_run` 是 interrupt，認領寫入 `initiators` 與稽核事件 `initiator_claim`。
+- 自動觸發（`schedule`、`merge`）的 run：在 G1 前以 `claim_run` interrupt 等待認領；寫入 `initiators` 與稽核事件 `initiator_claim`。跨 run 沿用停用期間，不得繞過本 run G1。
 
 ### 5.4 B 子圖（G0b 到 G4）
 
@@ -800,7 +807,7 @@ stateDiagram-v2
   - `signatures[]`：每位核准者各一筆（格式見 §6.1）
   - **G0a／G0b 例外**：它們記錄的是**系統的驗證結果**，不是人工簽核，所以 `signatures: []`，另有 `verification` 區塊：`document_ref`、`key_registry_version`、`signer_results[]`（`person_id`、`key_fingerprint`、`ok`、`reason`）
 - **金鑰的信任根**：核准者的公鑰登錄在組織的**金鑰登錄**（`key-registry.yaml`）中（out-of-band，由資安團隊管理，含登錄、輪替、撤銷流程）。ROE 與委任設定只引用登錄中的指紋，不能自己宣告新的可信金鑰；驗章時同時檢查金鑰未被撤銷。
-- **驗證**：Policy Engine 驗的是**簽章紀錄**，不是 checkpoint 內容。只要能寫 checkpoint DB 就能偽造 resume 值，所以 checkpoint 不能當作授權依據。OpenAI Agents SDK 的文件也提醒，只能從可信儲存反序列化快照 [V][E:orchestration-18]。核准綁在**逐項的 approval hash** 上：產物變動時，只有 hash 改變的項目失去核准；hash 不變的項目可依 §6.3 的規則沿用，G5 永不沿用。
+- **驗證**：Policy Engine 驗的是**簽章紀錄**，不是 checkpoint 內容。只要能寫 checkpoint DB 就能偽造 resume 值，所以 checkpoint 不能當作授權依據。OpenAI Agents SDK 的文件也提醒，只能從可信儲存反序列化快照 [V][E:orchestration-18]。核准綁在**逐項的 approval hash** 上：產物變動時，只有 hash 改變的項目失去核准；hash 不變也不代表取得本 run 授權；跨 run 限制以 §6.3 為準，G4／G5 不沿用。
 - **核准者從哪裡來**：G0a／G1／G2 看委任設定的 `gate_approvers`；G0b／G3／G4／G5 看 ROE，其中 G3／G4／G5 必須在 ROE 有效期內決定（§6.3）。保證等級（Lite／Team／Full）改變「誰可以簽」（§6.4）。
 - **職責分離**：G5（S2 執行）的核准者不能是發起者。發起者是啟動該次執行、認領自動觸發的執行，或核准 G4 的**人**，不能記成自動化帳號，否則職責分離形同虛設。自動化帳號列在 `toolkit.yaml` 的 `automation_accounts`（例如 `run-controller`、`scheduler`、`ci-bot`），**永遠不能是發起者或任何關卡的核准者**，驗證器會強制檢查。自動觸發的 run 以委任設定的 `run_owner` 為紀錄發起者，直到有人認領。
 - 核准後以 `Command(resume=<gate_record_id>)` 繼續圖的執行 [V][E:orchestration-04]。
@@ -875,12 +882,14 @@ stateDiagram-v2
 - **跨 run**（`followup`、`regression`）：
   - 叢集有穩定的 `fingerprint`＝sha256(JCS({cwe_bucket, file, symbol}))，不含行號；黑箱起源的叢集改用目標、方法與路徑樣板。
   - 對 run 的 `baseline_run_id` 計算每個叢集的 `baseline_state`：`new`、`unchanged`、`updated` 或 `absent`，四個值對應 SARIF 2.1.0 的 `baselineState` [V][E:whitebox-56]。`absent` 只出現在報告的 `absent_fingerprints[]`；之前 `absent`、這次又出現的叢集加註 `reopened`（只是資訊）。
-  - G1：不變量沒有變動時整份沿用（§5.3 的「沿用已簽核不變量」邊）；有變動時只重審變動的條目。
-  - G3：只有 `unchanged` 叢集對應的威脅，以及 hash 相同的威脅，可以沿用前一個 run 的決定；`new`、`updated` 一律重審（[02 §1.6](02-methodology.md#16-執行種類與後續執行) 的「G3 只簽新增或變更的威脅」）。
+  - G1／G3：來源鏈驗證完成前一律由本 run 合格核准者重新核准；可以重用內容，不能自動重用授權。
+  - 未來只允許 G1／G3 沿用：必須記錄來源 run、GateRecord、項目及 hash；重新驗證來源簽章、現行金鑰撤銷狀態、核准者資格、委任範圍與效期。G3 另要求同一份有效 ROE，G1 不要求尚未進入的黑箱 ROE。任一來源缺漏、內容改變或授權失效均須重新核准，不能只憑 `unchanged` 判斷。
   - G0a、G0b、G2、G4、GB 每個 run 重新決定（G4 見 02 §1.6：每次 run 都要）。
 - **G5 永不沿用**：每個 S2 job 的每次執行都要新的 G5 核准；resume、重試與跨 run 都一樣（§5.6）。
-- 沿用只省下「重審內容」，不省下簽章：沿用的項目仍逐項列在新的 GateRecord 中並指出來源紀錄，由該關卡的合格核准者簽署整份紀錄。
+- 未來來源鏈驗證完成後，沿用只省下「重審內容」，不省下簽章：沿用的項目仍逐項列在新的 GateRecord 中並指出來源紀錄，由該關卡的合格核准者簽署整份紀錄。
 - **實作現況**：上述沿用規則（同一 run 的重擬與跨 run 的 G1／G3 沿用）目前是**設計規則，validator 尚未檢查**。`gate-record.schema.json` 的逐項決定只有 `item_id`、`item_sha256`、`decision`、`risk_override`、`note`，沒有記錄沿用來源的欄位；validator 只重算每一項的 `item_sha256`，不比對前一輪或前一個 run 的紀錄（見 [09 待辦清單](09-backlog.md)）。
+
+**v0.4 前置限制**：上述跨 run 沿用在 BL-21 的 schema、驗證器及負面測試全部完成前停用。同一 run 的重擬仍須由合格核准者簽署完整的新一輪紀錄。G4／G5 永不跨 run 沿用；BL-04 原本假設「跟進 run 沿用 G4」與此規則矛盾，改為驗證 G5 必須綁定本 run 當前有效 G4，並檢查實際核准者的職責分離。這是實作要求，尚未新增 `g4_gate_record_id` 欄位。
 
 ### 6.4 保證等級對簽署的影響
 
@@ -1231,7 +1240,7 @@ erDiagram
 | 報告 | ≈ 2–4 | W5、B6 的敘事 |
 | 校準 | 另列 | Calibration Lab 的語料實驗與 [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的重跑，不算在單一 run 的預算內 |
 
-- **每次呼叫的 token**＝輸入＋輸出＋推理（reasoning）。推理 token 一律當成輸出 token 計入上限（保守估計）[H]。LLM 快取命中（§5.8）不重複計費。
+- **每次呼叫的 token**＝輸入＋輸出＋推理（reasoning）。推理 token 一律當成輸出 token 計入上限（保守估計）[H]。已持久化的 LLM 快取命中（§5.8）不發出新呼叫；崩潰時的費用不確定性見 08 §12.2。
 - **費用**＝Σ（輸入 token × `input_usd_per_mtok`＋（輸出＋推理）token × `output_usd_per_mtok`）÷ 10^6。單價只取自 `models.yaml` 每個模型的 `pricing`（`input_usd_per_mtok`、`output_usd_per_mtok`、`as_of`、`source`）[H]。
 - **`pricing` 為 null＝價格未知**：執行前估算只能列 token，費用欄標「未知」；此時費用上限只靠委任設定明確給出的 `max_cost_usd`（fail-closed）。validator 不看價格是否已知：engagement 的 `budgets.run_total`／`W`／`B` 三層都必須有 `max_cost_usd`（schema 必填，null → `E-ENG-BUDGET`）。範例檔的 `pricing` 都是 null（`rate_limits`、`tokenizer` 也是），因為本文件不列未查證的價格。
 

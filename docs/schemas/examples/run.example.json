@@ -43,7 +43,7 @@
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:513c0a9d13b6fc049b077a8b86e08403a9758752d3de0d1615e74b3b143a4ef5"
+      "sha256": "sha256:db225972a46147a806207dc02f16f51383cc02add4d747c94803840d644fd133"
     }
   },
   "prompt_templates": [

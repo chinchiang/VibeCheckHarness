@@ -1,9 +1,31 @@
-# 09 待辦清單（低優先與延後項目）
+# 09 待辦清單（實作前置、低優先與延後項目）
 
-> 本清單收錄 [2026-09-26 深度審查](evidence/review-2026-09-26.md) 中**本輪沒有修正**的項目：低優先（L）項目，以及刻意延後、需要更多資訊才能處理的部分。高、中優先項目本輪都已處理，或在此寫明延後的理由。
->
-> - **需要使用者決定的事項**（金鑰、GPU、法務關卡、保留期限等）不在這裡，見 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定)。
-> - **狀態**：`待辦`＝尚未處理；`延後`＝有意留到之後的里程碑。
+> v0.4（2026-10-24）重新評估優先級。下列契約已在文件補齊，但 schema、validator、範例與執行期尚未實作；不得把「設計已補齊」視為功能完成。原始項目追溯至 [2026-09-26 審查](evidence/review-2026-09-26.md)，使用者待決事項仍見 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定)。
+
+## v0.5 狀態與門檻
+
+| 編號 | 工作 | 狀態與時點 |
+|---|---|---|
+| BL-30 | GraphQL 方法相容性、created_resource 宣告與資源路徑綁定 | 最小分類器／validator／回歸測試已補；真實 GraphQL 內容解析與 ID 擷取仍未實作，黑箱啟用前須完成 |
+| BL-31 | 還原範圍跨 job／run 排他權與外部寫入隔離 | 設計已補，尚未實作；任何快照還原工作流啟用前 |
+| BL-32 | CAS 委任隔離與多參照保留政策 | 設計已補，尚未實作；CAS 實作前 |
+| BL-33 | 取樣與重播分離、實際呼叫證據、快取／無效樣本排除 | 設計已補，尚未實作；機率報告啟用前 |
+| BL-34 | W0 → W0.5／認領與 G1 → W1 的順序統一 | 文件已同步；Lane A 保留獨立流程 |
+
+完整契約見 [08 §13](08-implementation-spec.md#13-v05-安全分類與執行邊界)。下方 v0.4 前置工作仍未因本輪完成；`05-v0.3` 裁決規則版本不變。
+
+## 0. 實作前置項目
+
+| 編號 | 優先級與時點 | 修正契約與驗收 | 狀態 |
+|---|---|---|---|
+| BL-22／BL-23 | 高；MVP-0 前 | Run 區分尚未產生、不適用、已產生及遺失；純白箱不要求種子清單；按完成節點拒絕缺產物 resume，見 08 §12.1 | 設計已補齊；schema／validator 待實作 |
+| BL-13 | 高；MVP-0 前 | ToolResult 參照、零 LLM 成員叢集及工具至報告的完整路徑，見 08 §12.3 | 設計已補齊；schema／validator／報告待實作 |
+| BL-21 | 高；啟用跨 run 沿用前 | G1／G3 沿用目前停用；來源鏈、hash、簽章、範圍、效期及撤銷驗證完成後才啟用，見 03 §6.3 | 設計已補齊；來源欄位與驗證待實作 |
+| BL-04 | 高；S2 前 | 取消「沿用上次 G4」前提；G4／G5 每次重新核准，G5 明確連至本 run 當前有效 G4 並驗證職責分離，見 03 §6.3 | 設計已釐清；明確關聯與測試待實作 |
+| BL-26 | 高；MVP-0 派送前，黑箱出口在 MVP-1 前 | 原子領取、租約與 fencing、結果不明及費用核對，逐點崩潰與雙 worker 驗收，見 08 §12.2、§12.5 | 設計已補齊；執行期待實作 |
+| BL-27 | 高；staging MVP-2 前 | Scope Proxy 相容性原型與異常請求、出口繞過、在途請求驗收，見 08 §12.4 | 設計已補齊；原型未執行、U-13 待選型 |
+| BL-28 | 高；MVP-0 報告交付前 | G2 駁回後的新 E_proof 重新送審、去重與醒目報告，見 05 §4.2 | 設計已補齊；現有 R10／報告待實作 |
+| BL-29 | 中；效果宣稱前 | 盲測的純工具、單模型、多家族等成本比較，見 05 §7 | 設計已補齊；語料、人力及實驗待完成 |
 
 ## 1. 低優先項目
 
@@ -12,12 +34,8 @@
 | BL-01 | L-14 | `tools/vchlib/checks.py`、`docs/05` §4.2 | `rule_trace` 每一項的說明文字（`R2:S=0.73` 冒號後的部分）不會被檢查；說明與裁決矛盾時 validator 不報錯 | 為每條規則定義說明格式（例如 R2 必須是 `S=<分數>`），由 `adjudicate.py` 產生後比對整個字串 | 待辦 |
 | BL-02 | L-19 | `docs/examples/serving/README.md`、`docs/examples/models.yaml` | gpt-oss 段落沒有 `vllm serve` 啟動指令；`usable_ctx: 128000` 仍是假設 | 依模型卡查證 context 長度並補上啟動範例；查證前維持「假設值」標記 | 待辦 |
 | BL-03 | L-20 | `docs/evidence/link-check-2026-09-23.md` | 外部連結檢查只做到 2026-09-23；v0.2／v0.3 新增的 URL 尚未重查；403 的來源未逐一人工確認 | 用本輪加入的 `tools/check_external_links.py` 重跑，並把結果存成新的日期檔；403 以瀏覽器人工抽查 | 待辦 |
-| BL-04 | H-D1 延伸 | `tools/vchlib/checks.py`、`gate-record.schema.json` | G4／G5 的職責分離只在同一個 run 內檢查；跟進 run 沿用前一個 run 的 G4 時，沒有 `g4_gate_record_id` 的跨 run 連結 | G5 紀錄加上 `g4_gate_record_id`，validator 跨 run 解析 | 待辦 |
 | BL-05 | M-G7 延伸 | docs 02／03／04／06／07／08 | 保留期限（03、06 §2.2、08 §7.5）、簽章（03 §6.1、06 §1.6）、稽核 tail（03 §13、06 §1.7、08 §7.4）、OWASP LLM Top 10 版本（02 B2 與 04 §2.3）、promptfoo 的用法與限制（03 §7.5、04、06 §2.3、07 §3）仍在多處描述 | 各主題指定一個主頁，其他地方改為一句話加連結 | 待辦 |
 | BL-06 | H-E9 限制 | `docs/03` §6.1、`docs/06` §3 | 簽署時間由簽署者自填，沒有可信的時間來源 | 評估 RFC 3161 時間戳記服務或以 WORM 稽核錨點的時間為準；需要先決定 U-04 | 延後（依 U-04） |
-| BL-21 | H-B5 延伸 | `gate-record.schema.json`、`tools/vchlib/checks.py` | 跨 run 沿用 G1／G3 核准（未變更的項目）只是設計規則：`decisions[]` 沒有欄位標示「沿用自哪一份紀錄」，validator 也不檢查跨 run 的沿用 | `decisions[]` 加上 `carried_from`（前一個 run 的 gate record ID 與項目 hash），validator 核對 hash 相同、ROE 相同且在效期內；G4／G5 永遠不沿用 | 待辦 |
-| BL-22 | N-5 延伸 | `run.schema.json` | run manifest 的 `config_refs` 六個鍵都必填；G1 之前（還沒有 `invariants`）或 G0b 之前（還沒有 `seed_manifest`）的 run 紀錄無法表示「尚未產生」 | 允許 `null` 並記錄產生的節點；validator 依 run 已到達的節點檢查 | 待辦 |
-| BL-23 | N-5 延伸 | `tools/vchlib/checks.py` | 只做白箱的 Lane B run 也必須有 `seed_manifest` 參照（目前只有 Lane A 可為 `null`） | 沒有 B 階段的 run 允許 `seed_manifest: null` | 待辦 |
 
 ## 2. 延後的設計項目
 
@@ -33,7 +51,6 @@
 
 | 編號 | 用在 | 缺少的欄位或檔案 | 暫行做法 | 狀態 |
 |---|---|---|---|---|
-| BL-13 | [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 純工具叢集 | `cluster.schema` 沒有表示「只有工具結果、沒有 LLM 成員」的方式（例如新的 `origin` 值）；`run.schema` 也沒有 ToolResult 清單的參照（`tool_results_ref`） | 純工具叢集只在設計中描述；範例不含 | 待辦 |
 | BL-14 | [08 §11.12](08-implementation-spec.md#1112-成本模型與價格) 各家族上限 | engagement 的每家族 USD 上限欄位 | 只用現有的每 run／階段上限 | 待辦 |
 | BL-15 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) CDN | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | 目標若經 CDN，DNS 固定到第一次解析的位址；解析結果改變就停止該 job | 待辦 |
 | BL-16 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) B1 爬行預設 | `toolkit.yaml` 的 B1 爬行預設區塊（方法、排除樣式、請求上限） | 規則寫在程式碼常數，並記入 run manifest | 待辦 |

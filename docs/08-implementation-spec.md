@@ -1,5 +1,9 @@
 # 08 實作規格
 
+> **v0.5（2026-10-25）**：仍屬設計階段。本輪僅實作驗證設計必要的安全分類與資源宣告檢查；快照隔離、CAS、代理與機率取樣執行器只有契約，尚未建置。v0.4 的其餘實作缺口仍未完成。
+
+> **v0.4 設計修訂（2026-10-24）**：本輪只更新文件。Schema、validator、範例與 `05-v0.3` 規則版本仍維持 v0.3；新增契約尚未實作，既有測試通過不代表新增契約已被驗證。
+
 > 本文件的讀者是要動手寫程式的工程師。讀完之後，應該不需要再做任何設計決定就能開始 M1。
 >
 > - [§10](#10-尚未決定需使用者決定) 只列**需要使用者決定**的事項，各附未決定時的預設做法。
@@ -748,7 +752,7 @@ class ToolAdapter(ABC):
 | run | `run_id`（UUIDv7） | `run_init` 略過建立 |
 | CAS 物件 | `sha256`（明文內容） | 直接回傳同一個 ref |
 | Blackboard 發布 | 物件 JCS 的 sha256 | 回傳同一個 ref（append-only） |
-| LLM 請求 | sha256（模型 ID＋版本＋參數＋prompt hash＋schema hash）（[03 §5.8](03-system-architecture.md#58-節點邊界規則)） | 從 CAS 讀回應，不重新呼叫、不重複計費 |
+| LLM 請求 | sha256（模型 ID＋版本＋參數＋prompt hash＋schema hash）（[03 §5.8](03-system-architecture.md#58-節點邊界規則)） | 已持久化成功回應時從 CAS 讀取；結果不明時不得假設未計費，見 §12.2 |
 | Sandbox job | sha256（image digest＋argv＋輸入 hash）（[03 §2](03-system-architecture.md#2-部署與信任區)） | 讀已存在的結果 |
 | 所有權驗證 | `(run_id, target_id, batch_id)` | 讀已簽署的結果 |
 | S2 快照 | `run_id + job_id` | 略過 |
@@ -801,7 +805,7 @@ $VIBECHECK_CAS_ROOT/
 ```
 
 - ref ＝ 明文的 sha256。`get()` 先解密，再重算 hash。
-- 寫入的方式：先寫暫存檔，再原子性地 rename。已存在 → 不覆寫。
+- 內容寫入先暫存再原子性 rename；同委任內已存在的內容不覆寫，但必須建立獨立的生命週期參照，見 §13.3。
 - **Z3 有自己的儲存區**，不同步到 Z1：`oracle_capture` 的 before 內容、session 狀態。Z1 只收到 hash 與比對結果（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）。
 
 ### 7.4 稽核檔配置
@@ -830,7 +834,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
   - `audit_days: 1095`（稽核檔與 GateRecord；必須 ≥ 兩個內容期限）；
   - `checkpoint_days_after_run_end: 30`、`checkpoint_keep_last: 1`；
   - `legal_hold: []`（列入的範圍一律不刪）。
-- `ContentStore.gc(now)` 只刪除「超過保留期限、而且沒有 `legal_hold`」的物件。每次刪除都寫稽核事件。
+- `ContentStore.gc(now)` 依 §13.3 檢查全部生命週期參照；只有全部到期且無 legal hold 才刪除實體物件，每次刪除都寫稽核事件。
 - 刪除 C 級內容之後，稽核檔中的 hash 仍然保留，所以 `audit verify` 不受影響。
 
 ## 8. 測試
@@ -1423,7 +1427,7 @@ class ToolResult(BaseModel):
 - `seeding`：`{job_kind: "S1_seed", idempotent: true}`（兩個值都是固定的）。
 - `teardown`：`{method}`，值為 `delete_namespace`、`restore_snapshot` 或 `manual`。
 - `reseed_per_trial`：LLM 試驗之間是否重建種子。
-- `create_only_endpoints[]`（manifest **頂層**）：`{target_id, method, path_template}`，`method` 只能是 `POST` 或 `PUT`；可以在 run 命名空間中建立新物件的端點。`target_id` 必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。
+- `create_only_endpoints[]`（manifest **頂層**）：`{target_id, method, path_template, created_resource}`（資源綁定見 §13.1），`method` 只能是 `POST` 或 `PUT`；可以在 run 命名空間中建立新物件的端點。`target_id` 必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。
 - `seeds.<key>.path_templates[]`（每個種子各自一份，必填，至少一項）：這個種子屬於哪些資源路徑（D11）；請求中 `{seed:key}` 所在的位置必須是其中一個樣板的變數段。
 - 範例（[docs/examples/seed-manifest.yaml](examples/seed-manifest.yaml)）：`namespace: "vc-{run_id}-"`、`teardown: {method: restore_snapshot}`、`reseed_per_trial: true`；`create_only_endpoints` 是 `tgt-staging-app` 的 `POST /api/chat/sessions` 與 `POST /api/chat/sessions/{session}/messages`；`tenant_a_invoice`、`tenant_b_invoice` 的 `path_templates` 都是 `["/api/invoices/{id}"]`。
 
@@ -1754,7 +1758,7 @@ class SessionProvider(Protocol):
 **schema 的限制**：`run.schema.json` 要求 `config_refs` 的六個鍵都存在，每一項都是 `{path, sha256}`；只有 `seed_manifest` 可以是 null，而且 validator 只在 Lane A run 接受 null（`E-RUN-CONFIG`）。因此：
 - 沒有黑箱階段的非 Lane A run，也要參照一份 seed manifest（範例的 initial 與 followup run 都參照 `docs/examples/seed-manifest.yaml`）。
 - `calibration` 也必填：校準前仍要有一份 `calibration.yaml`，`calibration.schema.json` 允許它的 `result` 是 null（Calibration Lab 還沒有結果）。
-- schema 還沒有「執行中暫缺」的表示法：G1 核准前的 `invariants`、G0b 之前的 `seed_manifest` 在 run 紀錄中怎麼填，目前沒有規定（待補）。
+- schema 還沒有「執行中暫缺」的表示法：G1 核准前的 `invariants`、G0b 之前的 `seed_manifest` 依 §12.1 的生命週期契約補齊；schema 與 validator 尚待 BL-22 實作。
 
 **validator**：
 - 依 `config_refs` 的路徑讀取檔案、重算 sha256，不符 → `E-DERIVED`（做法與既有的 toolkit、engagement 參照相同）；路徑指到的不是該種類的檔案，或不該是 null 的項目是 null → `E-RUN-CONFIG`。
@@ -1993,3 +1997,111 @@ W4 需要安裝相依並建置受測程式 [H]：
 - 報告另外列出：存取矩陣中有測試的格子比例、inventory 端點中有切片的比例、有測試的端點比例。這三個指標不在 report-manifest 的 `metrics` 中，只寫在報告正文（schema 尚未涵蓋，見 [09 BL-20](09-backlog.md)）。
 
 **里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；PII 偵測器與 fix brief 的掃描 → M4（MVP-2）。
+
+
+## 12. v0.4 實作前置契約
+
+本節是生命週期、故障恢復、純工具流程與代理原型的主要規格 [H]。**設計已補齊，程式尚未實作**；以下描述不可當作現有 schema 已接受的資料格式。實作時須同步 schema、validator、範例及正反向測試，再啟用對應能力。
+
+### 12.1 Run 產物生命週期
+
+每個預期產物必須可區分以下語意；實際欄位留給資料模型修訂，不能用一個無說明的 null 混合表示。
+
+| 語意 | 要求 | 消費端行為 |
+|---|---|---|
+| 尚未產生 | 記錄預期產生節點，且該節點尚未完成 | 可保存中間狀態；禁止進入依賴此產物的節點 |
+| 不適用 | 記錄省略原因與本 run 的階段計畫 | 僅可略過不在計畫內的消費節點 |
+| 已產生 | 具內容 hash、參照及產生節點；可讀且 hash 相符 | 通過授權與完整性檢查後才能使用 |
+| 應存在但遺失 | 節點已完成卻無產物，或參照不可讀／hash 不符 | 阻止消費與 resume；不能降級為「尚未產生」或「不適用」 |
+
+- `run_init` 必須有委任、toolkit、models、agents、tools、calibration 等初始設定；校準結果可以未完成，但 calibration 設定本身須存在。
+- W0.5 完成後須有 invariants 草稿；G1 後須有其核准紀錄。兩者不可混為同一產物狀態，W2 等消費端同時檢查內容及授權。
+- 純白箱 run（包括非 Lane A）將 seed manifest 標為不適用。計畫包含 B 階段時，可在早期標為尚未產生，但 G0b 驗證 ROE 引用前必須備齊 seed manifest；B4 前另驗證實際種子與目標就緒。
+- resume 依已完成節點重新檢查必要產物；擴增階段計畫時重新驗證前置條件，不能沿用「不適用」跳過檢查。現有 `config_refs` 限制見 §11.13，BL-22／BL-23 必須在 MVP-0 前完成。
+
+### 12.2 Job 所有權與外部結果不明
+
+- Job ledger 是派送權威；用資料庫交易、唯一 job 鍵及條件更新原子領取。一次領取產生 worker 所有權、以資料庫時間計算的租約期限、單調遞增的 fencing token；同時搶領只能一方成功。
+- Worker 續租、寫結果及每次新副作用派送都檢查當前 token 與租約。Model Gateway、Sandbox 派送端與 Scope Proxy 必須在出口強制此檢查；僅 worker 自我檢查不足。權威不可達、租約過期、kill switch 或 token 過舊時拒絕新請求，舊 worker 不得以晚到結果覆寫新狀態。
+- 派送前先持久化意圖、操作識別碼及預算保留；完成後記錄回應與費用。結果與必要 ledger 更新在同一交易提交；CAS 或稽核等跨儲存寫入須可用意圖紀錄補齊，缺必要證據時不得宣告完成。這不構成與外部服務的分散式交易。
+- 已送出但無持久化結果、包括服務成功後 worker 崩潰，均是「結果不明」：沿用現有 B4 `INTERRUPTED` 的安全方向，禁止自動重送寫入、種子建立及無冪等保證的外部操作。先透過操作 ID、唯讀目標核對或供應商狀態查詢釐清；無法釐清時交人工處置，保留費用不確定性。
+- 核對為完成才補記結果；只有證明未執行且重新通過授權時才可重新派送。S2 另需完成還原核對與新的 G5；**重新核准本身不能證明前次沒有副作用**。
+- 外部供應商若有已驗證的冪等契約才可依契約重試。已在途的請求可能於租約失效後完成，fencing 不能撤回它；先核對前次影響才能開始衝突操作。
+- §6.3 的 LLM 快取僅避免「已成功持久化結果」的重複呼叫，不能保證崩潰窗口下不重複計費；快取、派送去重與外部副作用保證須分別報告。
+
+### 12.3 無 LLM finding 的工具結果流程
+
+MVP-0 必須具備 `W1 → ToolResult 正規化 → tool-only 叢集 → 裁決 → W5 報告／SARIF` 的完整路徑。Run 必須可參照 ToolResult 清單，叢集必須可表示零個 LLM 成員並追溯工具版本、規則、位置與證據。欄位屬 BL-13，現有 schema 尚不支援。
+
+沿用 §11.2 的去重與裁決規則：工具自身的回報不能再計作自己的獨立佐證；校準前不得因零 LLM 成員而套用「所有成員無證據」的 R0，也不能憑空產生合格票。強弱證據、暫定標示與報告覆蓋限制都要保留。驗收必須包含僅工具發現、工具與 LLM 合併、無發現三種輸入，不能靠捏造 LLM finding 讓流程通過。
+
+### 12.4 Scope Proxy 原型關卡
+
+在 staging MVP-2 前，以本地拋棄式 HTTPS 目標及越界接收器驗證候選代理；本輪不選定產品、不宣稱原型已通過。依 §11.7 的協定矩陣測試 Executor、ZAP、Playwright 的代理認證及信任根配置，記錄實際版本、支援與拒絕情況。
+
+必要案例包含：SNI／Host／authority 不符、路徑編碼與正規化差異、重複或衝突的訊息長度、越界 redirect、DNS 變更、HTTP/2 多 stream 預算、WebSocket 核准腳本及上限、SSE 上限、租約失效與代理中斷。每個允許案例須收到預期回應；每個禁止案例須有拒絕紀錄且越界接收器零命中，直接繞過出口亦須失敗。
+
+代理不支援的工具或協定標為不支援／MANUAL，禁止改用直連或停用 TLS 驗證。Executor 的必要 HTTP 工作流未通過就阻止 MVP-2；選用 adapter 只能在通過後啟用。選型以此證據結案 U-13，之後才能宣稱實際相容範圍。
+
+### 12.5 必要故障驗收
+
+| 案例 | 必須觀察到的結果 |
+|---|---|
+| G1 前保存、純白箱完成、缺必要產物 resume | 前兩者可表示；最後一者被阻擋且不偽造空產物 |
+| 兩個 worker 同時搶領；舊 worker 復活 | 一個有效持有者；舊 token 無法發送新請求或覆寫結果 |
+| 意圖記錄後、外部成功後、結果提交前後逐點崩潰 | 可重建操作歷史；結果不明時不自動重送；費用未知明示 |
+| 租約／DB／代理中斷，已有在途請求 | 新請求被擋；在途效果核對完成前不派送衝突操作 |
+| 核准來源缺漏、hash 改變、過期、撤銷 | 依 03 §6.3 拒絕沿用並要求重新核准 |
+| G2 駁回後新增可執行證據 | 依 05 §4.2 建立一次待複核工作；重播不重複開單；保留原決定 |
+| 沒有任何 LLM finding | 工具發現仍可追溯至報告；不重複計算獨立來源 |
+
+以上是未來實作的驗收要求，不是本次已執行的測試結果。
+
+
+## 13. v0.5 安全分類與執行邊界
+
+本節為 v0.5 新增契約的主要規格 [H]。僅 §13.1 的靜態分類、宣告檢查與回歸測試有參考實作；其餘為設計及未來驗收，沒有執行器或新服務。§12 的既有缺口仍須完成。
+
+### 13.1 最小安全分類與相容性
+
+**GraphQL**：非 null 操作只允許 GET／POST，mutation 只允許 POST。不相容組合由分類器及 validator 回報 `E-TC-MUTATION-SCOPE`，判 S3；DELETE／PUT／PATCH 不得用唯讀標記降級。為維持 LLM schema 子集相容，跨欄位限制由 validator 強制，不新增不受支援的 `if`／`allOf`。
+
+GET／POST 的 query／introspection 只在靜態規劃中允許唯讀例外。未來出口必須確認目標為宣告的 GraphQL 端點，解析實際文件與 operationName，核對選中的操作與宣告一致；批次、持久化查詢或無法解析的內容在沒有明確支援前拒絕。不能只看 URL、HTTP 方法或 LLM 提供的標記。解析器與代理本輪未實作，不得宣稱真實請求已受保護。
+
+**新建資源宣告**：每個 `create_only_endpoints` 必填 `created_resource`：
+
+| 欄位 | 語意 |
+|---|---|
+| `type` | 資源種類名稱（例如 chat_session），供審查與執行期核對；名稱本身不授權任意路徑 |
+| `id_pointer` | 建立回應 JSON 中 ID 的非空 JSON Pointer（例如 `/id`）；取不到或型別不符就停止後續操作 |
+| `path_templates` | 後續可用的完整路徑，至少一條；每條必須恰有一段 `{created_id}`。其餘變數必須來自建立路徑，並代入那次建立請求的原綁定 |
+
+例如建立 `/api/chat/sessions` 回傳的 ID，只可用於宣告的 `/api/chat/sessions/{created_id}` 與 `/api/chat/sessions/{created_id}/messages`，不能移到 `/api/users/{created_id}`。每個 created 引用都逐一檢查，包括 GET。`step_id` 不可重複；來源必須較早且同目標。未宣告的巢狀資源路徑保守拒絕，不自動推導父子權限。
+
+執行期還必須將 ID 綁定 run、job、步驟、目標及宣告 hash；只接受單一非空字串或整數 ID，禁止斜線、反斜線、百分號、控制字元及 `.`／`..` 路徑段，不得把回應中的 URL 當 ID。實際回應擷取及替換本輪不實作。
+
+**相容性**：缺少新宣告的舊 manifest 由 schema 拒絕，分類器亦判 S3；不能靜默補預設路徑。擁有者須確認資源與 ID 格式後修改清單，重算引用 hash 並重新核准受影響產物。範例只用 TEST ONLY 工具重算；沒有真實授權遷移。裁決規則未變，所以 `05-v0.3` 保留；安全分類實作版本應隨工具版本記錄。
+
+### 13.2 還原範圍的排他執行
+
+優先為每個 run 配置獨立資料庫；namespace 只區分資料，不能隔離整庫還原。共用環境須對實際快照／還原影響的資料庫或叢集取得排他租約，跨 job、run 與不同 target 別名共用同一資源鎖；從快照前維持到還原與驗證完成，不能只鎖 job ID。
+
+排他範圍包含測試寫入、種子重置、背景工作與外部使用者寫入。無法停止或隔離其中任一來源，就禁止整庫還原；改用獨立拋棄式目標，或停止該工作流。失去租約時停止新副作用與還原，先核對在途請求及目前資料狀態，由重新取得排他權的復原流程處理；不得讓舊 worker 執行遲到的還原。
+
+驗收：兩個 run 爭用同一還原範圍時只有一方開始；target 別名不能繞過；背景寫入未停時拒絕；失租與崩潰後不覆蓋另一 run 的資料。適用所有採 snapshot_restore 的種子重置／清理，不限 S2。屬啟用前門檻，尚未實作。
+
+### 13.3 CAS 委任隔離與生命週期
+
+§7.3 的單一 hash 路徑只描述內容定址；v0.5 的 MVP 儲存根按 engagement 隔離，不跨委任共用內容檔或快取。hash 相同不代表有權讀取；讀取需要委任、呼叫者與有效參照的授權檢查。
+
+內容物件與每個 run／委任的生命週期參照分離。參照保存資料等級、來源、保留期限起算點、legal hold 與授權；同 hash 再次寫入不能沿用第一筆 metadata。到期撤銷該參照的存取；實體刪除只在所有參照都到期且無 hold 時進行。較晚的新參照不能替已到期的舊參照延長存取；hold 的讀取權限由獨立政策決定。
+
+未來若要跨委任去重，必須先完成授權與金鑰隔離設計，不在 MVP 默認啟用。驗收包含相同內容的不同期限、不同資料等級、legal hold、多 run 共用及刪除後稽核；本輪不實作 CAS 或 GC。
+
+### 13.4 獨立取樣與可重現重播
+
+機率估計與重播使用不同契約：重播可重用相同 seed，驗證可重現性；估計違反率須採預先登記的試驗計畫與可重現的不同 seed 序列（供應商不支援 seed 時記錄此限制）。不同 seed 本身不保證獨立，還要固定目標版本／設定、重置 session、種子與模型可變記憶，確認沒有共享快取或其他跨試驗狀態。
+
+每個 trial 記錄序號、seed（若支援）、實際呼叫證據、快取情況、重置結果及有效性理由。相同快取回應重用不算新樣本；重置或對照失敗列 INVALID，不得在觀察結果後挑選排除項。若排除與結果可能相關，或不能支持獨立同分布前提，只報原始計數、缺口及觀察條件，不輸出二項信賴上界。重播結果與估計樣本分開，不重複計入 n。
+
+驗收包含固定 seed 重播、快取重用、重置失敗、模型版本變更與具相關性的試驗；它們不能虛增有效 n 或產出不適用的 95% 上界。統計執行器及報告欄位仍待實作，現有 n／k 驗證不能證明取樣前提成立。

@@ -12,8 +12,8 @@ mismatch -> S3. `admissible()` is a separate check against allowed_safety_classe
 v0.3 (H-B3, L-11, D1, D11):
   - exclusion paths are matched after normalisation (percent-decode once, strip `;params` from
     every segment, collapse `//`, resolve `.` / `..`, lower-case on both sides), fail closed;
-  - every mutation (POST / PUT / PATCH / DELETE and GraphQL mutations; a POST whose
-    graphql_operation is query / introspection is a read) must address an existing object only
+  - every mutation (POST / PUT / PATCH / DELETE and GraphQL mutations; a GET / POST whose
+    graphql_operation is query / introspection is a declared read (runtime parsing still required)) must address an existing object only
     through {seed:<key>} of the seed manifest, or be a request to a seed-manifest
     create_only_endpoints entry; objects created that way are addressed only through
     {created:<step_id>} of an earlier create request in the same allow-list; otherwise S3
@@ -153,11 +153,11 @@ def seed_path_problem(path: str, manifest) -> str | None:
 
 
 def is_mutation(r: dict) -> bool:
-    """POST / PUT / PATCH / DELETE and GraphQL mutations; a GraphQL query / introspection is a read."""
+    """Only GET / POST may use a declared GraphQL read exception; no runtime parsing here."""
     op = r.get("graphql_operation")
     if op == "mutation":
         return True
-    if op in READ_ONLY_GRAPHQL:
+    if op in READ_ONLY_GRAPHQL and r.get("method") in {"GET", "POST"}:
         return False
     return r.get("method") in STATE_CHANGING
 
@@ -171,6 +171,47 @@ def _create_endpoint(manifest, r: dict) -> dict | None:
     return None
 
 
+def created_resource_problem(endpoint: dict) -> str | None:
+    """Validate the minimal declarative resource contract; no response execution here."""
+    resource = endpoint.get("created_resource")
+    if not isinstance(resource, dict):
+        return "missing created_resource"
+    if not isinstance(resource.get("type"), str) or not re.fullmatch(r"[a-z][a-z0-9_]*", resource["type"]):
+        return "invalid created_resource type"
+    pointer = resource.get("id_pointer")
+    if not isinstance(pointer, str) or not re.fullmatch(r"(?:/(?:[^~/]|~[01])*)+", pointer):
+        return "invalid created_resource id_pointer"
+    parent = segments(endpoint.get("path_template", ""))
+    if not is_normalized(endpoint.get("path_template", "")):
+        return "invalid creation path"
+    names = [x for x in parent if is_placeholder(x)]
+    if len(names) != len(set(names)) or "{created_id}" in names:
+        return "ambiguous creation variables"
+    paths = resource.get("path_templates")
+    if not isinstance(paths, list) or not paths:
+        return "missing created_resource path_templates"
+    for path in paths:
+        if not isinstance(path, str) or not is_normalized(path):
+            return "invalid created_resource path"
+        parts = segments(path)
+        if parts.count("{created_id}") != 1 or any(
+            is_placeholder(x) and x != "{created_id}" and x not in names for x in parts
+        ):
+            return "unbound created_resource variable"
+    return None
+
+
+def created_path_allowed(path: str, step: str, source: dict, endpoint: dict) -> bool:
+    """Bind parent variables to the exact creation request, not arbitrary resource IDs."""
+    if created_resource_problem(endpoint):
+        return False
+    bindings = {key: value for key, value in zip(segments(endpoint["path_template"]), segments(source["path"]))
+                if is_placeholder(key)}
+    bindings["{created_id}"] = "{created:" + step + "}"
+    return any(segments(path) == [bindings.get(x, x) for x in segments(template)]
+               for template in endpoint["created_resource"]["path_templates"])
+
+
 def mutation_scope_problems(tc: dict, manifest) -> list[str]:
     """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope)."""
     out = []
@@ -180,12 +221,19 @@ def mutation_scope_problems(tc: dict, manifest) -> list[str]:
             continue
         path = r.get("path", "")
         where = f"{r.get('method')} {path}"
+        if r.get("graphql_operation") is not None and (
+            r.get("method") not in {"GET", "POST"}
+            or (r.get("graphql_operation") == "mutation" and r.get("method") != "POST")
+        ):
+            out.append(f"{where}: incompatible GraphQL method/operation")
         for s in created_refs(path):
             src = creates.get(s)
             if src is None:
                 out.append(f"{where}: {{created:{s}}} is not an earlier create request of this allow-list")
             elif src.get("target_id") != r.get("target_id"):
                 out.append(f"{where}: {{created:{s}}} was created on another target")
+            elif not created_path_allowed(path, s, src, _create_endpoint(manifest, src) or {}):
+                out.append(f"{where}: {{created:{s}}} is not declared for this resource path")
         prob = seed_path_problem(path, manifest)
         if prob:
             out.append(f"{where}: {prob}")
@@ -197,8 +245,15 @@ def mutation_scope_problems(tc: dict, manifest) -> list[str]:
                 out.append(f"{where}: mutation addresses {unbound} that are neither {{seed:key}} nor {{created:step_id}}")
             elif create is None and not var:
                 out.append(f"{where}: mutation of a non-seed object (not a seed-manifest create_only_endpoints entry)")
-            if create is not None and r.get("step_id"):
-                creates[r["step_id"]] = r
+            if create is not None:
+                problem = created_resource_problem(create)
+                if problem:
+                    out.append(f"{where}: {problem}")
+                elif r.get("step_id"):
+                    if r["step_id"] in creates:
+                        out.append(f"{where}: duplicate creation step_id")
+                    else:
+                        creates[r["step_id"]] = r
     return out
 
 

@@ -285,7 +285,7 @@
           },
           "path": {
             "type": "string",
-            "description": "路徑樣板（以 / 開頭、已正規化）；變數段用 {name}。變更請求（POST／PUT／PATCH／DELETE 與 GraphQL mutation）的每個變數段都必須是 {seed:key}（key 在 seed manifest，且路徑是該種子宣告的 path_templates 之一）或 {created:step_id}（同一 job 中較早、打到 seed manifest create_only_endpoints 的建立請求）；否則 S3（E-TC-MUTATION-SCOPE）"
+            "description": "路徑樣板（以 / 開頭、已正規化）；變數段用 {name}。變更請求（POST／PUT／PATCH／DELETE 與 GraphQL mutation）的每個變數段都必須是 {seed:key}（key 在 seed manifest，且路徑是該種子宣告的 path_templates 之一）或 {created:step_id}（同一 job 中較早、打到 seed manifest create_only_endpoints 的建立請求）；否則 S3（E-TC-MUTATION-SCOPE） v0.5：created 引用另須符合建立端點 created_resource 的路徑與父資源綁定。"
           },
           "step_id": {
             "anyOf": [
@@ -308,7 +308,7 @@
                   "mutation",
                   "introspection"
                 ],
-                "description": "GraphQL 請求的操作種類（Scope Proxy 強制）；query／introspection 不算變更請求，但 POST 仍使等級 ≥ S1"
+                "description": "GraphQL 操作宣告；只允許 GET／POST，mutation 只允許 POST。validator 檢查方法相容性；實際端點、body 與操作解析由未實作的 Scope Proxy 強制，宣告本身不構成唯讀證明。"
               },
               {
                 "type": "null"

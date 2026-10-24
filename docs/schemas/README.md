@@ -1,5 +1,7 @@
 # 資料模型（JSON Schema 2020-12，v0.3）
 
+> **v0.5 相容性**：`seed-manifest.create_only_endpoints[].created_resource` 現在必填，包含 type、id_pointer、path_templates；缺欄位的舊資料直接拒絕，不自動授權或補值。GraphQL 方法相容性由 validator 檢查；真正的內容解析與 ID 擷取尚未實作，見 [08 §13.1](../08-implementation-spec.md#131-最小安全分類與相容性)。
+
 這裡的 schema 是**存檔與交換用**的完整版本。送給 LLM 的「輸出用 schema」由程式自動產生（見 [03 §8.3](../03-system-architecture.md#83-結構化輸出跨廠商最小公約數)；程式在 [tools/vchlib/llm_schema.py](../../tools/vchlib/llm_schema.py)），分兩步：
 
 1. **投影**（`project`）：解析所有 `$ref`（含跨檔的 `common.schema.json#/$defs/...`、`requirement.schema.json`），取出 LLM 要寫的部分，並**移除 Harness 自己填的欄位**（ID、hash、run_id、家族、狀態、比對結果、安全等級、核准）。登錄表 `LLM_OUTPUTS`：
@@ -123,8 +125,8 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-INVARIANT-LEVEL`、`E-INVARIANT-REF` | L2 以上的 ASVS／AISVS 需求由 baseline_levels 或 level_triggers 涵蓋；llm_tools 的資料分級、access_matrix.ownership |
 | `E-PLAN-FACETS`、`E-PLAN-TARGET`、`E-PLAN-ROUNDS`、`E-PLAN-AGENTS`、`E-PLAN-BUDGET` | 計畫每個切片涵蓋 `MANDATORY_FACETS`；型別化目標；輪次 ≤ 2；代理角色；token 預算 ≤ run 階段預算 |
 | `E-AGENT-TOOLS` | reviewer／verifier 只能 read_slice；commander 沒有工具；invariant_drafter 不能 read_slice |
-| `E-TC-MUTATION-SCOPE` | 變更請求只能經 `{seed:key}`（種子的 path_templates）或 create_only_endpoints＋`{created:step_id}`（同時 S3） |
-| `E-SEED-MANIFEST` | create_only_endpoints 的目標必須是 ROE 的 http 目標 |
+| `E-TC-MUTATION-SCOPE` | 變更請求只能經 `{seed:key}`（種子的 path_templates）或 create_only_endpoints＋`{created:step_id}`（同時 S3）；v0.5 另檢查 GraphQL 方法相容性與 created 資源綁定 |
+| `E-SEED-MANIFEST` | create_only_endpoints 的目標必須是 ROE 的 http 目標；created_resource 必須具有效的資源路徑與 ID Pointer |
 | `E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG` | observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash |
 | `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
 | `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
