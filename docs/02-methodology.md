@@ -465,7 +465,7 @@ flowchart TD
      - 其他 `UNCORROBORATED` 叢集不進 G2，直接成為種子威脅並在報告中列出。
      - `no_eligible_verifier` 的叢集（所有 verifier 家族都已回報，沒有人能驗證）通常是 `LIKELY`，不進 G2；它們成為種子威脅，由 W4 與 B 階段的測試確認（[05 §3](05-bias-calibration.md#3-設計規則)）。
      - **佇列為空就略過 G2**（稽核事件 `gate_skipped`，附原因）。
-  7. G2 逐項：accept → 維持狀態；reject → `REJECTED`（附理由）；needs_info 或逾時 → 維持狀態並在報告列出。三者除 `REJECTED` 外都成為種子威脅。**G2 不阻擋**：逾時的未決項視同 needs_info，run 繼續（[§1.4](#14-關卡結果與-run-狀態)）。
+  7. G2 逐項：accept → 維持狀態；reject → `REJECTED`（附理由；v0.5：由 `G2_apply` 寫一版新裁決，取代 W3 版，R10 決定；W3 版是 G2 之前的決定，不受之後的駁回影響）；needs_info 或逾時 → 維持狀態並在報告列出。三者除 `REJECTED` 外都成為種子威脅。**G2 不阻擋**：逾時的未決項視同 needs_info，run 繼續（[§1.4](#14-關卡結果與-run-狀態)）。
 - **輸出**：`clusters[]`、`verdicts[]`（含 `rule_trace`、`tool_corroboration`、`tool_signal`、`independent_sources`、`provisional`）、G2 GateRecord（若有）。
 - **完成條件**：每個叢集都有裁決與 `rule_trace`；缺票與多樣性降低都已註記；G2 佇列中每項都有決定或已標逾時。
 

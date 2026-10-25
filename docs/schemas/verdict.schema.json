@@ -15,6 +15,7 @@
       "type": "string",
       "enum": [
         "W3_adjudicate",
+        "G2_apply",
         "W4_readjudicate",
         "B5_readjudicate"
       ]

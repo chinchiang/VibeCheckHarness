@@ -609,7 +609,7 @@ stateDiagram-v2
   claim_run --> G2_gate: 已認領、G2 佇列非空
   claim_run --> W4_testgen: 已認領、G2 佇列為空
   claim_run --> suspended_wait: 認領逾時
-  G2_gate --> W4_testgen: APPROVED 或 EXPIRED（逐項套用）
+  G2_gate --> W4_testgen: APPROVED 或 EXPIRED（逐項套用；駁回的叢集由 G2_apply 寫一版 REJECTED 裁決）
   W4_testgen --> W4_exec
   W4_exec --> W4_testgen: 覆蓋率仍增加且未滿 3 輪
   W4_exec --> W4_readjudicate: 迭代結束
@@ -865,7 +865,7 @@ stateDiagram-v2
 2. 驗證 `key-registry.yaml` 的根簽章；`version` < `key_registry.min_version` → 拒絕（回滾）；登錄的 `registry_id`、`toolkit.yaml` 的 `key_registry.location` 與委任設定／ROE 的 `key_registry_ref` 必須一致。
 3. 對被簽署文件：解析 → 移除 `signatures` → 正規化 → 對每份簽章以登錄中的公鑰驗證。
 4. 檢查每位簽署人：`key_fingerprint` 在登錄中、角色符合該文件或關卡的要求、簽署時間在 `not_before`–`not_after` 之間。**簽署時間**：
-   - GateRecord（v0.4）：以 Audit Writer 寫入 `gate_decision` 事件時的 `ts`（收件時間）為準；核准者自填的 `timestamp` 必須與它相差不超過 5 分鐘（`E-AUDIT-GATE`）。金鑰效期、撤銷、ROE 有效期、關卡逾時與 G5 時間窗都以收件時間判定，所以核准者無法把決定倒填到撤銷之前或 ROE 效期之內。
+   - GateRecord（v0.4）：以 Audit Writer 寫入 `gate_decision` 事件時的 `ts`（收件時間）為準；v0.5 起有關卡紀錄的 run 一定要有稽核紀錄，找不到收件時間就是錯誤（`E-AUDIT-GATE`），不退回自填時間；核准者自填的 `timestamp` 必須與它相差不超過 5 分鐘（`E-AUDIT-GATE`）。金鑰效期、撤銷、ROE 有效期、關卡逾時與 G5 時間窗都以收件時間判定，所以核准者無法把決定倒填到撤銷之前或 ROE 效期之內。
    - 委任設定與 ROE 的 `issued_at`、人為稽核事件：仍是自行宣告的時間；G0a／G0b 驗章本身發生在收件時間，過期與撤銷照該時間判定。
    - 收件時間來自 Audit Writer 所在主機的時鐘，不是可信時間戳記服務；同時控制 Audit Writer 與其時鐘的人仍能偽造（限制，見 06 §3 #25）。
 5. **撤銷**：`revocation_reason = compromised` → 該金鑰的**所有**簽章都無效（不論簽署時間）；其他原因 → `revoked_at` 之前的簽章仍有效，之後的無效。

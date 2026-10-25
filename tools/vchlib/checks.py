@@ -1731,7 +1731,10 @@ def g_testcases(R: Report, c: Ctx):
             tc, w = d.data, d.path
             ref = tc.get("seed_manifest_ref")
             mk = c.manifest if ref and ref == c.manifest.get("manifest_ref") else None
-            R.check(ref is None or ref == (r.get("db_access") or {}).get("seed_manifest_ref"), "E-TC-SEEDS", w, "seed_manifest_ref must be the ROE's seed manifest")
+            # v0.5 (review 2026-10-25 H-5): required. Without the manifest the safety class cannot see the seeds,
+            # state_changing_reads or read_only_endpoints, so a null ref turned a state-changing GET from S3 into S0
+            R.check(ref is not None and ref == (r.get("db_access") or {}).get("seed_manifest_ref"), "E-TC-SEEDS", w,
+                    f"seed_manifest_ref {ref!r} must be the ROE's seed manifest (db_access.seed_manifest_ref); it is required")
             try:
                 level, trace = safety.compute_safety_class(tc, r, c.tools, mk)
             except (KeyError, TypeError) as exc:
@@ -1800,7 +1803,7 @@ def g_testcases(R: Report, c: Ctx):
 
 
 # ============================================================== 13 verdicts
-PRE_G3_PHASES = ("W3_adjudicate", "W4_readjudicate")
+PRE_G3_PHASES = ("W3_adjudicate", "G2_apply", "W4_readjudicate")
 
 
 def g3_rejected(c: Ctx, v: dict, cluster: dict) -> bool:
@@ -2081,7 +2084,9 @@ def all_evidence_not_found(c: Ctx, cluster: dict) -> bool:
 
 def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
     run = c.runs.get(cluster.get("run_id")) or {}
-    g2_rej = g2_latest(c, cluster)[1] == "reject"
+    # v0.5 (review 2026-10-25 H-3): R10 applies only to versions produced after G2. The W3 version is decided before
+    # G2 exists, so a later G2 reject must not make it invalid; G2_apply writes the post-G2 version (R10 -> REJECTED)
+    g2_rej = v.get("readjudicated_by") != "W3_adjudicate" and g2_latest(c, cluster)[1] == "reject"
     all_fail = all_evidence_not_found(c, cluster)      # R0 (v0.3): every evidence item NOT_FOUND; False without members
     votes = [x for x in v.get("votes", []) if x.get("weighted_valid") and derive.is_verifier_vote(c.ix, x)]
     g3_rej = g3_rejected(c, v, cluster)
@@ -2106,7 +2111,7 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         independent_families=len(derive.independent_families(c.ix, cluster)),   # recomputed (D14), not cluster.independent_families
         diversity_degraded=derived_diversity_degraded(c, v, cluster),   # derived, not self-declared
         g3_rejected=g3_rej,
-        phase={"W3_adjudicate": "W3", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}.get(v.get("readjudicated_by")),
+        phase={"W3_adjudicate": "W3", "G2_apply": "G2", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}.get(v.get("readjudicated_by")),
         prev_status=prev.data.get("status") if prev else None,
     )
 
@@ -2517,8 +2522,15 @@ def g_trace(R: Report, c: Ctx):
                             f"result of {tcd.data.get('testcase_id')} (threat {th.data.get('threat_id')} has no source cluster) must be recorded "
                             f"on black_box clusters of that threat (cluster_ids {tr.get('cluster_ids')})")
                 else:
-                    R.check(src in tr.get("cluster_ids", []), "E-TRACE", w,
-                            f"cluster_ids {tr.get('cluster_ids')} must include the threat's source cluster {src}")
+                    # v0.5 (review 2026-10-25 H-2): a result counts as test evidence for every cluster it names, so it
+                    # may name only clusters of its own threat (the source cluster and clusters the threat cites as
+                    # evidence); v0.4 checked only that the source cluster was among them, so a PASS could be attached
+                    # to an unrelated cluster and turn it DISPUTED through R11
+                    own = {src} | {e.get("ref") for e in th.data.get("evidence") or [] if isinstance(e, dict) and e.get("kind") == "cluster"}
+                    extra = [k for k in tr.get("cluster_ids", []) if k not in own]
+                    R.check(src in tr.get("cluster_ids", []) and not extra, "E-TRACE", w,
+                            f"cluster_ids {tr.get('cluster_ids')} must include the threat's source cluster {src} and name only "
+                            f"clusters of threat {th.data.get('threat_id')} ({sorted(own)}); not {extra}")
             for k in tr.get("cluster_ids", []):
                 R.check(ix.first("cluster", cluster_id=k, run_id=tr.get("run_id")) is not None or
                         any(k in (r.get("cluster_ids") or []) for r in c.runs.values()), "E-TRACE", w, f"cluster {k} not found")
@@ -2688,6 +2700,13 @@ def g_audit(R: Report, c: Ctx):
         R.check(not run.get("audit_anchors"), "E-AUDIT-TRUNCATED", where, "run.audit_anchors names lines of an audit log that is missing")
         R.check(run.get("status") not in TERMINAL_RUN_STATES, "E-AUDIT-TAIL", where,
                 f"{run.get('status')} run has no audit log, so no final anchor covers its last line")
+        # v0.5 (review 2026-10-25 H-1): every gate decision needs the Audit Writer's receive time. Without a log the
+        # receive-time rules (key validity and revocation, ROE validity, timeouts, EXPIRED-EARLY, G5 window) could only
+        # fall back to the approver's self-declared timestamp, so a run with gate records must have its audit log
+        for g in c.ix.gate_records(rid):
+            R.check(False, "E-AUDIT-GATE", where,
+                    f"{g.data.get('gate_record_id')} ({g.data.get('gate')}) has no gate_decision event: the run has no audit "
+                    "log, so its receive time cannot be established")
 
 
 def audit_anchor_tail(R: Report, w: str, run: dict, d: Doc) -> tuple[int, int]:
