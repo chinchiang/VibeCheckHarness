@@ -18,7 +18,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:219369fe47edd3f03a84732178cad355b34f64c38ba30016af544fdb6d1417ef",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:7ae00fb558e90df99808bd3520c17f41fb1c889ede59a9607bf2f84ddaa98cd3",
+  "engagement_ref": "sha256:fef7b0ab019583ed714efdccd8968f5497fd8579a40a29418dda768551828026",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -50,7 +50,7 @@
     }
   ],
   "tool_versions": [],
-  "rule_version": "05-v0.4",
+  "rule_version": "05-v0.5",
   "roe_ref": null,
   "repo_commit": "9b7e3d2",
   "owasp_llm_version": "2026",
@@ -119,7 +119,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:7ae00fb558e90df99808bd3520c17f41fb1c889ede59a9607bf2f84ddaa98cd3",
+      "subject_hash": "sha256:fef7b0ab019583ed714efdccd8968f5497fd8579a40a29418dda768551828026",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"

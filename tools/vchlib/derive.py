@@ -124,7 +124,14 @@ class Index:
         if not cal or version is None or cal.get("calibration_version") != version:
             return 0.0
         side_key = "refute" if stance == "REFUTE" else "support"
-        for row in (cal.get("result") or {}).get("weights", []):
+        res = cal.get("result") or {}
+        # v0.5 (review 2026-10-25 A-6, docs/05 §5.8): a model whose calibration is invalidated (model or version
+        # changed) or that the result is not valid for weighs 0 until the minimal rerun
+        valid_for = res.get("valid_for_model_keys") or []
+        if (valid_for and model_key not in valid_for) or any(
+                isinstance(x, dict) and x.get("model_key") == model_key for x in res.get("invalidated_by") or []):
+            return 0.0
+        for row in res.get("weights", []):
             if row.get("model_key") == model_key and row.get("cwe_bucket") == bucket:
                 side = row.get(side_key) or {}
                 return 0.0 if side.get("near_zero") else float(side.get("w", 0))
@@ -361,9 +368,16 @@ def strongest(classes) -> str | None:
     return None
 
 
-def linked_results(ix: Index, cluster: dict) -> list[dict]:
+# v0.5 (review 2026-10-25 A-7): the test phases a verdict version may see. A W4 version is written before any
+# black-box execution, so it cannot cite B4 results; v0.4 linked every result of the run to every version.
+RESULT_PHASES = {"W3_adjudicate": (), "G2_apply": (), "W4_readjudicate": ("W4",), "B5_readjudicate": ("W4", "B4")}
+
+
+def linked_results(ix: Index, cluster: dict, readjudicated_by: str | None = "B5_readjudicate") -> list[dict]:
+    phases = RESULT_PHASES.get(readjudicated_by, ())
     rs = [d.data for d in ix.docs("testresult")
-          if d.data.get("run_id") == cluster.get("run_id") and cluster.get("cluster_id") in d.data.get("cluster_ids", [])]
+          if d.data.get("run_id") == cluster.get("run_id") and cluster.get("cluster_id") in d.data.get("cluster_ids", [])
+          and d.data.get("phase") in phases]
     return sorted(rs, key=lambda r: (timeutil.sort_key(r.get("executed_at")), str(r.get("result_id"))))
 
 
@@ -390,19 +404,58 @@ def verifier_template_controls(ix: "Index", cluster: dict) -> tuple[bool, bool]:
     return False, False
 
 
+CITE_LINE_RE = __import__("re").compile(r"^(?P<file>.+):(?P<a>[1-9][0-9]*)(?:-(?P<b>[1-9][0-9]*))?$")
+
+
+def _cite_lines(c: str) -> tuple[str, int, int] | None:
+    """`file:line` or `file:start-end` -> (file, start, end); anything else (no line, bad range) -> None."""
+    m = CITE_LINE_RE.match(c)
+    if m is None:
+        return None
+    a = int(m.group("a"))
+    b = int(m.group("b")) if m.group("b") else a
+    return (m.group("file"), a, b) if b >= a else None
+
+
 def cited_relevant(ix: "Index", v: dict, cluster: dict) -> bool:
-    """v0.4: at least one cited item is about this cluster: a `file:line` in the cluster's canonical file, or an
-    `inventory:<pointer>` equal to a member finding's inventory_fact fact_ref. v0.3 accepted any citation that
-    could be matched, e.g. an unrelated line elsewhere in the slice."""
-    canon = (cluster.get("canonical_location") or {}).get("file")
-    facts = {e.get("fact_ref") for fid in cluster.get("member_finding_ids") or [] for e in ((ix.finding(fid) or {}).get("evidence") or [])
-             if isinstance(e, dict) and e.get("kind") == "inventory_fact"}
+    """v0.5 (review 2026-10-25 A-4, A-5): at least one cited item is about this cluster.
+
+    - every vote: a `file:line[-line]` inside the line range of a member finding's code_snippet evidence (same
+      file), or `inventory:<pointer>` equal to a member's inventory_fact fact_ref;
+    - a REFUTE vote may also cite a line inside a member finding's slice (slice.files[] path and line range), or any
+      `inventory:<pointer>` that resolves in the run's W0 inventory: a refutation usually rests on code elsewhere
+      on the path (a middleware check, a policy) or on configuration.
+    v0.4 compared the file name only, so `file:99999` or a bare file name counted."""
+    from . import evidence
+    members = [ix.finding(fid) or {} for fid in cluster.get("member_finding_ids") or []]
+    ranges, facts = [], set()
+    for f in members:
+        for e in f.get("evidence") or []:
+            if not isinstance(e, dict):
+                continue
+            if e.get("kind") == "code_snippet" and isinstance(e.get("line_start"), int) and isinstance(e.get("line_end"), int):
+                ranges.append((e.get("file"), e["line_start"], e["line_end"]))
+            elif e.get("kind") == "inventory_fact":
+                facts.add(e.get("fact_ref"))
+    refute = v.get("stance") == "REFUTE"
+    if refute:
+        sids = {f.get("slice_id") for f in members}
+        for sl in ix.docs("slice"):
+            if sl.data.get("slice_id") in sids and sl.data.get("run_id") == cluster.get("run_id"):
+                ranges.extend((x.get("path"), x.get("line_start"), x.get("line_end"))
+                              for x in sl.data.get("files") or [] if isinstance(x, dict))
+        inv = ix.first("inventory", run_id=cluster.get("run_id"))
     for c in v.get("cited_evidence") or []:
         if not isinstance(c, str):
             continue
-        if c.startswith("inventory:") and c[len("inventory:"):] in facts:
-            return True
-        if canon and c.rsplit(":", 1)[0] == canon:
+        if c.startswith("inventory:"):
+            ptr = c[len("inventory:"):]
+            if ptr in facts or (refute and inv is not None and evidence.resolves(inv.data, ptr)):
+                return True
+            continue
+        loc = _cite_lines(c)
+        if loc and any(loc[0] == f and isinstance(a, int) and isinstance(b, int) and a <= loc[1] and loc[2] <= b
+                       for f, a, b in ranges):
             return True
     return False
 
@@ -565,15 +618,17 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
             exp(d, ["votes", i, "valid"], valid, "family/lineage not in cluster, anonymized, order randomized")
             exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket, side of the stance)")
             # a vote by an agent without the verifier role is ignored (E-VERDICT-VOTER-ROLE in checks)
-            counts = valid and wgt > 0 and is_verifier_vote(ix, vote)
-            exp(d, ["votes", i, "weighted_valid"], counts, "valid and w > 0 and voter has the verifier role")
+            # v0.5 (review 2026-10-25 A-3): an abstention takes a side neither way, so it is never weighted-valid
+            # (v0.4 counted it, and one abstaining family could lift the R8 cap through diversity)
+            counts = valid and wgt > 0 and is_verifier_vote(ix, vote) and vote.get("stance") in ("SUPPORT", "REFUTE")
+            exp(d, ["votes", i, "weighted_valid"], counts, "valid, w > 0, a verifier-role voter, stance SUPPORT or REFUTE")
             if counts:
                 score += wgt * STANCE.get(vote.get("stance"), 0)
         exp(d, ["score"], round(score, 4), "sum(w * stance) over weighted-valid votes")
         if version is not None and ix.calibration.get("calibration_version") == version:
             exp(d, ["theta_confirm"], t_conf, "calibration theta_confirm")
             exp(d, ["theta_reject"], t_rej, "calibration theta_reject")
-        results = [] if v.get("readjudicated_by") in ("W3_adjudicate", "G2_apply") else linked_results(ix, cluster)
+        results = linked_results(ix, cluster, v.get("readjudicated_by"))
         classes = []
         exp(d, ["test_evidence", "results"], _merge_results(v, ix, results, cluster, classes), "linked testresults (docs/05 §4.2)")
         cls = strongest(classes)

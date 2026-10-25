@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.4"
+RULE_VERSION = "05-v0.5"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -140,7 +140,9 @@ def _decide(x: Inputs) -> Outcome:
         status, row, rule = "DISPUTED", 6, "R3"
     elif ref and signal:
         status, row, rule = "DISPUTED", 7, "R4"
-    elif ref and x.score <= -t_rej:
+    elif ref and x.score <= -t_rej and x.independent_families <= 1:
+        # v0.5 (review 2026-10-25 H-4): automatic rejection only for a single-family report; two or more
+        # independent families reported it, so a refutation alone is a dispute for G2 (row 9), not a rejection
         status, row, rule = "REJECTED", 8, "R4"
     elif ref:
         status, row, rule = "DISPUTED", 9, "R4"

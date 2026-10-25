@@ -723,7 +723,9 @@ def cross_border_declared(c: Ctx) -> bool:
     return any(isinstance(t, dict) and t.get("region") != dt.get("source_jurisdiction") for t in dt.get("transfers") or [])
 
 
-CONFIG_PIN_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "licenses": "licenses"}
+# v0.5 (review 2026-10-25 T-10 / V-6): calibration and crosswalk decide verdicts and threat links, so they are pinned too
+CONFIG_PIN_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "licenses": "licenses",
+                    "calibration": "calibration", "crosswalk": "crosswalk"}
 
 
 def config_pin_rules(R: Report, c: Ctx):
@@ -1914,7 +1916,8 @@ def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
     in the cluster's CWE bucket. v0.4: false for black-box clusters and for statuses decided by rows 1-5."""
     # v0.4: provisional marks only verdicts that votes could have decided. A status fixed by R9 / R10 / R0 / R1
     # (rows 1-5) does not depend on calibration, and a black-box cluster never has votes.
-    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row <= 5:
+    # v0.5: row 10 (strong tool corroboration, R5) is not decided by votes either
+    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row in (1, 2, 3, 4, 5, 10):
         return False
     if v.get("calibration_version") is None or v.get("theta_confirm") is None:
         return True
