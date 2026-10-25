@@ -291,7 +291,7 @@ flowchart TD
 | 欄位 | 內容 |
 |---|---|
 | `frameworks[]` | 偵測到的框架、版本、使用的抽取器、支援程度（`full`／`partial`／`unsupported`） |
-| `endpoints[]` | 每個 entry point 的 `method`、`path`、handler 位置（`file`、`line`）、`kind`（`http`／`server_action`／`graphql`／`rpc`／`baas_direct`／`webhook`）、`auth_required`（無法判定時為 `null`，不猜）、套用的 auth middleware（`middleware_refs[]`，指向 `auth.middleware[].middleware_id`）。排程工作沒有對應的 `kind`，記為一筆 `blind_spots[]`（`other`；schema 尚未涵蓋，見 [09 BL-19](09-backlog.md)） |
+| `endpoints[]` | 每個 entry point 的 `method`、`path`、handler 位置（`file`、`line`）、`kind`（`http`／`server_action`／`graphql`／`rpc`／`baas_direct`／`webhook`）、`auth_required`（無法判定時為 `null`，不猜）、套用的 auth middleware（`middleware_refs[]`，指向 `auth.middleware[].middleware_id`）。排程工作與 queue consumer 記為 `kind: scheduled`（`method` 為 null，`path` 寫成 `schedule:<名稱>` 或 `queue:<名稱>`；v0.5，[09 BL-19](09-backlog.md)，`E-INVENTORY`） |
 | `db` | `engine`；`tables[]`（`table_id`、`schema`、`name`、`rls_enabled`〔`true`／`false`；無法判定或引擎沒有 RLS 時為 `null`〕、`policies[]`〔`name`、`command`、`roles`、`source`〕、`source`）；`functions[]`（`name`、`security_definer`、`source`）；`storage_buckets[]`（`name`、`public`、`source`）。`source` 都是 `{file, line}` |
 | `auth` | `providers[]`（字串）、`middleware[]`（`middleware_id`、`name`、`file`、`line`）、`roles[]` |
 | `env_vars[]` | **只有名稱**，永遠不取值：`name`、`public_prefix`、`referenced_in[]`（`{file, line}`）。`public_prefix` 為 true ⇔ 名稱以 `NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_` 或 `PUBLIC_` 開頭（會被打包進前端；validator 重算，`E-INVENTORY`） |
@@ -558,7 +558,7 @@ flowchart TD
   - entry point：出現在切片中的 `endpoints[]` ÷ 總數；有測試的 `endpoints[]` ÷ 總數。
   - 必要面向：每個切片 × 必要面向的完成率（缺票列出）。
   - 對照通過率（`control_pass_rate`）：本 run 所有測試結果的對照中，結果為 PASS 的對照數 ÷ 對照總數（四捨五入到 4 位；沒有任何對照時為 `null`）。
-  - 報告清單（`report-manifest.schema.json`）的 `metrics` 目前只有 `results_total`、`results_invalid`、`control_pass_rate`，由 validator 重算（`E-REPORT-METRICS`）。存取控制矩陣與 entry point 的覆蓋率 schema 尚未涵蓋，先寫在報告正文（見 [09 BL-20](09-backlog.md)）；必要面向的完成率同樣只在報告正文。
+  - 報告清單（`report-manifest.schema.json`）的 `metrics` 由 validator 重算（`E-REPORT-METRICS`）：`results_total`、`results_invalid`、`control_pass_rate`，以及 v0.5 的 `access_matrix_coverage`（測試案例以 `access_cells` 宣告涵蓋的 G1 矩陣格子，每格必須存在，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`、`endpoint_test_coverage`（[09 BL-20](09-backlog.md)）。必要面向的完成率仍只在報告正文。
 - **輸出**：`whitebox-report.md`、`w.sarif`（欄位對應見 [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)）、`dfd.json`（`dfd.schema.json`）、`seed-threats.json`（`seed-threats.schema.json`）、報告清單（`report-manifest.schema.json`）。
 
 ## 3. 黑箱階段（B0–B6）
@@ -752,7 +752,7 @@ flowchart TD
   - **覆蓋率**：
     - 威脅覆蓋率：已簽核威脅中至少有一個已執行測試的比例
     - **對照通過率**（`control_pass_rate`）：PASS 的對照數 ÷ 對照總數（定義見 [W5](#w5-白箱報告dfd種子威脅)）；`INVALID` 的結果不算 PASS 也不算 FAIL
-    - 延續 W5 的存取控制矩陣與 entry point 覆蓋（只在報告正文；schema 尚未涵蓋，見 [09 BL-20](09-backlog.md)）
+    - 延續 W5 的存取控制矩陣與 entry point 覆蓋（report-manifest `metrics`，v0.5，[09 BL-20](09-backlog.md)）
   - **未能測試清單**：`MANUAL`、G4 駁回的測試案例、G5 駁回或逾時的 S2 job、所有權驗證失敗的目標、版本識別不符的目標、whoami 失敗的角色、ERROR／SKIPPED／STOPPED／`INVALID` 的執行、GB 停止的階段
   - **`build_unverified_targets[]`**：有測試結果、版本識別為 `none` 的目標（`tester_controlled` 的目標除外）。結果照列，但無法證明測的是被審查的 commit
   - **暫定標記**：校準前的裁決（`provisional`）在報告與 SARIF 中都標為「暫定（未校準）」

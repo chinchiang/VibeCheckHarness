@@ -237,6 +237,14 @@ class Ctx:
         return m if isinstance(m, dict) else None
 
 
+# v0.5 (BL-17): least-privilege token scopes the publisher may hold (comment on PRs, open / update issues; no code access)
+PUBLISH_SCOPES = {"github": frozenset({"metadata:read", "issues:write", "pull_requests:write"})}
+# v0.5 (BL-16, docs/08 §11.7): the crawler's baseline skip list; toolkit.yaml may add keywords, never drop these
+B1_SKIP_BASELINE = frozenset({"logout", "log-out", "signout", "sign-out", "delete", "remove", "unsubscribe", "approve", "confirm", "reset",
+                              "cron", "send", "pay", "toggle", "activate", "publish", "登出", "刪除", "移除", "取消訂閱", "核准", "確認",
+                              "重設", "送出", "付款", "發布"})
+
+
 def retention_max(tk: dict, data_class) -> int | None:
     """Org maximum (= default) content retention in days for a data class (toolkit.yaml retention)."""
     ret = tk.get("retention") or {}
@@ -662,10 +670,29 @@ def g_engagement(R: Report, c: Ctx):
     bud = e.get("budgets") or {}
     total = bud.get("run_total") or {}
     for ph, caps in bud.items():
+        if ph == "families":
+            continue
         for k, val in caps.items():
             R.check(val is not None, "E-ENG-BUDGET", w, f"budgets.{ph}.{k} must be set (no default for cost caps)")
             if ph != "run_total" and val is not None and total.get(k) is not None:
                 R.check(val <= total[k], "E-ENG-BUDGET", w, f"budgets.{ph}.{k} exceeds run_total")
+    # v0.5 (BL-14, docs/08 §11.12): per-family USD caps name a models.yaml family and stay within run_total
+    families = {m.get("family") for m in c.models.values() if isinstance(m, dict)}
+    for fam, cap in (bud.get("families") or {}).items():
+        R.check(fam in families, "E-ENG-BUDGET", w, f"budgets.families.{fam}: not a models.yaml family {sorted(map(str, families))}")
+        mx = (cap or {}).get("max_cost_usd")
+        R.check(not isinstance(total.get("max_cost_usd"), (int, float)) or not isinstance(mx, (int, float)) or mx <= total["max_cost_usd"],
+                "E-ENG-BUDGET", w, f"budgets.families.{fam}.max_cost_usd {mx} exceeds run_total.max_cost_usd {total.get('max_cost_usd')}")
+    # v0.5 (BL-17, docs/08 §11.16): publishing is off unless the engagement names a platform and least-privilege scopes
+    pub = e.get("publishing") or {}
+    if pub.get("enabled") is True:
+        allowed = PUBLISH_SCOPES.get(pub.get("platform"), frozenset())
+        scopes = set(pub.get("token_scopes") or [])
+        R.check(bool(allowed) and bool(scopes) and scopes <= allowed, "E-ENG-PUBLISH", w,
+                f"publishing.enabled needs a platform and token_scopes within {sorted(allowed)} (got {pub.get('platform')!r}, {sorted(scopes)})")
+    else:
+        R.check(pub.get("platform") is None and not pub.get("token_scopes"), "E-ENG-PUBLISH", w,
+                "publishing is disabled: platform must be null and token_scopes empty")
     # retention: toolkit.yaml retention = org maximum (and default); engagement retention_days =
     # effective value, tighten-only (toolkit < engagement < ROE precedence, docs/08 §7.5) [H]
     lim = retention_max(tk, dc)
@@ -1064,6 +1091,18 @@ def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
             if isinstance(e, dict):
                 R.check((targets.get(e.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST", "seed-manifest.yaml",
                         f"{key} target {e.get('target_id')!r} must be an http ROE target")
+    # v0.5 (BL-40): registered sensitive fields are usable by the leakage oracle: digit kinds carry enough digits, and
+    # no normalized value belongs to two seeds (a hit must name the leaked record)
+    owners: dict = {}
+    for name, seed in (c.manifest.get("seeds") or {}).items():
+        for f in (seed or {}).get("sensitive_fields") or [] if isinstance(seed, dict) else []:
+            v = str(f.get("value", ""))
+            if f.get("kind") in safety.DIGIT_KINDS:
+                R.check(len(safety.sensitive_digits(v)) >= safety.MIN_DIGITS, "E-SEED-SENSITIVE", "seed-manifest.yaml",
+                        f"seeds.{name}.{f.get('field')}: a {f.get('kind')} needs at least {safety.MIN_DIGITS} digits to be matched as a digit sequence")
+            owners.setdefault(safety.normalize_sensitive(v), set()).add(name)
+    for v, names in owners.items():
+        R.check(len(names) == 1, "E-SEED-SENSITIVE", "seed-manifest.yaml", f"sensitive value {v!r} is registered on several seeds {sorted(names)}")
     for d in c.docs("inventory"):
         for ep in d.data.get("endpoints") or []:
             if isinstance(ep, dict) and ep.get("method") in ("GET", "HEAD") and ep.get("writes") is True:
@@ -2067,8 +2106,52 @@ def g_testcases(R: Report, c: Ctx):
                     "a testcase needs at least one reachability control (B5)")
             ids = [x.get("control_id") for x in ctls]
             R.check(len(ids) == len(set(ids)), "E-TC-CONTROLS", w, f"duplicate control_id in {ids}")
+            access_cells_check(R, c, tc, w)
             R.check(tb.get("adapter") == "manual" or safety.registry_entry(c.tools, tb.get("adapter", "")) is not None, "E-TC-TOOL", w,
                     f"adapter {tb.get('adapter')} not registered")
+
+
+def access_cells_check(R: Report, c: Ctx, tc: dict, w: str):
+    """v0.5 (BL-20, E-TC-ACCESS-CELL): a testcase covers only cells that exist in the G1 access matrix."""
+    cells = access_matrix_cells(c)
+    for x in tc.get("access_cells") or []:
+        key = (x.get("role"), x.get("resource"), x.get("action")) if isinstance(x, dict) else None
+        R.check(key in cells, "E-TC-ACCESS-CELL", w, f"access_cells {key} is not a cell of the G1 access matrix")
+
+
+FEEDBACK_SUPPRESSION = {"false_positive": "accepted", "needs_info": "underReview"}
+
+
+def g_feedback(R: Report, c: Ctx):
+    """v0.5 (BL-18, docs/08 §11.16, E-FEEDBACK): a developer's PR comment is only a hint; a feedback record counts only when
+    signed by a registered security_reviewer / app_owner. The fingerprint is the named cluster's (a cluster of a run of
+    the same engagement); duplicate names another cluster's fingerprint of the engagement; sarif_suppression follows the
+    label (false_positive -> accepted, needs_info -> underReview, else null)."""
+    for d in c.docs("feedback"):
+        with doc_guard(R, d.path):
+            f, w = d.data, d.path
+            run = c.runs.get(f.get("run_id")) or {}
+            R.check(run.get("engagement_id") == f.get("engagement_id"), "E-FEEDBACK", w,
+                    f"run {f.get('run_id')!r} is not a run of engagement {f.get('engagement_id')!r}")
+            cl = c.ix.first("cluster", cluster_id=f.get("cluster_id"), run_id=f.get("run_id"))
+            R.check(cl is not None and cl.data.get("fingerprint") == f.get("fingerprint"), "E-FEEDBACK", w,
+                    f"fingerprint must be the fingerprint of {f.get('cluster_id')} in {f.get('run_id')}")
+            prints = {k.data.get("fingerprint") for k in c.docs("cluster")
+                      if (c.runs.get(k.data.get("run_id")) or {}).get("engagement_id") == f.get("engagement_id")}
+            if f.get("label") == "duplicate":
+                R.check(f.get("duplicate_of") in prints - {f.get("fingerprint")}, "E-FEEDBACK", w,
+                        "a duplicate names the fingerprint of another cluster of the engagement (duplicate_of)")
+            else:
+                R.check(f.get("duplicate_of") is None, "E-FEEDBACK", w, "duplicate_of is only set for label duplicate")
+            want = FEEDBACK_SUPPRESSION.get(f.get("label"))
+            R.check(f.get("sarif_suppression") == want, "E-FEEDBACK", w,
+                    f"label {f.get('label')} gives SARIF suppression {want!r}, not {f.get('sarif_suppression')!r}")
+            sb = f.get("signed_by") or {}
+            sigs = f.get("signatures") or []
+            at = ts(R, f.get("signed_at"), w)
+            ok = len(sigs) == 1 and sigs[0].get("signer") == sb.get("person_id") and sigs[0].get("key_fingerprint") == sb.get("key_fingerprint")
+            if R.check(ok, "E-FEEDBACK", w, "a feedback record carries exactly one signature, by its signed_by person and key"):
+                verify_signature(R, c, w, crypto.signing_payload(f), sigs[0], at, sb.get("role"))
 
 
 # ============================================================== 12b W4 testcases
@@ -2103,6 +2186,7 @@ def g_w4_testcases(R: Report, c: Ctx):
             R.check(len(ids) == len(set(ids)), "E-TC-CONTROLS", w, f"duplicate control_id in {ids}")
             tr = tc.get("trials") or {}
             R.check(1 <= tr.get("fail_k_min", 1) <= tr.get("n", 1), "E-TC-TRIALS", w, "fail_k_min must be 1..n")
+            access_cells_check(R, c, tc, w)
             db = (tc.get("environment") or {}).get("database")
             if tc.get("kind") == "local_rls":
                 files = {x.get("path") for x in (inventory_of_run(c, tc.get("run_id")) or {}).get("files") or [] if isinstance(x, dict)}
@@ -2849,6 +2933,14 @@ def inventory_checks(R: Report, c: Ctx):
         for e in inv.get("endpoints") or []:
             bad = sorted(set(e.get("middleware_refs") or []) - mws)
             R.check(not bad, "E-INVENTORY", w, f"endpoint {e.get('method')} {e.get('path')}: unknown middleware_refs {bad}")
+            # v0.5 (BL-19): a scheduled job / queue consumer has no HTTP request: no method, a schedule: / queue: path
+            scheduled = e.get("kind") == "scheduled"
+            R.check((e.get("method") is None) == scheduled, "E-INVENTORY", w,
+                    f"endpoint {e.get('method')} {e.get('path')}: " + ("a scheduled job has no HTTP method" if scheduled
+                                                                         else f"kind {e.get('kind')} needs an HTTP method"))
+            if scheduled:
+                R.check(str(e.get("path", "")).startswith(("schedule:", "queue:")), "E-INVENTORY", w,
+                        f"scheduled endpoint path {e.get('path')!r} must be schedule:<name> or queue:<name>")
         srcs = [("endpoint", e.get("file")) for e in inv.get("endpoints") or []]
         srcs += [("llm_integration", x.get("file")) for x in inv.get("llm_integrations") or []]
         srcs += [("middleware", m.get("file")) for m in (inv.get("auth") or {}).get("middleware") or []]
@@ -3529,6 +3621,8 @@ def g_toolkit(R: Report, c: Ctx):
     R.check(re.match(r"^\d+\.\d+\.\d+$", str(tk.get("toolkit_version", ""))) is not None, "E-TOOLKIT", w, "toolkit_version must be semver")
     R.check(REQUIRED_AUTOMATION <= set(tk.get("automation_accounts", [])), "E-TOOLKIT", w, f"automation_accounts must include {sorted(REQUIRED_AUTOMATION)}")
     R.check(tk.get("owasp_llm_default") in ("2025", "2026"), "E-TOOLKIT", w, "owasp_llm_default must be 2025 or 2026")
+    missing = B1_SKIP_BASELINE - {str(k).lower() for k in (tk.get("b1_crawl") or {}).get("skip_keywords") or []}
+    R.check(not missing, "E-TOOLKIT-B1", w, f"b1_crawl.skip_keywords drops the baseline keywords {sorted(missing)} (docs/08 §11.7)")
     R.check((tk.get("gate_timeouts_hours") or {}).get("G5", 99) <= 24, "E-TOOLKIT", w, "G5 timeout must be <= 24 h")
     R.check(set(GATE_ROLES) - {"G0a", "G0b"} | {"claim_run", "GB"} <= set(tk.get("gate_timeouts_hours") or {}), "E-TOOLKIT", w, "missing gate timeouts")
     ref = tk.get("tool_registry_ref")
@@ -3549,16 +3643,41 @@ def g_toolkit(R: Report, c: Ctx):
 
 
 # ============================================================== 21 DFD, report, selftest, checkpoint
+def access_matrix_cells(c: Ctx) -> set:
+    """(role, resource, action) of every cell of the G1 access matrix (each action of a row is one cell)."""
+    inv = c.b.data("invariants") or {}
+    return {(r.get("role"), r.get("resource"), a) for r in inv.get("access_matrix") or [] if isinstance(r, dict) for a in r.get("actions") or []}
+
+
+def _ratio(n, d):
+    return round(n / d, 4) if d else None
+
+
 def report_metrics(c: Ctx, run_id) -> dict:
-    """B5: results_total, results_invalid, control_pass_rate (PASS control outcomes / all control outcomes, 4 decimals)."""
+    """B5: results_total, results_invalid, control_pass_rate (PASS control outcomes / all control outcomes, 4 decimals).
+    v0.5 (BL-20, docs/02 W5 coverage): access_matrix_coverage = G1 matrix cells named by the access_cells of the run's
+    testcases (run.testcase_ids) and w4-testcases / all cells; endpoint_slice_coverage = inventory endpoints whose
+    handler file is in a slice of the run / all; endpoint_test_coverage = endpoints hit by a request_allowlist entry of
+    the run's testcases (same method and path shape) / all."""
     results = [x.data for x in c.docs("testresult") if x.data.get("run_id") == run_id]
     outs = [y.get("outcome") for r in results for y in r.get("controls") or [] if isinstance(y, dict)]
+    run = c.runs.get(run_id) or {}
+    tcs = [t.data for t in c.docs("testcase") if t.data.get("testcase_id") in (run.get("testcase_ids") or [])]
+    w4 = [t.data for t in c.docs("w4-testcase") if t.data.get("run_id") == run_id]
+    cells = access_matrix_cells(c)
+    covered = {(x.get("role"), x.get("resource"), x.get("action")) for t in tcs + w4 for x in t.get("access_cells") or [] if isinstance(x, dict)}
+    eps = [e for e in (inventory_of_run(c, run_id) or {}).get("endpoints") or [] if isinstance(e, dict)]
+    sliced = {f.get("path") for s in c.docs("slice") if s.data.get("run_id") == run_id for f in s.data.get("files") or [] if isinstance(f, dict)}
+    hit = {(r.get("method"), path_shape(r.get("path"))) for t in tcs for r in t.get("request_allowlist") or [] if isinstance(r, dict)}
     return {"results_total": len(results), "results_invalid": sum(1 for r in results if r.get("outcome") == "INVALID"),
-            "control_pass_rate": round(sum(1 for o in outs if o == "PASS") / len(outs), 4) if outs else None}
+            "control_pass_rate": round(sum(1 for o in outs if o == "PASS") / len(outs), 4) if outs else None,
+            "access_matrix_coverage": _ratio(len(covered & cells), len(cells)),
+            "endpoint_slice_coverage": _ratio(sum(1 for e in eps if e.get("file") in sliced), len(eps)),
+            "endpoint_test_coverage": _ratio(sum(1 for e in eps if (e.get("method"), path_shape(e.get("path"))) in hit), len(eps))}
 
 
 ID_KEYS = {"run": "run_id", "verdict": "verdict_id", "cluster": "cluster_id", "finding": "finding_id", "testcase": "testcase_id",
-           "w4-testcase": "testcase_id",
+           "w4-testcase": "testcase_id", "feedback": "feedback_id",
            "testresult": "result_id", "threat": "threat_id", "gate-record": "gate_record_id", "report-manifest": "report_id",
            "slice": "slice_id"}
 
@@ -3690,6 +3809,7 @@ GROUPS = [
     ("run state, jobs, test results", g_runs),
     ("testcases vs ROE (docs/04 §5)", g_testcases),
     ("W4 testcases (docs/02 W4)", g_w4_testcases),
+    ("feedback records (docs/08 §11.16)", g_feedback),
     ("verdict recomputation (docs/05 §4.2)", g_verdicts),
     ("traceability", g_trace),
     ("audit log", g_audit),

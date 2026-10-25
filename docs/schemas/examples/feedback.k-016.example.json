@@ -1,0 +1,25 @@
+{
+  "feedback_id": "FB-001",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "cluster_id": "K-016",
+  "fingerprint": "sha256:a10e5b286fdcec93384f62b0165a6127859335bd37bb6cecaa024a5188999234",
+  "label": "false_positive",
+  "reason": "deleteInvoice 由 routes/middleware/auth.ts 的 MW-001 先以 tenant_id 載入發票，查不到就回 404；opengrep 規則看不到 middleware 的檢查",
+  "duplicate_of": null,
+  "sarif_suppression": "accepted",
+  "signed_by": {
+    "person_id": "frank",
+    "role": "app_owner",
+    "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
+  },
+  "signed_at": "2026-10-07T09:30:00+08:00",
+  "signatures": [
+    {
+      "signer": "frank",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
+      "alg": "ed25519",
+      "value": "yebqWsoYqq/0TJ6Odg5B7clFRFjNkmxlu6c4rvK8787KPogVTeyI9O8PUo5aRbDG8XMss0Vz6BYb7Ka/0gX4CQ=="
+    }
+  ]
+}

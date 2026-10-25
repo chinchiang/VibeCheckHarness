@@ -75,6 +75,10 @@ seeds:
     owner_role: U2
     description: "U2 的訂單；U2 只存在於種子資料，沒有登入角色"
     path_templates: ["/api/orders/{id}"]
+    sensitive_fields:           # v0.5（BL-40）：外洩類 oracle 比對的結構化欄位（合成值）
+      - {field: customer_name, kind: name, value: "林雅婷"}
+      - {field: phone, kind: phone, value: "0912-345-678"}
+      - {field: bank_account, kind: account, value: "822-5501-7788-21"}
   u1_doc:
     table: documents
     id: "doc-u1-0001"

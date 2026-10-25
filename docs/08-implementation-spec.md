@@ -569,8 +569,8 @@ class ToolAdapter(ABC):
 | `vibecheck calibrate report` | `CALIBRATION_ID [--format json\|md]` | 輸出 M-1–M-11 與主要假設的結果 | 0/6 | M2 |
 | `vibecheck report show` | `RUN_ID` | 摘要 | 0/6 | M2 |
 | `vibecheck report export` | `RUN_ID --format json\|sarif\|html --out DIR [--include-rejected] [--include-pass]` | `json`（M2 白箱、M4 完整）、`sarif`（M2 白箱、M4 完整；對應表見 §11.16）、`html`（M5，靜態檔案） | 0/6/7 | M2/M4/M5 |
-| `vibecheck report publish` | `RUN_ID [--dry-run]` | publisher：把摘要留言、以指紋去重的 issue 與修正說明發布到程式碼託管平台（§11.16）。委任設定沒有開啟 → 結束碼 5（開啟用的 engagement 欄位：schema 尚未涵蓋，見 [09 BL-17](09-backlog.md)）；`--dry-run` 只輸出將要發布的內容 | 0/5/6/9 | M4 |
-| `vibecheck feedback add` | `--fingerprint FP --label LABEL --reason TEXT --sign ...` | 登錄中的人（`security_reviewer` 或 `app_owner`）簽署的誤報／確認回饋；標籤與去向見 §11.16（回饋紀錄的 schema 尚未涵蓋，見 [09 BL-18](09-backlog.md)） | 0/3/4/5 | M4 |
+| `vibecheck report publish` | `RUN_ID [--dry-run]` | publisher：把摘要留言、以指紋去重的 issue 與修正說明發布到程式碼託管平台（§11.16）。委任設定沒有開啟 → 結束碼 5（開啟用的欄位是 engagement 的 `publishing`，v0.5，[09 BL-17](09-backlog.md)）；`--dry-run` 只輸出將要發布的內容 | 0/5/6/9 | M4 |
+| `vibecheck feedback add` | `--fingerprint FP --label LABEL --reason TEXT --sign ...` | 登錄中的人（`security_reviewer` 或 `app_owner`）簽署的誤報／確認回饋；標籤與去向見 §11.16（回饋紀錄：`feedback.schema.json`，v0.5，[09 BL-18](09-backlog.md)） | 0/3/4/5 | M4 |
 | `vibecheck selftest run` | `[--items ST-1,ST-3,...] --out selftest-report.json` | 06 §1.2.1 的自測；任一個 0 門檻失敗 → 10 | 0/10 | M1 |
 | `vibecheck licenses check` | `[--lock FILE]` | 鎖檔中每個依賴在 `licenses.yaml` 都要有一列，否則失敗（[06 §2.3](06-security-legal-limitations.md#23-授權登錄表)） | 0/10 | M1 |
 | `vibecheck db migrate` | — | 套用 `store/migrations/` 的 SQL | 0/9 | M1 |
@@ -1044,8 +1044,8 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | U-16 | 具名的 PII 偵測器：Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]；相依的語言模型另有授權，未查證）或其他 | `toolkit_maintainer`、`legal_reviewer` | 工具包自己的規則式偵測器：email、電話、信用卡號（Luhn）、常見身分證號格式（檢查碼）（§11.17） | M4 |
 | U-17 | JS／TS 解析器是否採用 tree-sitter（Python binding 0.26.0，MIT [V][E:whitebox-58]；各 grammar 另有授權） | `toolkit_maintainer`、`legal_reviewer` | MVP-0 以 tree-sitter 做暫定實作，只使用已在 `licenses.yaml` 登錄的 grammar；決定不採用時換解析器，並重跑抽取器與 Slicer 的契約測試（§11.1、§11.3） | M1–M2 |
 | U-18 | CDN 目標是否必須在 ROE 宣告邊緣 IP 範圍（ROE 欄位也要一併決定；目前 schema 沒有，見 [09 BL-15](09-backlog.md)） | `toolkit_maintainer`、ROE 簽署人 | 選填：未宣告時每個 job 固定一次解析結果，並擋下非公開位址（§11.7） | M4 |
-| U-19 | 是否開啟 PR／issue 回饋；使用哪個程式碼託管平台與哪種權杖（engagement 的開啟欄位目前 schema 沒有，見 [09 BL-17](09-backlog.md)） | 使用者、`app_owner` | 關閉：只產出報告檔與 SARIF（§11.16） | M4 |
-| U-20 | 每個家族的 USD 上限是否成為委任設定的欄位（目前 schema 沒有，見 [09 BL-14](09-backlog.md)） | 使用者 | 家族上限等於所在階段的上限（§11.12） | M2 |
+| U-19 | 是否開啟 PR／issue 回饋；使用哪個程式碼託管平台與哪種權杖（v0.5：engagement 的 `publishing`，見 [09 BL-17](09-backlog.md)） | 使用者、`app_owner` | 關閉：只產出報告檔與 SARIF（§11.16） | M4 |
+| U-20 | 每個家族的 USD 上限是否成為委任設定的欄位（v0.5：engagement 的 `budgets.families`，見 [09 BL-14](09-backlog.md)） | 使用者 | 家族上限等於所在階段的上限（§11.12） | M2 |
 | U-21 | Z2 本地 RLS 測試用的 PostgreSQL 版本，以及 BaaS 認證函式的替身 | `toolkit_maintainer` | 與 migrations 相容的 PostgreSQL 主版本，鎖 digest；替身只實作「取得目前使用者 ID」一類的函式（§11.17） | M2 |
 | U-22 | 校準前 W3 每個叢集派幾位驗證者（M） | 使用者（成本）、`toolkit_maintainer` | M＝1；票只當參考意見（§11.11） | M2 |
 | U-23 | staging 使用自簽憑證時，Scope Proxy 如何信任目標（例如 ROE 宣告目標的 CA） | 資安團隊、ROE 簽署人 | 不支援：TLS 驗證失敗 → 該目標的 job `ERROR` 並列入缺口；不提供略過驗證的選項（§11.7） | M4 |
@@ -1055,7 +1055,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 §1–§9 定了模組、介面與測試。2026-09-26 的[深度審查](evidence/review-2026-09-26.md)找出一批「元件存在，但沒寫怎麼做」的缺口。本節逐一補上，寫法與前面各節相同：輸入、輸出、規則、失敗時怎麼辦、設定欄位、由哪個 validator 錯誤碼強制、屬於哪個里程碑與 MVP 階段。
 
 - 除非另外標示，本節全部是設計選擇 [H]。
-- 欄位名稱與錯誤碼以 v0.3 的 schema 與 `tools/vchlib` 為準，本節已逐一對照。設計中提到、但 schema 還沒有涵蓋的欄位（BL-14–BL-20）在文中註明「schema 尚未涵蓋」，並列在 [09 待辦清單](09-backlog.md) 第 3 節。
+- 欄位名稱與錯誤碼以 v0.3 的 schema 與 `tools/vchlib` 為準，本節已逐一對照。設計中提到、但 schema 還沒有涵蓋的欄位原本列在 [09 待辦清單](09-backlog.md) 第 3 節；BL-13～BL-20 已在 v0.5 補上（09 §5）。
 - 分段 MVP 的定義見 [07](07-roadmap.md)。下表的「MVP」欄是該元件第一次被需要的階段。
 
 | 小節 | 審查 ID | 主要介面或設定 | validator 錯誤碼 | 里程碑 | MVP |
@@ -1288,7 +1288,7 @@ class ToolResult(BaseModel):
 | 路由與 route handler | inventory `endpoints`（`kind: http`、`graphql`、`rpc`） |
 | server action | `endpoints`（`kind: server_action`） |
 | webhook | `endpoints`（`kind: webhook`） |
-| 排程與背景工作 | 排程設定中宣告的函式、queue consumer。v0.3 inventory 的 `endpoints[].kind`（`http`、`server_action`、`graphql`、`rpc`、`baas_direct`、`webhook`）沒有排程工作的值，暫時記為 `blind_spots`（`other`）（schema 尚未涵蓋，見 [09 BL-19](09-backlog.md)） |
+| 排程與背景工作 | 排程設定中宣告的函式、queue consumer。v0.3 inventory 的 `endpoints[].kind`（`http`、`server_action`、`graphql`、`rpc`、`baas_direct`、`webhook`）原本沒有排程工作的值；v0.5 加上 `kind: scheduled`（`method` 為 null，`path` 為 `schedule:<名稱>`／`queue:<名稱>`，`E-INVENTORY`，[09 BL-19](09-backlog.md)） |
 | LLM 工具 handler | `llm_integrations` 的工具定義 |
 | 資料庫 policy | 每張有 policy、RLS 設定或 `SECURITY DEFINER` 函式的資料表：migration 中的相關敘述，加上所有存取這張表的程式碼（包括 `baas_direct` 呼叫點） |
 | 位置錨點 | `extra_anchors`（只給 W3 的 tool-only 叢集） |
@@ -1556,7 +1556,7 @@ class SeedService(Protocol):
 | 速率 | ≤ ROE 的 `per_host_rps` |
 
 - 被擋下的請求照 [03 §7.3](03-system-architecture.md#73-限速與停止條件) 計數。觸發停止條件時，外部視角退回「只用 schema」，並列為缺口（[02 B1](02-methodology.md#b1-系統建模兩個獨立視角)）。
-- 預設值原本設計放在 `toolkit.yaml`，但 `toolkit-config.schema.json` 還沒有 B1 爬行的區塊（schema 尚未涵蓋，見 [09 BL-16](09-backlog.md)）。在補上之前，上表的規則寫成程式常數，並記入 run manifest。
+- 預設值放在 `toolkit.yaml` 的 `b1_crawl`（v0.5，[09 BL-16](09-backlog.md)）：schema 只允許 GET／HEAD／OPTIONS、`submit_forms: false`、`same_origin_only: true`、每個目標最多 200 個請求、深度最多 5；`skip_keywords` 必須包含上表的基本清單，可以再加不能刪（`E-TOOLKIT-B1`）。
 
 **攔截式 proxy 的選型**仍未決定（§10 U-13）。mitmproxy 12.2.3 的 PyPI classifier 為 MIT [V][E:blackbox-67]，是候選之一，**尚未選定**。不論選哪一個，本節的規則都由工具包自己的程式碼強制，並以 §8.2 的 N-17、N-18、N-32、N-33 驗證。
 
@@ -1750,7 +1750,7 @@ class SessionProvider(Protocol):
 |---|---|---|
 | run 總額 | `budgets.run_total.max_cost_usd` 等 | 委任設定；必填，沒有就 fail-closed |
 | 階段 | `budgets.W`、`budgets.B` | 委任設定 |
-| 家族 | 每個家族的 USD 上限 | schema 尚未涵蓋，見 [09 BL-14](09-backlog.md)：engagement 的 `budgets` 只有 `run_total`、`W`、`B`。在補上之前，每個家族的上限等於所在階段的上限（§10 U-20） |
+| 家族 | 每個家族的 USD 上限 | engagement 的 `budgets.families`（v0.5，[09 BL-14](09-backlog.md)）：家族名稱必須是 `models.yaml` 的家族，上限不能超過 `run_total.max_cost_usd`（`E-ENG-BUDGET`）；沒有列出的家族，上限等於所在階段的上限 |
 | relay | ROE 的 `relay.max_spend_usd_per_job`、`relay.max_spend_usd_per_run` | ROE |
 | 受測應用的上游 LLM | ROE 的 `upstream_llm_providers[].spend_cap_usd` | ROE |
 
@@ -1923,7 +1923,7 @@ class SessionProvider(Protocol):
 | `gap_kind`、`gap_reason` | 未能測試清單 | 有測試結果時為空 |
 
 **PR 與 issue 回饋** [H]：
-- **只由程式碼發布**：`reporter` 的 publisher 在 W5（白箱）或 B6 之後執行。預設**關閉**，由委任設定開啟（§10 U-19）。engagement 目前沒有開啟 publisher 的欄位，也沒有權杖範圍的宣告（schema 尚未涵蓋，見 [09 BL-17](09-backlog.md)）；在補上之前 publisher 一律關閉，報告只輸出檔案。
+- **只由程式碼發布**：`reporter` 的 publisher 在 W5（白箱）或 B6 之後執行。預設**關閉**，由委任設定開啟（§10 U-19）。開關是 engagement 的 `publishing`（v0.5，[09 BL-17](09-backlog.md)）：`enabled: false` 時 `platform` 必須是 null、`token_scopes` 必須是空的；開啟時必須宣告平台（目前只有 `github`）與最小權限的權杖範圍，只能是 `metadata:read`、`issues:write`、`pull_requests:write`，不能有程式碼存取權（`E-ENG-PUBLISH`）。範例是關閉的。
 - **每個 run 一則摘要留言**：放在 PR 上；以隱藏標記找到同一系列 run 的舊留言並更新，不重複張貼。
 - **每個問題一個 issue 或逐行留言，以指紋去重**：同一 repo 已有相同 `fingerprint` 的未關閉 issue → 更新它（加上本次 run ID 與 `baseline_state`），不開新的。`absent` → 在 issue 留言「本次未出現」，但**不自動關閉**，由人關閉。
 - **只發布**：`CONFIRMED_*`、`LIKELY`，以及嚴重度 high 以上的 `UNCORROBORATED`；其他只出現在摘要與報告中。每一則都標示是否為暫定裁決。
@@ -1936,7 +1936,7 @@ class SessionProvider(Protocol):
 - 去向：
   - 下一個 run 的 SARIF `suppressions`：`false_positive` → `accepted`；`needs_info` → `underReview`；
   - Calibration Lab 的**候選**語料，來源標為 `developer_feedback`。它不是真值，要照 [05 §5.1](05-bias-calibration.md#51-語料) 的雙標註流程確認後才能使用；確認為誤報的，也用來重新檢查 `high_precision_rules`（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)）。
-- 回饋紀錄還沒有 schema（schema 尚未涵蓋，見 [09 BL-18](09-backlog.md)）。在補上之前，回饋先以人工整理進校準語料。
+- 回饋紀錄是 `feedback.schema.json`（v0.5，[09 BL-18](09-backlog.md)；`E-FEEDBACK`）：指紋必須是所指叢集的指紋，該叢集要屬於同一委任的 run；`duplicate` 必須指向同一委任另一個叢集的指紋；`sarif_suppression` 依標籤決定（`false_positive` → `accepted`、`needs_info` → `underReview`、其他 null）；紀錄恰好有一個簽章，由 `signed_by` 的人以登錄金鑰簽署，而且這個人要有 `security_reviewer` 或 `app_owner` 角色。範例 FB-001：app_owner 把純工具叢集 K-016 標為誤報。
 
 **給開發者 AI 助手的修正說明**（fix brief）[H]：每個發布的問題附一份，以確定性範本產生。
 - **內容**：桶與 CWE；位置（檔案、行、符號）；違反的 G1 不變量（原文）；證據（測試 ID、oracle 類型、請求摘要）；預期行為（取自不變量）；驗收方式（必須通過的 W4 或黑箱測試 ID）；限制（不得刪除或停用該測試，要保留回歸測試）。
@@ -2033,7 +2033,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 
 #### 覆蓋指標
 
-- report-manifest 的 `metrics` 由 validator 以本 run 的測試結果重算：`results_total`、`results_invalid`、`control_pass_rate`（PASS 的對照結果數 ÷ 全部對照結果數，四捨五入到小數 4 位；沒有對照時為 null）（`E-REPORT-METRICS`）。範例報告是 4 個結果、0 個 `INVALID`、`control_pass_rate` 1.0。
-- 報告另外列出：存取矩陣中有測試的格子比例、inventory 端點中有切片的比例、有測試的端點比例。這三個指標不在 report-manifest 的 `metrics` 中，只寫在報告正文（schema 尚未涵蓋，見 [09 BL-20](09-backlog.md)）。
+- report-manifest 的 `metrics` 由 validator 以本 run 的測試結果重算：`results_total`、`results_invalid`、`control_pass_rate`（PASS 的對照結果數 ÷ 全部對照結果數，四捨五入到小數 4 位；沒有對照時為 null）（`E-REPORT-METRICS`）。範例報告是 5 個結果（含 W4 的 R-WTC-015-01-1）、0 個 `INVALID`、`control_pass_rate` 1.0。
+- v0.5（[09 BL-20](09-backlog.md)）另有三個指標，也由 validator 重算：`access_matrix_coverage`（本 run 的 testcase 與 w4-testcase 以 `access_cells` 宣告涵蓋的 G1 矩陣格子 ÷ 總格數，每格必須在矩陣中，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`（handler 檔案在本 run 切片中的端點 ÷ 總數）、`endpoint_test_coverage`（被黑箱 testcase 的 `request_allowlist` 打到的端點，方法與路徑樣板都相同 ÷ 總數）。範例是 1.0、0.8571、0.8571；新增的排程工作沒有切片也沒有測試。
 
 **里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。

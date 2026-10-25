@@ -139,5 +139,22 @@
   "multi_turn": false,
   "script_turns": null,
   "strategy_template_sha256": null,
-  "artifact_sha256": "sha256:391007bf87c869892bccfff6bce2239f19da9479f2e5b669f4fe317550e6d78f"
+  "artifact_sha256": "sha256:391007bf87c869892bccfff6bce2239f19da9479f2e5b669f4fe317550e6d78f",
+  "access_cells": [
+    {
+      "role": "tenant_user",
+      "resource": "invoice",
+      "action": "read"
+    },
+    {
+      "role": "tenant_user",
+      "resource": "invoice",
+      "action": "update"
+    },
+    {
+      "role": "tenant_user",
+      "resource": "invoice",
+      "action": "delete"
+    }
+  ]
 }

@@ -44,6 +44,14 @@ budgets:                      # docs/03 §11；費用上限必填
   run_total: {max_input_tokens: 30000000, max_output_tokens: 3000000, max_cost_usd: 400, max_compute_minutes: 2880}
   W: {max_input_tokens: 15000000, max_output_tokens: 1500000, max_cost_usd: 150, max_compute_minutes: 1440}
   B: {max_input_tokens: 5000000, max_output_tokens: 500000, max_cost_usd: 50, max_compute_minutes: 1440}
+  families:                   # v0.5（BL-14）：每家族的 USD 上限；沒有列出的家族等於所在階段的上限
+    anthropic: {max_cost_usd: 120}
+    openai: {max_cost_usd: 60}
+
+publishing:                   # v0.5（BL-17）：PR／issue 回饋預設關閉（docs/08 §11.16）
+  enabled: false
+  platform: null
+  token_scopes: []
 
 gate_timeouts_hours:          # 只能比 toolkit.yaml 短
   claim_run: 168
@@ -94,8 +102,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "Pd6bK5NGzshJvKr+sd7cz8AjFQ8CHMUySeDvwHk2CO+4xLGCVq3MVmZoU3G5j4uuQX/G+RbLIfd/i+yOsuSwDA=="
+    value: "l0tPMxPABPKVXZYXQwi2o7TkSoVEtdsuo1G3XqheS13Tm11kiAEMOCyJQs3Kdkg24IAM1EmQS2Oujbaq7WH7CQ=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "nj/mI6XHQEQ9SjbeSoj1Jas5xU3jUoHw4adGzJTWX6oVUNISKgV9x+t5coNQqG81asWa/oGzuLdOmBZoixejCw=="
+    value: "S3QqhcDGrhcV7OrfmaCCJm3liVW9L0LGcfbm1Ey74NFe9iYTv5DXoljOsKcBxyNHcDa4q+4a3yUEgMZys0luDw=="

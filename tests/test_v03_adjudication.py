@@ -227,7 +227,9 @@ def test_fail_oracles_rules(b, fo, outcome):
 
 
 def test_report_metrics_recomputed(b):
-    assert doc(b, "report-manifest.example.json").data["metrics"] == {"results_total": 5, "results_invalid": 0, "control_pass_rate": 1.0}
+    assert doc(b, "report-manifest.example.json").data["metrics"] == {"results_total": 5, "results_invalid": 0, "control_pass_rate": 1.0,
+                                                                    "access_matrix_coverage": 1.0, "endpoint_slice_coverage": 0.8571,
+                                                                    "endpoint_test_coverage": 0.8571}     # v0.5 BL-20
     doc(b, "report-manifest.example.json").data["metrics"]["control_pass_rate"] = 0.9
     assert "E-REPORT-METRICS" in codes(b)
 

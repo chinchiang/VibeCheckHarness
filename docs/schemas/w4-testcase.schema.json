@@ -248,6 +248,31 @@
     "artifact_sha256": {
       "$ref": "common.schema.json#/$defs/sha256",
       "description": "測試檔與對照的內容 hash；testresult.artifact_sha256 必須等於它（E-DERIVED）"
+    },
+    "access_cells": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "resource",
+          "action"
+        ]
+      },
+      "description": "v0.5（09 BL-20）：本測試涵蓋的 G1 存取矩陣格子（role × resource × action）；每格必須在 invariants.yaml 的 access_matrix 中（E-TC-ACCESS-CELL）。不針對存取控制的測試為空陣列"
     }
   },
   "required": [
@@ -264,6 +289,7 @@
     "controls",
     "oracle",
     "trials",
-    "artifact_sha256"
+    "artifact_sha256",
+    "access_cells"
   ]
 }

@@ -72,6 +72,15 @@ path_blacklist:                    # W0：完全不進任何後續產物（docs/
   - "playwright/.auth/**"
   - ".github/secrets/**"
 
+b1_crawl:                          # v0.5（BL-16）：B1 爬行預設（docs/08 §11.7）；ROE 只能再調低
+  methods: [GET, HEAD, OPTIONS]
+  skip_keywords: [logout, log-out, signout, sign-out, delete, remove, unsubscribe, approve, confirm, reset, cron, send, pay,
+                  toggle, activate, publish, 登出, 刪除, 移除, 取消訂閱, 核准, 確認, 重設, 送出, 付款, 發布]
+  submit_forms: false
+  same_origin_only: true
+  max_requests_per_target: 200
+  max_depth: 5
+
 relay:                             # docs/03 §7.5；ROE relay 只能再調低
   max_turns: 10
   max_spend_usd_per_job: 2

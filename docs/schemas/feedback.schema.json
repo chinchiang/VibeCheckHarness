@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feedback.schema.json",
+  "title": "Feedback（誤報／確認回饋）",
+  "description": "v0.5（09 BL-18，docs/08 §11.16）：登錄中的 security_reviewer 或 app_owner 以 `vibecheck feedback add` 簽署的回饋。PR／issue 上的留言只是提示，不會自動採用；只有簽署的回饋紀錄才影響下一個 run 的 SARIF suppressions，並成為 Calibration Lab 的候選語料（來源 developer_feedback，仍要雙標註確認，docs/05 §5.1）（E-FEEDBACK）",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "feedback_id": {
+      "type": "string",
+      "pattern": "^FB-[0-9]{3,}$"
+    },
+    "engagement_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "回饋所針對的 run"
+    },
+    "cluster_id": {
+      "type": "string",
+      "pattern": "^K-[0-9]{3,}$"
+    },
+    "fingerprint": {
+      "$ref": "common.schema.json#/$defs/sha256",
+      "description": "必須等於 cluster_id 的 fingerprint（跨 run 以指紋對應）"
+    },
+    "label": {
+      "enum": [
+        "false_positive",
+        "true_positive",
+        "wont_fix",
+        "duplicate",
+        "needs_info"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "duplicate_of": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "label duplicate 時必填：同一委任另一個叢集的 fingerprint；其他 label 為 null"
+    },
+    "sarif_suppression": {
+      "anyOf": [
+        {
+          "enum": [
+            "accepted",
+            "underReview"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "下一個 run 的 SARIF suppressions 狀態：false_positive → accepted；needs_info → underReview；其他 null（E-FEEDBACK）"
+    },
+    "signed_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "person_id": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "security_reviewer",
+            "app_owner"
+          ]
+        },
+        "key_fingerprint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "person_id",
+        "role",
+        "key_fingerprint"
+      ]
+    },
+    "signed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "signatures": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "$ref": "common.schema.json#/$defs/signature"
+      }
+    }
+  },
+  "required": [
+    "feedback_id",
+    "engagement_id",
+    "run_id",
+    "cluster_id",
+    "fingerprint",
+    "label",
+    "reason",
+    "duplicate_of",
+    "sarif_suppression",
+    "signed_by",
+    "signed_at",
+    "signatures"
+  ]
+}

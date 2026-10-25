@@ -22,7 +22,7 @@
     {
       "kind": "test_plan",
       "ref": "GR-G4-0001",
-      "sha256": "sha256:ed33e4b7f128bcea4efff6cdfae48b5236a0c6696a5147b13af746ac65148b46"
+      "sha256": "sha256:8f4fe96b5af727af263e536c393267ca11790b02f9758a7386bfda866d3c460d"
     },
     {
       "kind": "testresult",
@@ -82,7 +82,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G0a-0001",
-      "sha256": "sha256:dacdc08444adf1f2591ce5d7a2a568035c1f62c499f15d227368e3d8218058e9"
+      "sha256": "sha256:9b3b5f6ba7569ad001578a000b7b5f560419522e8feb74eb0f69582afc0988be"
     },
     {
       "kind": "gate_record",
@@ -102,7 +102,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G0b-0001",
-      "sha256": "sha256:70858c9f74902e6cc886994be236759057948468549aa31497bd7b961c2fe723"
+      "sha256": "sha256:c27e9ddf9b3500f1ef0b1f117eb9b3d7b75ba7929dc21973fb2c4d44dc0c0f9e"
     },
     {
       "kind": "gate_record",
@@ -112,12 +112,12 @@
     {
       "kind": "gate_record",
       "ref": "GR-G4-0001",
-      "sha256": "sha256:83f7fe2d21bdd41cf19c8747a3f8f842560a6b5c3b9efe1a03cf15544653a458"
+      "sha256": "sha256:36b2f922c7398264134966af234e038a39f7d79221f7715ebe2c50bb54ec0b0c"
     },
     {
       "kind": "gate_record",
       "ref": "GR-G5-0001",
-      "sha256": "sha256:075419951219e6f68a6420620eeb8d4fef8fb36d2bfab1a98f2937066a321638"
+      "sha256": "sha256:008e32019b7e764518cd15e42181dfbba4ffe502ef1342b95c36b685ccdb3be2"
     },
     {
       "kind": "audit_log",
@@ -144,7 +144,10 @@
   "metrics": {
     "results_total": 5,
     "results_invalid": 0,
-    "control_pass_rate": 1.0
+    "control_pass_rate": 1.0,
+    "access_matrix_coverage": 1.0,
+    "endpoint_slice_coverage": 0.8571,
+    "endpoint_test_coverage": 0.8571
   },
   "build_unverified_targets": [],
   "absent_fingerprints": [],

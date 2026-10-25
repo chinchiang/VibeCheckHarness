@@ -44,16 +44,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 
 ## 3. 規格已寫、schema 尚未涵蓋的欄位
 
-[08 §11](08-implementation-spec.md#11-元件規格補充v03) 的元件規格提到下列欄位，但 v0.3 的 schema 與 validator 還沒有對應；實作對應元件時一併補上 schema、範例與正反向測試。
-
-| 編號 | 用在 | 缺少的欄位或檔案 | 暫行做法 | 狀態 |
-|---|---|---|---|---|
-| BL-14 | [08 §11.12](08-implementation-spec.md#1112-成本模型與價格) 各家族上限 | engagement 的每家族 USD 上限欄位 | 只用現有的每 run／階段上限 | 待辦 |
-| BL-16 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) B1 爬行預設 | `toolkit.yaml` 的 B1 爬行預設區塊（方法、排除樣式、請求上限） | 規則寫在程式碼常數，並記入 run manifest | 待辦 |
-| BL-17 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 回貼 PR／issue | engagement 啟用發佈的欄位與權杖範圍宣告 | 預設不發佈；報告只輸出檔案 | 待辦 |
-| BL-18 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 誤報回饋 | 回饋紀錄的 schema | 回饋先以人工整理進校準語料 | 待辦 |
-| BL-19 | [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣) 排程工作 | inventory `endpoints[].kind` 沒有排程工作（cron／job）的值 | 排程工作記為 `blind_spots`（`other`） | 待辦 |
-| BL-20 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 覆蓋指標 | report-manifest `metrics` 只有結果數、INVALID 數與對照通過率；沒有存取矩陣格與 entry point 的覆蓋率 | 覆蓋率先寫在報告正文 | 待辦 |
+[08 §11](08-implementation-spec.md#11-元件規格補充v03) 的元件規格提到、但 schema 原本沒有的欄位，v0.5 已全部補上（BL-13～BL-20、BL-27，見 §5）。之後若再發現，依同樣方式列在這裡。
 
 ## 4. 第六輪（2026-10-25 審查）留下的實作項目
 
@@ -65,7 +56,6 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-37 | T-8 | Audit Writer 寫入端去重：重複的 `idempotency_key` 不寫新行，回傳原本那一行的 `seq` | [03 §5.8](03-system-architecture.md#58-節點邊界規則)、[08 §6.3](08-implementation-spec.md#63-冪等鍵) | Audit Writer 實作時 | validator 已把重複當錯誤；寫入端未實作 |
 | BL-38 | H-6、§4.3 | Scope Proxy 實作物件綁定與白名單比對，並與參考實作做 parity 測試：`safety.request_binding_problem`、`server_action_problem`、`allowlist_match` | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) | MVP-1 黑箱執行之前（與 BL-32 同時） | 參考實作與單元測試已有；Proxy 未實作 |
 | BL-39 | M-1 | DB 目標的 `db_comment` 所有權驗證：Z3 以唯讀 oracle 憑證讀出 `COMMENT ON DATABASE` 中的 token，結果由 z3_executor 簽署 | [02 B0](02-methodology.md#b0-roe-與範圍g0b機器可驗證)、[06 §3 #18](06-security-legal-limitations.md#3-做不到不承諾的事) | MVP-1 之前 | validator 已檢查方法；Z3 端未實作 |
-| BL-40 | M-5 | 外洩類 oracle 的結構化欄位比對（NFKC、大小寫摺疊、去分隔符號、數字序列）；seed manifest 需要能登記每個種子的敏感欄位 | [04 §4.3](04-threat-to-testcase.md#43-binding-表) | M5 的 LLM 測試之前 | 規格已寫；seed manifest schema 尚無欄位 |
 | BL-41 | M-6 | G4 佇列上限的排序與「超出 G4 上限 → `MANUAL`」：B3 依序裁切，報告列出被裁掉的測試案例 | [02 B3](02-methodology.md#b3-威脅--需求--測試案例) | M4 之前 | `gate_queues.g4_max_items` 已加；裁切與報告欄位未實作，validator 未檢查 |
 | BL-42 | V-8 | `facets.CWE_BUCKETS`（CWE→桶的 curated 對照）與校準的桶定義對齊；對不到時目前只發 `W-CLUSTER-BUCKET` | [05 §3](05-bias-calibration.md#3-設計規則)、`tools/vchlib/facets.py` | 校準語料建立時（依 BL-11） | 最小對照表已有 |
 | BL-43 | §4.3 | 撤銷金鑰時自動調高 `key_registry.min_version`（`vibecheck keys rotate`），避免撤銷前的舊登錄仍被接受 | [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) | M1 | 限制已寫入文件；未實作 |
@@ -78,6 +68,13 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 
 | 編號 | 原本的問題 | 處理 |
 |---|---|---|
+| BL-14 | engagement 沒有每家族的 USD 上限 | v0.5 已處理：engagement `budgets.families`（`E-ENG-BUDGET`；[08 §11.12](08-implementation-spec.md#1112-成本模型與價格)） |
+| BL-16 | toolkit 沒有 B1 爬行預設區塊 | v0.5 已處理：toolkit `b1_crawl`（schema 限定 S0 方法、不送表單、同 origin、上限；`E-TOOLKIT-B1` 基本關鍵字；[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
+| BL-17 | engagement 沒有 PR／issue 發布的開關與權杖範圍 | v0.5 已處理：engagement `publishing`（預設關閉；開啟需平台與最小權限範圍，`E-ENG-PUBLISH`；[08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)） |
+| BL-18 | 誤報回饋紀錄沒有 schema | v0.5 已處理：`feedback.schema.json`（簽署、指紋、標籤與 SARIF suppression，`E-FEEDBACK`；範例 FB-001） |
+| BL-19 | inventory 沒有排程工作的 kind | v0.5 已處理：inventory `kind: scheduled`（method null、`schedule:`／`queue:` 路徑，`E-INVENTORY`；範例的排程工作） |
+| BL-20 | report-manifest 沒有存取矩陣與 entry point 的覆蓋率 | v0.5 已處理：testcase／w4-testcase 的 `access_cells`（`E-TC-ACCESS-CELL`）與 metrics 的三個覆蓋率（`E-REPORT-METRICS`） |
+| BL-40 | seed manifest 不能登記外洩類 oracle 要比對的結構化欄位 | v0.5 已處理：seed `sensitive_fields` 與參考比對 `safety.sensitive_leaks`（NFKC、摺疊、去分隔、數字序列；`E-SEED-SENSITIVE`；[04 §4.3](04-threat-to-testcase.md#43-binding-表)） |
 | BL-27 | `testcase.schema.json` 只描述黑箱測試；W4 測試案例只記在 run manifest 與 CAS，W4 結果只能借用黑箱測試案例 | v0.5 已處理：`w4-testcase.schema.json`（unit／property／local_rls／fake_model、Z2 環境、對照、oracle 引用的 G1 條目；`E-W4-TC`）；W4 結果以 `testcase_id` 指向它、`target_ids` 為空（`E-RESULT-TARGETS`）。範例：K-015 的本地 RLS 測試 WTC-015-01 → V-015-2（R1 `CONFIRMED_EXECUTABLE`；[02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格)） |
 | BL-04 | G4／G5 的職責分離只在同一個 run 內檢查；G5 沒有指回核准它的 G4 | v0.5 已處理：G5 的 `g4_gate_record_id` 指向本 run 中該測試案例最新且 accept 的 G4，G4 與 G5 的實際核准者不能重疊（`E-G5-G4`；[03 §6.3](03-system-architecture.md#63-核准者來源與逐項核准)）；G4／G5 每個 run 重新核准 |
 | BL-13 | `cluster.schema` 無法表示純工具叢集；`run.schema` 沒有 ToolResult 清單的參照 | v0.5 已處理：叢集 `origin: tool_only` 與 `tool_report_refs`（回報不算佐證，`E-CLUSTER-ORIGIN`、`E-SARIF-REF`）；run 的 `tool_results_ref` 由 W1 稽核事件導出（`E-DERIVED`；[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)） |
