@@ -70,6 +70,7 @@
   "inventory_ref": null,
   "sbom_ref": null,
   "tool_results_ref": null,
+  "w4_manual_requirements": [],
   "redaction_map_ref": null,
   "invariants_ref": null,
   "invariants_changed": false,

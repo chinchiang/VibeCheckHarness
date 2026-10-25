@@ -852,7 +852,7 @@ def admissible(level: str, roe) -> bool:
 - **證據**：
   - `routes/invoices.ts:42` 的查詢沒有 owner 條件（白箱叢集 K-005，成員 F-017、F-021，由 openai 與 anthropic 兩個家族獨立回報，裁決 `LIKELY`，因此成為種子威脅）
   - `invoices` 表沒有 RLS policy（W0 inventory 的 `/db/tables/0/rls_enabled` 為 `false`；另有白箱叢集 K-015，成員 F-061 以 `inventory_fact` 證據主張同一件事）
-  - **K-015 的確認方式**（v0.4 註記）：K-015 以種子威脅併入本威脅，但 TC-012-01 只連到 K-005。伺服器端的 DB 連線通常繞過 RLS，所以 API 層的黑箱測試無法證實「沒有 RLS」；K-015 要靠 W4 在拋棄式本地 Postgres 上的 RLS 測試（[02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格)）確認。D5 的覆蓋規則（每個種子威脅都有測試或 G3 駁回）對 K-015 只在名義上成立
+  - **K-015 的確認方式**（v0.4 註記）：K-015 以種子威脅併入本威脅，但 TC-012-01 只連到 K-005。伺服器端的 DB 連線通常繞過 RLS，所以 API 層的黑箱測試無法證實「沒有 RLS」；K-015 要靠 W4 在拋棄式本地 Postgres 上的 RLS 測試（[02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格)）確認。D5 的覆蓋規則（每個種子威脅都有測試或 G3 駁回）對 K-015 只在名義上成立。v0.5 的範例補上這個測試（[09 BL-27](09-backlog.md)）：本地 RLS 測試 WTC-015-01 的確定性 FAIL 讓 K-015 在 W4 成為 `CONFIRMED_EXECUTABLE`（V-015-2，R1），種子 ST-003 依這一版轉入本威脅。
 - **高風險**：是。判定只依 [02 B2](02-methodology.md#b2-威脅建模g3-強制簽核) 的高風險定義——本例符合條件 2（威脅跨越租戶邊界，且 `invoices` 在 **G1 應用資料分級**中為機密）。**因為是高風險威脅，所以必須有 attack tree**（與工具包的資料等級無關）。
   - 兩種「資料分級」不要混淆：（a）**受測應用的 G1 資料分級**（此處 `invoices`＝機密）決定威脅的高風險與否；（b）**工具包自己的資料等級** `data_class`（P＝公開或合成、C＝機密；未標記即 C）是 ROE `data_handling.data_class`，決定的是**資料處理路由**（C 級只走自架或有 ZDR＋DPA 的家族，見 [03 §8.4](03-system-architecture.md#84-資料治理)），**不**決定要不要 attack tree。本 engagement 的 `data_class` 為 C，只是說結果與紀錄按機密處理。
 - **Attack tree**：OR{ 猜測連號 ID、從分享連結取得 ID }

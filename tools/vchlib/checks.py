@@ -1687,7 +1687,7 @@ def g_runs(R: Report, c: Ctx):
                     if tr.get("run_id") != rid:
                         continue
                     ex = ts(R, tr.get("executed_at"), x.path)
-                    tc = c.ix.first("testcase", testcase_id=tr.get("testcase_id"))
+                    tc = c.ix.testcase_for(tr)
                     black_box = tr.get("phase") == "B4"
                     if black_box:
                         job = (run.get("jobs") or {}).get(tr.get("job_id"))
@@ -1709,6 +1709,9 @@ def g_runs(R: Report, c: Ctx):
                         R.check(tr.get("replays", 0) in (0, rn), "E-RESULT-TRIALS", x.path,
                                 f"replays (n_r) {tr.get('replays')} must be 0 (no replay job) or the testcase replay_n={rn}")
                         R.check(set(tr.get("target_ids", [])) <= set(tc.data.get("target_ids", [])), "E-RESULT-TARGETS", x.path, "targets outside the testcase")
+                    # v0.5 (BL-27): a B4 result hit at least one ROE target; a W4 result ran in Z2 and has none
+                    R.check(bool(tr.get("target_ids")) == black_box, "E-RESULT-TARGETS", x.path,
+                            "B4 results name at least one ROE target" if black_box else "W4 results run in Z2 and name no ROE target")
                     if black_box:
                         result_build(R, c, x, run)
                         R.check(tr.get("request_log_sha256") is not None, "E-RESULT-REQUEST-LOG", x.path,
@@ -2066,6 +2069,119 @@ def g_testcases(R: Report, c: Ctx):
             R.check(len(ids) == len(set(ids)), "E-TC-CONTROLS", w, f"duplicate control_id in {ids}")
             R.check(tb.get("adapter") == "manual" or safety.registry_entry(c.tools, tb.get("adapter", "")) is not None, "E-TC-TOOL", w,
                     f"adapter {tb.get('adapter')} not registered")
+
+
+# ============================================================== 12b W4 testcases
+W4_CLUSTER_ORIGINS = ("white_box", "tool_only")
+
+
+def g_w4_testcases(R: Report, c: Ctx):
+    """v0.5 (BL-27, docs/02 W4, E-W4-TC): white-box tests run in Z2 against unit tests or a disposable local Postgres.
+    - the run exists; every cluster is a white_box / tool_only cluster of that run;
+    - requirement_ids and oracle.requirement_refs are approved at G1 (E-TC-REQ-UNAPPROVED); requirement_refs are
+      requirement_ids; at least one reachability control (E-TC-CONTROLS); fail_k_min 1..n (E-TC-TRIALS);
+    - local_rls has a database (disposable postgres, repo migrations of the run's inventory), other kinds none;
+    - a W4 result runs a w4-testcase (not a black-box testcase) and names only the testcase's clusters."""
+    approved = c.ix.approved_requirement_ids()
+    for d in c.docs("w4-testcase"):
+        with doc_guard(R, d.path):
+            tc, w = d.data, d.path
+            R.check(tc.get("run_id") in c.runs, "E-W4-TC", w, f"run {tc.get('run_id')!r} not found")
+            for k in tc.get("cluster_ids") or []:
+                cl = c.ix.first("cluster", cluster_id=k)
+                R.check(cl is not None and cl.data.get("run_id") == tc.get("run_id") and cl.data.get("origin") in W4_CLUSTER_ORIGINS,
+                        "E-W4-TC", w, f"{k} must be a {'/'.join(W4_CLUSTER_ORIGINS)} cluster of run {tc.get('run_id')}")
+            o = tc.get("oracle") or {}
+            reqs, refs = set(tc.get("requirement_ids") or []), set(o.get("requirement_refs") or [])
+            R.check((reqs | refs) <= approved, "E-TC-REQ-UNAPPROVED", w,
+                    f"requirements {sorted((reqs | refs) - approved)} are not approved at G1 (a W4 oracle cites only G1-approved items)")
+            R.check(refs <= reqs, "E-W4-TC", w, f"oracle.requirement_refs {sorted(refs - reqs)} are not requirement_ids")
+            ctls = [x for x in tc.get("controls") or [] if isinstance(x, dict)]
+            R.check(any(x.get("kind") == "reachability" for x in ctls), "E-TC-CONTROLS", w,
+                    "a W4 testcase needs at least one reachability control (the sink line is covered, the precondition reached)")
+            ids = [x.get("control_id") for x in ctls]
+            R.check(len(ids) == len(set(ids)), "E-TC-CONTROLS", w, f"duplicate control_id in {ids}")
+            tr = tc.get("trials") or {}
+            R.check(1 <= tr.get("fail_k_min", 1) <= tr.get("n", 1), "E-TC-TRIALS", w, "fail_k_min must be 1..n")
+            db = (tc.get("environment") or {}).get("database")
+            if tc.get("kind") == "local_rls":
+                files = {x.get("path") for x in (inventory_of_run(c, tc.get("run_id")) or {}).get("files") or [] if isinstance(x, dict)}
+                if R.check(isinstance(db, dict), "E-W4-TC", w, "a local_rls test needs environment.database (a disposable local Postgres)"):
+                    missing = [m for m in db.get("migrations") or [] if m not in files]
+                    R.check(not missing, "E-W4-TC", w, f"migrations {missing} are not files of the run's W0 inventory")
+            else:
+                R.check(db is None, "E-W4-TC", w, f"only local_rls tests start a database (kind {tc.get('kind')})")
+    for d in c.docs("run"):
+        with doc_guard(R, d.path):
+            w4_coverage(R, c, d.data, d.path, approved)
+    for d in c.docs("testresult"):
+        with doc_guard(R, d.path):
+            tr, w = d.data, d.path
+            if tr.get("phase") != "W4":
+                continue
+            borrowed = c.ix.first("testcase", testcase_id=tr.get("testcase_id"))
+            R.check(borrowed is None, "E-W4-TC", w, f"W4 result runs black-box testcase {tr.get('testcase_id')}; W4 tests are w4-testcases")
+            tc = c.ix.testcase_for(tr)
+            if tc is not None:
+                extra = sorted(set(tr.get("cluster_ids") or []) - set(tc.data.get("cluster_ids") or []))
+                R.check(not extra, "E-W4-TC", w, f"cluster_ids {extra} are not clusters of {tc.data.get('testcase_id')}")
+                R.check(tr.get("run_id") == tc.data.get("run_id"), "E-W4-TC", w, f"{tc.data.get('testcase_id')} belongs to run {tc.data.get('run_id')}")
+            w4_execution(R, c, tr, w)
+
+
+def w4_coverage(R: Report, c: Ctx, run: dict, w: str, approved: set):
+    """v0.5 (BL-27, E-W4-COVERAGE; docs/02 W4 completion): once a non-Lane-A run has W4 output (a w4-testcase or a W4
+    result) or seed threats (W5 ran), every G1-approved invariant of the run is cited by one of its w4-testcases or is
+    marked MANUAL with a reason in run.w4_manual_requirements, not both; a MANUAL mark names a G1-approved invariant."""
+    rid = run.get("run_id")
+    manual = [m.get("requirement_id") for m in run.get("w4_manual_requirements") or [] if isinstance(m, dict)]
+    inv = c.b.data("invariants") or {}
+    invariants = {i.get("requirement_id") for i in inv.get("invariants") or [] if isinstance(i, dict)} & approved \
+        if inv.get("run_id") == rid else set()
+    for m in manual:
+        R.check(m in invariants, "E-W4-COVERAGE", w, f"w4_manual_requirements names {m!r}, which is not a G1-approved invariant of {rid}")
+    R.check(len(manual) == len(set(manual)), "E-W4-COVERAGE", w, f"w4_manual_requirements lists a requirement twice: {manual}")
+    tcs = [t.data for t in c.docs("w4-testcase") if t.data.get("run_id") == rid]
+    reached = bool(tcs) or any(r.data.get("run_id") == rid and r.data.get("phase") == "W4" for r in c.docs("testresult")) \
+        or any(s.data.get("run_id") == rid for s in c.docs("seed-threats"))
+    if run.get("run_kind") == "lane_a" or not reached:
+        return
+    tested = {x for t in tcs for x in t.get("requirement_ids") or []}
+    for x in sorted(invariants):
+        R.check((x in tested) != (x in manual), "E-W4-COVERAGE", w,
+                f"G1 invariant {x}: " + ("both tested by a w4-testcase and marked MANUAL" if x in tested
+                                         else "no w4-testcase cites it and it is not marked MANUAL (w4_manual_requirements)"))
+
+
+def w4_execution(R: Report, c: Ctx, tr: dict, w: str):
+    """v0.5 (BL-27, E-W4-AUDIT): a W4 result is backed by the Z2 sandbox run of its test, as a B4 result is by its job
+    (E-JOB-AUDIT): exactly one W4 / Z2 sandbox_job_end names the result, for the same testcase and outcome, inside the
+    anchored part of the log (an unanchored line is not yet countersigned, cf. V-7), and executed_at lies between that
+    job's sandbox_job_start and sandbox_job_end. Without this a written W4 FAIL alone confirmed a cluster (R1)."""
+    rid = tr.get("result_id")
+    audit = c.ix.audit_for(tr.get("run_id"))
+    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict)]
+    ends = [e for e in evs if e.get("event_type") == "sandbox_job_end" and (e.get("payload") or {}).get("result_id") == rid]
+    if not R.check(len(ends) == 1, "E-W4-AUDIT", w,
+                   f"{rid}: the audit log has {len(ends)} sandbox_job_end events naming it; a W4 result needs exactly one (its Z2 run)"):
+        return
+    e = ends[0]
+    p = e.get("payload") or {}
+    R.check(e.get("node") == "W4" and e.get("zone") == "Z2", "E-W4-AUDIT", w,
+            f"{rid}: seq {e.get('seq')} is a {e.get('node')} / {e.get('zone')} event, not W4 / Z2")
+    R.check(p.get("testcase_id") == tr.get("testcase_id"), "E-W4-AUDIT", w,
+            f"{rid}: seq {e.get('seq')} names testcase {p.get('testcase_id')!r}, not {tr.get('testcase_id')!r}")
+    R.check(p.get("outcome") == tr.get("outcome"), "E-W4-AUDIT", w,
+            f"{rid}: outcome {tr.get('outcome')} != sandbox_job_end outcome {p.get('outcome')} (seq {e.get('seq')})")
+    anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
+    R.check(type(e.get("seq")) is int and e.get("seq") < anchored, "E-W4-AUDIT", w,
+            f"{rid}: seq {e.get('seq')} is in the unanchored tail of the audit log; it cannot back a verdict yet")
+    start = next((x for x in evs if x.get("event_type") == "sandbox_job_start"
+                  and (x.get("payload") or {}).get("job_id") == p.get("job_id")), None)
+    if R.check(start is not None, "E-W4-AUDIT", w, f"{rid}: no sandbox_job_start for job {p.get('job_id')!r}"):
+        lo, hi, at = ts(R, start.get("ts"), w), ts(R, e.get("ts"), w), ts(R, tr.get("executed_at"), w)
+        R.check(None not in (lo, hi, at) and lo <= at <= hi, "E-W4-AUDIT", w,
+                f"{rid}: executed_at {tr.get('executed_at')} is outside its job {p.get('job_id')} ({start.get('ts')} .. {e.get('ts')})")
 
 
 # ============================================================== 13 verdicts
@@ -2789,7 +2905,7 @@ def invariants_checks(R: Report, c: Ctx):
         R.check(t.get("feature") in features, "E-INVARIANT-LEVEL", w,
                 f"level trigger feature {t.get('feature')!r} is neither an invariant applies_to_features value nor a W0 inventory feature")
     cited = [(w, x.get("requirement_id")) for x in inv.get("baseline") or []]
-    cited += [(d.path, r) for d in c.docs("testcase") for r in set(d.data.get("requirement_ids") or [])
+    cited += [(d.path, r) for d in c.docs("testcase") + c.docs("w4-testcase") for r in set(d.data.get("requirement_ids") or [])
               | set((d.data.get("oracle") or {}).get("requirement_refs") or [])]
     for where, rid in cited:
         std, number, level = requirement_level(c, rid)
@@ -2983,8 +3099,8 @@ def g_trace(R: Report, c: Ctx):
     for d in c.docs("testresult"):
         with doc_guard(R, d.path):
             tr, w = d.data, d.path
-            tcd = ix.first("testcase", testcase_id=tr.get("testcase_id"))
-            R.check(tcd is not None, "E-TRACE", w, "testcase not found")
+            tcd = ix.testcase_for(tr)
+            R.check(tcd is not None, "E-TRACE", w, f"{'w4-testcase' if tr.get('phase') == 'W4' else 'testcase'} {tr.get('testcase_id')} not found")
             th = ix.first("threat", threat_id=tcd.data.get("threat_id")) if tcd else None
             if th is not None:
                 src = th.data.get("source_cluster_id")
@@ -3442,6 +3558,7 @@ def report_metrics(c: Ctx, run_id) -> dict:
 
 
 ID_KEYS = {"run": "run_id", "verdict": "verdict_id", "cluster": "cluster_id", "finding": "finding_id", "testcase": "testcase_id",
+           "w4-testcase": "testcase_id",
            "testresult": "result_id", "threat": "threat_id", "gate-record": "gate_record_id", "report-manifest": "report_id",
            "slice": "slice_id"}
 
@@ -3572,6 +3689,7 @@ GROUPS = [
     ("gates", g_gates),
     ("run state, jobs, test results", g_runs),
     ("testcases vs ROE (docs/04 §5)", g_testcases),
+    ("W4 testcases (docs/02 W4)", g_w4_testcases),
     ("verdict recomputation (docs/05 §4.2)", g_verdicts),
     ("traceability", g_trace),
     ("audit log", g_audit),

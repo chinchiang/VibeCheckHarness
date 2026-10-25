@@ -26,7 +26,7 @@ def test_testresults_are_ordered_by_instant_not_text(b, keys):
     rederive(b, keys)
     order = doc(b, RUN).data["testresults"]
     by_id = {d.data["result_id"]: content_hash(d.data) for d in b.docs if d.kind == "testresult"}
-    assert order == [by_id[r] for r in ("R-TC-012-01-1", "R-TC-033-01-1", "R-TC-031-01-1", "R-TC-027-01-1")]
+    assert order == [by_id[r] for r in ("R-WTC-015-01-1", "R-TC-012-01-1", "R-TC-033-01-1", "R-TC-031-01-1", "R-TC-027-01-1")]
     assert codes(b) == set()
 
 

@@ -73,7 +73,8 @@ def test_find_forbidden_catches_what_v02_missed():
 
 # ================================================================ registry
 def test_every_llm_output_is_clean(b):
-    assert set(L.LLM_OUTPUTS) == {"finding", "vote", "threat", "testcase", "commander-plan", "invariants", "dfd", "result-interpretation"}
+    assert set(L.LLM_OUTPUTS) == {"finding", "vote", "threat", "testcase", "w4-testcase", "commander-plan", "invariants", "dfd",
+                                  "result-interpretation"}
     for name, spec in L.LLM_OUTPUTS.items():
         deg = L.llm_schema(name, schemas(b))
         assert L.find_forbidden(deg) == [], name

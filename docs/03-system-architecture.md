@@ -1120,8 +1120,9 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
   - 核准與簽章：GateRecord 參照、`review` 狀態、`signatures`；
   - 時間戳記與 run 層級的參照。
   - 驗證者的輸出只剩立場、理由與引用的證據（`stance`、`rationale`、`cited_evidence`；`votes[].cited_evidence` 在存檔 schema 中也是必填）。
-  - 投影清單登錄在 `tools/vchlib/llm_schema.py` 的 `LLM_OUTPUTS`，共 8 種 LLM 產物，每種指定存檔 schema、模型負責的部分，以及要移除的 `harness_owned` 欄位或只保留的 `keep` 欄位：
+  - 投影清單登錄在 `tools/vchlib/llm_schema.py` 的 `LLM_OUTPUTS`，共 9 種 LLM 產物，每種指定存檔 schema、模型負責的部分，以及要移除的 `harness_owned` 欄位或只保留的 `keep` 欄位：
     - `finding`：移除 `finding_id`、`run_id`、`slice_id`、`reporter`、`status`、`evidence[].snippet_sha256`、`evidence[].match`；
+    - `w4-testcase`（v0.5，BL-27）：移除 `testcase_id`、`run_id`、`cluster_ids`、`environment`、`artifact_sha256`；
     - `vote`（verdict 的 `votes[]` 項目）：只保留 `stance`、`rationale`、`cited_evidence`；
     - `threat`：移除 `threat_id`、`source_cluster_id`、`source_finding_ids`、`modeled_by`、`review`、`evidence[].match`，以及 `crosswalk[]` 的 `provenance`、`source_ref`、`reviewed_by`；
     - `testcase`：移除 `testcase_id`、`threat_id`、`source_cluster_id`、`safety_class_computed`、`seed_manifest_ref`、`oracle.oracle_query_sha256`、`tool_binding.params`、`strategy_template_sha256`、`artifact_sha256`；

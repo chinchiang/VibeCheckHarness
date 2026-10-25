@@ -122,36 +122,38 @@ def test_fail_without_g4_approval_needs_an_analyst(b, keys):
     assert classify_result(ix, tr, cl) == ("E_inc", "eligible analyst does not agree with the interpretation")
 
 
+W4_TC, W4_TR = "w4-testcase.k-015.example.json", "testresult.w4-k-015.example.json"    # v0.5 (BL-27): W4 tests are w4-testcases
+
+
 def _w4(b, outcome, controls, fail_oracles):
-    tr = copy.deepcopy(doc(b, TR_IDOR).data)
-    tr.update(phase="W4", job_id=None, outcome=outcome, controls=controls, fail_oracles=fail_oracles,
-              interpreted_by=None, interpretation=None)
+    tr = copy.deepcopy(doc(b, W4_TR).data)
+    tr.update(outcome=outcome, controls=controls, fail_oracles=fail_oracles, interpreted_by=None, interpretation=None)
     return tr
 
 
 def test_w4_preregistration_needs_the_matching_control(b):
-    tc = doc(b, TC_IDOR).data
-    tc["controls"].append({"control_id": "CTL-03", "kind": "oracle_can_pass", "description": "known-good build",
-                           "steps": ["run the oracle on the fixed variant"], "expected": "oracle passes"})
-    ix, cl = _ix_cluster(b, "K-005")
+    """WTC-015-01: CTL-01 reachability, CTL-02 oracle_can_pass; CTL-03 (oracle_can_fail) added here."""
+    tc = doc(b, W4_TC).data
+    tc["controls"].append({"control_id": "CTL-03", "kind": "oracle_can_fail", "description": "known-bad variant",
+                           "steps": ["run the oracle on the vulnerable schema"], "expected": "oracle fails"})
+    ix, cl = _ix_cluster(b, "K-015")
     ok = [{"control_id": c, "outcome": "PASS"} for c in ("CTL-01", "CTL-02", "CTL-03")]
-    assert classify_result(ix, _w4(b, "FAIL", ok, ["STATUS_AND_BODY"]), cl)[0] == "E_proof"
-    bad = ok[:2] + [{"control_id": "CTL-03", "outcome": "NOT_RUN"}]
-    assert classify_result(ix, _w4(b, "FAIL", bad, ["STATUS_AND_BODY"]), cl)[0] == "E_fail_u"
-    # PASS needs the oracle_can_fail control (CTL-02) for a pre-registered W4 interpretation
+    assert classify_result(ix, _w4(b, "FAIL", ok, ["STATE_DIFF"]), cl)[0] == "E_proof"
+    bad = [ok[0], {"control_id": "CTL-02", "outcome": "NOT_RUN"}, ok[2]]
+    assert classify_result(ix, _w4(b, "FAIL", bad, ["STATE_DIFF"]), cl)[0] == "E_fail_u"
+    # PASS needs the oracle_can_fail control (CTL-03) for a pre-registered W4 interpretation
     assert classify_result(ix, _w4(b, "PASS", ok, []), cl)[0] == "E_pass"
     tc["controls"] = [c for c in tc["controls"] if c["kind"] != "oracle_can_fail"]
-    assert classify_result(ix, _w4(b, "PASS", [ok[0], ok[2]], []), cl) == ("E_inc", "no pre-registered interpretation or eligible analyst")
+    assert classify_result(ix, _w4(b, "PASS", ok[:2], []), cl) == ("E_inc", "no pre-registered interpretation or eligible analyst")
 
 
 def test_w4_preregistration_needs_g1_signed_requirements(b):
-    doc(b, TC_IDOR).data["controls"].append({"control_id": "CTL-03", "kind": "oracle_can_pass", "description": "d",
-                                              "steps": ["s"], "expected": "e"})
     inv = doc(b, "invariants.yaml").data
+    ix, cl = _ix_cluster(b, "K-015")
+    ok = [{"control_id": c, "outcome": "PASS"} for c in ("CTL-01", "CTL-02")]
+    assert classify_result(ix, _w4(b, "FAIL", ok, ["STATE_DIFF"]), cl)[0] == "E_proof"
     next(i for i in inv["invariants"] if i["requirement_id"] == "INV-AC-007")["signoff"]["status"] = "REJECTED"
-    ix, cl = _ix_cluster(b, "K-005")
-    ok = [{"control_id": c, "outcome": "PASS"} for c in ("CTL-01", "CTL-02", "CTL-03")]
-    assert classify_result(ix, _w4(b, "FAIL", ok, ["STATUS_AND_BODY"]), cl)[0] == "E_fail_u"
+    assert classify_result(ix, _w4(b, "FAIL", ok, ["STATE_DIFF"]), cl)[0] == "E_fail_u"
 
 
 def test_pass_needs_reachability_and_a_deterministic_oracle(b):
@@ -225,7 +227,7 @@ def test_fail_oracles_rules(b, fo, outcome):
 
 
 def test_report_metrics_recomputed(b):
-    assert doc(b, "report-manifest.example.json").data["metrics"] == {"results_total": 4, "results_invalid": 0, "control_pass_rate": 1.0}
+    assert doc(b, "report-manifest.example.json").data["metrics"] == {"results_total": 5, "results_invalid": 0, "control_pass_rate": 1.0}
     doc(b, "report-manifest.example.json").data["metrics"]["control_pass_rate"] = 0.9
     assert "E-REPORT-METRICS" in codes(b)
 

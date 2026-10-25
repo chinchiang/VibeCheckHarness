@@ -115,6 +115,12 @@
   "inventory_ref": "sha256:b282c525fc15d27e3e7582528b3ced52c2db3a445a9838e7e7c4234656f052aa",
   "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f",
   "tool_results_ref": "sha256:e9cbd381ac92a2a663ce90d675d82477d5e125be43e9ed608cb3020f4685bf37",
+  "w4_manual_requirements": [
+    {
+      "requirement_id": "INV-LLM-003",
+      "reason": "refund 工具的防護以腳本式假模型測試，排在 M5；在那之前由 B4 的 TC-031-01 與人工審查涵蓋"
+    }
+  ],
   "redaction_map_ref": "sha256:f1513e18bd39bade630c8a0c2defd46194d3d21ed8c828b7a4a47139f24b236f",
   "invariants_ref": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff",
   "invariants_changed": false,
@@ -151,6 +157,7 @@
     "V-011-2",
     "V-014-1",
     "V-015-1",
+    "V-015-2",
     "V-016-1",
     "V-201-1",
     "V-202-1"
@@ -172,7 +179,7 @@
   "whitebox_report_ref": "sha256:f607afc98514f0341c68630bc9a6208f6c0087d89eeae607c1fa253d3bb45a4e",
   "w_sarif_ref": "sha256:82f4a3c14165fe508e60abeac07c0518a59c57b027e20486c6eb48d28f703ce7",
   "dfd_ref": "sha256:66985305530c23a5e800b07a58d1275fd10b3c52ca334906e5067bef4cb10787",
-  "seed_threats_ref": "sha256:a69f38464423469f19dc839f3c0a340af8190f3b5391e26e3388229c595f3a07",
+  "seed_threats_ref": "sha256:114c678ca375a353931babe924f0f854cfd2eaa39d8787b7cc9183dff0d7ebd1",
   "lane_a_advisories": [],
   "disputed_after_g2": [],
   "egress_allowlist_ref": "sha256:33fb855d248a08262ce5f02dbdd80c717e6ad7913f551c522545533a9fbeeddb",
@@ -297,6 +304,7 @@
   "stop_events": [],
   "kill_switch": false,
   "testresults": [
+    "sha256:72e6b512da89e2c4faca7ae81c8ed09b44ed83d8fea3bbaba79b52aabb45afe1",
     "sha256:0eb5d2b1731943ad0dbd150df66757208ff14b373413cd5354f7fa229b13c559",
     "sha256:67a7d538823fc8e18a21d4da8dd5caa97593347f9ff82cb9bfa032fcdbb934b4",
     "sha256:f927583659d8703dee9d3a21becaa14e93e1c8b370870a4e7c6a1239e63d4135",
@@ -306,7 +314,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:e7e41f131dcf5d5c3cdb4c6cd466b9307e4642338622962f8f8f81e763d05a26",
+  "report_manifest_ref": "sha256:c718862bf59465db01ab7aa9a3e777cc70bf5514f1f40f28c83805800bdb244d",
   "gate_records": [
     {
       "gate": "G0a",
@@ -443,32 +451,32 @@
       "line_sha256": "sha256:458510925e06c8fbcc3f07bc10fcf4d2c72ff86b116c015077ccd925d0315670"
     },
     {
-      "seq": 28,
-      "line_sha256": "sha256:0fe7da44c72f2714532df80dbfb2c31890a138d4d05a0c2cc44445f17366ad1c"
-    },
-    {
       "seq": 31,
-      "line_sha256": "sha256:45fdacdc30b26f9fcdd53c3376cdf21c22309f0896d719a4b4abde714651302f"
+      "line_sha256": "sha256:f9de3ea659762aa67b0a197a52e64d0e59d83355167286bff1b3aba32f188db1"
     },
     {
-      "seq": 35,
-      "line_sha256": "sha256:345ae12e7043580bb857dc5e562fd78eb2f8ef95d775b9ebc60554780968db6f"
+      "seq": 34,
+      "line_sha256": "sha256:aaf4bf0a4082009303431cfd16e26f600fc3e69502bc33988e55f0c5da08e2fa"
     },
     {
-      "seq": 39,
-      "line_sha256": "sha256:29495225cbfc261c8966e8333845a52ec6c8362ffcfceb89bfb7c314b5a038c4"
+      "seq": 38,
+      "line_sha256": "sha256:c9982a865f34817f9f0fcbcc4d851cf9778d74fc5be1f57c91e687653d307868"
     },
     {
-      "seq": 48,
-      "line_sha256": "sha256:ce7ea6fb14b04863773c34ee7c7d715e8d958e243f229b0b4f0928a6d3c008f0"
+      "seq": 42,
+      "line_sha256": "sha256:c22ad007abad2d1e996e616787d3ad2895ce3da3239edef4700af71c5cf966c6"
     },
     {
-      "seq": 53,
-      "line_sha256": "sha256:4c232b5bf1e9746f6a68cee9ef69d492062df7139072270f2cac6cd2dd2e7fdc"
+      "seq": 51,
+      "line_sha256": "sha256:1b76a8ad1b626f1daad7e0fec67ecf7629a83822613a74608abef63fbe6b6085"
     },
     {
-      "seq": 61,
-      "line_sha256": "sha256:cc3bafdb00f6d8993fc0b7834b4514849c35f660fed858d416961dceba9b0863"
+      "seq": 56,
+      "line_sha256": "sha256:887ca0fe5d70c29a046bd85bc9e4beba3060fc33efa3d817bc3b8d50632aa84d"
+    },
+    {
+      "seq": 64,
+      "line_sha256": "sha256:448ccae1d48303f7ee3ebb293aced4eeb720f3a14dc9116fd68691fb482165d7"
     }
   ],
   "errors": []

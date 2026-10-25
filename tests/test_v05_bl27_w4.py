@@ -1,0 +1,206 @@
+# SPDX-License-Identifier: Apache-2.0
+"""v0.5 BL-27: white-box (W4) testcases have their own schema (w4-testcase.schema.json, E-W4-TC). Positive and negative
+cases: the K-015 example (local RLS test -> R1 CONFIRMED_EXECUTABLE), G1-approved requirements, clusters of the run,
+reachability controls, the local database, and W4 results that borrow a black-box testcase.
+"""
+import copy
+
+import pytest
+
+from conftest import codes, doc
+from vchlib.bundle import Doc
+from vchlib.checks import run_all
+from vchlib.derive import Index, classify_result
+
+W4_TC, W4_TR, W4_V = "w4-testcase.k-015.example.json", "testresult.w4-k-015.example.json", "verdict.k-015-w4.example.json"
+
+
+def errors(b, code, where=None):
+    return [i for i in run_all(b).errors if i.code == code and (where is None or where in i.where)]
+
+
+def test_the_example_confirms_k015_without_an_llm(b):
+    """docs/02 W4: a deterministic FAIL with every control PASSed and a G1-pre-registered interpretation is E_proof."""
+    assert not errors(b, "E-W4-TC") and "E-TC-REQ-UNAPPROVED" not in codes(b)
+    v = doc(b, W4_V).data
+    assert v["readjudicated_by"] == "W4_readjudicate" and v["supersedes_verdict_id"] == "V-015-1"
+    assert v["status"] == "CONFIRMED_EXECUTABLE" and v["test_evidence"]["class"] == "E_proof"
+    assert v["executable_proof"]["testcase_id"] == "WTC-015-01"
+    ix = Index(b)
+    assert ix.testcase_for(doc(b, W4_TR).data).path.endswith(W4_TC)
+    assert classify_result(ix, doc(b, W4_TR).data, ix.first("cluster", cluster_id="K-015").data)[0] == "E_proof"
+
+
+def test_requirements_must_be_approved_at_g1(b):
+    doc(b, W4_TC).data["requirement_ids"].append("INV-XX-999")
+    assert errors(b, "E-TC-REQ-UNAPPROVED", "w4-testcase")
+
+
+def test_oracle_cites_only_the_testcase_requirements(b):
+    doc(b, W4_TC).data["oracle"]["requirement_refs"].append("INV-LLM-003")    # approved, but not a requirement_id
+    assert any("not requirement_ids" in i.msg for i in errors(b, "E-W4-TC", "w4-testcase"))
+
+
+@pytest.mark.parametrize("cid", ["K-201", "K-999"])                     # a black-box cluster; no such cluster
+def test_clusters_are_white_box_clusters_of_the_run(b, cid):
+    doc(b, W4_TC).data["cluster_ids"] = [cid]
+    assert any(cid in i.msg for i in errors(b, "E-W4-TC", "w4-testcase"))
+
+
+def test_a_cluster_of_another_run(b):
+    doc(b, W4_TC).data["run_id"] = "run-2026-10-07-001"
+    assert any("K-015" in i.msg for i in errors(b, "E-W4-TC", "w4-testcase"))
+
+
+def test_needs_a_reachability_control(b):
+    tc = doc(b, W4_TC).data
+    tc["controls"] = [x for x in tc["controls"] if x["kind"] != "reachability"]
+    assert errors(b, "E-TC-CONTROLS", "w4-testcase")
+
+
+def test_local_rls_needs_a_database(b):
+    doc(b, W4_TC).data["environment"]["database"] = None
+    assert any("needs environment.database" in i.msg for i in errors(b, "E-W4-TC", "w4-testcase"))
+
+
+def test_migrations_are_inventory_files(b):
+    doc(b, W4_TC).data["environment"]["database"]["migrations"].append("db/migrations/9999_made_up.sql")
+    assert any("9999_made_up" in i.msg for i in errors(b, "E-W4-TC", "w4-testcase"))
+
+
+def test_only_local_rls_starts_a_database(b):
+    doc(b, W4_TC).data["kind"] = "unit"
+    assert any("only local_rls" in i.msg for i in errors(b, "E-W4-TC", "w4-testcase"))
+
+
+def test_the_test_never_leaves_z2(b):
+    doc(b, W4_TC).data["environment"]["network"] = "staging"
+    assert any("w4-testcase" in i.where for i in errors(b, "E-SCHEMA"))
+
+
+def test_a_w4_result_cannot_borrow_a_black_box_testcase(b):
+    """v0.4 looked every result up among black-box testcases, so a W4 result ran 'TC-012-01'."""
+    tr = doc(b, W4_TR).data
+    tr["testcase_id"] = "TC-012-01"
+    assert any("black-box testcase" in i.msg for i in errors(b, "E-W4-TC", "testresult.w4"))
+    assert any("w4-testcase TC-012-01 not found" in i.msg for i in errors(b, "E-TRACE", "testresult.w4"))
+
+
+def test_a_b4_result_cannot_run_a_w4_testcase(b):
+    doc(b, "testresult.example.json").data["testcase_id"] = "WTC-015-01"
+    assert any("testcase WTC-015-01 not found" in i.msg for i in errors(b, "E-TRACE", "testresult.example"))
+
+
+def test_a_w4_result_names_only_the_testcase_clusters(b):
+    doc(b, W4_TR).data["cluster_ids"].append("K-014")
+    assert any("K-014" in i.msg for i in errors(b, "E-W4-TC", "testresult.w4"))
+
+
+@pytest.mark.parametrize("phase, targets, ok", [("W4", [], True), ("W4", ["tgt-staging-api"], False)])
+def test_w4_results_name_no_roe_target(b, phase, targets, ok):
+    doc(b, W4_TR).data["target_ids"] = targets
+    assert (not errors(b, "E-RESULT-TARGETS", "testresult.w4")) is ok
+
+
+def test_b4_results_still_need_a_target(b):
+    doc(b, "testresult.example.json").data["target_ids"] = []
+    assert any("at least one ROE target" in i.msg for i in errors(b, "E-RESULT-TARGETS", "testresult.example"))
+
+
+def test_ids_are_unique_across_copies(b):
+    d = copy.deepcopy(doc(b, W4_TC))
+    b.docs.append(Doc(d.path.replace("k-015", "k-015-copy"), "w4-testcase", d.data, None))
+    assert errors(b, "E-ID-DUP")
+
+
+# ================================================================ W4 execution evidence (E-W4-AUDIT)
+AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
+
+
+def _w4_end(b):
+    return next(e for e in doc(b, AUDIT).data if e["event_type"] == "sandbox_job_end" and e["node"] == "W4")
+
+
+def test_a_w4_result_needs_its_execution_in_the_audit_log(b, keys):
+    """Like B4 results (E-JOB-AUDIT), a W4 result needs the Z2 sandbox run that produced it; v0.5 BL-27 accepted a W4 FAIL
+    with no execution recorded, which alone made K-015 CONFIRMED_EXECUTABLE."""
+    from conftest import rederive
+    assert not errors(b, "E-W4-AUDIT")
+    evs = doc(b, AUDIT).data
+    evs[:] = [e for e in evs if not (e["node"] == "W4" and e["event_type"].startswith("sandbox_job"))]
+    rederive(b, keys)
+    assert any("R-WTC-015-01-1" in i.msg for i in errors(b, "E-W4-AUDIT", "testresult.w4"))
+
+
+@pytest.mark.parametrize("field, value, why", [
+    ("outcome", "PASS", "outcome"), ("testcase_id", "WTC-015-99", "testcase"), ("node", "B4", "W4 / Z2"), ("zone", "Z3", "W4 / Z2")])
+def test_the_execution_event_must_match_the_result(b, keys, field, value, why):
+    from conftest import rederive
+    e = _w4_end(b)
+    if field in ("node", "zone"):
+        e[field] = value
+    else:
+        e["payload"][field] = value
+    rederive(b, keys)
+    assert any(why in i.msg for i in errors(b, "E-W4-AUDIT", "testresult.w4")), [i.msg for i in errors(b, "E-W4-AUDIT")]
+
+
+def test_the_execution_must_be_anchored(b, keys):
+    """An execution in the unanchored tail is not yet countersigned by Z3, so it cannot back a verdict (cf. V-7)."""
+    from conftest import rederive
+    evs = doc(b, AUDIT).data
+    end = _w4_end(b)
+    evs.remove(end)
+    evs.append(dict(end, ts="2026-10-06T12:30:00+08:00"))       # after the run_end anchor
+    for n, e in enumerate(evs, 1):
+        e["seq"] = n
+    rederive(b, keys)
+    assert any("unanchored" in i.msg for i in errors(b, "E-W4-AUDIT", "testresult.w4"))
+
+
+def test_the_result_cannot_predate_its_execution(b):
+    doc(b, W4_TR).data["executed_at"] = "2026-09-28T13:00:00+08:00"     # the job started at 13:55
+    assert any("executed_at" in i.msg for i in errors(b, "E-W4-AUDIT", "testresult.w4"))
+
+
+# ================================================================ W4 completion (E-W4-COVERAGE)
+RUN = "run.example.json"
+
+
+def test_every_g1_invariant_has_a_w4_test_or_is_manual(b):
+    """docs/02 W4 completion: every G1 invariant has at least one W4 test or is marked MANUAL with a reason."""
+    assert not errors(b, "E-W4-COVERAGE")
+    assert [m["requirement_id"] for m in doc(b, RUN).data["w4_manual_requirements"]] == ["INV-LLM-003"]
+    doc(b, RUN).data["w4_manual_requirements"] = []
+    assert any("INV-LLM-003" in i.msg for i in errors(b, "E-W4-COVERAGE", RUN))
+
+
+def test_a_manual_mark_names_a_g1_invariant(b):
+    doc(b, RUN).data["w4_manual_requirements"].append({"requirement_id": "INV-XX-999", "reason": "x"})
+    assert any("INV-XX-999" in i.msg for i in errors(b, "E-W4-COVERAGE", RUN))
+
+
+def test_tested_and_manual_is_a_contradiction(b):
+    doc(b, RUN).data["w4_manual_requirements"].append({"requirement_id": "INV-AC-007", "reason": "x"})
+    assert any("both" in i.msg for i in errors(b, "E-W4-COVERAGE", RUN))
+
+
+def test_a_manual_mark_needs_a_reason(b):
+    doc(b, RUN).data["w4_manual_requirements"][0]["reason"] = ""
+    assert any("run.example" in i.where for i in errors(b, "E-SCHEMA"))
+
+
+def test_runs_without_w4_are_not_checked(b):
+    """The followup run has no W4 output and no seed threats yet."""
+    assert not errors(b, "E-W4-COVERAGE", "run.followup")
+
+
+# ================================================================ LLM-facing subset
+def test_w4_testcases_have_an_llm_output_schema(b):
+    """W4_testgen is an LLM node: its testcases are degraded to the cross-vendor subset like black-box testcases, and the
+    harness, not the model, fills the run, the clusters, the Z2 environment and the artifact hash."""
+    from vchlib import llm_schema as L
+    out = L.llm_schema("w4-testcase", b.schemas)
+    assert L.find_forbidden(out) == []
+    assert not {"testcase_id", "run_id", "cluster_ids", "environment", "artifact_sha256"} & set(out["properties"])
+    assert {"requirement_ids", "kind", "controls", "oracle", "steps"} <= set(out["properties"])

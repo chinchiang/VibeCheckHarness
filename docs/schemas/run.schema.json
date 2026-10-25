@@ -424,6 +424,27 @@
     "sbom_ref": {
       "$ref": "common.schema.json#/$defs/sha256_or_null"
     },
+    "w4_manual_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "requirement_id",
+          "reason"
+        ]
+      },
+      "description": "v0.5（BL-27，docs/02 W4 完成條件）：沒有 W4 測試、改以 MANUAL 處理的 G1 不變量與原因。run 有 W4 產物或種子威脅後，每條 G1 核准的不變量都要有 W4 測試案例或列在這裡，不能兩者都有（E-W4-COVERAGE）"
+    },
     "tool_results_ref": {
       "$ref": "common.schema.json#/$defs/sha256_or_null",
       "description": "v0.5（BL-13）：W1 正規化後的 ToolResult 清單參照＝sha256(JCS(本 run 稽核紀錄中 W1、Z2 的 tool_invocation_end 事件之 payload_refs，去重排序))；沒有這類事件時為 null（writer 導出，E-DERIVED）"
@@ -958,6 +979,7 @@
     "inventory_ref",
     "sbom_ref",
     "tool_results_ref",
+    "w4_manual_requirements",
     "redaction_map_ref",
     "invariants_ref",
     "invariants_changed",

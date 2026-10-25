@@ -48,6 +48,9 @@ LLM_OUTPUTS: dict[str, dict] = {
     "testcase": {"schema": "testcase", "pointer": "",
                  "harness_owned": ["testcase_id", "threat_id", "source_cluster_id", "safety_class_computed", "seed_manifest_ref",
                                    "oracle.oracle_query_sha256", "tool_binding.params", "strategy_template_sha256", "artifact_sha256"]},
+    # v0.5 (BL-27): W4_testgen writes the test; the harness fixes its run, clusters, Z2 environment and artifact hash
+    "w4-testcase": {"schema": "w4-testcase", "pointer": "",
+                    "harness_owned": ["testcase_id", "run_id", "cluster_ids", "environment", "artifact_sha256"]},
     "commander-plan": {"schema": "commander-plan", "pointer": "",
                        "harness_owned": ["plan_id", "decision_node", "round", "followup_drafts[].draft_id"]},
     "invariants": {"schema": "invariants", "pointer": "",

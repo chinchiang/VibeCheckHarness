@@ -9,7 +9,8 @@
     },
     "testcase_id": {
       "type": "string",
-      "pattern": "^TC-[0-9]{3,}-[0-9]{2}$"
+      "pattern": "^W?TC-[0-9]{3,}-[0-9]{2}$",
+      "description": "B4：黑箱 testcase（TC-…）；W4：w4-testcase（WTC-…，v0.5 BL-27，E-W4-TC）"
     },
     "run_id": {
       "type": "string"
@@ -43,7 +44,7 @@
         "type": "string",
         "pattern": "^tgt-[a-z0-9-]+$"
       },
-      "minItems": 1
+      "description": "B4 至少一個 ROE 目標；W4 在 Z2 執行，沒有 ROE 目標，為空陣列（v0.5，E-RESULT-TARGETS）"
     },
     "cluster_ids": {
       "type": "array",
