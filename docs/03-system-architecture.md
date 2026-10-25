@@ -1336,6 +1336,7 @@ erDiagram
 - **Z3 簽之前先核對**（v0.5，T-9）[H]：v0.4 的 Z3 只看 `seq` 是否遞增、`prev_hash` 是否接得上，看不到鏈的內容，所以 run 進行中控制 Z1 的人可以先偽造幾行再請 Z3 簽。v0.5 起 Run Controller 送的是**上一個錨點之後的原始行**：Z3 自己保存上一個錨點的 hash，重算這一段的 `prev_hash` 鏈，並核對其中 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權驗證結果）與它的 job 帳本和輸出紀錄逐筆一致，才簽。限制：Z1 自己產生的事件（例如 `gate_decision`、`verdict_changed`）Z3 無法判斷真假，副簽只證明「這些行在簽章時已經存在，之後沒有被改」。
 - **未錨定的行不是證據**（v0.5，V-7）[H]：最後一個 `audit_anchor` 之後的行還沒有 Z3 副簽，任何能寫 Z1 的人都能附加。裁決用到的工具輸出（`sarif_refs` 解析到的 `tool_invocation_end`）必須在最後一個錨點之前，否則該參照不成立（`E-VERDICT-SARIF`／不計入佐證）。
 - **每個裁決版本都要有事件**（v0.5）：每一版裁決在其叢集所屬 run 的稽核檔中都要有一筆 `verdict_changed`（`payload.verdict_id` 與 `status` 相符）；沒有 → `E-AUDIT-VERDICT`。v0.4 只檢查已存在的事件，所以刪掉事件就能讓不一致的裁決躲過比對。
+- **B4 job 對帳**（v0.5，審查 2026-10-25 V-9）：`run.jobs` 中的 job、稽核檔的 `sandbox_job_start`／`sandbox_job_end` 與測試結果三者一致：有事件的 job 不能是 `SKIPPED`；已執行的 job（`EXECUTED`、`RESTORED`、`RESTORE_FAILED`）要有 `sandbox_job_end`，也要有 `job_id` 相符、`outcome` 與事件相同的測試結果（`E-JOB-AUDIT`）。v0.4 從不對帳，刪掉 FAIL 的結果再把 job 標成 `SKIPPED` 就能通過。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。
 - **驗證**：`vibecheck audit verify <run-id>` 重算整條鏈並與錨點比對。
 - **尾端保護**（validator 強制）[H]：

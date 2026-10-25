@@ -61,6 +61,14 @@
 - 其他：MVP0-X7 補 psycopg 與 G-11、promptfoo 的條件、00 的三個範例、共享平台清單（21 個）、範例 B 的請求數、08 的測試清單。
 - 新增 `tests/test_v05_round6_group5.py`。
 
+### 其餘的 validator 繞過（追加組）
+- 裁決版本必須形成單一線性鏈（`E-VERDICT-CHAIN`），`verdict_counts` 取每條鏈的最新版。
+- 同一種文件的 ID 不能重複（`E-ID-DUP`）；`Ctx.runs` 與 `Index.first` 都取第一個文件。
+- 白箱叢集的位置、sink、symbol 與 CWE 桶綁定成員證據，指紋不重複（`E-CLUSTER-BINDING`；新增 `facets.CWE_BUCKETS`）。
+- B4 job、`sandbox_job_*` 事件與測試結果對帳（`E-JOB-AUDIT`）。
+- `readjudicated_by` 不能倒填（`E-VERDICT-PHASE`）。
+- 新增 `tests/test_v05_round6_group6.py`。
+
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
 - 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。

@@ -209,7 +209,10 @@ class Ctx:
         self.services = {e.get("person_id") for e in self.entries if "z3_executor" in (e.get("roles") or [])}
         self.persons = {e.get("person_id") for e in self.entries} - self.services
         self.automation = set(self.toolkit.get("automation_accounts", [])) | REQUIRED_AUTOMATION
-        self.runs = {d.data.get("run_id"): d.data for d in self.ix.docs("run")}
+        # v0.5 (review 2026-10-25 V-5): the first document wins, like Index.first; duplicates are E-ID-DUP
+        self.runs = {}
+        for d in self.ix.docs("run"):
+            self.runs.setdefault(d.data.get("run_id"), d.data)
         # run_id -> audit Doc whose text the strict loader rejected (data None)
         self.broken_audit = {}
         for d in b.docs:
@@ -2287,6 +2290,84 @@ def g_verdicts(R: Report, c: Ctx):
                 old = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"])
                 R.check(old is not None and old.data.get("cluster_id") == v.get("cluster_id"), "E-TRACE", w, "supersedes a verdict of another cluster")
             R.check(v.get("calibration_version") == c.calibration.get("calibration_version"), "E-VERDICT-CALIBRATION", w, "calibration_version differs")
+    verdict_chains(R, c)
+
+
+PHASE_ORDER = {"W3_adjudicate": 0, "G2_apply": 1, "W4_readjudicate": 2, "B5_readjudicate": 3}
+
+
+def verdict_heads(c: Ctx, verdict_ids) -> list[dict]:
+    """The latest version of each cluster among `verdict_ids` (a run's verdicts): not superseded by another of them."""
+    vs = [x.data for x in (c.ix.first("verdict", verdict_id=i) for i in verdict_ids) if x is not None]
+    superseded = {v.get("supersedes_verdict_id") for v in vs if v.get("supersedes_verdict_id") != v.get("verdict_id")}
+    return [v for v in vs if v.get("verdict_id") not in superseded]
+
+
+def verdict_chains(R: Report, c: Ctx):
+    """v0.5 (review 2026-10-25 V-4, V-12): the versions of a cluster form one linear chain in phase order.
+
+    V-4 (E-VERDICT-CHAIN): no self-reference, no cycle, no fork (a version superseded twice), exactly one latest
+    version, and a superseded version of the same run. A cycle used to drop the cluster from verdict_counts and the
+    report queues without an error.
+    V-12 (E-VERDICT-PHASE): readjudicated_by cannot be back-dated to switch off the test-evidence links:
+    black-box clusters only have B5 versions; a W3 version supersedes nothing; phases never go backwards along the
+    chain; and a version received (verdict_changed ts) after a W4 / B4 result of its cluster was executed is at
+    least W4_readjudicate / B5_readjudicate."""
+    by_cluster: dict = {}
+    for d in c.docs("verdict"):
+        by_cluster.setdefault(d.data.get("cluster_id"), []).append(d)
+    for cid, docs in by_cluster.items():
+        ids = {d.data.get("verdict_id"): d for d in docs}
+        cl = c.ix.first("cluster", cluster_id=cid)
+        cluster = cl.data if cl else {}
+        superseded_by: dict = {}
+        for d in docs:
+            v, w = d.data, d.path
+            s = v.get("supersedes_verdict_id")
+            if s is None:
+                continue
+            R.check(s != v.get("verdict_id"), "E-VERDICT-CHAIN", w, f"{v.get('verdict_id')} supersedes itself")
+            R.check(s not in superseded_by, "E-VERDICT-CHAIN", w,
+                    f"{s} is superseded by both {superseded_by.get(s)} and {v.get('verdict_id')} (the chain forks)")
+            superseded_by.setdefault(s, v.get("verdict_id"))
+            old = ids.get(s)                                         # same cluster_id, so the same run (E-TRACE otherwise)
+            if old is not None and s != v.get("verdict_id"):
+                R.check(PHASE_ORDER.get(old.data.get("readjudicated_by"), -1) <= PHASE_ORDER.get(v.get("readjudicated_by"), -1),
+                        "E-VERDICT-PHASE", w, f"{v.get('verdict_id')} ({v.get('readjudicated_by')}) supersedes the later-phase "
+                        f"{s} ({old.data.get('readjudicated_by')}): phases go W3 -> G2_apply -> W4 -> B5")
+        for d in docs:                                               # cycles of two or more versions
+            seen, cur = [], d.data.get("verdict_id")
+            while cur in ids and cur not in seen:
+                seen.append(cur)
+                cur = ids[cur].data.get("supersedes_verdict_id")
+            if cur == d.data.get("verdict_id") and len(seen) > 1:
+                R.error("E-VERDICT-CHAIN", d.path, f"{d.data.get('verdict_id')} is on a supersedes cycle {' -> '.join(seen + [cur])}")
+        heads = [i for i in ids if i not in superseded_by]
+        R.check(len(heads) == 1, "E-VERDICT-CHAIN", docs[0].path,
+                f"cluster {cid} must have exactly one latest verdict version, got {sorted(map(str, heads))}")
+        audit = c.ix.audit_for(cluster.get("run_id"))
+        received = {(e.get("payload") or {}).get("verdict_id"): e.get("ts") for e in (audit.data if audit else [])
+                    if isinstance(e, dict) and e.get("event_type") == "verdict_changed"}
+        results = [r.data for r in c.docs("testresult") if r.data.get("run_id") == cluster.get("run_id")
+                   and cid in (r.data.get("cluster_ids") or [])]
+        for d in docs:
+            v, w = d.data, d.path
+            phase = v.get("readjudicated_by")
+            if cluster.get("origin") == "black_box":
+                R.check(phase == "B5_readjudicate", "E-VERDICT-PHASE", w,
+                        f"{v.get('verdict_id')}: a black-box cluster only exists after B4, so its versions are B5_readjudicate, not {phase}")
+            if phase == "W3_adjudicate":
+                R.check(v.get("supersedes_verdict_id") is None, "E-VERDICT-PHASE", w,
+                        f"{v.get('verdict_id')}: a W3_adjudicate version is the first version; it supersedes nothing")
+            at = received.get(v.get("verdict_id"))
+            if at is None:
+                continue
+            for r in results:
+                need = {"W4": "W4_readjudicate", "B4": "B5_readjudicate"}.get(r.get("phase"))
+                if need and timeutil.sort_key(r.get("executed_at")) < timeutil.sort_key(at):
+                    R.check(PHASE_ORDER.get(phase, -1) >= PHASE_ORDER[need], "E-VERDICT-PHASE", w,
+                            f"{v.get('verdict_id')} was received at {at}, after {r.get('result_id')} ({r.get('phase')}) ran at "
+                            f"{r.get('executed_at')}: it must be at least {need}, not {phase}")
 
 
 # ============================================================== 14 traceability
@@ -2311,6 +2392,67 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
         R.check(k.get("threat_id") is None, "E-CLUSTER-ORIGIN", w, "threat_id is only set on black_box clusters")
         R.check(all(isinstance(loc.get(x), (str, dict)) for x in ("file", "symbol", "sink")), "E-CLUSTER-ORIGIN", w,
                 "white_box cluster needs canonical_location file, symbol and sink")
+
+
+def _evidence_sites(c: Ctx, cluster: dict) -> tuple[list[tuple[str, int, int]], list[str]]:
+    """(file, first line, last line) of every member's evidence, and the members' CWEs. code_snippet: its own range;
+    inventory_fact: the source {file, line} of the nearest inventory object above fact_ref (e.g. /db/tables/0)."""
+    inv = inventory_of_run(c, cluster.get("run_id")) or {}
+    sites, cwes = [], []
+    for fid in cluster.get("member_finding_ids") or []:
+        f = c.ix.finding(fid) or {}
+        cwes += [x for x in f.get("cwe") or [] if isinstance(x, str)]
+        for e in f.get("evidence") or []:
+            if not isinstance(e, dict):
+                continue
+            if e.get("kind") == "code_snippet" and isinstance(e.get("line_start"), int):
+                end = e.get("line_end") if isinstance(e.get("line_end"), int) else e["line_start"]
+                sites.append((e.get("file"), e["line_start"], end))
+            elif e.get("kind") == "inventory_fact" and isinstance(e.get("fact_ref"), str):
+                parts = e["fact_ref"].split("/")[1:]
+                while parts:
+                    node = evidence.resolve_pointer(inv, "/" + "/".join(parts))
+                    src = node.get("source") if isinstance(node, dict) else None
+                    if isinstance(src, dict) and isinstance(src.get("file"), str):
+                        line = src.get("line") if isinstance(src.get("line"), int) else 0
+                        sites.append((src["file"], line, line))
+                        break
+                    parts.pop()
+    return sites, cwes
+
+
+def cluster_binding(R: Report, c: Ctx, d: Doc):
+    """v0.5 (review 2026-10-25 V-8): a white-box cluster's key is bound to its members' evidence, so a cluster cannot
+    take another cluster's location (and with it the other cluster's SARIF refs, D1) or a bucket of its choosing.
+    - canonical_location.file is a member evidence file; the sink lies in a member evidence range (same file);
+      a symbol written file::name starts with that file;
+    - cwe_bucket is the bucket (facets.CWE_BUCKETS) of a member CWE, when any member CWE is listed there;
+    - no two clusters of a run share a fingerprint."""
+    k, w = d.data, d.path
+    same = [x.path for x in c.docs("cluster") if x is not d and x.data.get("run_id") == k.get("run_id")
+            and k.get("fingerprint") and x.data.get("fingerprint") == k.get("fingerprint")]
+    R.check(not same, "E-CLUSTER-BINDING", w, f"{k.get('cluster_id')}: fingerprint shared with {same} in the same run")
+    if k.get("origin") == "black_box":
+        return
+    loc = k.get("canonical_location") or {}
+    sites, cwes = _evidence_sites(c, k)
+    files = {s[0] for s in sites}
+    R.check(loc.get("file") in files, "E-CLUSTER-BINDING", w,
+            f"{k.get('cluster_id')}: canonical_location.file {loc.get('file')!r} is not a member evidence file {sorted(files)}")
+    sink = loc.get("sink")
+    if isinstance(sink, dict):
+        R.check(any(f == sink.get("file") and a <= (sink.get("line") or -1) <= b for f, a, b in sites), "E-CLUSTER-BINDING", w,
+                f"{k.get('cluster_id')}: sink {sink.get('file')}:{sink.get('line')} is outside every member evidence range {sites}")
+    sym = loc.get("symbol")
+    if isinstance(sym, str) and "::" in sym:
+        R.check(sym.split("::", 1)[0] == loc.get("file"), "E-CLUSTER-BINDING", w,
+                f"{k.get('cluster_id')}: symbol {sym!r} does not belong to canonical_location.file {loc.get('file')!r}")
+    buckets = {facets.CWE_BUCKETS[x] for x in cwes if x in facets.CWE_BUCKETS}
+    if buckets:
+        R.check(k.get("cwe_bucket") in buckets, "E-CLUSTER-BINDING", w,
+                f"{k.get('cluster_id')}: cwe_bucket {k.get('cwe_bucket')!r} is not the bucket of any member CWE {sorted(set(cwes))} -> {sorted(buckets)}")
+    else:
+        R.warn("W-CLUSTER-BUCKET", w, f"{k.get('cluster_id')}: no member CWE {sorted(set(cwes))} is in facets.CWE_BUCKETS; cwe_bucket not checked")
 
 
 def inventory_of_run(c: Ctx, run_id) -> dict | None:
@@ -2518,6 +2660,7 @@ def g_trace(R: Report, c: Ctx):
             run = c.runs.get(k.get("run_id")) or {}
             R.check(k.get("cluster_id") in run.get("cluster_ids", []), "E-TRACE", w, "cluster not listed by its run")
             cluster_origin(R, c, d)
+            cluster_binding(R, c, d)
             members = [ix.first("finding", finding_id=f) for f in k.get("member_finding_ids", [])]
             if R.check(all(members), "E-TRACE", w, "member finding not found"):
                 fams = {(m.data.get("reporter") or {}).get("family") for m in members}
@@ -2791,6 +2934,7 @@ def g_audit(R: Report, c: Ctx):
             logged = {(e.get("payload") or {}).get("gate_record_id") for e in evs if e.get("event_type") == "gate_decision"}
             for g in c.ix.gate_records(rid):
                 R.check(g.data.get("gate_record_id") in logged, "E-AUDIT-GATE", w, f"{g.data.get('gate_record_id')} has no gate_decision event")
+            job_audit(R, c, w, rid, run, evs)
 
 
     # v0.5 (review 2026-10-25, group 3): every verdict version has a verdict_changed event in its cluster's run log
@@ -2824,6 +2968,37 @@ def g_audit(R: Report, c: Ctx):
             R.check(False, "E-AUDIT-GATE", where,
                     f"{g.data.get('gate_record_id')} ({g.data.get('gate')}) has no gate_decision event: the run has no audit "
                     "log, so its receive time cannot be established")
+
+
+JOB_RAN_STATES = ("EXECUTED", "RESTORED", "RESTORE_FAILED")       # finished with a result (INTERRUPTED has none)
+
+
+def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
+    """v0.5 (review 2026-10-25 V-9, E-JOB-AUDIT): the B4 jobs of run.jobs agree with the sandbox_job_* events of the log
+    and with the testresults. v0.4 never reconciled them, so deleting a FAIL result and marking its job SKIPPED passed.
+    W0 / W1 / W4 sandbox jobs are not in run.jobs and are not reconciled here."""
+    jobs = run.get("jobs") or {}
+    started = {(e.get("payload") or {}).get("job_id") for e in evs if isinstance(e, dict) and e.get("event_type") == "sandbox_job_start"}
+    ended = {(e.get("payload") or {}).get("job_id"): (e.get("payload") or {}).get("outcome")
+             for e in evs if isinstance(e, dict) and e.get("event_type") == "sandbox_job_end"}
+    results = {r.data.get("job_id"): r.data for r in c.docs("testresult") if r.data.get("run_id") == rid}
+    for jid, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        where = f"{w} (run.jobs {jid})"
+        if job.get("status") == "SKIPPED":
+            R.check(jid not in started and jid not in ended, "E-JOB-AUDIT", where,
+                    f"job {jid} is SKIPPED but the audit log has sandbox_job events for it (it ran)")
+        elif job.get("status") in JOB_RAN_STATES:
+            R.check(jid in ended, "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but the audit log has no sandbox_job_end for it")
+            tr = results.get(jid)
+            R.check(tr is not None, "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but no testresult names it")
+            if tr is not None and jid in ended:
+                R.check(tr.get("outcome") == ended[jid], "E-JOB-AUDIT", where,
+                        f"testresult {tr.get('result_id')} outcome {tr.get('outcome')} != sandbox_job_end outcome {ended[jid]}")
+    for jid in ended:
+        if jid in jobs:
+            R.check(jid in results, "E-JOB-AUDIT", w, f"sandbox_job_end for job {jid} has no testresult")
 
 
 def audit_anchor_tail(R: Report, w: str, run: dict, d: Doc) -> tuple[int, int]:
@@ -3035,7 +3210,25 @@ def report_metrics(c: Ctx, run_id) -> dict:
             "control_pass_rate": round(sum(1 for o in outs if o == "PASS") / len(outs), 4) if outs else None}
 
 
+ID_KEYS = {"run": "run_id", "verdict": "verdict_id", "cluster": "cluster_id", "finding": "finding_id", "testcase": "testcase_id",
+           "testresult": "result_id", "threat": "threat_id", "gate-record": "gate_record_id", "report-manifest": "report_id",
+           "slice": "slice_id"}
+
+
+def id_uniqueness(R: Report, c: Ctx):
+    """v0.5 (review 2026-10-25 V-5): an ID names one document. With two documents of the same kind and ID, lookups
+    disagreed (Ctx.runs took the last, Index.first the first), so a second copy could shadow the checked one."""
+    for kind, key in ID_KEYS.items():
+        seen: dict = {}
+        for d in c.docs(kind):
+            if isinstance(d.data, dict) and d.data.get(key) is not None:
+                seen.setdefault(d.data.get(key), []).append(d.path)
+        for i, paths in seen.items():
+            R.check(len(paths) == 1, "E-ID-DUP", paths[-1], f"{kind} {key} {i!r} is used by {len(paths)} documents: {paths}")
+
+
 def g_misc(R: Report, c: Ctx):
+    id_uniqueness(R, c)
     for d in c.docs("dfd"):
         with doc_guard(R, d.path):
             els = d.data.get("elements", [])
@@ -3067,8 +3260,7 @@ def g_misc(R: Report, c: Ctx):
             if not R.check(run is not None, "E-REPORT", w, "run not found"):
                 continue
             R.check(rm.get("advisory") is (run.get("run_kind") == "lane_a"), "E-REPORT", w, "advisory iff Lane A")
-            superseded = {c.ix.first("verdict", verdict_id=v).data.get("supersedes_verdict_id") for v in run.get("verdicts", []) if c.ix.first("verdict", verdict_id=v)}
-            final = [c.ix.first("verdict", verdict_id=v).data for v in run.get("verdicts", []) if v not in superseded and c.ix.first("verdict", verdict_id=v)]
+            final = verdict_heads(c, run.get("verdicts", []))       # v0.5 (V-4): a broken chain is E-VERDICT-CHAIN
             counts = {s: sum(1 for v in final if v.get("status") == s) for s in FINAL_STATUSES}
             R.check(rm.get("verdict_counts") == counts, "E-REPORT", w, f"verdict_counts must be {counts} (latest verdict per cluster)")
             want_m = report_metrics(c, rm.get("run_id"))
