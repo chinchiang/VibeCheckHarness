@@ -74,8 +74,8 @@
 | 階段 | 交付什麼 | 不包含 | 可用的模式 | 沿用的 M 準則 |
 |---|---|---|---|---|
 | **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W0.5／認領與 G1（v0.5：G1 在 W1 之前，由本 run 核准）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11；§3 中 MVP-0 用到的元件的入口閘門（MVP0-X7） |
-| **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`；ROE 只對 `localhost`、`127.0.0.1`、`[::1]` 允許 `http://`，其他一律 `https://`，`E-ROE-URL`），跑 B0–B6：<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M3-X1、X5；M4-X2～X5、X7 |
-| **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• G0b 與 `legal_review`（Lite 的兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁標示聲明為自行簽署，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X1～X3、X8、X9；M4-X3、X8 |
+| **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`；ROE 只對 `localhost`、`127.0.0.1`、`[::1]` 允許 `http://`，其他一律 `https://`，`E-ROE-URL`），跑 B0–B6：<br>• G0b 與 `legal_review`（v0.5，審查 2026-10-25 C-5：B 階段的入口就是 G0b，v0.4 卻排到 MVP-2；Lite 的兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁標示聲明為自行簽署，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)）<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M1-X1～X3；M3-X1、X5；M4-X2～X5、X7 |
+| **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• `legal_review` 涵蓋 staging 的範圍與條款（G0b 已在 MVP-1 交付）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X8、X9；M4-X3、X8 |
 | **MVP-3 以後** | 依序加入：<br>• staging 的 S2＋G5（Full 模式需兩人核准）<br>• LLM 功能測試，先做 G4 核准的腳本式多輪（M5）<br>• Calibration Lab 與 `high_precision_rules`（M2-X1）<br>• CI Lane B 完整版<br>• 靜態 HTML 報告<br>• adaptive relay（只限 Full，[09 BL-10](09-backlog.md)） | — | 依功能而定 | M2-X1～X3、X5、X7～X9、X12；M4 其餘；M5 全部 |
 
 **出場條件**：
@@ -88,7 +88,7 @@
 | MVP0-X4 | 沒有校準資料時，每個可能由投票決定的裁決（決定表第 6–13 列、非黑箱叢集）都是 `provisional`；R0／R1／R9／R10 決定的裁決與黑箱叢集不是（v0.4）；沒有可執行證明的叢集不會是 `CONFIRMED_*` | 性質測試 | 有任何一例 |
 | MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator（`E-ENG-PROFILE`、`E-GATE-SOD`）＋報告測試 | 缺少聲明卻通過（一人在同一份關卡紀錄中兼任兩個角色而沒有 `E-GATE-SOD`），或報告沒有標示 |
 | MVP0-X6 | **前導實驗**（§1.2）已依預先登記執行，決定已寫入 `calibration.yaml` 的 `recommended_defaults`（MVP-1 起的 `w2_review.strategy`）與報告 | 前導實驗報告：預先登記的 hash、每個應用的原始結果、決定 | 沒有預先登記就解盲；應用中有工具包團隊撰寫的；報告缺少決定，或 MVP-1 的預設值與決定不符 |
-| MVP0-X7 | MVP-0 會用到的元件，其 §3 入口閘門都已結案：「M1 前」的 Anthropic API 條款、Semgrep／CodeQL（不啟用則免）；「M2 前」的 OpenAI API 條款（G-13）、GPT-6 的 ZDR 書面確認（G-06）、NIM 用途（使用 `nemotron_self` 時）。v0.3 的 MVP-0 只沿用 M1-X4～X7，雲端模型的條款還沒確認就能出貨 | 驗收包中的法務紀錄，或證明該元件已停用的設定檔（engagement 的 `allowed_models`、`config_pins`） | 有未結案的項目，而對應的模型或工具仍然啟用 |
+| MVP0-X7 | MVP-0 會用到的元件，其 §3 入口閘門都已結案：「M1 前」的 Anthropic API 條款、Semgrep／CodeQL（不啟用則免）、psycopg 的散布形式（v0.5：MVP-0 就用 Z1 的 Postgres checkpointer）、G-11 的 runsc／Firecracker 版本固定與 CVE 訂閱（v0.5：MVP-0 的 W0、W1、W4 都在 Z2）；「M2 前」的 OpenAI API 條款（G-13）、GPT-6 的 ZDR 書面確認（G-06）、NIM 用途（使用 `nemotron_self` 時）。v0.3 的 MVP-0 只沿用 M1-X4～X7，雲端模型的條款還沒確認就能出貨 | 驗收包中的法務紀錄，或證明該元件已停用的設定檔（engagement 的 `allowed_models`、`config_pins`） | 有未結案的項目，而對應的模型或工具仍然啟用 |
 | MVP0-X8 | **Lite 使用者 pilot**（§1.3）：≥3 位不屬於工具包團隊的單人開發者，各自以自己的應用跑 Lite 的 MVP-0。門檻 [H]：從開始安裝到拿到第一份白箱報告的中位數 ≤ 1 個工作天；每個 run 的人工關卡總耗時（G0a 簽署、G1 問卷與簽核、GB）中位數 ≤ 2 小時；沒有人因為金鑰與簽章設定而放棄 | pilot 紀錄（各步驟時間戳記、放棄原因） | 任一門檻沒有達到，且沒有啟用 §1.3 的降階路徑 |
 | MVP1-X1 | 範例 A 在本地目標上：<br>• 植入版的 TC-012-01 FAIL，並且**不經 LLM 分析者**就裁決為 `CONFIRMED_EXECUTABLE`（G4 已事先登記解讀）<br>• 修正版 PASS，且所有 control 都通過 | 整合測試 | 任一步不符 |
 | MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點（沒有綁定的測試案例算出 S3，`E-TC-MUTATION-SCOPE`） | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
@@ -175,7 +175,7 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 | 里程碑 | 節點 |
 |---|---|
 | **M1** | `run_init`、`G0a_engagement_check`、`W0_inventory`、`LA_static`、`W1_static`、`G0b_roe_check`、`B0_ownership_verify`、`run_resume`、`suspended_wait`、`m1_finish`（M1 暫時的結束節點，M2 起由 `W5_report` 取代，M4 起由 `B6_report` 取代，[08 §9.2](08-implementation-spec.md#92-m1-前兩週的工單)） |
-| **M2** | `W05_draft_invariants`、`claim_run`、`G1_gate`、`W2_slice`、`CMD1_plan`、`W2_fanout`、`W2_review`、`W2_fanin`、`W3_cluster`、`W3_verify_fanout`、`W3_adjudicate`、`CMD2_redispatch`、`G2_gate`、`W4_testgen`、`W4_exec`、`W4_readjudicate`、`W5_report`、`GB_budget_gate`、`LA_diff_review` |
+| **M2** | `W05_draft_invariants`、`claim_run`、`G1_gate`、`W2_slice`、`CMD1_plan`、`W2_fanout`、`W2_review`、`W2_fanin`、`W3_cluster`、`W3_verify_fanout`、`W3_verify`、`W3_adjudicate`、`CMD2_redispatch`、`G2_gate`、`W4_testgen`、`W4_exec`、`W4_readjudicate`、`W5_report`、`GB_budget_gate`、`LA_diff_review` |
 | **M3** | `B1_crawl`、`B1_model`、`CMD3_taxonomy`、`B2_threat_fanout`、`B2_merge_critic`、`G3_gate` |
 | **M4** | `CMD4_testplan`、`B3_derive`、`B3_validate_artifacts`、`G4_gate`、`B4_preflight`、`B4_s0s1_exec`、`B4_s2_queue`、`G5_gate`、`B4_s2_snapshot`、`B4_s2_exec`、`B4_s2_restore`、`abort_handler`（`ah_cancel`、`ah_restore`、`ah_escalate`、`ah_revoke`、`ah_report`）、`B5_verify`、`B5_readjudicate`、`CMD5_followup`、`B6_report`、`stopped_wait` |
 | **M5** | `B5_verify` 的機率判定分支；Relay 的多回合測試（在 `B4_s0s1_exec` 內） |
@@ -206,7 +206,7 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 | **M3 前** | MAESTRO、LINDDUN 的授權（未查） | toolkit_maintainer | 只在分類欄位引用 ID，不重製內容 |
 | | OWASP LLM Top 10 預設版本：**已結案**。官方 PDF 的十項 ID 已查證 [V][E:threat_modeling-73]，新委任預設已切到 `owasp-llm@2026`（[04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照)）；資源頁標題為「OWASP GenAI LLM Top 10 2026」、PDF 封面為「OWASP Top 10 for LLM Applications 2026」[P][E:threat_modeling-72] | toolkit_maintainer | 不適用（已結案）；既有委任仍可沿用 2025 版並以對照表轉換 |
 | **M4 前** | k6（AGPL）[V][E:blackbox-25][E:blackbox-59] | legal_reviewer | 限流驗證改用其他工具；`k6:threshold` 不註冊 |
-| **M5 前** | promptfoo 部分策略繞過本地生成 [S-09] | toolkit_maintainer | 以出站紀錄實測之前，`promptfoo:*` 不註冊 |
+| **M5 前** | promptfoo 部分策略繞過本地生成 [S-09] | toolkit_maintainer | 以出站紀錄實測之前，`promptfoo:*` 不能在真實 run 啟用。v0.5（審查 2026-10-25）：範例 `tools.yaml` 已登錄 `promptfoo:eval`／`redteam_local`、範例 ROE 也允許，是為了示範範例 B；實測結果是 M5 驗收的前提，實測前真實的 ROE 不得把 `promptfoo` 列入 `allowed_tools` |
 | | OWASP 內容（CC BY-SA 4.0；網站頁尾如此聲明，repo 的 LICENSE.md 只是 CC BY-SA 4.0 的摘要頁，不是完整授權條文）在報告中的引用 [P][E:threat_modeling-67][E:threat_modeling-68][E:threat_modeling-78] | legal_reviewer | 報告只列 ID 與連結 |
 
 ## 4. 各里程碑
@@ -227,7 +227,7 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 | M1-X3 | ST-1＝0、ST-3＝0、ST-7＝0（[06 §1.2.1](06-security-legal-limitations.md#121-工具包自測計畫植入注入的-repo-h)）；M1 的每個注入向量 ≥3 個樣本；每個 twin ≥10 個已知漏洞 | [selftest-report](schemas/selftest-report.schema.json)：三項都是 `status: RUN`、`passed: true` | 任一個大於 0，或任一項為 `NOT_RUN` |
 | M1-X4 | 在每個 M1 節點的邊界 kill 行程後 resume | 整合測試 | 最終產物的 hash 與不中斷的 run 不同；Sandbox job 被重跑；稽核去重後有重複事件 |
 | M1-X5 | 稽核與 CAS 的竄改偵測 | 性質測試 ≥1,000 例 | 偵測率 < 100% |
-| M1-X6 | `docs/schemas/examples/` 全部通過契約往返（[08 §3](08-implementation-spec.md#3-資料模型從-json-schema-產生-pydantic)） | `fast` 線 | 任一個範例不是逐位元組相同 |
+| M1-X6 | `docs/schemas/examples/` 全部通過契約往返（`exclude_unset=True`，[08 §3](08-implementation-spec.md#3-資料模型從-json-schema-產生-pydantic)） | `fast` 線 | 任一個範例不是逐位元組相同 |
 | M1-X7 | 供應鏈：鎖檔含 hash；LiteLLM 鎖版本，並排除 1.82.7、1.82.8 [V][E:orchestration-31]；每個依賴在 `licenses.yaml` 都有一列；Actions 鎖 SHA；有 SBOM | `licenses check`＋N-29 | 任一項缺少 |
 | M1-X8 | Z2 維運（[06 §1.4](06-security-legal-limitations.md#14-沙箱與網路)）：runsc 的版本寫進 SBOM、CVE 訂閱、不同 engagement 不共用主機、不掛 Docker socket | 檢查清單＋ST-7 | 任一項缺少 |
 | M1-X9 | §3「M1 前」的每一項都已結案 | 驗收包中的法務紀錄或設定檔證明 | 有未結案的項目，而該元件仍然啟用 |
@@ -253,10 +253,10 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 | M2-X6 | 預算：80% 發出事件；用盡時進 GB；沒有費用上限時 fail-closed（[03 §11](03-system-architecture.md#11-成本與延遲模型)） | 整合測試 | 超出上限仍繼續呼叫 |
 | M2-X7 | ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）：每個 run 抽所有 `CONFIRMED_*` 裁決的 10%（最少 3 項）與 G2 決定的 10%（最少 2 項）；複核者不是原核准者或發起者；5 個工作天內完成 | 抽查紀錄 | 抽樣率不足、複核者是原核准者，或逾期 |
 | M2-X8 | §3「M2 前」全部結案；研究缺口 G-02、G-03、G-04、G-05、G-06、G-09、G-13 都完成 01 §5 列出的動作（例如 G-02：找到 Lacrosse 的資料，或在 Calibration 報告中註明找不到） | 驗收包 | 有缺口沒有完成動作 |
-| M2-X9 | 模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已換成 `claude_opus_48`（U-11 已決定 [V][單源][E:providers-52]），且替代模型已完成 05 §5.8 的最小重跑 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
+| M2-X9 | （v0.5，審查 2026-10-25 C-6：「最小重跑」要用校準語料，與 M2-X1 一樣等 U-10；U-10 之前只驗收別名、`earliest_retirement` 與替換，最小重跑那一段延到 M2-X1 驗收時）模型退役：`models.yaml` 的每個別名都有 `earliest_retirement`；`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 [V][E:providers-49]）已換成 `claude_opus_48`（U-11 已決定 [V][單源][E:providers-52]），且替代模型已完成 05 §5.8 的最小重跑 | `config validate`＋Gateway 的警告測試 | 缺少欄位，或退役後仍被呼叫 |
 | M2-X10 | [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的最小重跑：`model_key` 改變後，完成重跑之前該模型的權重 w＝0 | 整合測試 | 重跑前 w≠0 |
 | M2-X11 | 每個 LLM 輸出都通過 schema 驗證，或有記錄在案的修復或缺票 | 稽核查核 | 有未驗證的輸出進入 Blackboard |
-| M2-X13 | **預設值照 §5.6 的結果切換**：主要假設的結果（不論哪一方勝出）寫入 `calibration.yaml` 的 `recommended_defaults`，組態載入時套用；使用者覆寫時報告標示「未採用校準建議」（05 §5.6） | `config validate`＋報告 | 預設值與 §5.6 的結果不符，且沒有標示覆寫 |
+| M2-X13 | （v0.5，審查 2026-10-25 C-6：§5.6 的結果來自 M2-X1 的校準，U-10 之前只驗收「組態載入時套用 `recommended_defaults`、覆寫時報告標示」的機制，切換本身延到 M2-X1 驗收時）**預設值照 §5.6 的結果切換**：主要假設的結果（不論哪一方勝出）寫入 `calibration.yaml` 的 `recommended_defaults`，組態載入時套用；使用者覆寫時報告標示「未採用校準建議」（05 §5.6） | `config validate`＋報告 | 預設值與 §5.6 的結果不符，且沒有標示覆寫 |
 | M2-X12 | 指揮官的加值：每份計畫都包含確定性的覆蓋下限（必要面向，`E-PLAN-FACETS`）；報告列出指揮官在下限之外加派的切片、面向與 CMD-2 輪次，以及其中產生有效叢集（`LIKELY` 以上）的比例 | 計畫檔＋報告 | 有計畫少於覆蓋下限；沒有報告加派結果（只量測、不設門檻） |
 
 ### M3 威脅建模

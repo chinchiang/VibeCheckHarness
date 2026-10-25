@@ -5,7 +5,7 @@
   "component":{"type":"string","description":"套件或工具名稱（requirements.txt 名稱小寫比對）"},
   "license":{"type":"string","description":"SPDX 運算式；未知寫 NOASSERTION"},
   "obligation":{"type":"string"},
-  "usage":{"enum":["validator_runtime","validator_test","b4_tool","w1_tool","secrets_scanner","db_client","reference"]},
+  "usage":{"enum":["validator_runtime","validator_test","b4_tool","w1_tool","w4_test","secrets_scanner","db_client","reference"],"description":"w4_test（v0.5）：W4 在拋棄式環境對受測程式碼跑的測試函式庫（例如 property-based testing），不是 W1 掃描器"},
   "status":{"enum":["OK","注意","法務閘門","參考","不採用","待查"]},
   "gate_milestone":{"anyOf":[{"type":"string","pattern":"^M[0-9]+$"},{"type":"null"}],"description":"法務閘門 必填：最晚在哪個里程碑前完成法務確認"},
   "evidence":{"type":"array","items":{"type":"string"},"minItems":1,"description":"證據帳本 ID（E:<topic>-NN）"}},

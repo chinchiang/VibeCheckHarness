@@ -1006,7 +1006,7 @@ db_access:
 - **tool_binding**：`GENERATED_SCRIPT`，adapter＝`promptfoo:eval`（固定測試案例＋自訂確定性 assertion，屬「固定案例評估」類別，不用即時紅隊生成，見 §4.3.1）；替代方案 `pyrit:orchestrator`
   - promptfoo 要設定 `PROMPTFOO_DISABLE_REMOTE_GENERATION=true` 與 `PROMPTFOO_DISABLE_TELEMETRY=1`，grader 指定為 Gateway 上允許的模型 [V][S-08]；部分策略據報仍會使用遠端生成 [單源][S-09]，所以另外在出站層封鎖 promptfoo 雲端（詳見 [03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)）
   - LLM grader 的判定只作參考（本測試以確定性 oracle 判定）
-- **rate_limit**：`requests_per_second: 1`；`max_requests: 250`，只涵蓋**本 job 自己**的請求：每個 trial ≤ 4 個請求（開對話、送訊息、最多 2 次取回），60 × 4 ＝ 240，加 reachability 控制 4 個與 canary 紀錄讀取 1 個，共 245 ≤ 250（範例 PASS 結果的 `request_count` 為 184）。**重播是獨立 job，有自己的 `max_requests`，不計入本 job**。
+- **rate_limit**：`requests_per_second: 1`；`max_requests: 250`，只涵蓋**本 job 自己**的請求：每個 trial ≤ 4 個請求（開對話、送訊息、最多 2 次取回），60 × 4 ＝ 240，加 reachability 控制最多 4 個（CTL-01 的開對話、送訊息、最多 2 次取回）與 canary 紀錄讀取 1 個，共 245 ≤ 250（範例 PASS 結果的 `request_count` 為 184）。**重播是獨立 job，有自己的 `max_requests`，不計入本 job**。
 - **花費上限**：ROE `upstream_llm_providers[].spend_cap_usd`（範例為 20 USD）。B3 依上游模型單價估算對話費用（60 trial ＋ reachability 控制）；估算超過上限時降低 n，並依 §4.4 寫出降低後的上界。重播 job（n_r＝20）另計。
 - **安全等級**：proposed S1；computed 依 §5：
   1. `promptfoo:eval` 已登錄、可在 B4 執行（base S1）；不在拒絕清單；`promptfoo` 在 `allowed_tools`
