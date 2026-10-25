@@ -40,8 +40,8 @@ components:
   - {component: Bandit, license: Apache-2.0, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-08"]}
   - {component: OSV-Scanner, license: Apache-2.0, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-11"]}
   - {component: Trivy, license: Apache-2.0, obligation: "供應鏈事件，需鎖版本", usage: w1_tool, status: 注意, gate_milestone: null, evidence: ["E:whitebox-13"]}
-  - {component: Hypothesis, license: MPL-2.0, obligation: "檔案層級 copyleft：修改 Hypothesis 自己的檔案並散布時要公開那些檔案", usage: w1_tool, status: 注意, gate_milestone: null, evidence: ["E:whitebox-47", "E:orchestration-56"]}
-  - {component: fast-check, license: MIT, obligation: "—", usage: w1_tool, status: OK, gate_milestone: null, evidence: ["E:whitebox-48"]}
+  - {component: Hypothesis, license: MPL-2.0, obligation: "檔案層級 copyleft：修改 Hypothesis 自己的檔案並散布時要公開那些檔案", usage: w4_test, status: 注意, gate_milestone: null, evidence: ["E:whitebox-47", "E:orchestration-56"]}
+  - {component: fast-check, license: MIT, obligation: "—", usage: w4_test, status: OK, gate_milestone: null, evidence: ["E:whitebox-48"]}
 
   # ---------- 黑箱工具（tools.yaml zone Z3）----------
   - {component: ZAP, license: Apache-2.0, obligation: "—", usage: b4_tool, status: OK, gate_milestone: null, evidence: ["E:blackbox-01", "E:blackbox-62"]}

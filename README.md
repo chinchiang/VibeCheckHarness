@@ -15,7 +15,7 @@
 
 ![VibeCheck Harness 系統架構](docs/architecture.svg)
 
-- 四個信任區：**Z1** 控制平面（Run Controller、Policy Engine、Gate Service、Blackboard、CAS、Audit Log、Model Gateway）不能連目標，只有 Gateway 能連 LLM；**Z2** 沙箱跑 W0／W1／W4 與目標建置，沒有 LLM 也沒有目標；**Z3** 執行所有權驗證與黑箱測試，唯一出口是 Scope Proxy；**Z4** 自架模型只接受 Gateway。元件責任與里程碑見 [03 §1](docs/03-system-architecture.md#1-元件總覽)，信任區與隔離要求見 [03 §2](docs/03-system-architecture.md#2-部署與信任區)。
+- 四個信任區：**Z1** 控制平面（Run Controller、Policy Engine、Gate Service、Blackboard、CAS、Audit Log、Model Gateway）不能連目標，只有 Gateway 能連 LLM；**Z2** 沙箱跑 W0／W1／W4 與目標建置，沒有 LLM 也沒有目標；**Z3** 執行所有權驗證與黑箱測試，唯一出口是 Scope Proxy；**Z4** 自架模型只接受 Gateway，可處理 C 級資料；雲端供應商預設只收 P 級，ZDR 已確認且委任設定允許時也可收 C 級（[03 §8](docs/03-system-architecture.md#8-model-gateway)）。Calibration Lab 在 run 以外離線執行，產出的權重與門檻經委任設定釘選後才生效。元件責任與里程碑見 [03 §1](docs/03-system-architecture.md#1-元件總覽)，信任區與隔離要求見 [03 §2](docs/03-system-architecture.md#2-部署與信任區)。
 - 黃底是用 LLM 的元件（指揮官、審查／驗證／設計／結果分析 agent、Reporter）：它們只提出假設與草稿；流程、範圍、安全等級、裁決規則與驗章都是程式碼。人只在簽署與關卡（G0a／G0b、G1–G5、GB）出現。
 - 端到端流程（W0–W5、B0–B6 與關卡）見 [00 §2](docs/00-overview.md#2-端到端流程)；圖檔是手工維護的 SVG（[docs/architecture.svg](docs/architecture.svg)），改架構時一併更新。
 
@@ -132,7 +132,7 @@
 ```bash
 python -m pip install -r requirements.txt
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 735 個測試，約 6–7 分鐘
+python -m pytest tests                 # 747 個測試，約 6–7 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點

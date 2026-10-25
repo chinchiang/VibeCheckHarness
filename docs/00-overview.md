@@ -62,7 +62,7 @@ flowchart LR
 | SARIF 2.1.0 | 給 IDE 與 CI 用；跨 run 以指紋比對 new／unchanged／updated／absent | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) |
 | 報告的限制頁 | 未測試的項目、版本未驗證的目標、盲點、單人模式標示、對照通過率 | [02 B6](02-methodology.md#b6-報告) |
 
-範例：兩個完整的端到端範例見 [04 §6](04-threat-to-testcase.md#6-完整範例)（Web／API 的 IDOR、LLM 功能的 prompt injection 與工具濫用（confused deputy；v0.4 更正：不是第三方內容的間接注入））；對應的 JSON 範例在 [schemas/examples/](schemas/examples/)。
+範例：三個完整的端到端範例見 [04 §6](04-threat-to-testcase.md#6-完整範例)（A：Web／API 的 IDOR；B：LLM 功能的 prompt injection 與工具濫用（confused deputy；v0.4 更正：不是第三方內容的間接注入）；B′：第三方文件的間接注入（v0.4 第五輪））；對應的 JSON 範例在 [schemas/examples/](schemas/examples/)。
 
 ## 5. 怎麼開始：保證等級與分段 MVP
 
@@ -100,7 +100,7 @@ flowchart LR
 
 | 你是 | 先讀 | 再讀 |
 |---|---|---|
-| 想測自己應用的開發者（單人） | 本頁 → [02 §1.7](02-methodology.md#17-保證等級liteteamfull) → [07 §1.1](07-roadmap.md#11-分段-mvp) | [04 §6](04-threat-to-testcase.md#6-完整範例) 的兩個範例、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) |
+| 想測自己應用的開發者（單人） | 本頁 → [02 §1.7](02-methodology.md#17-保證等級liteteamfull) → [07 §1.1](07-roadmap.md#11-分段-mvp) | [04 §6](04-threat-to-testcase.md#6-完整範例) 的三個範例（A、B、B′）、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) |
 | 資安審查者（關卡核准者） | [02 §1.3](02-methodology.md#13-人工關卡一覽) → [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | [04](04-threat-to-testcase.md) 的 binding 表與安全等級、[06 §1](06-security-legal-limitations.md#1-工具包自身的安全) |
 | 實作者 | [03](03-system-architecture.md) → [08](08-implementation-spec.md)（含 §11 元件規格） | [schemas/README](schemas/README.md)、[07](07-roadmap.md) 的出口準則、[09 待辦](09-backlog.md) |
 | 法務或管理層 | [06 §2](06-security-legal-limitations.md#2-法遵與授權) → [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) | [07 §3](07-roadmap.md#3-入口閘門法務與查證) 的入口閘門、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 待決事項 |

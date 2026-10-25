@@ -27,5 +27,9 @@ links:
   - {from_scheme: stride, from_id: T, target_scheme: asvs-5.0.0, target_id: v5.0.0-1.2.4, provenance: curated, source_ref: null, reviewed_by: erin}
   - {from_scheme: "owasp-llm@2026", from_id: LLM01, target_scheme: cwe, target_id: CWE-1427, provenance: curated, source_ref: null, reviewed_by: erin}
   - {from_scheme: "owasp-llm@2026", from_id: LLM03, target_scheme: invariant, target_id: INV-LLM-003, provenance: curated, source_ref: null, reviewed_by: frank}
+  # v0.5（審查 2026-10-25）：T-031 的叢集與發現項用 CWE-862（工具端缺少授權），ASI 分類也要有對照
+  - {from_scheme: "owasp-llm@2026", from_id: LLM03, target_scheme: cwe, target_id: CWE-862, provenance: curated, source_ref: null, reviewed_by: erin}
+  - {from_scheme: "owasp-asi@2026", from_id: ASI01, target_scheme: cwe, target_id: CWE-1427, provenance: curated, source_ref: null, reviewed_by: erin}
+  - {from_scheme: "owasp-asi@2026", from_id: ASI02, target_scheme: cwe, target_id: CWE-862, provenance: curated, source_ref: null, reviewed_by: erin}
   # LLM 提議、尚未人審：不能用於推導（G3 前要轉成 curated 或刪除）
   - {from_scheme: stride, from_id: I, target_scheme: invariant, target_id: INV-AC-007, provenance: llm-suggested, source_ref: null, reviewed_by: null}

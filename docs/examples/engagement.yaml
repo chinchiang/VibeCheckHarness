@@ -84,8 +84,8 @@ config_pins:                  # v0.4：影響安全判斷的設定檔內容 hash
   agents: "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
   tools: "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
   calibration: "sha256:770c8524719fffa392111a23fd97ad9ffbc97dd3d52386999b1f498f25f97baf"   # v0.5
-  crosswalk: "sha256:c76d2b08b9d2be384f8a32c951b75a8157aea5992c079bcc64c5d90c0a82e3d5"     # v0.5
-  licenses: "sha256:3cc53257d103fb15b759f7a2729426d74eba37d08cfbd9b73f32ddb307e5b7ec"
+  crosswalk: "sha256:865d77a32541ebe394671103092781f2d672d8b1d74fd6bbe4d662fc91fc7b13"     # v0.5
+  licenses: "sha256:dc6f7c0fb8f1e7e895610d28778e8e3d2da7d2abfbf9e238443f127fdb4f48dc"
 
 assurance_profile: team       # lite／team／full（docs/03 §6）；team：ROE 每個簽署角色由不同人擔任
 role_consolidation: null      # 只在 lite 使用：同一人兼任多個角色時的聲明
@@ -94,8 +94,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "HlyzEEJWvGH37mcQxWXedSQPx/MhBXRcyFiYCkyOLb6+SExLZenJ+RgfwBPGG8GzpXaVxY2lCcB64eIzN8U0BA=="
+    value: "Pd6bK5NGzshJvKr+sd7cz8AjFQ8CHMUySeDvwHk2CO+4xLGCVq3MVmZoU3G5j4uuQX/G+RbLIfd/i+yOsuSwDA=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "17gB3UqHdJh8hSwLlxvNOVhhjHKAyL0EBxJPMWPJgNvzxJhESZ82Uq5baGk2NeStBcqNjQSIQybhVJ+bB54yBw=="
+    value: "nj/mI6XHQEQ9SjbeSoj1Jas5xU3jUoHw4adGzJTWX6oVUNISKgV9x+t5coNQqG81asWa/oGzuLdOmBZoixejCw=="

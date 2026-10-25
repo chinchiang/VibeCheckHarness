@@ -57,7 +57,7 @@ sandbox:                           # docs/03 §2 Z2 預設上限
   disk_gib: 10
   w1_tool_timeout_minutes: 30
   w4_batch_timeout_minutes: 10
-  max_output_mib: 100
+  max_output_mib: 200               # v0.5：與 03 §2、08 N-20 一致（單一 job 輸出上限）
   network: none
 
 z4_model_hosts:                    # docs/03 §2 Z4：自架模型伺服器的確切主機名稱（不比對前綴）

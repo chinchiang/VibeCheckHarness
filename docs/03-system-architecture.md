@@ -110,7 +110,7 @@ flowchart LR
 | Snapshot Service | DB 快照、還原、還原演練、oracle 唯讀查詢（§7.6） | 否 | Z3 | M4 |
 | LLM Relay | Z3 多輪 LLM 功能測試向 Z1 要下一輪輸入的受限通道（§7.5） | 經 Gateway | Z1 端點＋Z3 用戶端 | M5 |
 
-- 里程碑欄與 [07 §2.1](07-roadmap.md#21-元件03-1) 一致；兩者不同時**以 07 為準**。例外：07 §2.1 目前沒有 ToolResult 正規化器這一列，本表的 M2 取自 [08 §11](08-implementation-spec.md#11-元件規格補充v03) 的總表（§11.2 列為 M2）。
+- 里程碑欄與 [07 §2.1](07-roadmap.md#21-元件03-1) 一致；兩者不同時**以 07 為準**（ToolResult 正規化器在 07 §2.1 也有一列，同為 M2）。
 - **W0 盤點不用 LLM** [H]：Inventory 抽取器是各框架的確定性解析器（支援矩陣見 [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）；遮罩是內容通往 LLM 的唯一路徑（§8.4）。
 
 **不在範圍內**：網頁儀表板。v0.2 起 M5 只交付靜態 HTML、SARIF 與 JSON 報告；Gate Service 以 CLI 為主。
@@ -599,7 +599,8 @@ stateDiagram-v2
   W2_review --> W2_fanin
   W2_fanin --> W3_cluster
   W3_cluster --> W3_verify_fanout
-  W3_verify_fanout --> W3_adjudicate
+  W3_verify_fanout --> W3_verify: Send × (叢集, 驗證者模型)
+  W3_verify --> W3_adjudicate
   W3_adjudicate --> CMD2_redispatch
   CMD2_redispatch --> W2_fanout: 加派審查者（至多 2 輪）
   CMD2_redispatch --> W3_verify_fanout: 加派驗證者（至多 2 輪）
@@ -760,7 +761,7 @@ stateDiagram-v2
 | `W2_slice` | Z1 | 否 | 切片以 `slice_id` 定址（`slice_id` 含遮罩表與 prompt 範本的 hash，[08 §11.3](08-implementation-spec.md#113-slicer)） | → `FAILED` |
 | `CMD1_plan`…`CMD5_followup` | Z1 | 是 | 計畫 ID；Commander 無工具，輸入是型別化視圖；先經 schema 與 Policy Engine 驗證才寫入 state | 見 §4 |
 | `W2_fanout`、`W3_verify_fanout`、`B2_threat_fanout` | Z1 | — | 只產生 `Send` | — |
-| `W2_review`、`W3_adjudicate` 的驗證者分支 | Z1 | 是 | LLM 請求快取鍵；輸入**不含** W1 工具輸出 | 重試用盡 → 缺票 |
+| `W2_review`、`W3_verify`（v0.5：原本寫成「`W3_adjudicate` 的驗證者分支」，圖上沒有這個節點） | Z1 | 是 | LLM 請求快取鍵；輸入**不含** W1 工具輸出；`W3_verify` 每個 `Send` 產生一張票 | 重試用盡 → 缺票 |
 | `W2_fanin`、`W3_cluster`、`W3_adjudicate` | Z1 | 否 | 純函式（輸入 hash → 輸出 hash）；`W3_cluster` 的輸入是發現項與 `ToolResult`；依 05 R0–R13 | quorum 不足 → 獨立家族數變少並列入報告（不是 R8；[05 §3 規則 3](05-bias-calibration.md#3-設計規則)） |
 | `W4_testgen` | Z1 | 是 | LLM 請求快取鍵 | 修復 ≤2 → `MANUAL` |
 | `W4_exec` | Z2 | 否 | Sandbox job ID | 重試 1 次 → `ERROR` |
@@ -772,10 +773,10 @@ stateDiagram-v2
 | `B1_model`、`B2_merge_critic`、`B3_derive` | Z1 | 是 | LLM 請求快取鍵 | 見 §5.4 |
 | `B3_validate_artifacts` | Z1 | 否 | 純函式 | 修復 ≤2 → `MANUAL` |
 | `B4_preflight` | Z1＋Z3 | 否 | `(run_id, batch_id)`；只讀檢查與基準量測 | 見 §5.5 |
-| `B4_s0s1_exec` | Z3 | 否 | 執行前檢查 `executed_jobs`；有狀態改變的 S1 結束後重置種子 | → `abort_handler` |
+| `B4_s0s1_exec` | Z3 | 否 | 執行前查 Z3 job 帳本（`executed_jobs` 只是快取）；有狀態改變的 S1 結束後重置種子 | → `abort_handler` |
 | `B4_s2_queue` | Z1 | 否 | 純函式 | — |
 | `B4_s2_snapshot` | Z3 | 否 | `run_id + job_id`：快照已存在就略過 | 失敗 → job 略過 |
-| `B4_s2_exec` | Z3 | 否 | 執行前檢查 `executed_jobs` 與 job 狀態；`EXECUTING` 中斷者不自動重跑 | → `abort_handler` |
+| `B4_s2_exec` | Z3 | 否 | 執行前查 Z3 job 帳本（`executed_jobs` 只是快取）與 job 狀態；`EXECUTING` 中斷者不自動重跑 | → `abort_handler` |
 | `B4_s2_restore` | Z3 | 否 | 以 `snapshot_ref` 為鍵；還原後驗證 checksum | 重試 2 → `abort_handler` |
 | `abort_handler` | Z1＋Z3 | 否（中止報告的敘事可選） | 逐步檢查 state 後才動作，可重入 | 還原失敗 → `FAILED` |
 | `B5_verify` | Z1 | 部分 | LLM 請求快取鍵；事先登記的確定性 FAIL 不呼叫 LLM；其他結果從 Result Analyst 池挑選分析者；建立黑箱起源叢集（§5.5） | 無合格 analyst → `E_fail_u`（不升級為 `E_proof`） |
@@ -789,7 +790,7 @@ stateDiagram-v2
 - **LLM 呼叫的冪等**：每個請求以 sha256（`engagement_id`＋資料等級＋模型 ID＋版本＋參數＋prompt hash＋schema hash＋取樣序號）為快取鍵，回應存 CAS。節點重新執行（resume、重試、GB 延長後）時命中快取，不會重複花費 [H]。v0.4 加入前兩項與取樣序號：v0.3 的鍵會跨委任重用 C 級回應（也讓後寫入者的保留期限被忽略），並把同一切片的多次取樣（校準 ② 組、`single_best_resampled`）壓成同一個答案。取樣序號只在「刻意重複取樣」時遞增；重試與 resume 沿用同一個序號，所以仍命中快取。
 - **Sandbox 與 Executor job**：job ID 由輸入 hash 決定；結果已存在就不重跑。
 - `B4_s2_snapshot` 以 `run_id + job_id` 為冪等鍵：快照已存在就略過。
-- `B4_s0s1_exec`、`B4_s2_exec` 執行前檢查 `executed_jobs`，防止 resume 或重試時重跑；狀態為 `EXECUTING` 卻沒有結果的 job 一律標 `INTERRUPTED`，依 §5.6 的續跑規則處理。
+- `B4_s0s1_exec`、`B4_s2_exec` 執行前查 Z3 job 帳本（下一點；`executed_jobs` 只是快取），防止 resume 或重試時重跑；狀態為 `EXECUTING` 卻沒有結果的 job 一律標 `INTERRUPTED`，依 §5.6 的續跑規則處理。
 - **job 帳本在 checkpoint 之外**（v0.4）[H]：`executed_jobs` 只是快取；權威是 Z3 Executor 的 **job 帳本**（append-only，每筆 `{run_id, job_id, g5_gate_record_id, started_at, finished_at, outcome}`，由 z3_executor 金鑰簽署）。Executor 收到 job 時先查帳本：已有紀錄 → 拒絕執行並回傳原結果。理由：checkpoint 可以回溯（時間旅行重播、從較早的 checkpoint 分叉），回溯後 state 內的 `executed_jobs` 也會倒退；job_id 又是確定性的，可能對上原本的 G5 紀錄，於是 S2 job 會在沒有新 G5 的情況下重跑。
 - **每個 run 一把鎖**（v0.4）[H]：Run Controller、Gate Service 的 `submit`／`expire_due` 與 `run abort` 修改同一個 run 之前，先取得以 `run_id` 為鍵的 PostgreSQL advisory lock。LangGraph 的 OSS 版本沒有 thread 層級的互斥，同時寫入會讓 checkpoint 歷史分叉。
 - **kill switch 走圖外通道**（v0.4）[H]：`kill_switch` 在 state 中只是紀錄。觸發時 CLI 直接呼叫 `Executor.kill(run_id)` 與 Scope Proxy 的關閉介面（兩者都在 Z3，與圖的執行無關），再寫入 state；節點執行途中無法更新 state，所以不能靠圖內的欄位停止正在進行的 job。
@@ -1264,11 +1265,11 @@ erDiagram
 | CMD-1～CMD-5 | 每個節點 1＋修復 | 修復 ≤ 2；不合規時改用程式碼的保底計畫（§4），不再呼叫 |
 | W2 審查 | ≈ S × V × G | S＝切片數、V＝家族數、G＝每個切片要審的**面向組數**。13 個面向分成 3 組、每組 4～5 個，一次呼叫審一組（[02 W2](02-methodology.md#w2-多家族獨立審查)）；G ≤ 3 |
 | CMD-2 加派 | ≤ 2 輪 × 每輪加派數 | 加派的審查同樣以面向組為單位 |
-| W3 驗證 | ≈ K × M | K＝叢集數、M＝每個叢集的驗證者數 |
-| W4 測試 | ≈ R_w4 × N_b × 2 | R_w4＝CoverUp 迭代輪數（≤ 3）、N_b＝不變量批次數；生成＋Test Critic |
+| W3 驗證 | ≈ K × M | K＝叢集數、M＝每個叢集的驗證者數；校準前 M＝1（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)） |
+| W4 測試 | ≈ N_inv × R_w4 × 2 | N_inv＝不變量數、R_w4＝CoverUp 迭代輪數（≤ 3）；生成＋Test Critic（v0.5：與 08 §11.12 一致，以每條不變量計，不是批次） |
 | B1 建模 | ≈ 1 | 確定性骨幹上的 LLM 標籤 |
 | B2 威脅建模 | ≈ V_tm＋1 | V_tm 個家族各建模一次＋critic；merger 預設是確定性程式碼，不呼叫 LLM。部署另設 LLM merger（只提議合併，例如範例的 `tm_merger`）時再加 1，即 V_tm＋2（與 [02 B2](02-methodology.md#b2-威脅建模g3-強制簽核) 一致） |
-| B3 測試設計 | ≈ T × 2 ×（1＋修復） | T＝G3 核准的威脅數；Test Designer＋Test Implementer；修復 ≤ 2 |
+| B3 測試設計 | ≈ T ×（1＋修復） | T＝G3 核准的威脅數；Test Designer 每個威脅 1 次，修復 ≤ 2。另外登錄 `test_implementer` 時每個威脅再加 1 次（範例未登錄；v0.5：與 08 §11.12 一致） |
 | B5 結果解讀 | ≈ N_a | N_a＝需要 Result Analyst 的結果數；事先登記解讀的確定性 FAIL 不需要（§5.5） |
 | relay | ≤ Σ（每個 adaptive job 的輪數） | 每個 job ≤ `max_turns`（預設 10）；另有 relay 自己的花費上限（§7.5）。腳本式多輪不經 relay |
 | 報告 | ≈ 2–4 | W5、B6 的敘事 |
@@ -1286,11 +1287,11 @@ erDiagram
 | V | 3 |
 | G | 3 |
 | K | 100 |
-| M | 2 |
+| M | 1（校準前的預設） |
 | 每次審查 | 輸入約 30k tokens；輸出（含推理）約 3k tokens |
 | 每次驗證 | 輸入約 10k tokens；輸出（含推理）約 1.5k tokens |
 
-→ W2 共 360 次、約 10.8M 輸入與 1.1M 輸出 tokens；W3 共 200 次、約 2M 輸入與 0.3M 輸出 tokens。W2＋W3 約 **12.8M 輸入、1.4M 輸出 tokens**，另加 W0.5、CMD、W4 與報告（pilot 實測）。面向組從 v0.2 假設的 2 組變成 3 組，是 W2 增加的主因。
+→ W2 共 360 次、約 10.8M 輸入與 1.1M 輸出 tokens；W3 共 100 次、約 1M 輸入與 0.15M 輸出 tokens。W2＋W3 約 **11.8M 輸入、1.2M 輸出 tokens**（校準後 M＝2 時 W3 加倍，合計約 12.8M 輸入、1.4M 輸出），另加 W0.5、CMD、W4 與報告（pilot 實測）。面向組從 v0.2 假設的 2 組變成 3 組，是 W2 增加的主因。
 
 **預算**（Budget Tracker，[H]）：
 - 預算分三層：run 總額、W 階段、B 階段；每層有輸入 token、輸出 token、費用（USD）、運算時間（不含等待人工關卡）。
@@ -1354,7 +1355,7 @@ erDiagram
 | secrets 與資料 | `redaction_map_created`、`secret_detected`（只含位置與 hash）、`pii_detected` |
 | LLM | `llm_request`、`llm_response`、`llm_refused_policy`、`schema_repair`、`retry`、`missing_vote`、`fallback_used`、`relay_call` |
 | 規劃與政策 | `commander_plan`、`policy_decision`（allow／deny＋規則 ID）、`coverage_floor_applied` |
-| 關卡 | `gate_opened`、`gate_decision`、`gate_expired`、`gate_skipped` |
+| 關卡 | `gate_opened`、`gate_decision`、`gate_expired`、`gate_skipped`、`gate_load_warning`（v0.5：G2 未決比例超過 `gate_queues.g2_timeout_warn_ratio`，[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)） |
 | 預算 | `budget_threshold`、`budget_exhausted` |
 | 產物與裁決 | `artifact_stored`、`artifact_validation`、`verdict_changed` |
 | 執行 | `sandbox_job_start`、`sandbox_job_end`、`tool_invocation_start`、`tool_invocation_end`、`session_login`、`egress_blocked`、`third_party_contact`、`job_skipped` |
@@ -1439,7 +1440,7 @@ sequenceDiagram
   EX-->>RC: observed_build_id、whoami 結果（不符 → 該批 job SKIPPED）
   RC->>SN: 快照（冪等）
   SN->>SP: TCP 轉送（只限 db_access.endpoint）
-  RC->>EX: 執行（檢查 executed_jobs）
+  RC->>EX: 執行（Executor 查 job 帳本）
   EX->>SP: 請求
   SP->>SP: job 請求白名單、每主機預算、redirect 檢查、停止條件指標
   SP->>T: 轉送
@@ -1586,7 +1587,8 @@ class SessionHandle(BaseModel):
 class SessionProvider(Protocol):
     def materialize(self, run_id: str, role: str, form: str, job_id: str) -> SessionHandle: ...
     def refresh(self, handle: SessionHandle) -> SessionHandle: ...
-    def whoami(self, handle: SessionHandle) -> bool: ...     # 依 ROE 的 whoami 設定確認身分；每批一次（§7.4）
+    def whoami(self, run_id: str, role: str, batch_id: str) -> WhoamiResult: ...   # 依 ROE 的 whoami 設定確認身分；每批一次（§7.4）；
+    # v0.5（審查 2026-10-25 C-12）：簽名與 08 §4 一致，不丟例外，ok 為 false 時由 B4_preflight 轉成 SessionUnavailable
     def revoke_run(self, run_id: str) -> None: ...
 
 # --- Snapshot Service（Z3；M4）---

@@ -102,7 +102,7 @@
 | `reporter` | 確定性報告骨架＋Reporter agent 的敘事；JSON、SARIF（對應表見 §11.16）、靜態 HTML；敘事 linter（§11.17）；publisher（PR／issue 回饋，§11.16） | Z1 | M2（白箱）、M4（B6 JSON／SARIF、publisher）、M5（HTML） |
 | `calibration` | Calibration Lab：語料載入、對照組、M-1–M-11、θ 搜尋、§5.8 最小重跑 | Z1＋Z2 | M2 |
 | `selftest`（擴充） | 06 §1.2.1 的自測：ST-1–ST-7，產出 `selftest-report.json` | Z1＋Z2＋Z3 | M1 起逐步擴充 |
-| `pii`（擴充） | 具名 PII 偵測器的包裝（§11.17）；Z1 與 Z3 共用 | Z1、Z3 | M4 |
+| `pii`（擴充） | 具名 PII 偵測器的包裝（§11.17）；Z1、Z2（W0 個資掃描）與 Z3 共用 | Z1、Z2、Z3 | M2（MVP-0：W0 用的規則式偵測器）；M4（黑箱停止條件與發布前掃描） |
 | `cli` | `vibecheck` 指令（§4）；只做參數解析，再呼叫其他模組 | Z1、簽署人裝置 | M1 起 |
 
 **擴充說明**：D16 列出的 18 個模組都保留，名稱也不變。另外新增 `errors`、`config`、`store`、`sandbox`、`executor`、`selftest`，原因是 03 §15 的 `ContentStore`、`Blackboard`、`SandboxRunner`、`Executor`、`SessionProvider` 在 D16 的清單裡沒有對應的模組 [H]。v0.3 再新增 `toolresult`、`apispec`、`pii`（§11.2、§11.10、§11.17）。
@@ -116,14 +116,16 @@ L7  cli
 L6  graph, gates, reporter, calibration, selftest
 L5  nodes
 L4  agents, slicer, toolresult, cluster, aggregator, apispec
-L3  policy, gateway, sandbox, scope_proxy, executor, snapshot
+L3  policy, gateway, sandbox, scope_proxy, executor, snapshot, lgapi
 L2  adapters, pii
 L1  keys, config, store, audit
 L0  errors, models
 ```
 
+- `lgapi`（v0.5，審查 2026-10-25 C-3）：唯一 import `langgraph` 的模組，只重新匯出 `interrupt`、`Send`、`Command` 與 checkpointer 的型別。v0.4 讓 `nodes`（L5）從 `graph`（L6）匯入這三個名字，違反「上層 import 下層」的方向；現在 `nodes` 與 `graph` 都從 L3 的 `lgapi` 匯入。
+
 - `adapters` 放在 L2（`executor`、`sandbox` 之下），因為 Z2／Z3 的執行器要呼叫 adapter 的 `render()`／`parse()`；`adapters` 本身只 import L0–L1（`errors`、`models`、`config`、`keys`），不 import 任何 L3 以上的模組，所以規則 4 不需要例外 [H]。
-- `pii` 也放在 L2：Z1（報告與發布前的掃描）與 Z3（回應的 PII 停止條件）都要用它，它只 import L0–L1 [H]。
+- `pii` 也放在 L2：Z2（W0 的個資掃描，v0.5）、Z1（報告與發布前的掃描）與 Z3（回應的 PII 停止條件）都要用它，它只 import L0–L1 [H]。
 
 **強制規則**（`tests/arch/test_imports.py` 以標準函式庫 `ast` 掃描 import，違反就讓 CI 失敗）[H]：
 
@@ -138,7 +140,7 @@ L0  errors, models
    - Z3 映像不包含 Z1 的模組（§1.3），這一條由映像內容測試再檢查一次。
 5. **網路出站只允許**：`gateway` 連 LLM 端點；`executor` 經 `scope_proxy` 連目標；`sandbox` 只連 Z2 的鏡像（`mirror_only`）；`reporter` 的 publisher 只連設定的程式碼託管平台 API，而且只在委任設定開啟時（§11.16）。其他模組開 socket 一律視為違規。
 6. **`agents` 只依賴 `ModelGateway` 這個 Protocol**，不依賴 `gateway` 的實作。
-7. **只有 `graph` 可以 import `langgraph`**。`nodes` 內只使用 `graph` 重新匯出的 `interrupt`、`Send`、`Command`，方便以假物件測試。
+7. **只有 `lgapi` 可以 import `langgraph`**（v0.5；v0.4 是 `graph`）。`nodes` 與 `graph` 都只使用 `lgapi` 重新匯出的 `interrupt`、`Send`、`Command`，測試時可以換成假物件。
 8. `keys` 不依賴 `policy`；`policy` 使用 `keys`。
 
 ### 1.3 部署單位
@@ -149,7 +151,7 @@ L0  errors, models
 |---|---|---|---|
 | `vibecheck-z1` | 除 `scope_proxy`、`executor`、`snapshot` 以外的全部模組 | Z1 | 出站只允許 LLM 端點、Z4、Z3 的指令埠，以及（publisher 開啟時）程式碼託管平台 API。**不能連目標** |
 | `vibecheck-z3` | `errors`、`models`、`keys`、`config`、`adapters`（只含 Z3 模式）、`pii`、`scope_proxy`、`executor`、`snapshot` | Z3 | 不含 LLM 金鑰；出站只經 Scope Proxy；本地 CA 私鑰只在 Z3 的 secret store（§11.7） |
-| 工具映像（每個工具一個） | W0／W1／W4 工具，以及 M4 起的黑箱工具 | Z2 或 Z3 | digest 登錄在 `tools.yaml` 與 SBOM |
+| 工具映像（每個工具一個） | W0／W1／W4 工具（W0 的映像含 `pii` 的規則式偵測器，v0.5），以及 M4 起的黑箱工具 | Z2 或 Z3 | digest 登錄在 `tools.yaml` 與 SBOM |
 
 - 開發機可以用單一行程執行 Z1 與 Z3 的模組，方便除錯；但整合測試線與安全測試線一律使用分開的映像與網路（§8.4）。
 - **Z1 與 Z3 的通道** [H]：
@@ -300,7 +302,7 @@ class JobAllowlist(BaseModel):
     expires_at: str
     protocols: list[Literal["http1", "h2", "ws", "sse"]]  # M1 只有 ["http1"]；ws、sse 的限制見 §11.7
     job_token_id: str                  # per-job proxy 認證權杖的 ID；權杖本身只在 Z3（§11.7）
-    edge_ip_ranges: list[str]          # ROE 宣告的 CDN 邊緣 IP 範圍；預設為空（§11.7、§10 U-18）。ROE schema 尚無
+    edge_ip_ranges: list[str]          # 取自 ROE targets[].edge_ip_ranges（v0.4 起 ROE schema 已有，E-ROE-EDGE-RANGE）；省略時為空（§11.7）
                                        # 這個欄位（09 BL-15），補上之前一律為空
 
 class TargetMetrics(BaseModel):        # 60 秒滑動視窗（03 §7.3）
@@ -501,7 +503,7 @@ class ToolAdapter(ABC):
    - **行為**：例如 `Verdict.latest()`；
    - **跨欄位檢查**：以 Pydantic validator 實作，而且 validator 必須與 `tools/validate_schemas.py` 的檢查一一對應（在測試中列出對照）。
 5. **契約測試**（`tests/contract/`）：
-   - (a) `docs/schemas/examples/` 的每個範例，都要能「解析 → Pydantic → `model_dump(mode="json", exclude_none=False)` → 以 jsonschema 驗證 → JCS」，並且與原檔的 JCS **逐位元組相同**。
+   - (a) `docs/schemas/examples/` 的每個範例，都要能「解析 → Pydantic → `model_dump(mode="json", exclude_unset=True)` → 以 jsonschema 驗證 → JCS」，並且與原檔的 JCS **逐位元組相同**。v0.5（審查 2026-10-25 C-4）：v0.4 寫的 `exclude_none=False` 會替範例中省略的選填欄位補出 `null`（目前有 8 個範例省略選填欄位，例如叢集的 `canonical_location.endpoint`），`exclude_none=True` 又會刪掉範例中明寫的 `null`，兩者都做不到逐位元組相同；`exclude_unset=True` 只輸出原檔有的欄位，省略的與明寫 `null` 的都保留原樣。
    - (b) 以 Hypothesis 從 schema 產生隨機實例（Hypothesis 6.168.1，MPL-2.0 [V][E:orchestration-56][V][E:whitebox-47]），做同樣的往返檢查。
    - (c) 每個 schema 都要有至少一個應該被拒絕的反例。
 6. **送給 LLM 的 schema**：
@@ -844,7 +846,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 
 | 層級 | 目錄 | 內容 | CI 線（§8.4） |
 |---|---|---|---|
-| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/test_v02_hardening.py`、`tests/test_review_fixes.py`、`tests/test_v03_*.py`、`tests/test_doc_tools.py`、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R13 決定表與註記（`annotations`）；`test_v02_hardening.py`：v0.2 強化規則（推導 `diversity_degraded`／工具訊號、稽核錨點與尾端、保留期限、DB 範圍、佔位模型 ID、嚴格 JSON）；`test_review_fixes.py`：v0.2.1 的審查修正；`test_v03_adjudication.py`、`test_v03_datamodel.py`、`test_v03_scope.py`、`test_v03_gates.py`、`test_v03_manifest.py`、`test_v03_llm_schema.py`、`test_v03_robustness.py`：v0.3 的規則，每條都有正反案例；`test_doc_tools.py`：文件工具（兩個產生器、連結檢查、外部連結檢查） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
+| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/test_review_fixes.py`、`tests/test_doc_tools.py`，以及各輪審查的回歸測試 `tests/test_v0<版本>_*.py`（v0.2 起每一輪一組，例如 `test_v04_*.py`、`test_v05_round6_group*.py`；完整清單以目錄為準，不在這裡逐檔列舉）、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R13 決定表與註記（`annotations`）；`test_v02_hardening.py`：v0.2 強化規則（推導 `diversity_degraded`／工具訊號、稽核錨點與尾端、保留期限、DB 範圍、佔位模型 ID、嚴格 JSON）；`test_review_fixes.py`：v0.2.1 的審查修正；`test_v03_adjudication.py`、`test_v03_datamodel.py`、`test_v03_scope.py`、`test_v03_gates.py`、`test_v03_manifest.py`、`test_v03_llm_schema.py`、`test_v03_robustness.py`：v0.3 的規則，每條都有正反案例；`test_doc_tools.py`：文件工具（兩個產生器、連結檢查、外部連結檢查） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
 | 單元 | `tests/unit/` | 每個模組各自測試；外部相依以 Protocol 的假物件取代 | `fast` |
 | 性質 | `tests/property/` | Hypothesis：JCS 的穩定性、嚴格 YAML、稽核竄改偵測、Clusterer 與順序無關、Aggregator 的規則性質（例如 Lane A 的結果永遠不會是 `CONFIRMED_*`；R1 一定勝過投票） | `fast` |
 | 契約 | `tests/contract/` | schema 往返（§3）、adapter 註冊（§2.3）、`vchlib` 與 `vibecheck` 同一組測試向量的結果相同、RFC 8785 附錄的測試向量 | `fast` |
@@ -865,7 +867,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 每一項都是 `tests/security/test_n<NN>_*.py`，而且要**斷言**稽核事件與結束碼。第三欄對應 [07](07-roadmap.md) 的出口準則（[§4](07-roadmap.md#4-各里程碑) 的 M 準則與分段 MVP 的 `MVPn-Xk`）。
 
 - N-32 起是 v0.3 新增的項目（§11），[07 的 M1-X2](07-roadmap.md#m1-基礎與安全控制) 的範圍是 N-01–N-43。它們在 M1 先測 validator 與 `PolicyEngine` 的判定（斷言錯誤碼與 CLI 結束碼）；需要 Z3 執行期的部分（例如 build 不一致時不執行），在該功能的里程碑另有整合測試（§8.5）。
-- 預期結果欄的錯誤碼是參考 validator（`tools/vchlib/checks.py`）實際報出的碼；括號中的測試名稱是 `tests/test_v03_*.py` 中對應的回歸測試，`tests/security/` 的測試以它們為藍本。
+- 預期結果欄的錯誤碼是參考 validator（`tools/vchlib/checks.py`）實際報出的碼；括號中的測試名稱是 `tests/test_v0*_*.py` 中對應的回歸測試，`tests/security/` 的測試以它們為藍本。
 
 | # | 輸入 | 預期結果 | 07 準則 |
 |---|---|---|---|
@@ -1717,7 +1719,7 @@ class SessionProvider(Protocol):
 | W5 | DFD 標籤＋報告敘事 | — |
 | B1 | System Modeler 的標籤 | — |
 | B2 | V_tm＋1（每個家族建模 1 次，加上 critic；merger 預設是確定性程式碼）；另設 LLM merger 時 V_tm＋2 | L-03；與 [02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)、[03 §11](03-system-architecture.md#11-成本與延遲模型) 相同 |
-| B3 | 每個已接受的威脅 1 次，修復 ≤2 次 | — |
+| B3 | 每個已接受的威脅 1 次，修復 ≤2 次 | 另外登錄 `test_implementer` 時每個威脅再加 1 次（03 §11） |
 | B5 | 每個需要解讀的結果 1 次 | 事先登記的確定性 FAIL 不需要（05 §4.2） |
 | B6 | 報告敘事，linter 修復 ≤2 次（§11.17） | — |
 | relay | 回合數 × job 數 | 只有 adaptive 模式（§11.15）；上限見 ROE |
@@ -2019,7 +2021,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 
 #### 具名的 PII 偵測器
 
-- **用在**：黑箱回應的 PII 停止條件（[03 §7.3](03-system-architecture.md#73-限速與停止條件)）、relay 與 scripted 多輪的目標回應、fix brief 與 PR 發布前的掃描、報告輸出前的掃描。
+- **用在**：W0 的個資掃描（v0.5，審查 2026-10-25 C-10：[02 W0](02-methodology.md#w0-盤點與-secrets-遮罩確定性無-llm) 第 2a 步要求，v0.4 的本節與里程碑都沒有列入；命中的值與 secrets 一樣進遮罩對照表，只存位置與 HMAC）、黑箱回應的 PII 停止條件（[03 §7.3](03-system-architecture.md#73-限速與停止條件)）、relay 與 scripted 多輪的目標回應、fix brief 與 PR 發布前的掃描、報告輸出前的掃描。
 - **候選**：Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]）。它依賴的語言模型等套件另有授權，採用前要逐一登錄（未查證）。**尚未選定**（§10 U-16）。
 - **未決定前的預設** [H]：工具包自己的規則式偵測器，涵蓋 email、電話號碼、信用卡號（加 Luhn 檢查）、常見的身分證號格式（加檢查碼）。「高信心命中」＝樣式符合，而且檢查碼正確。
 - 偵測器在 Z1 與 Z3 都要能用，所以放在 `pii` 模組（L2，不依賴 Z1 的模組；§1.2）。偵測器本身不連網。
@@ -2029,4 +2031,4 @@ W4 需要安裝相依並建置受測程式 [H]：
 - report-manifest 的 `metrics` 由 validator 以本 run 的測試結果重算：`results_total`、`results_invalid`、`control_pass_rate`（PASS 的對照結果數 ÷ 全部對照結果數，四捨五入到小數 4 位；沒有對照時為 null）（`E-REPORT-METRICS`）。範例報告是 4 個結果、0 個 `INVALID`、`control_pass_rate` 1.0。
 - 報告另外列出：存取矩陣中有測試的格子比例、inventory 端點中有切片的比例、有測試的端點比例。這三個指標不在 report-manifest 的 `metrics` 中，只寫在報告正文（schema 尚未涵蓋，見 [09 BL-20](09-backlog.md)）。
 
-**里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；PII 偵測器與 fix brief 的掃描 → M4（MVP-2）。
+**里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。

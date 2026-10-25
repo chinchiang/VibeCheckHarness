@@ -51,6 +51,16 @@
 - LLM02／08／09、ASI06 的 oracle 另比對種子紀錄的結構化欄位值；04 補上帳號復原、Supabase Auth 設定、API10 三列，並寫明 Lite 沒有黑箱注入測試。
 - 新增 `tests/test_v05_round6_group4.py`。
 
+### 一致性（第 5 組）
+- run.schema 的 `skip_reason`、`gaps[].kind` 補齊文件要求的值；audit-event enum 加入 `gate_load_warning`。
+- Z2 單一 job 輸出上限統一為 200 MiB；Hypothesis／fast-check 的授權用途改為 `w4_test`；crosswalk 補 T-031 用到的 CWE-862 與 ASI 對照（engagement 重新釘選、重簽）。
+- 03 的 W3 補上驗證者節點 `W3_verify`；08 的分層以 L3 `lgapi` 解開 `nodes`／`graph` 的循環；契約往返改用 `exclude_unset=True`。
+- G0b 與 `legal_review` 移到 MVP-1；M2-X9、M2-X13 加上 U-10 前的部分驗收；W0 的規則式 PII 偵測器提前到 M2（MVP-0）。
+- `whoami` 簽名、ROE `edge_ip_ranges`、`executed_jobs`（job 帳本才是權威）、成本模型（B3、W4、W3 的 M）在 03 與 08 之間對齊。
+- 架構圖：雲端 LLM 與 Z4 的資料等級、W1 方塊不含 secrets、補上 Calibration Lab。
+- 其他：MVP0-X7 補 psycopg 與 G-11、promptfoo 的條件、00 的三個範例、共享平台清單（21 個）、範例 B 的請求數、08 的測試清單。
+- 新增 `tests/test_v05_round6_group5.py`。
+
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
 - 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。
@@ -70,7 +80,7 @@
 
 ## v0.4（2026-10-24）
 
-依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一到第三優先項目：修正裁決規則的邊界與 validator 的繞過；把跨境聲明移到 G0a、補上事故應變、釘選設定檔、修正信任錨與 Scope Proxy；在 MVP-1 前加入核心假設的前導實驗、降低人工關卡負擔、修正對照表與範例。其餘審查項目與理由見該紀錄 §5。
+依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一到第三優先項目，以及寫入範圍的其餘項目與第五輪（見下方各節）：修正裁決規則的邊界與 validator 的繞過；把跨境聲明移到 G0a、補上事故應變、釘選設定檔、修正信任錨與 Scope Proxy；在 MVP-1 前加入核心假設的前導實驗、降低人工關卡負擔、修正對照表與範例。其餘審查項目與理由見該紀錄 §5。
 
 ### 裁決規則（語意改變，`rule_version` 改為 `05-v0.4`）
 - **R0** 只在叢集沒有任何其他證據時成立：除了成員證據全部 `NOT_FOUND`，還要沒有已解析的 SARIF、沒有 `E_proof`／`E_fail_u`。（A1）
