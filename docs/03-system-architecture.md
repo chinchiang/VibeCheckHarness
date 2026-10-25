@@ -457,7 +457,7 @@ class RunState(BaseModel):
     config_refs: ConfigRefs
     prompt_templates: list[PromptTemplateRef] = []
     tool_versions: list[ToolVersion] = []
-    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.3"
+    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.4"
     baseline_run_id: str | None = None  # 比對叢集 fingerprint 的基準 run（baseline_state，§6.3）
     # --- W 階段 ---
     inventory_ref: ArtifactRef | None = None
@@ -522,7 +522,7 @@ class RunState(BaseModel):
 平行節點的更新以 reducer 合併：`new = reducer(current, update)`；列表用 `operator.add` 串接，不會覆蓋 [V][S-03]。
 
 - run manifest 的欄位（`config_refs`、`prompt_templates`、`tool_versions`、`rule_version`、`baseline_run_id`）在 `run_init` 寫入後不再改變；同一 run 中途換設定檔或 prompt 範本必須開新的 run [H]。
-- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.3`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
+- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.4`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
 
 ### 5.2 主狀態圖
 
@@ -583,8 +583,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> W0_inventory
-  W0_inventory --> W05_draft_invariants: 需要新規格
-  W0_inventory --> W1_static: 沿用已簽核不變量
+  W0_inventory --> W05_draft_invariants: 新擬或載入上一版規格（v0.5：仍須本 run G1）
   W05_draft_invariants --> claim_run: 自動觸發且未認領
   claim_run --> G1_gate: 已認領
   W05_draft_invariants --> G1_gate: 已有發起者
@@ -624,7 +623,7 @@ stateDiagram-v2
 - G2 GateRecord 的整關 `outcome` 只有 `APPROVED` 或 `EXPIRED`；逐項的 reject／needs_info 記在 `decisions[]`，不接受整關 `REJECTED`／`NEEDS_INFO`（validator 檢查）[H]。
 - G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`，以及 rubric 嚴重度（v0.4，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）為 `critical`／`high` 的 `UNCORROBORATED`；上限、排序與逾時比例告警（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
 - `W4_exec` 在 Z2（無網路）；`W4_testgen` 與 `W4_exec` 只透過 Blackboard／CAS 交換產物。
-- 自動觸發（`schedule`、`merge`）的 run：在沒有人認領之前，只能執行到 W3；`claim_run` 是 interrupt，認領寫入 `initiators` 與稽核事件 `initiator_claim`。
+- 自動觸發（`schedule`、`merge`）的 run：在 G1 前停在 `claim_run`（interrupt），認領寫入 `initiators` 與稽核事件 `initiator_claim`。v0.5 移除「沿用已簽核不變量」直接進 W1 的邊，所以沒有人認領之前只會跑 W0 與 W0.5 的草稿。
 
 ### 5.4 B 子圖（G0b 到 G4）
 
@@ -795,6 +794,9 @@ stateDiagram-v2
 - **每個 run 一把鎖**（v0.4）[H]：Run Controller、Gate Service 的 `submit`／`expire_due` 與 `run abort` 修改同一個 run 之前，先取得以 `run_id` 為鍵的 PostgreSQL advisory lock。LangGraph 的 OSS 版本沒有 thread 層級的互斥，同時寫入會讓 checkpoint 歷史分叉。
 - **kill switch 走圖外通道**（v0.4）[H]：`kill_switch` 在 state 中只是紀錄。觸發時 CLI 直接呼叫 `Executor.kill(run_id)` 與 Scope Proxy 的關閉介面（兩者都在 Z3，與圖的執行無關），再寫入 state；節點執行途中無法更新 state，所以不能靠圖內的欄位停止正在進行的 job。
 - **durability**（v0.4）[H]：有外部副作用的節點（`B4_*`、`B0_ownership_verify`、Gate Service 寫入）使用同步 checkpoint；非同步模式在當機時可能遺失最後一個 checkpoint，讓已完成的副作用在 resume 時重做。
+- **job 的原子領取、租約與 fencing**（v0.5）[H]：Z3 job 帳本（上面）是派送的權威。領取 job 以資料庫交易＋唯一 job 鍵＋條件更新完成，產生持有者、以資料庫時間計算的租約期限，與**單調遞增的 fencing token**；同時搶領只有一方成功。worker 續租、寫結果、每次發出新的副作用都帶 token；Scope Proxy、Sandbox 派送端與 Model Gateway 在**出口**檢查 token 與租約（只靠 worker 自我檢查不夠）。權威不可達、租約過期、kill switch 或 token 過舊時拒絕新請求，舊 worker 的遲到結果不能覆寫新狀態。fencing 擋得住新請求，擋不住已經送出的請求：開始衝突操作前，要先核對前次在途請求的效果。
+- **結果不明**（v0.5）[H]：派送前先持久化意圖、操作 ID 與預算保留，完成後記錄回應與費用。已送出但沒有持久化結果（包括服務成功後 worker 當機）一律是「結果不明」，沿用 `INTERRUPTED` 的安全方向：**不自動重送**寫入、種子建立與沒有冪等保證的外部操作；先以操作 ID、唯讀核對或供應商狀態查詢釐清，釐清不了就交人工，費用標為不確定。只有證明未執行、且重新通過授權時才重新派送；S2 另要完成還原核對與新的 G5（重新核准本身不證明前次沒有副作用）。上面的 LLM 快取只避免「已成功持久化」的重複呼叫，不保證當機窗口內不重複計費。
+- **還原範圍的排他權**（v0.5）[H]：命名空間只區分資料，整庫快照還原會一起還原同一資料庫上的所有寫入。凡是 `snapshot_restore`（S2 還原、`reset.method: snapshot_restore`、還原演練）都要先取得**該資料庫（或叢集）層級**的排他租約：以實際被快照的資源為鍵（不同 ROE 目標別名指向同一資源時共用一把鎖），從快照前持有到還原與驗證完成，跨 job、跨 run 都互斥；只鎖 job ID 或 run ID 不夠。排他範圍包含測試寫入、種子重置、背景工作與外部使用者的寫入；任何一個停不下來或隔離不了，就**禁止整庫還原**，改用獨立的拋棄式目標或不跑該工作流。失去租約時停止新副作用與還原，先核對資料狀態，再由重新取得排他權的復原流程處理；舊 worker 不能執行遲到的還原。優先做法是每個 run 一個獨立資料庫。
 - `B4_s2_restore` 是**補償步驟**：中止、失敗、kill switch 觸發時由 `abort_handler` 也會執行，由 checkpoint 中的 `jobs` 狀態驅動。
 - 每個 `CMD*` 節點的輸出都要先經 Policy Engine 驗證，才寫入 state。
 - **稽核事件**在節點重新執行時可能重複寫入；每個事件帶 `idempotency_key`（run_id＋節點＋冪等鍵），讀取時去重 [H]。
@@ -903,16 +905,16 @@ stateDiagram-v2
 
 **逐項核准與沿用** [H]：
 - GateRecord 的每個逐項決定都帶 `item_sha256`，也就是該項目內容的 approval hash（G1 是一條不變量、G2 是一個叢集的呈現內容、G3 是一個威脅、G4／G5 是一個測試案例連同它的產物；G0a／G0b 是被驗章文件的 hash；GB 為 null）。approval hash 不含審查狀態、簽核與簽章欄位；validator 對每個逐項決定重算這個值（`E-DERIVED`）。核准只對 hash 相同的內容有效。
-- **同一 run 內重擬**（G1、G3、G4 的下一輪）：hash 沒變的項目沿用上一輪的決定；只有新增或改變的項目要重新決定。
+- **同一 run 內重擬**（G1、G3、G4 的下一輪）：下一輪是一份新的完整 GateRecord，由合格核准者逐項決定並簽署整份；hash 沒變的項目可以在畫面上預先帶入上一輪的決定，但仍由本輪簽署。
 - **跨 run**（`followup`、`regression`）：
   - 叢集有穩定的 `fingerprint`＝sha256(JCS({cwe_bucket, file, symbol}))，不含行號；黑箱起源的叢集改用目標、方法與路徑樣板。
   - 對 run 的 `baseline_run_id` 計算每個叢集的 `baseline_state`：`new`、`unchanged`、`updated` 或 `absent`，四個值對應 SARIF 2.1.0 的 `baselineState` [V][E:whitebox-56]。`absent` 只出現在報告的 `absent_fingerprints[]`；之前 `absent`、這次又出現的叢集加註 `reopened`（只是資訊）。
-  - G1：不變量沒有變動時整份沿用（§5.3 的「沿用已簽核不變量」邊）；有變動時只重審變動的條目。
-  - G3：只有 `unchanged` 叢集對應的威脅，以及 hash 相同的威脅，可以沿用前一個 run 的決定；`new`、`updated` 一律重審（[02 §1.6](02-methodology.md#16-執行種類與後續執行) 的「G3 只簽新增或變更的威脅」）。
-  - G0a、G0b、G2、G4、GB 每個 run 重新決定（G4 見 02 §1.6：每次 run 都要）。
+  - **v0.5 起所有關卡都由本 run 重新決定**：內容可以重用，授權不能重用。v0.4 以前「G1 不變量沒變就整份沿用、G3 的 `unchanged` 威脅沿用前一個 run 的決定」已停用，因為 validator 無法驗證來源（見下方「實作現況」）。
+  - 重新啟用 G1／G3 沿用的條件（[09 BL-21](09-backlog.md)）：逐項記錄來源 run、GateRecord、項目與 hash；重新驗證來源簽章、現行撤銷狀態、核准者資格、委任範圍與效期；G3 另要求同一份仍有效的 ROE（G1 不要求尚未進入的黑箱 ROE）。任一項缺漏或改變都要重新核准，不能只憑 `unchanged` 判斷。
+  - G0a、G0b、G2、G4、GB 永遠每個 run 重新決定。
 - **G5 永不沿用**：每個 S2 job 的每次執行都要新的 G5 核准；resume、重試與跨 run 都一樣（§5.6）。
-- 沿用只省下「重審內容」，不省下簽章：沿用的項目仍逐項列在新的 GateRecord 中並指出來源紀錄，由該關卡的合格核准者簽署整份紀錄。
-- **實作現況**：上述沿用規則（同一 run 的重擬與跨 run 的 G1／G3 沿用）目前是**設計規則，validator 尚未檢查**。`gate-record.schema.json` 的逐項決定只有 `item_id`、`item_sha256`、`decision`、`risk_override`、`note`，沒有記錄沿用來源的欄位；validator 只重算每一項的 `item_sha256`，不比對前一輪或前一個 run 的紀錄（見 [09 待辦清單](09-backlog.md)）。
+- 未來重新啟用後，沿用也只省下「重審內容」，不省下簽章：沿用的項目仍逐項列在新的 GateRecord 中並指出來源紀錄，由該關卡的合格核准者簽署整份紀錄。
+- **實作現況**：跨 run 的 G1／G3 沿用在 v0.5 停用，原因就是下面這點：沿用目前是**設計規則，validator 尚未檢查**。`gate-record.schema.json` 的逐項決定只有 `item_id`、`item_sha256`、`decision`、`risk_override`、`note`，沒有記錄沿用來源的欄位；validator 只重算每一項的 `item_sha256`，不比對前一輪或前一個 run 的紀錄（見 [09 待辦清單](09-backlog.md)）。
 
 ### 6.4 保證等級對簽署的影響
 
@@ -946,7 +948,7 @@ stateDiagram-v2
 - **無法分類時**（規則見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)）：`adapter` 不在 `tools.yaml` 或格式錯誤 → S3（拒絕）；已登錄但 `base_class` 為 null 的模式 → 至少 S2。
 - **寫入範圍規則**（v0.3，[H]）：S1 的「只碰種子資料」由程式碼強制，不只限 DELETE。每個 POST／PUT／PATCH／DELETE 請求（以及 GraphQL mutation）必須符合下列其中一項，否則 → S3（`E-TC-MUTATION-SCOPE`）：
   - (a) 只以 `{seed:<key>}` 指向既有物件，而且該種子屬於這個路徑的資源：seed manifest 中該種子的 `path_templates[]` 必須有一個與請求路徑同形的樣板（例如 `tenant_b_invoice` 只宣告 `/api/invoices/{id}`，所以 `/api/users/{seed:tenant_b_invoice}` → S3）。這條對所有請求都檢查，不只寫入；
-  - (b) 是 seed manifest `create_only_endpoints[]`（`{target_id, method, path_template}`）列出的建立請求，在本 run 的命名空間中建立新物件；該請求在 allow-list 中帶 `step_id`，同一 allow-list 中之後、同一目標的請求才能以 `{created:<step_id>}` 指向它建立的物件。
+  - (b) 是 seed manifest `create_only_endpoints[]`（`{target_id, method, path_template}`）列出的建立請求，在本 run 的命名空間中建立新物件；該請求在 allow-list 中帶 `step_id`，同一 allow-list 中之後、同一目標的請求才能以 `{created:<step_id>}` 指向它建立的物件。v0.5：建立端點必須宣告 `created_resource`（`type`、回應中 ID 的 `id_pointer`、之後可用的 `path_templates`）；`{created:<step_id>}` 只能用在其中一條路徑，路徑上其他變數段綁定那次建立請求的值，所以建立的 ID 不能搬到別的資源（例如 `/api/users/{created:open_session}` → S3）。
   - GraphQL 請求以 allow-list 項目的 `graphql_operation`（`query`／`mutation`／`introspection`／null）標示；`query` 與 `introspection` 不算寫入（不需綁種子），但以 POST 送出仍至少是 S1；`mutation` 一律算寫入。
   - Schemathesis 的 `use_after_free` 檢查會在成功的 DELETE 之後預期 404，而且只在 stateful 階段觸發，單次 `call_and_validate()` 不會觸發 [V][E:blackbox-66]。stateful 階段 DELETE 的目標可能取自其他回應或由工具產生，不限於工具自己建立的物件，也無法確認能限制在種子上 [H]；所以執行這個 check → S3，「刪除後不可存取」改以綁種子的 GENERATED_SCRIPT 驗證（[04 §4.2](04-threat-to-testcase.md#42-adapter-與-oracle-語意)）。
 - **排除清單的比對**（v0.3，[H]）：
@@ -1055,6 +1057,7 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 | 種子資料 | seed manifest（`seed-manifest.schema.json`）的 `seeds.<key>` 列出每個種子物件的 `id`、`table`、`owner_role` 與所屬資源的路徑樣板 `path_templates[]`，`reset` 記錄重置方式，`create_only_endpoints[]` 列出可建立新物件的端點（§7.1 寫入範圍規則）；有狀態改變的 S1 job 結束後、S2 還原後都依 manifest 重置。**生命週期**（v0.3，細節見 [08 §11.6](08-implementation-spec.md#116-種子資料生命週期)）：每個 run 有自己的命名空間前綴（`namespace`，例如 `vc-{run_id}-`）；建立種子本身是一個冪等的 S1 job（`seeding: {job_kind: S1_seed, idempotent: true}`），同樣經 Scope Proxy 執行、受 S1 的規則約束；LLM 機率型測試可設 `reseed_per_trial`，每次試驗前重建；run 結束時依 `teardown.method`（`delete_namespace`／`restore_snapshot`／`manual`）清除。範例 manifest 是 `vc-{run_id}-`、`restore_snapshot`、`reseed_per_trial: true`；這些生命週期欄位只由 schema 檢查形狀，`create_only_endpoints[]` 的目標必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。**重置失敗**：之後所有使用同一份 seed manifest 的 job 標 `SKIPPED`（`skip_reason: seed_reset_failed`），寫稽核事件 `seed_reset_failed`，列入 B6 未能測試清單；其他 job 繼續 [H] |
 | 還原演練 | 「快照 → 修改一筆種子資料 → 還原 → 驗證 checksum」，結果寫成 `restore_drill` 稽核事件並存 `restore_drill_ref`。**每個 S2 job 開始前**，必須有一筆成功的 `restore_drill` 事件，且距今不超過 `toolkit.restore_drill_interval_days`（預設 7 天）；沒有就由 `B4_preflight` 先做一次演練。演練失敗 → 該 run 的所有 S2 job 略過 |
 | ROE 排除清單 | DB 目標的主機 ＝ `endpoint` 的 host 部分；`endpoint` 的格式必須是 `host:port` 或 `[IPv6]:port`，無法解析 → `E-ROE-DB-SCOPE`。比對前主機先正規化（去掉結尾的 `.`、大小寫摺疊、IDNA 轉換），正規化後不能在 `exclusions.hosts`（同樣正規化）中（精確比對，或符合 `*.` 前置萬用字元樣板，§7.1）；`db_access.endpoint` 的主機必須是某個 ROE DB 目標的主機，也不能被排除；違反 → validator 拒絕該 ROE（`E-ROE-DB-SCOPE`）。04 §5 的安全等級演算法第 4 步也對 DB 目標套用主機排除（→ S3）[H] |
+| 還原的排他權（v0.5） | 整庫還原前取得資料庫層級的排他租約，並確認背景工作與外部寫入已停止；做不到就不還原（§5.8）。這也是 v0.4 把整庫還原限制在 S2、種子改用命名空間刪除的原因 |
 | `snapshot_method: none` | 不能執行 S2；需要 DB oracle 的測試改用只看 API 回應的 oracle，或標 `MANUAL` |
 
 **做不到**：快照只能還原 DB；已經送出的 email、webhook、第三方呼叫無法撤回，所以 ROE 必須讓外部整合處於 sandbox 模式（[02 B0](02-methodology.md#b0-roe-與範圍g0b機器可驗證)）。
@@ -1216,7 +1219,7 @@ erDiagram
 | `inventory.schema.json` | W0 盤點。v0.3：`frameworks[]`（含支援程度）、endpoint 的 `kind`／`auth_required`／`middleware_refs`、`db`（表、RLS、policy、函式、storage）、`auth`、`env_vars[]`（只有名稱與公開前綴旗標）、`blind_spots[]`、`features[]` |
 | `finding.schema.json` | reviewer 發現項（含 Evidence）。v0.3：evidence 分三種 `kind`（`code_snippet`、`inventory_fact`、`config_fact`），各用 `file`／`line_start`／`line_end`／`snippet`、`fact_ref`（W0 inventory 的 JSON Pointer）或 `file`＋`key_path`，後兩種以 `asserted` 寫主張的值，用不到的欄位為 null；`match` 為 `MATCHED`／`MATCHED_SHIFTED`／`NOT_FOUND`／`NOT_CHECKED`（對遮罩後文字做容錯比對）；13 個面向（v0.4 新增 `cicd_iac`） |
 | `cluster.schema.json` | 叢集鍵、成員、家族。v0.3：`origin`（`white_box`／`black_box`）與 `threat_id`（只有黑箱起源叢集有值）、`canonical_location.endpoint`（`{target_id, method, path_template}`，黑箱起源叢集的位置）、`fingerprint`、`baseline_state`（`new`／`unchanged`／`updated`／`absent`／null）、`reopened` |
-| `verdict.schema.json` | 驗證票與裁決狀態。v0.3：`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為 `05-v0.3` |
+| `verdict.schema.json` | 驗證票與裁決狀態。v0.3：`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為 `05-v0.3`（v0.4 起 `05-v0.4`） |
 | `threat.schema.json` | 威脅（含分類版本、證據、簽核狀態、種子來源、attack tree 參照） |
 | `requirement.schema.json` | 需求（ASVS／AISVS／G1 不變量）與 crosswalk 連結來源 |
 | `testcase.schema.json` | 測試案例（tool_binding、oracle、安全等級、機率規則）。v0.3：`oracle.types`（陣列，含 `LLM_GRADER`）、`controls[]`（至少一個 `reachability`）、`script_turns[]` |

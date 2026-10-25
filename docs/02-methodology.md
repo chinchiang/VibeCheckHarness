@@ -211,9 +211,8 @@ flowchart TD
 各關卡的逾時預設值見 [03 §6](03-system-architecture.md#6-人工關卡服務)。
 
 ### 1.5 自動觸發與發起者
-- 排程或合併到主幹觸發的 Lane B run，只能自動執行 **W0–W3**：沒有網路出站（Z2 只到鏡像）、不執行受測程式（W4 執行屬於「執行」）。紀錄上的發起者是委任設定指定的人類 **`run_owner`** [H]。
+- 排程或合併到主幹觸發的 Lane B run，只能自動執行 **W0 與 W0.5 的草稿**：沒有網路出站（Z2 只到鏡像）、不執行受測程式。v0.5 起 G1 在 W1 之前一律由本 run 核准（跨 run 沿用停用，§1.6），所以自動觸發的 run 在 G1 前停在 `claim_run`；v0.4 以前「沿用上一版規格時可自動跑到 W3」的路徑已移除。紀錄上的發起者是委任設定指定的人類 **`run_owner`** [H]。
 - 在做任何 **G1 決定**、進入 **W4** 或任何 **B 階段節點**之前，必須有一位人類以 `vibecheck run claim` **認領**該 run（稽核事件 `initiator_claim`，附簽章）。狀態機中是 `claim_run` 節點（interrupt）。
-- 若 G1 可沿用上一版已簽核規格（[§1.6](#16-執行種類與後續執行)），自動觸發的 run 可以一路跑到 W3 後才停在 `claim_run`。
 - 認領者成為發起者；**G5 核准者 ≠ 發起者**，G4 核准者也計入發起者集合。
 
 ### 1.6 執行種類與後續執行
@@ -221,17 +220,16 @@ flowchart TD
 | `run_kind` | 用途 | 從哪裡開始 | 關卡重簽規則 |
 |---|---|---|---|
 | `initial` | 第一次完整評估 | W0 | 全部 |
-| `followup` | B2 衍生的新需求回寫、CMD-5 追加的測試 | W0（新 commit 時重算）→ W0.5 帶入「威脅衍生需求」草稿 | G1 只在不變量有變時重簽；G3、G4 只審新增或變更的項目（逐項 hash，見 [W5](#w5-白箱報告dfd種子威脅)）；G5 每個 S2 job 都要 |
-| `regression` | 修正後重跑已確認問題的白箱回歸測試與對應黑箱測試 | W0 → W1 → W4（只跑回歸集）→ B 階段只跑對應測試案例 | 同上；通常沿用 G1 與 G3 |
+| `followup` | B2 衍生的新需求回寫、CMD-5 追加的測試 | W0（新 commit 時重算）→ W0.5 帶入「威脅衍生需求」草稿 | v0.5：G1、G3 由本 run 重新核准（跨 run 沿用停用，見下）；G4 每個 run、G5 每個 S2 job 都重新核准 |
+| `regression` | 修正後重跑已確認問題的白箱回歸測試與對應黑箱測試 | W0 → W0.5／認領與 G1 → W1 → W4（只跑回歸集）→ B 階段只跑對應測試案例 | 同上 |
 | `lane_a` | 每個 PR 的同步檢查 | W0 → W1 →（可選）單一家族 diff 審查 → 結束 | 只需 G0a；不進 B 階段 |
 
 - 每個 run 有 `parent_run_id`（`initial` 可為空）與 `reuse` 清單：以 content hash 引用上一個 run 的產物。只有當產物的**所有輸入 hash**（repo commit 或切片 `slice_id`、設定、模型 ID 與版本）都相同時才能沿用，否則重算 [H]。
 - `followup`／`regression` run 另以 `baseline_run_id` 指定比較基準（通常就是 `parent_run_id`；`initial` 為 `null`）。W5 用它計算每個叢集的 `baseline_state`。
-- **逐項沿用核准** [H]：
-  - 新 run 仍有自己的 G3／G4 GateRecord；一個 run 只能列出自己的關卡紀錄。
-  - 某個項目的 `item_sha256` 與基準 run 已核准的項目相同，而且 ROE 是同一份、仍在有效期間內時，標為「沿用」；審查者只需對新增或變更的項目做決定。
-  - **G5 永遠不沿用**。
-  - **紀錄方式**：沿用的項目仍逐項列在新 run 的 GateRecord `decisions[]`（`item_id`、`item_sha256`、`decision`），由該關卡的合格核准者簽署整份紀錄；validator 從項目內容重算每一項的 `item_sha256`。`decisions[]` 目前**沒有**標示「沿用」或指回基準 run 紀錄的欄位，validator 也不比對跨 run 的沿用。run 層級只有 `reuse[]` 列出沿用產物的 hash（範例 `followup` run 沿用上一個 run 的不變量與威脅模型）。
+- **跨 run 沿用核准：v0.5 起停用** [H]：
+  - 內容可以重用（`reuse[]` 以 content hash 引用上一個 run 的不變量、威脅模型），**授權不能重用**：G1、G3 由本 run 的合格核准者重新核准，G4 每個 run、G5 每個 S2 job 都重新核准。一個 run 只能列出自己的關卡紀錄。
+  - 理由：`decisions[]` 沒有指回來源紀錄的欄位，validator 也不比對跨 run 的沿用，所以「hash 相同就沿用」無法被驗證；來源紀錄的金鑰可能已撤銷、核准者可能已失去資格、委任或 ROE 可能已換版。
+  - 重新啟用的條件（[09 BL-21](09-backlog.md)）：逐項記錄來源 run、GateRecord、項目與 hash；重新驗證來源簽章、現行撤銷狀態、核准者資格、委任範圍與效期；G3 另要求同一份仍有效的 ROE。任一項缺漏或改變都要重新核准，不能只憑 `baseline_state: unchanged` 判斷。沿用只省下重審內容，不省下簽章。
 - **G0a／G0b 簽章每次 run 開始（與每次 resume）都重新驗證**，不能沿用。
 - 回饋不在同一張圖內迴圈：CMD-5 只**建立**後續 run 的草稿（`followup` 或 `regression`），由人啟動或認領。
 
@@ -546,9 +544,9 @@ flowchart TD
     - `updated`：指紋相同，但證據改變。
     - `absent`：基準中有、本次沒有；只出現在報告清單的 `absent_fingerprints[]`。「本次沒有再出現」不等於「已修正」。
     - 沒有基準 run 時為 `null`。本次為 `new`、但更早的 run 曾是 `absent` 的叢集，另標 `reopened`（只供參考）。
-  - **只重審變更的項目**：
+  - **逐項核准**：
     - GateRecord 的逐項決定都綁定該項目的 `item_sha256`；核准綁的是逐項 hash，不是整份檔案。
-    - 下一個 run 中，hash 沒變的 G1 條目、G3 威脅、G4 測試案例可以沿用上次的決定（條件見 [§1.6](#16-執行種類與後續執行)）；新增或變更的才要重新核准。
+    - v0.5 起下一個 run 的 G1、G3、G4 都由本 run 重新核准（跨 run 沿用停用，[§1.6](#16-執行種類與後續執行)）；`baseline_state` 只幫審查者標出哪些項目沒變，不代表已核准。
     - **G5 永遠不沿用**：每個 S2 job 每次都要核准。
 - **覆蓋指標** [H]（寫入白箱報告；B6 延續）：
   - 存取控制矩陣：G1 矩陣中至少有一個測試的格數 ÷ 總格數。
@@ -679,7 +677,7 @@ flowchart TD
 - **所有寫入都綁種子** [H]：
   - 每個 `POST`／`PUT`／`PATCH`／`DELETE`（以及 `graphql_operation: mutation` 的請求；`query` 與 `introspection` 只在 ROE 為該目標宣告的 GraphQL 路徑 `targets[].graphql_paths`、方法為 GET／POST 時算讀取，其他帶 `graphql_operation` 的請求一律 S3，v0.4）只能：
     - 以 `{seed:<id>}` 指向 seed manifest 中的既有物件，而且該種子必須屬於這條路徑的資源（該種子的 `path_templates[]` 含這條路徑）；或
-    - 是對 seed manifest `create_only_endpoints[]`（`target_id`、`method`、`path_template`）中端點的建立請求，在 run 命名空間（`namespace`，例如 `vc-{run_id}-`）建立新物件。
+    - 是對 seed manifest `create_only_endpoints[]`（`target_id`、`method`、`path_template`）中端點的建立請求，在 run 命名空間（`namespace`，例如 `vc-{run_id}-`）建立新物件。v0.5：建立端點必須宣告 `created_resource`（`type`、回應中 ID 的 `id_pointer`、之後可用的 `path_templates`）；`{created:<step_id>}` 只能用在其中一條路徑，路徑上其他變數段綁定那次建立請求的值（[04 §5](04-threat-to-testcase.md#5-安全等級計算規則)）。
   - 之後的步驟以 `{created:<step_id>}` 指向同一份 `request_allowlist` 中較早、帶該 `step_id`、在同一目標上的建立請求。
   - 其他寫入一律 S3（`E-TC-MUTATION-SCOPE`；演算法見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)）。
   - **v0.4 補充**：
@@ -756,6 +754,7 @@ flowchart TD
   - 每個種子威脅的結果；G3 駁回者列為「未做黑箱驗證（G3 駁回：理由）」
   - Lane A 帶入的參考性發現項及其在本次的結果
   - **人工複核清單**：`B5_readjudicate` 後轉為 `DISPUTED` 的叢集、帶 `post_g2_conflict` 註記的叢集 [H]
+  - **G2 駁回後的新證據**（v0.5，報告契約；裁決仍依 05 R10）[H]：帶 `post_g2_conflict` 的叢集在 W5／B6 報告、SARIF 與匯出摘要的首頁醒目列出「人工駁回後出現新證據，待複核」，同時連到原 G2 決定（核准者、理由、時間）與新證據；不能只呈現最新狀態，也不能把衝突藏在附註。原 GateRecord 與各版裁決都不覆寫，歷史持續可查。同一組證據（同一叢集、同一結果 hash）的重播不重複列出。複核由原 run 的合格 G2 核准者處理；原 run 已結束時建立 `followup` 草稿，由人啟動，不回寫已結束的 run。「待複核」本身不授予任何測試執行權（[09 BL-34](09-backlog.md)）
   - 回饋任務草稿：確認項 → `regression` run（白箱根因定位＋W4 回歸測試）；威脅衍生需求 → `followup` run
   - `lite`：報告首頁標示「單人模式，未經職責分離」，並附 `role_consolidation` 聲明；有 `W-L5-LITE` 時另標示「法務審查聲明為自行簽署」
 - 報告由 Reporter 撰寫敘事，**不改裁決**；Reporter 失敗時仍輸出確定性部分，敘事欄標示缺漏。
@@ -773,7 +772,7 @@ flowchart TD
 | W0.5（G1） | W4、B3 | `invariants.yaml` | oracle 只能引用 G1 已核准條目；L2 以上的引用須有觸發 |
 | W3 | W4 | `LIKELY` 以上、`DISPUTED`、critical／high 的 `UNCORROBORATED` 叢集 | 解讀事先登記的確定性 FAIL → `E_proof`，不需要 LLM |
 | W5 | B1、B2 | `dfd.json`、`seed-threats.json` | 除 `REJECTED` 外的叢集都成為種子威脅；每個都要在 B2 模型中，且有 ≥1 個 B3 測試或 G3 駁回紀錄 |
-| W5 | 下一個 run | 叢集 `fingerprint`、`baseline_state`、逐項核准的 `item_sha256` | 只重審新增或變更的項目；G5 永遠不沿用 |
+| W5 | 下一個 run | 叢集 `fingerprint`、`baseline_state`、逐項核准的 `item_sha256` | 內容可重用、核准不沿用（v0.5，§1.6）；`baseline_state` 只標示差異 |
 | G0b | B0–B4 | G0b GateRecord 的驗證結果（含 L-6 元件授權過濾後的允許工具清單） | B 階段只用這份清單；G0b 之前的節點不讀任何 ROE 欄位 [H] |
 | B0 | B1–B4 | 所有權與版本識別結果、出站白名單 | 未通過的目標不測；版本不符的目標不測；`none` 的目標列入 `build_unverified_targets[]`（`tester_controlled` 除外） |
 | B1 | B2 | `b1_diff` | B2 critic 逐項處置（納入或駁回附理由） |

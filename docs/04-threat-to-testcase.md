@@ -192,7 +192,7 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 | `safety_class_computed` | 由 §5 的程式碼計算，以此為準 |
 | `rate_limit` | `requests_per_second`、`max_requests`；不可高於 ROE（高於即 S3，見 §5）。**重播是獨立 job，不計入本 job 的 `max_requests`**（§6、[02 B5](02-methodology.md#b5-結果驗證)） |
 | `request_allowlist` | 每項 `{target_id, method, path, step_id, graphql_operation}`：目標 ID × HTTP 方法 × 路徑樣板；Scope Proxy 只放行這些請求。**正對照／reachability 請求與 canary 紀錄讀取都必須列在此**，否則會被 Scope Proxy 擋掉。`step_id`（`^[a-z][a-z0-9_]*$` 或 null）是這一步的名稱，打到 create-only 端點的請求以它讓後續請求用 `{created:<step_id>}` 引用；`graphql_operation` 為 `query`／`mutation`／`introspection`／null，`query` 與 `introspection` 不算寫入 |
-| `seed_manifest_ref` | 種子資料清單的 ref，例如 `docs/examples/seed-manifest.yaml`；必須等於 ROE `db_access.seed_manifest_ref` 與 manifest 自己的 `manifest_ref`（不相等時等級計算視為沒有 manifest）。路徑中的種子是**完整一段** `{seed:<key>}`，key 在 manifest 的 `seeds` 中，且該種子的 `path_templates` 要有一個與路徑同形的樣板（所有請求都檢查）；每個寫入（POST／PUT／PATCH／DELETE、GraphQL mutation）的每個變數段都必須是 `{seed:key}` 或 `{created:<step_id>}`，沒有變數段的寫入必須是 `create_only_endpoints` 的建立請求；`{created:<step_id>}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點的那一步（§5） |
+| `seed_manifest_ref` | 種子資料清單的 ref，例如 `docs/examples/seed-manifest.yaml`；必須等於 ROE `db_access.seed_manifest_ref` 與 manifest 自己的 `manifest_ref`（不相等時等級計算視為沒有 manifest）。路徑中的種子是**完整一段** `{seed:<key>}`，key 在 manifest 的 `seeds` 中，且該種子的 `path_templates` 要有一個與路徑同形的樣板（所有請求都檢查）；每個寫入（POST／PUT／PATCH／DELETE、GraphQL mutation）的每個變數段都必須是 `{seed:key}` 或 `{created:<step_id>}`，沒有變數段的寫入必須是 `create_only_endpoints` 的建立請求；`{created:<step_id>}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點的那一步，而且路徑必須是該端點 `created_resource.path_templates` 宣告的路徑（v0.5，§5） |
 | `data_needed` | `seed_data[]`（manifest 的種子鍵）、`roles[]`；需要 DB oracle 時列出 `db_tables[]`，必須 ⊆ ROE `db_access.oracle_tables`（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)） |
 | `trials` | `n`、`fail_k_min`（FAIL 門檻，1 ≤ `fail_k_min` ≤ n）、`replay_n`、`multi_turn_max_turns`（只在 `multi_turn: true` 時填，≤ ROE `relay.max_turns`；否則 `null`）、`pass_rule`（說明文字）、`record[]`（§4.4） |
 | `multi_turn` | 多輪 LLM 測試為 `true`，並綁定 G4 核准的策略模板 hash（[03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)） |
@@ -397,7 +397,7 @@ vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器 [H
 
 ### 4.4 機率型測試的次數與上界
 
-LLM 功能的結果每次可能不同，所以同一設定跑 n 次（固定目標模型、版本、temperature，能固定 seed 時也固定，全部記錄在 `trials.record`）。規則全部 [H]：
+LLM 功能的結果每次可能不同，所以同一設定跑 n 次（固定目標模型、版本與 temperature；估計違反率時用**預先登記的不同 seed 序列**，固定同一個 seed 只用於重播；全部記錄在 `trials.record`）。規則全部 [H]：
 
 - **判定**：確定性 oracle 在 n 次中違反 k 次。FAIL 門檻是 `trials.fail_k_min`（1 ≤ `fail_k_min` ≤ n，validator 檢查）；安全需求的預設是 **`fail_k_min: 1`，即 k ≥ 1 即 FAIL**（一次未經確認的工具呼叫就已違反需求）。`trials.pass_rule` 只是給人看的文字說明。05 §4.2 `E_inc` 中的「k 未達門檻」指的就是 `fail_k_min`。
 - **k ≥ 1 時**：報告 k／n 與 Clopper-Pearson 95% 信賴區間。例如 3／60＝5.0%，區間約 1.0%–13.9%。
@@ -414,6 +414,11 @@ LLM 功能的結果每次可能不同，所以同一設定跑 n 次（固定目�
 - **預設**：高風險威脅（[02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)）的 LLM 測試目標上界 5%，n＝60；其他 n＝30（上界 10%）。B3 依受測應用上游 LLM 的單價估算費用；超過 ROE `spend_cap_usd` 時降低 n，並在報告寫出降低後的上界，不假裝達到目標。
 - **重現**（FAIL 時）：另開一個重播 job，同一設定跑 n_r＝`trials.replay_n`（LLM 預設 20）次；TestResult 以 `replays`＝n_r、`replay_k`＝k_r 記錄（validator 檢查 0 ≤ k_r ≤ n_r）。至少跑了一次重播，且機率型測試 k_r ≥ `fail_k_min`、確定性測試每次重播都失敗（k_r＝n_r），才算重現成功（`tools/vchlib/derive.py` 依此判定）。未重現（例如 k_r＝0）→ 依 05 列為 `E_inc`（重播不一致），報告保留第一批的工具呼叫紀錄。注意：真實違反率 5% 時，20 次全部沒重現的機率約 0.95^20≈36%，所以重播不一致不代表第一批是誤判，要由人看紀錄。
 - 上界只對**這個設定**成立：同一個合成文件、同一個模型版本與 temperature。它不涵蓋其他注入寫法、其他模型版本或多輪對話。
+- **取樣前提**（v0.5）：上面的二項區間與上界只在各 trial 可以視為獨立同分布時成立。
+  - 估計與重播分開：重播可以重用同一個 seed 來檢查可重現性；估計違反率要用預先登記、可重現的不同 seed 序列（供應商不支援 seed 時記錄這個限制）。不同 seed 本身不保證獨立：還要固定目標版本與設定，每個 trial 重置 session、種子（`reseed_per_trial`）與模型可變記憶，並確認沒有共享快取或其他跨 trial 狀態。
+  - 每個 trial 記錄序號、seed（若支援）、實際呼叫的證據（Scope Proxy 請求紀錄）、是否命中快取、重置結果與有效性理由。重用同一個快取回應不算新樣本；重置或對照失敗的 trial 是 INVALID，不計入 n′，排除條件要在看到結果前決定。重播的 trial 不計入估計的 n。
+  - 若排除的 trial 可能與結果相關，或無法支持獨立同分布的前提（例如應用有跨 session 的記憶），報告只列原始計數、缺口與觀察條件，**不輸出**二項信賴區間或上界。
+  - 現有的 validator 只檢查紀錄中的 n、k、`n_effective` 是否一致，不能證明取樣前提成立；每個 trial 的紀錄欄位與統計執行器尚未實作（[09 BL-30](09-backlog.md)）。驗收：固定 seed 的重播、快取重用、重置失敗、模型版本變更與有相關性的 trial，都不能虛增有效 n 或產出不適用的上界。
 - **多輪測試**：`multi_turn: true` 時，`trials.multi_turn_max_turns` 必填且 ≤ ROE `relay.max_turns`（ROE 也必須有 relay 模型）；`multi_turn: false` 時必須是 `null`。
 
 ## 5. 安全等級計算規則
@@ -599,15 +604,23 @@ def mutation_scope_problems(tc, manifest, roe) -> list[str]:
     依 allow-list 的順序檢查；creates 記錄較早的建立請求（step_id → 請求）。"""
     problems, creates = [], {}
     for r in tc.request_allowlist:
-        for step in created_refs(r.path):          # 只能指向較早、同一目標的建立請求
+        steps = created_refs(r.path)
+        for step in steps:                          # 只能指向較早、同一目標的建立請求
             src = creates.get(step)
             if src is None or src.target_id != r.target_id:
                 problems.append(f"{{created:{step}}} 不是本 allow-list 較早、同一目標的建立請求")
+        # v0.5：某一個建立端點的 created_resource.path_templates 必須宣告整條路徑；路徑上其他變數段
+        # 代入那次建立請求的值（巢狀路徑由內層資源的端點宣告，外層的 {created:} 因此綁定到同一個父物件）
+        if steps and all(creates.get(s) for s in steps) and not any(
+                created_path_allowed(r.path, s, creates[s], create_endpoint(manifest, creates[s])) for s in steps):
+            problems.append("{created:} 用在建立端點沒有宣告的路徑")
         p = seed_path_problem(r.path, manifest)
         if p is not None:
             problems.append(p)
         if r.graphql_operation is not None and not graphql_declared(r, roe):
             problems.append("graphql_operation 不在 ROE 宣告的 GraphQL 路徑上")  # v0.4
+        elif r.graphql_operation == "mutation" and r.method != "POST":
+            problems.append("GraphQL mutation 只能以 POST 送出")             # v0.5
         refs = object_ref_problems(r, manifest, creates)
         problems.extend(refs)
         if is_mutation(r, roe, manifest):
@@ -618,8 +631,13 @@ def mutation_scope_problems(tc, manifest, roe) -> list[str]:
                 problems.append("寫入指向的物件既不是 {seed:key} 也不是 {created:step_id}")
             elif create is None and not var and not (r.object_refs and not refs):   # v0.4：object_refs 綁定
                 problems.append("集合層級的寫入不是 create_only_endpoints 的條目")
-            if create is not None and r.step_id:
-                creates[r.step_id] = r              # 之後的請求可用 {created:<step_id>} 指向它建立的物件
+            if create is not None:
+                if created_resource_problem(create):  # v0.5：沒有 created_resource 的建立端點不能建立
+                    problems.append(created_resource_problem(create))
+                elif r.step_id in creates:
+                    problems.append("建立請求的 step_id 重複")
+                elif r.step_id:
+                    creates[r.step_id] = r          # 之後的請求可用 {created:<step_id>} 指向它建立的物件
     return problems
 
 
@@ -779,10 +797,11 @@ def admissible(level: str, roe) -> bool:
 
 - **ROE 對齊**：`roe.activities.allowed_tools` 只列工具 ID（例如 `nuclei`，不是 `nuclei_signed`）；要禁用整個工具就不要列入 `allowed_tools`；`denied_modes` 只列 `tool:mode`，不支援萬用字元。v0.1 範例中的 `nuclei_code_protocol`、`restler_fuzz`、`nuclei_signed` 改為 `nuclei:code_protocol`、`restler:fuzz`、`nuclei`（[docs/examples/roe.yaml](examples/roe.yaml) 已改用新 ID）。
 - **v0.3 的寫入範圍規則（H-B3）**：所有會改變狀態的請求——POST／PUT／PATCH／DELETE 與 GraphQL mutation——都必須滿足下列之一，否則 S3（`E-TC-MUTATION-SCOPE`）：
-  - **以路徑定址既有物件**：路徑的每個變數段都是 `{seed:key}` 或 `{created:step_id}`。`{seed:key}` 的 key 必須在 seed manifest 的 `seeds` 中，而且該種子的 `path_templates` 有一個與請求路徑同形的樣板（D11，`seed_path_problem`；例如 `tenant_b_invoice` 只宣告 `/api/invoices/{id}`，所以 `DELETE /api/users/{seed:tenant_b_invoice}` → S3；見 [seed-manifest](examples/seed-manifest.yaml)）。`{created:step_id}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點並帶 `step_id` 的請求；
+  - **以路徑定址既有物件**：路徑的每個變數段都是 `{seed:key}` 或 `{created:step_id}`。`{seed:key}` 的 key 必須在 seed manifest 的 `seeds` 中，而且該種子的 `path_templates` 有一個與請求路徑同形的樣板（D11，`seed_path_problem`；例如 `tenant_b_invoice` 只宣告 `/api/invoices/{id}`，所以 `DELETE /api/users/{seed:tenant_b_invoice}` → S3；見 [seed-manifest](examples/seed-manifest.yaml)）。`{created:step_id}` 只能指向同一 allow-list 中較早、同一目標、打到 create-only 端點並帶 `step_id` 的請求（`step_id` 不能重複），而且整條路徑必須由某個建立端點的 `created_resource.path_templates` 宣告（v0.5，下方「建立的資源」）；
   - **集合層級建立**：路徑沒有變數段時，該請求必須對應 seed manifest `create_only_endpoints[]` 的某一條（同目標、同方法、路徑同形），在 run 命名空間中建立新物件；帶 `step_id` 的建立請求，之後的請求才能用 `{created:<step_id>}` 指向它。create-only 樣板本身可以有變數段（例如 `/api/chat/sessions/{session}/messages`），請求在那個位置用 `{created:…}`。
+  - **建立的資源**（v0.5）：每個 `create_only_endpoints[]` 條目必須有 `created_resource`：`type`（資源種類，供審查與執行期核對，名稱本身不授權任何路徑）、`id_pointer`（建立回應 JSON 中 ID 的 JSON Pointer，token 不能是空字串，例如 `/id`）、`path_templates`（之後可以指向該物件的完整路徑，至少一條；每條恰有一段 `{created_id}`，其他變數段必須是建立路徑的變數）。例如 `POST /api/chat/sessions` 宣告 `/api/chat/sessions/{created_id}` 與 `/api/chat/sessions/{created_id}/messages`，所以 `{created:open_session}` 不能移到 `/api/users/{created:open_session}`。巢狀資源由內層的建立端點宣告：`POST /api/chat/sessions/{session}/messages` 宣告 `/api/chat/sessions/{session}/messages/{created_id}`，其中 `{session}` 代入那次建立請求在該位置的值，所以訊息只能在它被建立的那個對話底下被引用。**每個** `{created:…}` 都檢查，包括 GET。缺少 `created_resource` 或宣告不合法（`E-SEED-MANIFEST`）→ 該端點的建立與引用一律 S3；不自動補預設路徑，舊的 manifest 要由基礎設施擁有者補齊並重新簽署（ROE `db_access.seed_manifest_sha256`）。執行期（未實作）還要把擷取到的 ID 綁定 run、job、步驟、目標與宣告 hash，只接受單一非空字串或整數，不接受含 `/`、`\`、`%`、控制字元或 `.`／`..` 的值，也不能把回應中的 URL 當成 ID（[09 BL-35](09-backlog.md)）。
   - 種子路徑規則（D11）對所有請求都檢查，不只寫入：GET `/api/users/{seed:tenant_b_invoice}` 同樣 S3。
-  - GraphQL：allow-list 項目以 `graphql_operation` 標示操作。v0.4：這個標籤只在 ROE 為該目標宣告的 GraphQL 路徑（`targets[].graphql_paths`，由基礎設施擁有者簽署）上、方法為 GET／POST 時才採用；其他帶 `graphql_operation` 的請求一律算出範圍（S3，`E-TC-MUTATION-SCOPE`）。在宣告的路徑上，`query`／`introspection` 不算寫入，不需綁種子，但以 POST 送出，第 7 步仍使等級 ≥ S1。`mutation` 一律算寫入；validator 只看路徑，GraphQL 端點（例如 `/graphql`）沒有變數段，所以 mutation 只有在該端點列為 `create_only_endpoints` 時才在範圍內，否則 S3。mutation 的 variables 中引用的物件 ID 目前沒有欄位可以表達，也沒有檢查。
+  - GraphQL：allow-list 項目以 `graphql_operation` 標示操作。v0.4：這個標籤只在 ROE 為該目標宣告的 GraphQL 路徑（`targets[].graphql_paths`，由基礎設施擁有者簽署）上、方法為 GET／POST 時才採用；其他帶 `graphql_operation` 的請求一律算出範圍（S3，`E-TC-MUTATION-SCOPE`）；v0.5 另規定 `mutation` 只能以 POST 送出。這些都是**靜態宣告**：Scope Proxy 在執行期必須確認目標是宣告的 GraphQL 端點，解析實際的 document 與 `operationName`，核對選中的操作與宣告一致；批次、persisted query 或無法解析的內容在明確支援前一律拒絕，不能只看 URL、方法或 LLM 給的標記（未實作，[09 BL-35](09-backlog.md)）。在宣告的路徑上，`query`／`introspection` 不算寫入，不需綁種子，但以 POST 送出，第 7 步仍使等級 ≥ S1。`mutation` 一律算寫入；validator 只看路徑，GraphQL 端點（例如 `/graphql`）沒有變數段，所以 mutation 只有在該端點列為 `create_only_endpoints` 時才在範圍內，否則 S3。mutation 的 variables 中引用的物件 ID 目前沒有欄位可以表達，也沒有檢查。
 - **驗證器強韌性修正（C-1／C-2／C-3）**：
   - 排除比對前先 `normalize_for_match`（百分號解碼一次、去每段的 `;params`、收合 `//`、解析 dot 段、轉小寫），所以 `/Admin/billing/x`、`/admin;jsessionid=1/billing/x` 都會命中 `/admin/billing/*` → S3；含 `%` 的樣板本身就不是正規化路徑（`is_normalized`），同樣 S3。
   - `exclusions.hosts` 支援 `*.example.com`（`host_matches`：比對任何深度的子網域，不比對 apex；雙方先經 `norm_host`，schema 也限制樣式）。

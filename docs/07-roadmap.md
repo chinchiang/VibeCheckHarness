@@ -73,7 +73,7 @@
 
 | 階段 | 交付什麼 | 不包含 | 可用的模式 | 沿用的 M 準則 |
 |---|---|---|---|---|
-| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W0.5／G1<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11；§3 中 MVP-0 用到的元件的入口閘門（MVP0-X7） |
+| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W0.5／認領與 G1（v0.5：G1 在 W1 之前，由本 run 核准）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11；§3 中 MVP-0 用到的元件的入口閘門（MVP0-X7） |
 | **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`；ROE 只對 `localhost`、`127.0.0.1`、`[::1]` 允許 `http://`，其他一律 `https://`，`E-ROE-URL`），跑 B0–B6：<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M3-X1、X5；M4-X2～X5、X7 |
 | **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• G0b 與 `legal_review`（Lite 的兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁標示聲明為自行簽署，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X1～X3、X8、X9；M4-X3、X8 |
 | **MVP-3 以後** | 依序加入：<br>• staging 的 S2＋G5（Full 模式需兩人核准）<br>• LLM 功能測試，先做 G4 核准的腳本式多輪（M5）<br>• Calibration Lab 與 `high_precision_rules`（M2-X1）<br>• CI Lane B 完整版<br>• 靜態 HTML 報告<br>• adaptive relay（只限 Full，[09 BL-10](09-backlog.md)） | — | 依功能而定 | M2-X1～X3、X5、X7～X9、X12；M4 其餘；M5 全部 |
@@ -98,6 +98,7 @@
 | MVP2-X2 | 共享平台網域的目標沒有 `platform_project` 證明與同一平台的 `platform_policies` 時，G0b 拒絕（`E-ROE-PLATFORM`） | `security` 線 | 被接受 |
 | MVP2-X3 | 每一批測試前，每個角色都先通過 whoami；需要 CAPTCHA 或第三方 IdP、卻沒有 staging 旁路的角色，其測試標 `SKIPPED` 並列入 B6 | 整合測試 | 未驗證身分就執行，或沒有列出略過的測試 |
 | MVP2-X4 | ST-1＝0：canary-server 的「ROE 以外」接收器沒有任何命中 | `selftest-report.json` | 大於 0 |
+| MVP2-X5 | **Scope Proxy 原型關卡**（v0.5，[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)）：必要案例全部符合預期；Executor 的必要 HTTP 工作流通過；未通過的 adapter 不啟用 | 原型報告（實際版本、支援與拒絕情況、越界接收器紀錄） | 有必要案例未通過仍進 MVP-2；有 adapter 改用直連或關閉 TLS 驗證 |
 
 ### 1.2 前導實驗：MVP-1 之前的預設值決策 [H]
 
@@ -111,6 +112,12 @@
   - 不論結果如何，M2 的正式檢定（05 §5.6）照常進行，並依它的結果再切換一次（M2-X13）。
 - **報告另外列出**：每個已確認缺陷是由 W0／W1 的確定性規則、還是只由 W2 的 LLM 審查找到。只有 LLM 找到的比例，是 W2 值不值得花費的第一個實測訊號（MVP0-X1 的三個植入問題都能由確定性規則找到）。
 - **誠實說明**：10 個應用（約 50–100 個缺陷）偵測不到小於約 10 個百分點的差距，點估計的誤差也大；這個規則只保證「沒有看到明顯效益時，不預設花三倍的錢」。
+- **比較的公平性**（v0.5，[09 BL-33](09-backlog.md)）[H]：
+  - 另外比較**純工具**（W0／W1，不用 LLM）這一組，三組（純工具、②a、③）用同一個工具基線、同樣的可見輸入、工具版本與時間窗；LLM 組的模型與 prompt 版本固定。
+  - 事先固定每組相同的總費用上限、重複次數與停止規則，按實際費用與人工分鐘分別報告（純工具不必用完上限）；指揮官的加派另列有效發現與邊際成本。
+  - 真值由沒有參與開發與調參的標註人先固定（範圍與評分規則一併固定）；以應用為單位報告差異與區間，記錄 INVALID／未執行、人工複核時間、延遲與費用的不確定部分。
+  - 開始後不能因為看到結果而調整 prompt 或挑選最佳組合；要調整就保留這一輪的結果，改用新的保留資料。
+  - 錄製的 LLM 回應（CI）只驗證流程、序列化與裁決，**不能**證明模型的召回率或多家族的加值；在有對應實測之前，不對外宣稱「更準」「更省」或「已校準」。
 
 ### 1.3 Lite 的使用者 pilot 與降階路徑 [H]
 
@@ -120,6 +127,21 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 - **Lite 白箱快速模式**：只跑 MVP-0（白箱、不連網、沒有 G0b 與 B 階段）。`vibecheck init` 在本機產生一把金鑰，建立只有一個人的金鑰登錄與委任設定，使用者只需確認一次；報告首頁標示「單人、自行簽署、只有白箱」。安全底線（先遮罩再送 LLM、跨境聲明、設定檔釘選）不變。
 - **G1 問卷精簡**：只問存取控制矩陣的核心題（每個角色 × 有個資的資源），其他條目用 ASVS L1 基準與預設值，在報告中標示「未經使用者確認」。
 - **託管控制面**：由可信的第三方代管 Z1／Z2 與金鑰登錄，使用者只用硬體金鑰或 passkey 簽署。這改變信任模型（託管方看得到遮罩後的程式碼），需要另外的法務與威脅模型審查，不在 v0.4 範圍。
+
+### 1.4 v0.5 的前置工作與驗收順序 [H]
+
+下列項目是設計契約，尚未實作或驗收；元件的里程碑歸屬（§2）不變，交付時點以這張表為準，不能因為原本列為低優先就跳過。
+
+| 時點 | 必須完成 | 驗收 |
+|---|---|---|
+| MVP-0 開始派送 job 之前 | BL-22／23 產物生命週期、BL-13 純工具路徑、BL-31 job 原子領取與結果不明的處置；跨 run G1／G3 沿用保持停用（BL-21） | 08 §11.13 的生命週期案例；雙 worker 同時搶領、舊 worker 復活、意圖記錄後／外部成功後／結果提交前後逐點當機、租約或代理中斷時有在途請求（03 §5.8） |
+| MVP-0 交付之前 | BL-34 G2 駁回後新證據的報告與去重；純工具結果可以交付 | 沒有任何 LLM 發現項時，工具發現仍可追溯到報告；新證據只列一次並醒目呈現 |
+| MVP-1 黑箱執行之前 | BL-31 在 Z3 出口強制 fencing；BL-28 還原範圍排他權（任何 `snapshot_restore` 之前）；BL-35 `{created:}` 的執行期 ID 擷取與 GraphQL 解析；S2 另需 BL-04 | 舊 worker、結果不明時不重送；兩個 run 爭用同一還原範圍時只有一方開始、目標別名不能繞過、背景寫入未停時拒絕；本 run 的 G4／G5 與職責分離 |
+| MVP-2 staging 之前 | BL-32 Scope Proxy 原型關卡（MVP2-X5） | 08 §11.7 的全部必要案例 |
+| CAS 實作之前 | BL-29 委任隔離與多參照保留（08 §7.3、§7.5） | 相同內容不同期限、不同資料等級、legal hold、多 run 共用、刪除後稽核 |
+| 機率報告啟用之前 | BL-30 取樣獨立性與重播分離（04 §4.4） | 固定 seed 重播、快取重用、重置失敗、模型版本變更、有相關性的 trial 都不虛增 n′ |
+| 啟用跨 run G1／G3 沿用之前 | BL-21 來源鏈驗證 | hash 改變、過期、撤銷、來源缺漏都拒絕沿用 |
+| 對外宣稱模型或指揮官有效益之前 | BL-33 比較的公平性（§1.2） | 依 §1.2 報告品質、人工成本、費用與不確定性；沒有勝出不阻擋功能性的 MVP |
 
 ## 2. 元件與節點的歸屬
 
@@ -200,7 +222,7 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish` | 整合測試 | inventory 的 `endpoints[]` 沒有 `GET /api/invoices/{id}`（`file` 為 `routes/invoices.ts`、`kind` 為 `http`；`line` 是 handler 的位置，範例 inventory 為第 40 行，第 42 行是 K-005 的 sink），或 `db.tables[]` 中 `name` 為 `invoices` 的項目 `rls_enabled` 不是 `false`；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
+| M1-X1 | [範例 A](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola) 的前半段端到端：在 `invoices-app` 上跑 `run_init → G0a → W0 → W1 → G0b → B0 → m1_finish`（只是 M1 的元件測試 fixture，不是交付給使用者的 run；MVP 與 Lane B 的 run 仍要經過 W0.5、認領與 G1） | 整合測試 | inventory 的 `endpoints[]` 沒有 `GET /api/invoices/{id}`（`file` 為 `routes/invoices.ts`、`kind` 為 `http`；`line` 是 handler 的位置，範例 inventory 為第 40 行，第 42 行是 K-005 的 sink），或 `db.tables[]` 中 `name` 為 `invoices` 的項目 `rls_enabled` 不是 `false`；任一個固定工具沒有產出 SARIF（且沒有列為缺口）；`tgt-staging-api`（DNS TXT）或 `tgt-staging-app`（well-known path）的所有權驗證沒有通過 |
 | M1-X2 | 必須拒絕清單 N-01–N-43 全部通過（N-32–N-43 為 v0.3 新增，見 [08 §8.2](08-implementation-spec.md#82-m1-必須拒絕清單負面安全測試)） | `security` 線 | 任一項沒有拒絕，或沒有對應的稽核事件 |
 | M1-X3 | ST-1＝0、ST-3＝0、ST-7＝0（[06 §1.2.1](06-security-legal-limitations.md#121-工具包自測計畫植入注入的-repo-h)）；M1 的每個注入向量 ≥3 個樣本；每個 twin ≥10 個已知漏洞 | [selftest-report](schemas/selftest-report.schema.json)：三項都是 `status: RUN`、`passed: true` | 任一個大於 0，或任一項為 `NOT_RUN` |
 | M1-X4 | 在每個 M1 節點的邊界 kill 行程後 resume | 整合測試 | 最終產物的 hash 與不中斷的 run 不同；Sandbox job 被重跑；稽核去重後有重複事件 |

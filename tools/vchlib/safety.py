@@ -275,6 +275,52 @@ def _create_endpoint(manifest, r: dict) -> dict | None:
     return None
 
 
+ID_POINTER_RE = re.compile(r"(?:/(?:[^~/]|~[01])+)+")
+
+
+def created_resource_problem(endpoint: dict) -> str | None:
+    """v0.5: the create_only_endpoints entry declares what it creates (created_resource: type, id_pointer,
+    path_templates). Every follow-up path holds exactly one {created_id}; its other variables are variables
+    of the creation path, so they bind to the values of that creation request. None = well formed."""
+    resource = endpoint.get("created_resource") if isinstance(endpoint, dict) else None
+    if not isinstance(resource, dict):
+        return "missing created_resource"
+    if not isinstance(resource.get("type"), str) or not re.fullmatch(r"[a-z][a-z0-9_]*", resource["type"]):
+        return "invalid created_resource.type"
+    pointer = resource.get("id_pointer")
+    if not isinstance(pointer, str) or not ID_POINTER_RE.fullmatch(pointer):
+        return "invalid created_resource.id_pointer (a JSON Pointer with non-empty tokens, e.g. /id)"
+    creation = endpoint.get("path_template", "")
+    if not isinstance(creation, str) or not is_normalized(creation):
+        return "creation path_template is not a normalized path"
+    names = [x for x in segments(creation) if is_placeholder(x)]
+    if len(names) != len(set(names)) or "{created_id}" in names:
+        return "ambiguous creation path variables"
+    paths = resource.get("path_templates")
+    if not isinstance(paths, list) or not paths:
+        return "missing created_resource.path_templates"
+    for path in paths:
+        if not isinstance(path, str) or not is_normalized(path):
+            return f"created_resource path {path!r} is not a normalized path"
+        parts = segments(path)
+        if parts.count("{created_id}") != 1 or any(
+                is_placeholder(x) and x != "{created_id}" and x not in names for x in parts):
+            return f"created_resource path {path!r} must hold exactly one {{created_id}} and only creation-path variables"
+    return None
+
+
+def created_path_allowed(path: str, step: str, source: dict, endpoint: dict) -> bool:
+    """v0.5: `path` uses {created:<step>} only where the creating endpoint's created_resource declares it, and
+    every other variable of that declaration takes the exact value of the creation request (no other parent)."""
+    if created_resource_problem(endpoint):
+        return False
+    bindings = {k: v for k, v in zip(segments(endpoint["path_template"]), segments(source.get("path", "")))
+                if is_placeholder(k)}
+    bindings["{created_id}"] = "{created:" + step + "}"
+    return any(segments(path) == [bindings.get(x, x) for x in segments(t)]
+               for t in endpoint["created_resource"]["path_templates"])
+
+
 def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list[str]:
     """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope).
     `roe` supplies the declared GraphQL paths (v0.4); without it no request is a GraphQL read."""
@@ -286,12 +332,22 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
             continue
         path = r.get("path", "")
         where = f"{r.get('method')} {path}"
+        refs_ok = []
         for s in created_refs(path):
             src = creates.get(s)
             if src is None:
                 out.append(f"{where}: {{created:{s}}} is not an earlier create request of this allow-list")
             elif src.get("target_id") != r.get("target_id"):
                 out.append(f"{where}: {{created:{s}}} was created on another target")
+            else:
+                refs_ok.append((s, src))
+        # v0.5: one creating endpoint must declare the whole path; its parent variables take the literal values of
+        # that creation request, so a nested path such as /sessions/{created:a}/messages/{created:b} is declared by
+        # b's endpoint and binds the session to the one b was created under
+        if refs_ok and len(refs_ok) == len(created_refs(path)) and not any(
+                created_path_allowed(path, s, src, _create_endpoint(manifest, src) or {}) for s, src in refs_ok):
+            out.append(f"{where}: no creating endpoint's created_resource.path_templates declares this path for "
+                       f"{[f'{{created:{s}}}' for s, _ in refs_ok]} (v0.5)")
         prob = seed_path_problem(path, manifest)
         if prob:
             out.append(f"{where}: {prob}")
@@ -300,6 +356,8 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
         if r.get("graphql_operation") is not None and not graphql_declared(r, gql):
             out.append(f"{where}: graphql_operation {r.get('graphql_operation')!r} on a path the ROE does not declare as GraphQL "
                        f"for {r.get('target_id')} (targets[].graphql_paths), or not over GET/POST")
+        elif r.get("graphql_operation") == "mutation" and r.get("method") != "POST":
+            out.append(f"{where}: a GraphQL mutation is sent only over POST (v0.5)")
         if is_mutation(r, gql, manifest):
             var = [s for s in segments(path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
@@ -309,8 +367,15 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
             elif create is None and not var and not (r.get("object_refs") and not refs):
                 out.append(f"{where}: mutation of a non-seed object (not a seed-manifest create_only_endpoints entry, "
                            "and no valid object_refs)")
-            if create is not None and r.get("step_id"):
-                creates[r["step_id"]] = r
+            if create is not None:
+                problem = created_resource_problem(create)
+                if problem:
+                    out.append(f"{where}: {problem}")
+                elif r.get("step_id"):
+                    if r["step_id"] in creates:
+                        out.append(f"{where}: duplicate creation step_id {r['step_id']!r}")
+                    else:
+                        creates[r["step_id"]] = r
     return out
 
 

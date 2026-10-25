@@ -880,6 +880,9 @@ def g_roe(R: Report, c: Ctx):
     for ce in c.manifest.get("create_only_endpoints") or []:
         R.check(ce.get("target_id") in targets and (targets.get(ce.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST",
                 "seed-manifest.yaml", f"create_only_endpoints: {ce.get('target_id')} is not an http target of the ROE")
+        problem = safety.created_resource_problem(ce)       # v0.5
+        R.check(problem is None, "E-SEED-MANIFEST", "seed-manifest.yaml",
+                f"create_only_endpoints {ce.get('method')} {ce.get('path_template')}: {problem}")
     relay, trelay = r.get("relay") or {}, tk.get("relay") or {}
     for k in ("max_turns", "max_spend_usd_per_job", "max_spend_usd_per_run"):
         if k in relay:
