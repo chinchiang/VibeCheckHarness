@@ -89,7 +89,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 10. **關卡**：每關必要角色、登錄一致、G0b 之後的核准者來自 ROE、發起者、逾時、有效期間、G4 核准者 ∈ run.initiators、G5 核准者 ∉ run.initiators 且在同一 ROE 時間窗內決定、GB 核准者、outcome 與 decisions 一致、G3 決定寫回威脅、G1 決定寫回不變量。
 11. **run**：狀態／current_node／resume_deadline、jobs、S2 需要 G5＋快照＋還原驗證＋7 天內的還原演練（稽核日誌無法載入時不重複回報 `E-RUN-RESTORE-DRILL`）、測試結果在時間窗內且在 G4／G5 之後、請求數 ≤ 上限、k ≤ n、GB 延長後的預算、Lane A 與後續 run 規則。
 12. **測試案例 vs ROE**：以 docs/04 §5 演算法（`vchlib.safety`）重算安全等級、可否進入 G4、db_tables ⊆ oracle_tables、種子都在 manifest、ZAP `delayInMs`／`maxScanDurationInMins` 限制、多輪對話需要 relay、角色。
-13. **裁決重算**（rule_version `05-v0.4`）：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；自我宣告的輸入一律由 validator 推導、重算時只用推導值：
+13. **裁決重算**（rule_version `05-v0.5`）：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；自我宣告的輸入一律由 validator 推導、重算時只用推導值：
     - `tool_corroboration`＝**強**工具佐證：已解析的 SARIF ref 中，(adapter, rule_id, tool_version) 列在 calibration.yaml `result.high_precision_rules`（同 CWE 桶、`precision_lower95` ≥ `result.thresholds.high_precision_min.value`，預設 0.90）者 → R5 row 10（不受 R8 限制）；`E-VERDICT-TOOLCORR`
     - `tool_signal`＝**弱**工具訊號：其他已解析的 SARIF ref ∪ E_fail_u 結果；不能單獨確認；`E-VERDICT-TOOLSIGNAL`
     - `independent_sources`＝len(叢集 independent_families) ＋（有弱 SARIF 訊號 ? 1 : 0）＋（有 E_fail_u ? 1 : 0）；R6 需 ≥ 2；`E-VERDICT-SOURCES`
@@ -140,11 +140,11 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
 | `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
 | `E-ENG-TRANSFER`、`E-ROE-TRANSFER` | v0.4：data_class C 時，每個能收 C 級資料的雲端（非 Z4）家族有 `providers[].region` 與同區域的 `data_transfer.transfers[]`；跨出 `source_jurisdiction` 需要 `same_jurisdiction` 以外的機制與 reference；聲明者是委任設定簽署人。委任設定宣告跨境傳輸時，ROE `legal_review.scope.cross_border` 必須為 true |
-| `E-ENG-CONFIG-PIN` | v0.4：engagement `config_pins` 等於 models／agents／tools／licenses 的內容 hash（sha256(JCS)） |
+| `E-ENG-CONFIG-PIN` | v0.4：engagement `config_pins` 等於 models／agents／tools／licenses 的內容 hash（sha256(JCS)）；v0.5 加入 calibration、crosswalk（決定裁決與威脅連結） |
 | `E-ROE-INCIDENT` | v0.4：ROE `incident_response` 的聯絡人在金鑰登錄中，`covers` 含 data_exposure、third_party_side_effect、shared_platform_impact、staging_outage |
 | `E-ENG-PROVIDER`、`E-ENG-PROFILE`、`E-PROFILE-SAFETY` | 能收 C 級資料的雲端模型需 ZDR confirmed＋DPA（自架＝`api_base` 主機完全等於 toolkit.yaml `z4_model_hosts` 的一項，v0.4）；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 |
 | `E-THREAT-REVIEW`、`E-TC-REQ-UNAPPROVED`、`E-TC-SCRIPT` | 威脅的 review 必須是決定它的 G3 紀錄；testcase 只能引用 G1 核准的需求；scripted relay 需要 script_turns |
-| `E-RUN-CONFIG`、`E-RUN-RULE-VERSION`、`E-SLICE-IDENTITY` | run config_refs 指向正確種類的檔案、tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.4`；切片的 prompt 範本與 redaction map 屬於本 run |
+| `E-RUN-CONFIG`、`E-RUN-RULE-VERSION`、`E-SLICE-IDENTITY` | run config_refs 指向正確種類的檔案、tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.5`；切片的 prompt 範本與 redaction map 屬於本 run |
 | `E-PROVENANCE`、`E-MODEL-FALLBACK-CLASS`、`E-MODEL-RETIREMENT-DATE`、`E-RESULT-ANALYST-ROLE` | threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 |
 | `E-SCHEMA-FORMAT`、`E-INPUT-SHAPE` | 見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查 |
 

@@ -457,7 +457,7 @@ class RunState(BaseModel):
     config_refs: ConfigRefs
     prompt_templates: list[PromptTemplateRef] = []
     tool_versions: list[ToolVersion] = []
-    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.4"
+    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.5"
     baseline_run_id: str | None = None  # 比對叢集 fingerprint 的基準 run（baseline_state，§6.3）
     # --- W 階段 ---
     inventory_ref: ArtifactRef | None = None
@@ -522,7 +522,7 @@ class RunState(BaseModel):
 平行節點的更新以 reducer 合併：`new = reducer(current, update)`；列表用 `operator.add` 串接，不會覆蓋 [V][S-03]。
 
 - run manifest 的欄位（`config_refs`、`prompt_templates`、`tool_versions`、`rule_version`、`baseline_run_id`）在 `run_init` 寫入後不再改變；同一 run 中途換設定檔或 prompt 範本必須開新的 run [H]。
-- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.4`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
+- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.5`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
 
 ### 5.2 主狀態圖
 
@@ -841,7 +841,7 @@ stateDiagram-v2
 
 | 物件 | 內容 |
 |---|---|
-| 設定檔釘選（v0.4） | 委任設定的 `config_pins` 記錄 `models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 的內容 hash（sha256(JCS)），受 G0a 簽章保護；載入的檔案與釘選值不同 → `E-ENG-CONFIG-PIN`。這四份決定 C 級資料路由、家族多樣性、S0／S2 與法務閘門，v0.3 卻沒有簽章 |
+| 設定檔釘選（v0.4） | 委任設定的 `config_pins` 記錄 `models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 的內容 hash（sha256(JCS)；v0.5 加入 `calibration.yaml`、`crosswalk.yaml`），受 G0a 簽章保護；載入的檔案與釘選值不同 → `E-ENG-CONFIG-PIN`。這四份決定 C 級資料路由、家族多樣性、S0／S2 與法務閘門，v0.3 卻沒有簽章 |
 | `toolkit.yaml`（`toolkit-config.schema.json`） | 釘選組織根金鑰：`org_root_key.fingerprint`、`alg`；`key_registry.location`；`key_registry.min_version`（防回滾）；`automation_accounts`；`restore_drill_interval_days` |
 | `key-registry.yaml`（`key-registry.schema.json`） | `registry_id`、`version`（單調遞增）、`issued_at`、`entries[]`：`person_id`、`roles[]`（含 `legal_reviewer`、`z3_executor`）、`public_key`、`alg`、`fingerprint`、`not_before`、`not_after`、`revoked_at`、`revocation_reason`（`compromised`／`role_change`／`retired`）；`signatures[]`：組織根金鑰的簽章 |
 | 被簽署的文件 | `engagement.yaml`、`roe.yaml`、GateRecord（G0a／G0b 除外）；人為的稽核事件 `initiator_claim`、`run_resume`。每位簽署人在 `signatures[]` 中一筆：`{signer, key_fingerprint, alg: ed25519, value}`（舊的 `signature_ref` 欄位已移除） |
@@ -1219,7 +1219,7 @@ erDiagram
 | `inventory.schema.json` | W0 盤點。v0.3：`frameworks[]`（含支援程度）、endpoint 的 `kind`／`auth_required`／`middleware_refs`、`db`（表、RLS、policy、函式、storage）、`auth`、`env_vars[]`（只有名稱與公開前綴旗標）、`blind_spots[]`、`features[]` |
 | `finding.schema.json` | reviewer 發現項（含 Evidence）。v0.3：evidence 分三種 `kind`（`code_snippet`、`inventory_fact`、`config_fact`），各用 `file`／`line_start`／`line_end`／`snippet`、`fact_ref`（W0 inventory 的 JSON Pointer）或 `file`＋`key_path`，後兩種以 `asserted` 寫主張的值，用不到的欄位為 null；`match` 為 `MATCHED`／`MATCHED_SHIFTED`／`NOT_FOUND`／`NOT_CHECKED`（對遮罩後文字做容錯比對）；13 個面向（v0.4 新增 `cicd_iac`） |
 | `cluster.schema.json` | 叢集鍵、成員、家族。v0.3：`origin`（`white_box`／`black_box`）與 `threat_id`（只有黑箱起源叢集有值）、`canonical_location.endpoint`（`{target_id, method, path_template}`，黑箱起源叢集的位置）、`fingerprint`、`baseline_state`（`new`／`unchanged`／`updated`／`absent`／null）、`reopened` |
-| `verdict.schema.json` | 驗證票與裁決狀態。v0.3：`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為 `05-v0.3`（v0.4 起 `05-v0.4`） |
+| `verdict.schema.json` | 驗證票與裁決狀態。v0.3：`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為 `05-v0.3`（v0.4 起 `05-v0.4`，v0.5 起 `05-v0.5`） |
 | `threat.schema.json` | 威脅（含分類版本、證據、簽核狀態、種子來源、attack tree 參照） |
 | `requirement.schema.json` | 需求（ASVS／AISVS／G1 不變量）與 crosswalk 連結來源 |
 | `testcase.schema.json` | 測試案例（tool_binding、oracle、安全等級、機率規則）。v0.3：`oracle.types`（陣列，含 `LLM_GRADER`）、`controls[]`（至少一個 `reachability`）、`script_turns[]` |

@@ -8,7 +8,7 @@ import json
 import pytest
 
 from conftest import codes, doc, rederive
-from vchlib import jsonstrict, safety
+from vchlib import crypto, jsonstrict, safety
 from vchlib.bundle import read_jsonl_lines, reload_json
 from vchlib.checks import run_all
 
@@ -121,6 +121,14 @@ def test_tool_signal_from_sarif_refs(b):
     assert codes(b) == {"E-VERDICT-TOOLSIGNAL"}
 
 
+def _repin_calibration(b, keys):
+    """Re-pin calibration.yaml in the engagement and re-sign it, as the signatories would after a calibration change."""
+    from vchlib.canonical import content_hash
+    eng = doc(b, "engagement.yaml").data
+    eng["config_pins"]["calibration"] = content_hash(doc(b, "calibration.yaml").data)
+    eng["signatures"] = [crypto.sign_document(eng, s["signer"], keys[s["signer"]]) for s in eng["signatures"]]
+
+
 def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     """Positive case of H-A1: once calibration lists (opengrep:scan, rule, authz) with precision_lower95 >=
     high_precision_min, the same SARIF ref is STRONG: tool_corroboration, row 10 CONFIRMED_CORROBORATED (never
@@ -128,6 +136,7 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     rule = {"adapter": "opengrep:scan", "rule_id": "vc.authz.update-without-owner", "tool_version": "1.6.0", "cwe_bucket": "authz",
             "n": 120, "precision_lower95": 0.93}
     doc(b, "calibration.yaml").data["result"]["high_precision_rules"] = [rule]
+    _repin_calibration(b, keys)                        # v0.5: calibration.yaml is pinned by the engagement
     rederive(b, keys)                                  # run.config_refs hashes calibration.yaml (v0.3, B11)
     v = doc(b, "verdict.k-014-w3.example.json").data
     ref = v["tool_signal"][0]

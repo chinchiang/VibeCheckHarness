@@ -4,7 +4,7 @@
 
 ## v0.5（2026-10-25）
 
-依 [2026-10-25 設計審查](docs/evidence/review-2026-10-25.md)。v0.5 分支（`07658d7`）是從 v0.3 分出的，直接合併會還原 v0.4；本版把它的內容在 v0.4 上重做（審查紀錄 §3、§7）。工具包本體仍未實作；新增的契約大多只有規格，交付時點見 [07 §1.4](docs/07-roadmap.md#14-v05-的前置工作與驗收順序-h)。裁決規則未改，`rule_version` 仍是 `05-v0.4`；R10 保留 v0.4 的語意（使用者確認）。
+依 [2026-10-25 設計審查](docs/evidence/review-2026-10-25.md)。v0.5 分支（`07658d7`）是從 v0.3 分出的，直接合併會還原 v0.4；本版把它的內容在 v0.4 上重做（審查紀錄 §3、§7）。工具包本體仍未實作；新增的契約大多只有規格，交付時點見 [07 §1.4](docs/07-roadmap.md#14-v05-的前置工作與驗收順序-h)。第 2 組改變了 R4 與合格票的語意，`rule_version` 升為 `05-v0.5`；R10 保留 v0.4 的語意（使用者確認）。
 
 ### 寫入範圍（schema 與 validator，不相容的收緊）
 - `create_only_endpoints[]` 必填 `created_resource`（`type`、`id_pointer`、`path_templates`）；`{created:step_id}` 只能用在宣告的路徑，其他變數段綁定那次建立請求的值，巢狀資源由內層的建立端點宣告；建立的 `step_id` 不能重複（`E-SEED-MANIFEST`、`E-TC-MUTATION-SCOPE`；`safety.created_resource_problem`、`created_path_allowed`）。缺少宣告的舊 manifest 一律 S3，要由基礎設施擁有者補齊並重新簽署。
@@ -16,6 +16,16 @@
 - R10 只套用到 G2 之後的裁決版本；新增 `readjudicated_by: G2_apply`。
 - `testcase.seed_manifest_ref` 必填（`E-TC-SEEDS`）。
 - 新增 `tests/test_v05_round6_group1.py`。
+
+### 裁決設計（第 2 組；`rule_version` 改為 `05-v0.5`）
+- R4：只有單一獨立家族回報的叢集會被反駁票自動駁回；兩個以上獨立家族回報 → `DISPUTED`，送 G2（使用者決定）。
+- 棄權票不算計權合格票。
+- 引用相關性比對到行號；反駁票另可引用成員切片或 inventory 中的位置（使用者決定）。
+- 校準結果中 `invalidated_by` 列出、或不在 `valid_for_model_keys` 的模型，權重為 0。
+- 裁決版本只看自己階段的測試結果（W4 版看不到 B4 結果）。
+- 強工具佐證（第 10 列）不標 `provisional`。
+- `calibration.yaml`、`crosswalk.yaml` 加入 `config_pins`。
+- 新增 `tests/test_v05_round6_group2.py`。
 
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
