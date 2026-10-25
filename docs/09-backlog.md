@@ -54,7 +54,6 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-18 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 誤報回饋 | 回饋紀錄的 schema | 回饋先以人工整理進校準語料 | 待辦 |
 | BL-19 | [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣) 排程工作 | inventory `endpoints[].kind` 沒有排程工作（cron／job）的值 | 排程工作記為 `blind_spots`（`other`） | 待辦 |
 | BL-20 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 覆蓋指標 | report-manifest `metrics` 只有結果數、INVALID 數與對照通過率；沒有存取矩陣格與 entry point 的覆蓋率 | 覆蓋率先寫在報告正文 | 待辦 |
-| BL-27 | [02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格) 白箱測試案例（v0.4） | `testcase.schema.json` 只描述黑箱測試：`target_ids` 必須是 ROE 目標，且需要 `threat_id`、`request_allowlist`；W4 在 Z2 對單元測試與拋棄式本地 Postgres 執行，兩者都沒有 | testresult（`phase: W4`）與 verdict（`W4_readjudicate`）已支援；W4 測試案例只記在 run manifest 與 CAS。K-015 的 W4 確認範例（本地 RLS 測試 → R1 `CONFIRMED_EXECUTABLE`）等這個 schema | 待辦 |
 
 ## 4. 第六輪（2026-10-25 審查）留下的實作項目
 
@@ -79,6 +78,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 
 | 編號 | 原本的問題 | 處理 |
 |---|---|---|
+| BL-27 | `testcase.schema.json` 只描述黑箱測試；W4 測試案例只記在 run manifest 與 CAS，W4 結果只能借用黑箱測試案例 | v0.5 已處理：`w4-testcase.schema.json`（unit／property／local_rls／fake_model、Z2 環境、對照、oracle 引用的 G1 條目；`E-W4-TC`）；W4 結果以 `testcase_id` 指向它、`target_ids` 為空（`E-RESULT-TARGETS`）。範例：K-015 的本地 RLS 測試 WTC-015-01 → V-015-2（R1 `CONFIRMED_EXECUTABLE`；[02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格)） |
 | BL-04 | G4／G5 的職責分離只在同一個 run 內檢查；G5 沒有指回核准它的 G4 | v0.5 已處理：G5 的 `g4_gate_record_id` 指向本 run 中該測試案例最新且 accept 的 G4，G4 與 G5 的實際核准者不能重疊（`E-G5-G4`；[03 §6.3](03-system-architecture.md#63-核准者來源與逐項核准)）；G4／G5 每個 run 重新核准 |
 | BL-13 | `cluster.schema` 無法表示純工具叢集；`run.schema` 沒有 ToolResult 清單的參照 | v0.5 已處理：叢集 `origin: tool_only` 與 `tool_report_refs`（回報不算佐證，`E-CLUSTER-ORIGIN`、`E-SARIF-REF`）；run 的 `tool_results_ref` 由 W1 稽核事件導出（`E-DERIVED`；[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)） |
 | BL-21 | 跨 run 沿用 G1／G3 核准沒有記錄來源，validator 不檢查 | v0.5 已處理並重新啟用：`decisions[].carried_from`；validator 核對祖先 run、同項目同 hash、來源簽章與角色、G3 的 ROE（`E-GATE-CARRY`；[02 §1.6](02-methodology.md#16-執行種類與後續執行)） |

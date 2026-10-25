@@ -513,7 +513,9 @@ flowchart TD
     - G2 已 `REJECTED` 的叢集：之後出現的 `E_fail_u` 只註記 `post_g2_conflict`，維持 `REJECTED`；之後出現的可執行證明（`E_proof`）→ `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict`（05 R10，v0.4）。兩者都列入 W5 報告與 B6 的人工複核清單。
     - 重新裁決後才轉為 `DISPUTED` 的叢集**不重開 G2**；它們照常成為種子威脅，並在種子清單中標為「W4 後轉為爭議」，由人在 G3 處理 [H]。
     - 合格的測試 PASS 不會自動使叢集變成 `REJECTED`（05 R11）。
-- **輸出**：測試檔、執行結果（`testresult.schema.json`，`phase: W4`，含 `controls[]` 的結果與 `fail_oracles`）、覆蓋率、mutation score、新版裁決。
+- **輸出**：測試案例（`w4-testcase.schema.json`，v0.5，[09 BL-27](09-backlog.md)：種類、Z2 環境、對照、oracle 與它引用的 G1 條目）、測試檔、執行結果（`testresult.schema.json`，`phase: W4`，`testcase_id` 指向 W4 測試案例、`target_ids` 為空，含 `controls[]` 的結果與 `fail_oracles`）、覆蓋率、mutation score、新版裁決。
+  - validator（`E-W4-TC`）：測試案例的 run 存在；叢集是同一 run 的 white_box 或 tool_only 叢集；oracle 只引用測試案例的 `requirement_ids`，而且全部經 G1 核准（`E-TC-REQ-UNAPPROVED`）；至少一個 reachability 對照（`E-TC-CONTROLS`）；`local_rls` 必須有拋棄式本地 Postgres 與 W0 inventory 中的 migration，其他種類不啟動資料庫；W4 結果不能借用黑箱測試案例，也只能掛在測試案例的叢集上。
+  - 範例：K-015 的本地 RLS 測試 WTC-015-01 → 結果 R-WTC-015-01-1（確定性 `STATE_DIFF` FAIL，對照都 PASS）→ 裁決 V-015-2（`W4_readjudicate`，R1 `CONFIRMED_EXECUTABLE`），不需要 LLM 解讀。
 - **完成條件**：每條 G1 不變量都有至少一個測試，或被標記 `MANUAL`（附原因）；每個結果都有對照結果；所有結果已回寫並重新裁決。
 
 ### W5 白箱報告＋DFD＋種子威脅

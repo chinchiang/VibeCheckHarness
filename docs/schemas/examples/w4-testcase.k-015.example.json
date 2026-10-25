@@ -1,0 +1,71 @@
+{
+  "testcase_id": "WTC-015-01",
+  "run_id": "run-2026-09-23-001",
+  "cluster_ids": [
+    "K-015"
+  ],
+  "requirement_ids": [
+    "INV-AC-007"
+  ],
+  "kind": "local_rls",
+  "language": "python",
+  "framework": "pytest＋psycopg",
+  "test_file": "w4/run-2026-09-23-001/test_rls_invoices.py",
+  "environment": {
+    "zone": "Z2",
+    "network": "none",
+    "dependencies_lock_sha256": "sha256:aa5758d68cdae73db4cfa997224a16053cb9eef091d60f30b187bc5b3980b4a3",
+    "database": {
+      "engine": "postgres",
+      "disposable": true,
+      "migrations": [
+        "db/migrations/0001_init.sql",
+        "db/migrations/0003_orders.sql"
+      ],
+      "seed_sha256": "sha256:48f8d4db67c52d2dfd4ec04767a1ba71a558d0d69b5df42b9cc4710643644746"
+    }
+  },
+  "steps": [
+    "啟動拋棄式本地 Postgres（無網路），套用 repo 的 migration 與合成種子（tenant_a、tenant_b 各一張發票）",
+    "以 tenant_a 使用者的資料庫角色 SELECT tenant_b 的發票",
+    "以 tenant_a 使用者的資料庫角色 UPDATE tenant_b 的發票金額"
+  ],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "kind": "reachability",
+      "description": "查詢確實打到 public.invoices，而且以 tenant_a 的角色連線成功",
+      "steps": [
+        "以 tenant_a 角色 SELECT 自己的發票"
+      ],
+      "expected": "回傳 tenant_a 的那一列"
+    },
+    {
+      "control_id": "CTL-02",
+      "kind": "oracle_can_pass",
+      "description": "已知良好的變體：套用加上 tenant_id RLS 政策（含 WITH CHECK）的 migration",
+      "steps": [
+        "在修正版 schema 上重跑同樣的 SELECT 與 UPDATE"
+      ],
+      "expected": "oracle 判定通過（讀不到、改不到 tenant_b 的發票）"
+    }
+  ],
+  "oracle": {
+    "types": [
+      "STATE_DIFF"
+    ],
+    "conditions": [
+      "tenant_a 的角色讀到 tenant_b 的發票，或 UPDATE 影響了 tenant_b 的列"
+    ],
+    "requirement_refs": [
+      "INV-AC-007"
+    ]
+  },
+  "trials": {
+    "n": 1,
+    "pass_rule": "k == 0（k ≥ 1 即 FAIL）",
+    "fail_k_min": 1,
+    "replay_n": 2
+  },
+  "artifact_sha256": "sha256:2c1a3581fe54ab64ba609c975e04e15d331ec72496bf29606a18de4b9c424432"
+}

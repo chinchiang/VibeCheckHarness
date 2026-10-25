@@ -81,6 +81,13 @@
 ### 待辦清單整理
 - `docs/09-backlog.md` 新增 §4：第六輪只寫成規格或參考實作的部分，以及處理時記下的限制（BL-36～BL-47）；已處理的 BL-15、BL-24、BL-25、BL-26 移到 §5，編號保留。
 
+### 白箱測試案例（BL-27）
+- 新增 `w4-testcase.schema.json`：W4 在 Z2 執行的單元、性質、本地 RLS 與假模型測試，與黑箱 testcase 分開。validator 檢查 run 與叢集、oracle 只引用 G1 已核准的 `requirement_ids`、reachability 對照、`local_rls` 的拋棄式 Postgres 與 migration（`E-W4-TC`、`E-TC-REQ-UNAPPROVED`、`E-TC-CONTROLS`）。
+- 修正：W4 的測試結果原本只能在黑箱測試案例中查找，等於借用黑箱測試案例的對照與 oracle。現在 `phase: W4` 的結果以 `testcase_id` 指向 W4 測試案例，借用黑箱測試案例是錯誤；W4 結果的 `target_ids` 為空，B4 結果至少一個目標（`E-RESULT-TARGETS`）。
+- 範例：K-015 的本地 RLS 測試 WTC-015-01、結果 R-WTC-015-01-1、裁決 V-015-2（`W4_readjudicate`，R1 `CONFIRMED_EXECUTABLE`）；種子 ST-003 改指這一版，報告的裁決統計與結果數隨之更新，稽核紀錄在 G2 之後插入一筆 `verdict_changed`，之後的序號順延一號。
+- 新增 `CONTRIBUTING.md`：每個宣稱修好的錯誤都要有回歸測試，並證明拿掉修正時測試會失敗。
+- 新增 `tests/test_v05_bl27_w4.py`；既有測試中借用黑箱測試案例的 W4 結果改用 W4 測試案例。
+
 ### 提升為高優先的待辦（BL-04、BL-13、BL-21、BL-22、BL-23；schema 與 validator）
 - G5 紀錄新增 `g4_gate_record_id`：指向本 run 中該測試案例最新且 accept 的 G4，在 G5 開啟前決定，G4 與 G5 的核准者不重疊（`E-G5-G4`，BL-04）。
 - 逐項決定新增必填的 `carried_from`，重新啟用跨 run 的 G1／G3 沿用：只限 accept、來源是祖先 run 的同一關卡、同項目同 hash，來源簽章以現行金鑰登錄重新驗證，G3 另要求同一份 ROE；G4／G5 不沿用（`E-GATE-CARRY`，BL-21）。

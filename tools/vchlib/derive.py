@@ -79,6 +79,12 @@ class Index:
         f = self.find(kind, **match)
         return f[0] if f else None
 
+    def testcase_for(self, tr: dict) -> Doc | None:
+        """The testcase a result ran: a W4 result runs a w4-testcase (v0.5, BL-27), a B4 result a black-box testcase.
+        v0.4 looked every result up among black-box testcases, so a W4 result had to borrow one."""
+        kind = "w4-testcase" if tr.get("phase") == "W4" else "testcase"
+        return self.first(kind, testcase_id=tr.get("testcase_id"))
+
     def audit_docs(self) -> list[Doc]:
         return [d for d in self.b.by_kind("audit-event") if isinstance(d.data, list)]
 
@@ -340,7 +346,7 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
        oracle, and a pre-registered interpretation (oracle_can_fail for W4) or an eligible analyst
        -> E_pass; else E_inc.
     """
-    tc_doc = ix.first("testcase", testcase_id=tr.get("testcase_id"))
+    tc_doc = ix.testcase_for(tr)
     tc = tc_doc.data if tc_doc else {}
     trials = tc.get("trials") or {}
     probabilistic = (trials.get("n") or 1) > 1
@@ -595,7 +601,7 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
         for d in ix.docs("cluster"):
             exp(d, ["fingerprint"], cluster_fingerprint(d.data), "sha256(JCS(fingerprint key))")
         for d in ix.docs("testresult"):
-            tc = ix.first("testcase", testcase_id=d.data.get("testcase_id"))
+            tc = ix.testcase_for(d.data)
             if tc:
                 exp(d, ["precondition_reached", "value"], reachability_reached(tc.data, d.data), "all reachability controls PASS")
                 exp(d, ["positive_control", "value"], positive_control_value(tc.data, d.data), "oracle_can_fail control PASSed")
@@ -615,7 +621,7 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
 
     # testresults -> testcase artifact
     for d in ix.docs("testresult"):
-        tc = ix.first("testcase", testcase_id=d.data.get("testcase_id"))
+        tc = ix.testcase_for(d.data)
         if tc:
             exp(d, ["artifact_sha256"], tc.data.get("artifact_sha256"), "testcase.artifact_sha256")
 
@@ -653,7 +659,7 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
         proof = None
         if cls == "E_proof":
             tr = next(r for r, c in zip(results, classes) if c == "E_proof")
-            tc = ix.first("testcase", testcase_id=tr.get("testcase_id"))
+            tc = ix.testcase_for(tr)
             probabilistic = tc is not None and (tc.data.get("trials") or {}).get("n", 1) > 1
             proof = {"testcase_id": tr.get("testcase_id"), "result_ref": content_hash(tr),
                      "trials": dict(tr.get("trials")) if probabilistic else None,

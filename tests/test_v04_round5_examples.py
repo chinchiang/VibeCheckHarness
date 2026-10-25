@@ -39,7 +39,13 @@ def test_report_only_needs_an_unseeded_white_box_uncorroborated_cluster(b):
     assert len(errors(b, "E-REPORT-QUEUE")) == 4
 
 
+def _k015_before_w4(b):
+    """K-015 as it stood before its W4 test: UNCORROBORATED (V-015-1), a seed candidate."""
+    b.docs[:] = [d for d in b.docs if not d.path.endswith("verdict.k-015-w4.example.json")]
+
+
 def test_report_only_accepts_a_pruned_cluster(b):
+    _k015_before_w4(b)
     seeds = doc(b, SEEDS).data["seeds"]
     seeds[:] = [s for s in seeds if s["source_cluster_id"] != "K-015"]
     doc(b, RM).data["report_only_clusters"] = ["K-015"]
@@ -47,6 +53,7 @@ def test_report_only_accepts_a_pruned_cluster(b):
 
 
 def test_over_cap_g2_only_when_the_queue_was_full(b):
+    _k015_before_w4(b)
     rm = doc(b, RM).data
     rm["over_cap_items"] = [{"gate": "G2", "item_id": "K-015"}]
     assert errors(b, "E-REPORT-QUEUE")                     # G2 holds 1 decision, the cap is 30

@@ -195,10 +195,17 @@ def test_tool_signal_from_e_fail_u(b, keys):
     from vchlib.checks import Ctx, derived_independent_sources, derived_tool_signal, verdict_inputs
     from vchlib.adjudicate import adjudicate
     from vchlib.bundle import Doc
-    base = doc(b, "testresult.llm-pass.example.json")
-    w4 = copy.deepcopy(base.data)
-    w4.update(result_id="R-W4-031-1", phase="W4", job_id=None, outcome="FAIL", fail_oracles=["TOOL_CALL_LOG"],
-              trials={"n": 60, "k": 3}, replays=20, replay_k=2, request_log_sha256=None,
+    # v0.5 (BL-27): the W4 test is a w4-testcase (a scripted fake model), without an oracle_can_pass control,
+    # so the FAIL is not pre-registered; its analyst shares K-011's family (not eligible)
+    wtc = copy.deepcopy(doc(b, "w4-testcase.k-015.example.json").data)
+    wtc.update(testcase_id="WTC-011-01", cluster_ids=["K-011"], requirement_ids=["INV-LLM-003"], kind="fake_model",
+               oracle={"types": ["TOOL_CALL_LOG"], "conditions": ["refund called without confirmation"], "requirement_refs": ["INV-LLM-003"]})
+    wtc["environment"]["database"] = None
+    wtc["controls"] = [x for x in wtc["controls"] if x["kind"] == "reachability"]
+    b.docs.append(Doc("docs/schemas/examples/w4-testcase.k-011.example.json", "w4-testcase", wtc, None))
+    w4 = copy.deepcopy(doc(b, "testresult.w4-k-015.example.json").data)
+    w4.update(result_id="R-WTC-011-01-1", testcase_id="WTC-011-01", cluster_ids=["K-011"], fail_oracles=["TOOL_CALL_LOG"],
+              controls=[{"control_id": "CTL-01", "outcome": "PASS"}],
               interpreted_by={"agent_id": "result_analyst_a", "family": "anthropic"},
               interpretation={"agrees": True, "rationale": "同家族分析者（不合格）"})
     b.docs.append(Doc("docs/schemas/examples/testresult.w4.example.json", "testresult", w4, None))
