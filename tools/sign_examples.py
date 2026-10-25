@@ -119,7 +119,7 @@ def sign_gate_records(by_fp) -> int:
     n = 0
     for p in sorted(EXAMPLES.glob("gate-record.*.example.json")):
         rec = jsonstrict.loads(p.read_text(encoding="utf-8"))
-        if rec["gate"] in ("G0a", "G0b"):
+        if rec["gate"] in ("G0a", "G0b") or rec["outcome"] == "EXPIRED":
             rec["signatures"] = []
         else:
             rec["signatures"] = [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in rec["approvers"]]
@@ -147,7 +147,7 @@ def load_events(text: str) -> list:
 
 def sign_event_in_place(ev: dict, registry, by_fp) -> None:
     """Re-sign one audit event whose prev_hash is already set: human SIGNED_EVENTS get the actor's
-    signature; every audit_anchor gets the Z3 executor's countersignature over {run_id, seq, prev_hash}."""
+    signature; every audit_anchor gets the Z3 executor's countersignature (crypto.anchor_payload)."""
     ev["signature"] = None
     at = timeutil.parse_dt(ev["ts"])
     if ev["event_type"] == "audit_anchor" and isinstance(ev.get("payload"), dict):

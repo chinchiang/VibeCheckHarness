@@ -122,7 +122,7 @@
     {
       "kind": "audit_log",
       "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
-      "sha256": "sha256:a54e62fbaf8e9e86b03c05a50c54df85cfb03e49a579caf064483136cefd8541"
+      "sha256": "sha256:acdc53d253d6e3f48f580747c33f42cbeef69764a50d7436cb3d3b95e82598db"
     },
     {
       "kind": "followup_draft",

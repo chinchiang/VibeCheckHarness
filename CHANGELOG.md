@@ -27,6 +27,19 @@
 - `calibration.yaml`、`crosswalk.yaml` 加入 `config_pins`。
 - 新增 `tests/test_v05_round6_group2.py`。
 
+### 信任錨（第 3 組）
+- 關卡的開啟時間改用 `gate_opened` 事件的收件時間；`opened_at` 與它不符或沒有事件 → `E-GATE-OPENED`。
+- EXPIRED 紀錄不簽章（`signatures: []`，`E-GATE-EXPIRED-SIG`），也不再報 `E-SIG-MISSING`。
+- `z3-executor` 是服務身分：不能當發起者、核准者或人為事件的行為者；`z3_executor` 角色不得兼任（`E-KR-SERVICE`）。
+- 委任設定／ROE 的金鑰撤銷與到期都以首次驗章的收件時間判斷；`issued_at` 晚於首次驗章 → `E-SIG-ISSUED-AT`。
+- G0 驗章記錄的登錄版本可以比目前舊；法務聲明者簽完 ROE 後可以輪替金鑰。
+- 稽核事件改為寫入端去重（文件與 validator 一致）。
+- Z3 副簽改蓋 `{domain, run_id, seq, prev_hash, event_sha256}`；Z3 簽之前重算鏈並核對自己產生的事件（規格）。
+- 未錨定尾端的工具輸出不能當裁決證據。
+- 委任設定沒有列的關卡逾時沿用 toolkit 上限。
+- 每個裁決版本都必須有 `verdict_changed` 事件。
+- 範例重簽；新增 `tests/test_v05_round6_group3.py`。
+
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
 - 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。

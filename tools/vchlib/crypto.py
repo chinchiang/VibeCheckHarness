@@ -91,10 +91,22 @@ def verify_event(event: dict, raw_public_key_b64: str) -> bool:
 ANCHOR_SIGNER = "z3-executor"
 
 
+ANCHOR_DOMAIN = "vibecheck/audit_anchor/v2"
+
+
 def anchor_payload(event: dict) -> bytes:
-    """Bytes the Z3 executor countersigns on an audit_anchor (v0.4): JCS of {run_id, seq, prev_hash}.
-    prev_hash pins every earlier line, so rewriting the chain also needs the Z3 key."""
-    return jcs({"run_id": event.get("run_id"), "seq": event.get("seq"), "prev_hash": event.get("prev_hash")})
+    """Bytes the Z3 executor countersigns on an audit_anchor: JCS of {domain, run_id, seq, prev_hash, event_sha256}.
+
+    prev_hash pins every earlier line, so rewriting the chain also needs the Z3 key (v0.4). v0.5 (review
+    2026-10-25 T-9): event_sha256 = sha256(JCS(the anchor event without payload.z3_countersignature)) also pins
+    the anchor's own ts, actor and payload, and the domain tag keeps an anchor signature from being replayed as
+    one of the Z3 key's other signatures (ownership results, job ledger entries), which carry their own tags."""
+    body = {k: v for k, v in event.items()}
+    if isinstance(body.get("payload"), dict):
+        body["payload"] = {k: v for k, v in body["payload"].items() if k != "z3_countersignature"}
+    digest = "sha256:" + hashlib.sha256(jcs(body)).hexdigest()
+    return jcs({"domain": ANCHOR_DOMAIN, "run_id": event.get("run_id"), "seq": event.get("seq"),
+                "prev_hash": event.get("prev_hash"), "event_sha256": digest})
 
 
 def countersign_anchor(event: dict, key: Ed25519PrivateKey) -> dict:
