@@ -2236,6 +2236,9 @@ def _resolving_event(c: Ctx, cluster: dict, ref) -> tuple[dict | None, str | Non
                            f"status {status!r}; only {'/'.join(LICENSE_CLEARED)} may run)")
         elif e.get("zone") != "Z2":
             reasons.append(f"seq {e.get('seq')}: event zone {e.get('zone')!r} is not Z2")
+        elif e.get("node") != "W1":
+            # v0.5 (BL-13, docs/08 §11.2): ToolResults are W1 output and run.tool_results_ref lists only W1 events
+            reasons.append(f"seq {e.get('seq')}: the invocation is a {e.get('node')!r} event, not W1")
         elif p.get("ok") is not True:
             reasons.append(f"seq {e.get('seq')}: invocation of {adapter} failed (payload.ok is not true)")
         elif (why := sarif_location_problem(cluster, ref, p)) is not None:

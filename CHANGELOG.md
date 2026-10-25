@@ -88,6 +88,7 @@
 - 叢集新增 `origin: tool_only` 與必填的 `tool_report_refs`：沒有 LLM 成員，引發叢集的工具結果是回報、不算佐證（`E-CLUSTER-ORIGIN`、`E-SARIF-REF`）；run 新增 writer 導出的 `tool_results_ref`（BL-13）。
 - 範例新增純工具叢集 K-016 與裁決 V-016-1（`UNCORROBORATED`，列在報告的 `report_only_clusters`）；W1 稽核事件加一筆 opengrep 結果，其後的稽核序號順延一號。
 - 修正：中途結束（ABORTED、FAILED）、沒有走到產生節點的 run，產物仍可以是「尚未產生」（正常完成的 run 不能留下「尚未產生」），不再誤報「應存在但遺失」；G5 只看它開啟時最新的 G4 決定，之後的 G4 重審不會讓已核准的 G5 變成錯誤。
+- 修正：SARIF 參照（`sarif_refs`、`tool_report_refs`）只能由 W1 的 `tool_invocation_end` 事件支持（`E-SARIF-REF`）；之前同一筆工具結果記成其他節點的事件時，run 的 `tool_results_ref` 是 null，叢集卻仍可引用它。
 - 本節之前的「跨 run 的 G1／G3 沿用停用，直到 BL-21 完成」由上面的 `carried_from` 取代。
 - 新增 `tests/test_v05_backlog_high.py`；09 待辦清單把這五項移到 §5。
 

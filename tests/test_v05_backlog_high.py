@@ -278,6 +278,19 @@ def test_tool_only_location_comes_from_the_tool_result(b):
     assert errors(b, "E-CLUSTER-ORIGIN", "k-014")
 
 
+def test_tool_results_come_from_w1(b, keys):
+    """docs/08 §11.2: a ToolResult is W1 output. The same Z2 result logged as a W4 invocation (idempotency key
+    consistent, run.tool_results_ref re-derived to null) backs no cluster: neither K-014's signal nor K-016's report."""
+    ev = doc(b, AUDIT).data[12]
+    assert ev["event_type"] == "tool_invocation_end" and ev["node"] == "W1"
+    ev["node"], ev["idempotency_key"] = "W4", ev["idempotency_key"].replace(":W1:", ":W4:")
+    rederive(b, keys)
+    assert doc(b, "run.example.json").data["tool_results_ref"] is None
+    assert any("not W1" in i.msg for i in errors(b, "E-SARIF-REF", "k-014"))
+    assert any("not W1" in i.msg for i in errors(b, "E-SARIF-REF", "k-016"))
+    assert errors(b, "E-CLUSTER-ORIGIN", "k-016")
+
+
 def test_tool_results_ref_is_derived(b):
     run = doc(b, "run.example.json").data
     assert run["tool_results_ref"] == derive.tool_results_ref(derive.Index(b), PARENT) is not None
