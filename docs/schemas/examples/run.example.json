@@ -115,6 +115,12 @@
   "inventory_ref": "sha256:b282c525fc15d27e3e7582528b3ced52c2db3a445a9838e7e7c4234656f052aa",
   "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f",
   "tool_results_ref": "sha256:e9cbd381ac92a2a663ce90d675d82477d5e125be43e9ed608cb3020f4685bf37",
+  "w4_manual_requirements": [
+    {
+      "requirement_id": "INV-LLM-003",
+      "reason": "refund 工具的防護以腳本式假模型測試，排在 M5；在那之前由 B4 的 TC-031-01 與人工審查涵蓋"
+    }
+  ],
   "redaction_map_ref": "sha256:f1513e18bd39bade630c8a0c2defd46194d3d21ed8c828b7a4a47139f24b236f",
   "invariants_ref": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff",
   "invariants_changed": false,
@@ -308,7 +314,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:0b5059fa12801add4b86b3b79c94a4dbd948642265c840feb2fdcba12ae29601",
+  "report_manifest_ref": "sha256:c718862bf59465db01ab7aa9a3e777cc70bf5514f1f40f28c83805800bdb244d",
   "gate_records": [
     {
       "gate": "G0a",
@@ -445,32 +451,32 @@
       "line_sha256": "sha256:458510925e06c8fbcc3f07bc10fcf4d2c72ff86b116c015077ccd925d0315670"
     },
     {
-      "seq": 29,
-      "line_sha256": "sha256:dded15c3f232cb478c984df21cdf417e0b12fc1d98080aee1bb77179abf6144e"
+      "seq": 31,
+      "line_sha256": "sha256:f9de3ea659762aa67b0a197a52e64d0e59d83355167286bff1b3aba32f188db1"
     },
     {
-      "seq": 32,
-      "line_sha256": "sha256:c75249d4ab34517d5e460fd52d93ba00603cfcccb80372ec53c3637e33e6bddb"
+      "seq": 34,
+      "line_sha256": "sha256:aaf4bf0a4082009303431cfd16e26f600fc3e69502bc33988e55f0c5da08e2fa"
     },
     {
-      "seq": 36,
-      "line_sha256": "sha256:c083b9f789ff378625761c8cdea9625feb69a2984e7ad255b6089d5e0795c86d"
+      "seq": 38,
+      "line_sha256": "sha256:c9982a865f34817f9f0fcbcc4d851cf9778d74fc5be1f57c91e687653d307868"
     },
     {
-      "seq": 40,
-      "line_sha256": "sha256:f3e601786ef57c7c2683dad27a2c0816f667fc6797bd95e8438ef51b30214273"
+      "seq": 42,
+      "line_sha256": "sha256:c22ad007abad2d1e996e616787d3ad2895ce3da3239edef4700af71c5cf966c6"
     },
     {
-      "seq": 49,
-      "line_sha256": "sha256:4f440ff9594f4f33670440053ec922efc0e13915f3f78034b6fbe6a583eb1656"
+      "seq": 51,
+      "line_sha256": "sha256:1b76a8ad1b626f1daad7e0fec67ecf7629a83822613a74608abef63fbe6b6085"
     },
     {
-      "seq": 54,
-      "line_sha256": "sha256:f953747cf67e4a64ff7d280068d0675aee2fb30e75bf3e62500c38dbac7ac924"
+      "seq": 56,
+      "line_sha256": "sha256:887ca0fe5d70c29a046bd85bc9e4beba3060fc33efa3d817bc3b8d50632aa84d"
     },
     {
-      "seq": 62,
-      "line_sha256": "sha256:9cb493896659fcebaa159a93cf03152f1adc91bd695d9d1eebd98e89bc50eb52"
+      "seq": 64,
+      "line_sha256": "sha256:448ccae1d48303f7ee3ebb293aced4eeb720f3a14dc9116fd68691fb482165d7"
     }
   ],
   "errors": []

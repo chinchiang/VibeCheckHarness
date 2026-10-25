@@ -515,6 +515,9 @@ flowchart TD
     - 合格的測試 PASS 不會自動使叢集變成 `REJECTED`（05 R11）。
 - **輸出**：測試案例（`w4-testcase.schema.json`，v0.5，[09 BL-27](09-backlog.md)：種類、Z2 環境、對照、oracle 與它引用的 G1 條目）、測試檔、執行結果（`testresult.schema.json`，`phase: W4`，`testcase_id` 指向 W4 測試案例、`target_ids` 為空，含 `controls[]` 的結果與 `fail_oracles`）、覆蓋率、mutation score、新版裁決。
   - validator（`E-W4-TC`）：測試案例的 run 存在；叢集是同一 run 的 white_box 或 tool_only 叢集；oracle 只引用測試案例的 `requirement_ids`，而且全部經 G1 核准（`E-TC-REQ-UNAPPROVED`）；至少一個 reachability 對照（`E-TC-CONTROLS`）；`local_rls` 必須有拋棄式本地 Postgres 與 W0 inventory 中的 migration，其他種類不啟動資料庫；W4 結果不能借用黑箱測試案例，也只能掛在測試案例的叢集上。
+  - 執行證據（`E-W4-AUDIT`）：每個 W4 結果恰好對應一筆 W4、Z2 的 `sandbox_job_end` 稽核事件（同一個 `result_id`、`testcase_id` 與 `outcome`），該事件在已錨定的部分，結果的 `executed_at` 落在該 job 的 `sandbox_job_start` 與 `sandbox_job_end` 之間；黑箱結果的對應規則是 `E-JOB-AUDIT`。
+  - 完成條件（`E-W4-COVERAGE`）：run 有 W4 產物或種子威脅之後，每條 G1 核准的不變量都要有 W4 測試案例，或列在 run 的 `w4_manual_requirements`（附原因，表示改以 MANUAL 處理），不能兩者都有。
+  - `W4_testgen` 的輸出也走跨廠商的 LLM schema 子集（`tools/vchlib/llm_schema.py` 的 `w4-testcase`）；run、叢集、Z2 環境與 artifact hash 由 harness 填寫，模型不寫。
   - 範例：K-015 的本地 RLS 測試 WTC-015-01 → 結果 R-WTC-015-01-1（確定性 `STATE_DIFF` FAIL，對照都 PASS）→ 裁決 V-015-2（`W4_readjudicate`，R1 `CONFIRMED_EXECUTABLE`），不需要 LLM 解讀。
 - **完成條件**：每條 G1 不變量都有至少一個測試，或被標記 `MANUAL`（附原因）；每個結果都有對照結果；所有結果已回寫並重新裁決。
 

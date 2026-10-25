@@ -85,6 +85,9 @@
 - 新增 `w4-testcase.schema.json`：W4 在 Z2 執行的單元、性質、本地 RLS 與假模型測試，與黑箱 testcase 分開。validator 檢查 run 與叢集、oracle 只引用 G1 已核准的 `requirement_ids`、reachability 對照、`local_rls` 的拋棄式 Postgres 與 migration（`E-W4-TC`、`E-TC-REQ-UNAPPROVED`、`E-TC-CONTROLS`）。
 - 修正：W4 的測試結果原本只能在黑箱測試案例中查找，等於借用黑箱測試案例的對照與 oracle。現在 `phase: W4` 的結果以 `testcase_id` 指向 W4 測試案例，借用黑箱測試案例是錯誤；W4 結果的 `target_ids` 為空，B4 結果至少一個目標（`E-RESULT-TARGETS`）。
 - 範例：K-015 的本地 RLS 測試 WTC-015-01、結果 R-WTC-015-01-1、裁決 V-015-2（`W4_readjudicate`，R1 `CONFIRMED_EXECUTABLE`）；種子 ST-003 改指這一版，報告的裁決統計與結果數隨之更新，稽核紀錄在 G2 之後插入一筆 `verdict_changed`，之後的序號順延一號。
+- 修正：W4 結果原本不需要任何執行證據，寫一份 W4 FAIL 就能讓叢集成為 `CONFIRMED_EXECUTABLE`。現在每個 W4 結果要對應一筆已錨定的 W4／Z2 `sandbox_job_end`（`E-W4-AUDIT`）；範例補上 WTC-015-01 的執行事件。
+- W4 完成條件：每條 G1 核准的不變量都有 W4 測試案例，或列在 run 新增的 `w4_manual_requirements`（`E-W4-COVERAGE`）；範例的 INV-LLM-003 標為 MANUAL。
+- `W4_testgen` 的輸出加入跨廠商 LLM schema 子集（`LLM_OUTPUTS` 的 `w4-testcase`）。
 - 新增 `CONTRIBUTING.md`：每個宣稱修好的錯誤都要有回歸測試，並證明拿掉修正時測試會失敗。
 - 新增 `tests/test_v05_bl27_w4.py`；既有測試中借用黑箱測試案例的 W4 結果改用 W4 測試案例。
 

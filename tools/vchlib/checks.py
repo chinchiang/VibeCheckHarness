@@ -2111,6 +2111,9 @@ def g_w4_testcases(R: Report, c: Ctx):
                     R.check(not missing, "E-W4-TC", w, f"migrations {missing} are not files of the run's W0 inventory")
             else:
                 R.check(db is None, "E-W4-TC", w, f"only local_rls tests start a database (kind {tc.get('kind')})")
+    for d in c.docs("run"):
+        with doc_guard(R, d.path):
+            w4_coverage(R, c, d.data, d.path, approved)
     for d in c.docs("testresult"):
         with doc_guard(R, d.path):
             tr, w = d.data, d.path
@@ -2123,6 +2126,62 @@ def g_w4_testcases(R: Report, c: Ctx):
                 extra = sorted(set(tr.get("cluster_ids") or []) - set(tc.data.get("cluster_ids") or []))
                 R.check(not extra, "E-W4-TC", w, f"cluster_ids {extra} are not clusters of {tc.data.get('testcase_id')}")
                 R.check(tr.get("run_id") == tc.data.get("run_id"), "E-W4-TC", w, f"{tc.data.get('testcase_id')} belongs to run {tc.data.get('run_id')}")
+            w4_execution(R, c, tr, w)
+
+
+def w4_coverage(R: Report, c: Ctx, run: dict, w: str, approved: set):
+    """v0.5 (BL-27, E-W4-COVERAGE; docs/02 W4 completion): once a non-Lane-A run has W4 output (a w4-testcase or a W4
+    result) or seed threats (W5 ran), every G1-approved invariant of the run is cited by one of its w4-testcases or is
+    marked MANUAL with a reason in run.w4_manual_requirements, not both; a MANUAL mark names a G1-approved invariant."""
+    rid = run.get("run_id")
+    manual = [m.get("requirement_id") for m in run.get("w4_manual_requirements") or [] if isinstance(m, dict)]
+    inv = c.b.data("invariants") or {}
+    invariants = {i.get("requirement_id") for i in inv.get("invariants") or [] if isinstance(i, dict)} & approved \
+        if inv.get("run_id") == rid else set()
+    for m in manual:
+        R.check(m in invariants, "E-W4-COVERAGE", w, f"w4_manual_requirements names {m!r}, which is not a G1-approved invariant of {rid}")
+    R.check(len(manual) == len(set(manual)), "E-W4-COVERAGE", w, f"w4_manual_requirements lists a requirement twice: {manual}")
+    tcs = [t.data for t in c.docs("w4-testcase") if t.data.get("run_id") == rid]
+    reached = bool(tcs) or any(r.data.get("run_id") == rid and r.data.get("phase") == "W4" for r in c.docs("testresult")) \
+        or any(s.data.get("run_id") == rid for s in c.docs("seed-threats"))
+    if run.get("run_kind") == "lane_a" or not reached:
+        return
+    tested = {x for t in tcs for x in t.get("requirement_ids") or []}
+    for x in sorted(invariants):
+        R.check((x in tested) != (x in manual), "E-W4-COVERAGE", w,
+                f"G1 invariant {x}: " + ("both tested by a w4-testcase and marked MANUAL" if x in tested
+                                         else "no w4-testcase cites it and it is not marked MANUAL (w4_manual_requirements)"))
+
+
+def w4_execution(R: Report, c: Ctx, tr: dict, w: str):
+    """v0.5 (BL-27, E-W4-AUDIT): a W4 result is backed by the Z2 sandbox run of its test, as a B4 result is by its job
+    (E-JOB-AUDIT): exactly one W4 / Z2 sandbox_job_end names the result, for the same testcase and outcome, inside the
+    anchored part of the log (an unanchored line is not yet countersigned, cf. V-7), and executed_at lies between that
+    job's sandbox_job_start and sandbox_job_end. Without this a written W4 FAIL alone confirmed a cluster (R1)."""
+    rid = tr.get("result_id")
+    audit = c.ix.audit_for(tr.get("run_id"))
+    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict)]
+    ends = [e for e in evs if e.get("event_type") == "sandbox_job_end" and (e.get("payload") or {}).get("result_id") == rid]
+    if not R.check(len(ends) == 1, "E-W4-AUDIT", w,
+                   f"{rid}: the audit log has {len(ends)} sandbox_job_end events naming it; a W4 result needs exactly one (its Z2 run)"):
+        return
+    e = ends[0]
+    p = e.get("payload") or {}
+    R.check(e.get("node") == "W4" and e.get("zone") == "Z2", "E-W4-AUDIT", w,
+            f"{rid}: seq {e.get('seq')} is a {e.get('node')} / {e.get('zone')} event, not W4 / Z2")
+    R.check(p.get("testcase_id") == tr.get("testcase_id"), "E-W4-AUDIT", w,
+            f"{rid}: seq {e.get('seq')} names testcase {p.get('testcase_id')!r}, not {tr.get('testcase_id')!r}")
+    R.check(p.get("outcome") == tr.get("outcome"), "E-W4-AUDIT", w,
+            f"{rid}: outcome {tr.get('outcome')} != sandbox_job_end outcome {p.get('outcome')} (seq {e.get('seq')})")
+    anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
+    R.check(type(e.get("seq")) is int and e.get("seq") < anchored, "E-W4-AUDIT", w,
+            f"{rid}: seq {e.get('seq')} is in the unanchored tail of the audit log; it cannot back a verdict yet")
+    start = next((x for x in evs if x.get("event_type") == "sandbox_job_start"
+                  and (x.get("payload") or {}).get("job_id") == p.get("job_id")), None)
+    if R.check(start is not None, "E-W4-AUDIT", w, f"{rid}: no sandbox_job_start for job {p.get('job_id')!r}"):
+        lo, hi, at = ts(R, start.get("ts"), w), ts(R, e.get("ts"), w), ts(R, tr.get("executed_at"), w)
+        R.check(None not in (lo, hi, at) and lo <= at <= hi, "E-W4-AUDIT", w,
+                f"{rid}: executed_at {tr.get('executed_at')} is outside its job {p.get('job_id')} ({start.get('ts')} .. {e.get('ts')})")
 
 
 # ============================================================== 13 verdicts
