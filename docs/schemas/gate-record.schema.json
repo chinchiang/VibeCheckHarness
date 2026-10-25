@@ -13,7 +13,7 @@
 "decisions":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
   "item_id":{"type":"string"},
   "item_sha256":{"anyOf":[{"$ref":"common.schema.json#/$defs/sha256"},{"type":"null"}],"description":"逐項核准時該項的 approval hash（G2 叢集、G3 威脅、G4 測試案例）"},
-  "decision":{"enum":["accept","reject","needs_info"]},
+  "decision":{"enum":["accept","reject","needs_info","over_cap"],"description":"v0.5（審查 2026-10-25 M-4）：over_cap 只用在 G3，由 Gate Service 在呈現前寫入：該種子威脅超出 gate_queues.g3_max_items，沒有人審查。核准者的簽章證明「這些項目沒有被審查」，不是替駁回背書；over_cap 依規則視同駁回（不產生測試案例、R13 加註、威脅 review.status REJECTED），理由固定為「超出 G3 上限」。高風險（有 attack tree）與 impact high 的威脅不受上限，不能是 over_cap"},
   "risk_override":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{"likelihood":{"enum":["high","medium","low"]},"impact":{"enum":["high","medium","low"]}},"required":["likelihood","impact"]},{"type":"null"}],"description":"G3 調整風險；調降時 note 必填"},
   "note":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"G3 駁回種子威脅或調降風險時必填（docs/02 §5）"}},
   "required":["item_id","item_sha256","decision","risk_override","note"]},"minItems":1},

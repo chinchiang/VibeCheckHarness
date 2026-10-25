@@ -68,7 +68,8 @@
       "path": "/api/invoices",
       "step_id": null,
       "graphql_operation": null,
-      "object_refs": []
+      "object_refs": [],
+      "server_action": null
     },
     {
       "target_id": "tgt-staging-api",
@@ -76,7 +77,8 @@
       "path": "/api/invoices/{seed:tenant_a_invoice}",
       "step_id": null,
       "graphql_operation": null,
-      "object_refs": []
+      "object_refs": [],
+      "server_action": null
     }
   ],
   "seed_manifest_ref": "docs/examples/seed-manifest.yaml",

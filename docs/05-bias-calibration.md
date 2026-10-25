@@ -236,12 +236,12 @@
 
 | 類別 | 條件（全部成立） | 用在 |
 |---|---|---|
-| `E_proof` 可執行證明 | ① `outcome: FAIL`（所以所有對照都是 PASS）；② k ≥ `trials.fail_k_min`（安全需求預設 1）且至少有一次重播（`replays`＝n_r ≥ 1，重播中違反次數記在 `replay_k`＝k_r）；確定性測試：每次重播都失敗（k_r＝n_r）；機率型 LLM 測試：確定性 oracle 在有效次數 n′ 中違反 k 次，**且**另開的重播 job（n_r＝`trials.replay_n`，預設 20）中 k_r ≥ `fail_k_min`（定義見 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界)）；③ `fail_oracles` 至少有一個確定性類型；④ 解讀**事先登記**，或由**合格的 Result Analyst** 確認 | R1 |
+| `E_proof` 可執行證明 | ① `outcome: FAIL`（所以所有對照都是 PASS）；② k ≥ `trials.fail_k_min`（安全需求預設 1）且至少有一次重播（`replays`＝n_r ≥ 1，重播中違反次數記在 `replay_k`＝k_r）；確定性測試：每次重播都失敗（k_r＝n_r）；機率型 LLM 測試：確定性 oracle 在有效次數 n′ 中違反 k 次，**且**另開的重播 job 跑滿 n_r＝`trials.replay_n`（預設 20）次；v0.5 起 k_r 只是重現率紀錄，不影響分類（審查 2026-10-25 M-3；定義見 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界)）；③ `fail_oracles` 至少有一個確定性類型；④ 解讀**事先登記**，或由**合格的 Result Analyst** 確認 | R1 |
 | `E_fail_u` 未經確認的重現失敗 | ①–③ 成立，但解讀沒有事先登記，也**沒有合格的 Result Analyst**。若有合格分析者但**不同意**解讀 → 改列 `E_inc` | R2（弱工具訊號，算 1 個獨立來源）、R4 |
 | `E_pass` 合格 PASS | `outcome: PASS`；測試案例綁定此叢集（`source_cluster_id`、種子威脅追溯，或黑箱叢集的 `threat_id`）；所有 `reachability` 對照都是 PASS（取代 v0.2 的「前置條件已到達」；`precondition_reached` 欄位保留，但必須等於推導值，`E-RESULT-PRECONDITION`）；測試案例的 `oracle.types` 有確定性類型；機率型 LLM 測試另需 k＝0 且有效次數 n′ ≥ 30，並報告單側 95% 上界 p_u＝1 − 0.05^(1/n′)（04 §4.4）；解讀**事先登記**（W4 用 `oracle_can_fail` 對照），或由合格的 Result Analyst 確認「此 PASS 代表所述問題在測試條件下未重現」 | R11 |
-| `E_inc` 不確定 | 其他所有情況：`ERROR`、`SKIPPED`、`STOPPED`、**`INVALID`**（任一對照不是 PASS）、沒有重播或重播不一致的 FAIL（`replays`＝0；確定性測試 k_r ＜ n_r；機率型測試 k_r ＜ `fail_k_min`，例如 k_r＝0）、k 未達 `trials.fail_k_min`、機率型 PASS 的有效次數 n′ ＜ 30（前置條件未到達的次數不計；n′ ≥ 30 是 `E_pass` 的條件）、**違反只由 `LLM_GRADER`／`HUMAN` 判定**（`fail_oracles` 沒有確定性類型）、沒有確定性 oracle 的 PASS、解讀沒有事先登記也沒有合格分析者的 PASS、分析者不同意或缺票 | R12（只記錄） |
+| `E_inc` 不確定 | 其他所有情況：`ERROR`、`SKIPPED`、`STOPPED`、**`INVALID`**（任一對照不是 PASS）、沒有重播或確定性測試重播不一致的 FAIL（`replays`＝0；確定性測試 k_r ＜ n_r）、k 未達 `trials.fail_k_min`、機率型 PASS 的有效次數 n′ ＜ 30（前置條件未到達的次數不計；n′ ≥ 30 是 `E_pass` 的條件）、**違反只由 `LLM_GRADER`／`HUMAN` 判定**（`fail_oracles` 沒有確定性類型）、沒有確定性 oracle 的 PASS、解讀沒有事先登記也沒有合格分析者的 PASS、分析者不同意或缺票 | R12（只記錄） |
 
-- **機率型測試的次數、門檻與重播**以 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 為準（`trials.fail_k_min`、n＝30／60、n_r＝`trials.replay_n`＝20、k_r＝`replay_k`、PASS 的 n′ ＜ 30 ⇒ `E_inc`；`trials.pass_rule` 只是文字說明）；本節只負責把結果分類。重播 job k_r＝0 不代表第一批是誤判（真實違反率 5% 時約 36% 會全部沒重現），所以列 `E_inc` 並保留第一批紀錄給人看，而不是反證 [H]。
+- **機率型測試的次數、門檻與重播**以 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 為準（`trials.fail_k_min`、n＝30／60、n_r＝`trials.replay_n`＝20、k_r＝`replay_k`、PASS 的 n′ ＜ 30 ⇒ `E_inc`；`trials.pass_rule` 只是文字說明）；本節只負責把結果分類。重播 job k_r＝0 不代表第一批是誤判（真實違反率 5% 時約 36% 會全部沒重現）。v0.4 把它列 `E_inc`；v0.5 起機率型測試的重播不改變 FAIL 判定，報告寫出 k_r／n_r 並標示「重播未重現」，第一批紀錄保留給人看（審查 2026-10-25 M-3）[H]。
 - `positive_control.value`（測試結果欄位）＝「有 `oracle_can_fail` 對照，而且全部 PASS」；沒有這種對照時為 null（例如範例 B 的 PASS 與 TC-027-01 的 ZAP PASS）。由 validator 推導比對（`E-RESULT-CONTROLS`）[H]。沒有正對照的 PASS 仍可能是 `E_pass`（黑箱測試經 G4 核准，或經分析者確認），但報告標示；§5.3 M-9 會分開量測兩者的「測試漏報率」。
 - **PASS 永遠不會單獨把叢集變成 `REJECTED`**：測試只覆蓋有限條件，「沒有失敗」不等於「沒有漏洞」[H]。若校準顯示測試漏報率夠低（§5.3 M-9），未來的 `rule_version` 才可能放寬。
 
@@ -264,7 +264,7 @@
 | D 修正 | R8 | 修正 | `diversity_degraded`，且 C 段結果來自 R5 的投票分支（第 11 列） | 降為 `LIKELY`（`status_cap: LIKELY`）。R1 與強工具佐證的 R5（第 10 列）**不受**此上限影響 |
 | D 修正 | R11 | 修正 | 測試證據含 `E_pass`，且 C 段（經 R8）結果為下列之一 | 有正對照（某個 `E_pass` 結果的 `positive_control` 為 true，即 `oracle_can_fail` 對照 PASS）：`CONFIRMED_CORROBORATED` → `DISPUTED`；`LIKELY` → `DISPUTED`。沒有正對照：`CONFIRMED_CORROBORATED`、`LIKELY` 維持，加註 `test_not_reproduced`（v0.4）。`UNCORROBORATED` → 維持，加註 `test_not_reproduced`；`DISPUTED`、`REJECTED` → 維持 |
 | E 註記 | R12 | 註記 | 有任何 `E_inc` 結果，或 R1 與 `E_pass` 並存 | 不改狀態；加註 `test_inconclusive`（附測試 ID 與原因）或 `conflicting_test_results` |
-| E 註記 | R13 | 註記 | 此叢集對應的種子威脅被 G3 駁回（D5）；依 G3 GateRecord 計算，G3 之後任何階段（例如 `B5_readjudicate`）的新版裁決都適用 | 不改狀態（保留白箱狀態）；加註 `g3_rejected`（理由必填）；B6 列為「未做黑箱驗證（G3 駁回：理由）」 |
+| E 註記 | R13 | 註記 | 此叢集對應的種子威脅被 G3 駁回（D5；v0.5 起 G3 的 `over_cap` 決定也算，理由「超出 G3 上限」）；依 G3 GateRecord 計算，G3 之後任何階段（例如 `B5_readjudicate`）的新版裁決都適用 | 不改狀態（保留白箱狀態）；加註 `g3_rejected`（理由必填）；B6 列為「未做黑箱驗證（G3 駁回：理由）」 |
 
 - θ_reject、θ_confirm 由 §5.7 的程序決定；若該程序判定「不可行」，對應門檻設為 +∞（該分支永遠不成立）。
 - **重新裁決**：`W4_readjudicate`（W4 的 Z2 測試結果）與 `B5_readjudicate`（黑箱測試結果）把新結果寫回相關叢集，由 Aggregator **從 A 段重新評估全部規則**（例如從 `LIKELY` 經 R1 升為 `CONFIRMED_EXECUTABLE`，或經 R11 由 `CONFIRMED_CORROBORATED` 降為 `DISPUTED`），並以 append-only 方式產生新版裁決，保留每一版。

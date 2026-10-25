@@ -1067,13 +1067,20 @@ def platform_rules(R: Report, c: Ctx):
                     f"{t.get('id')}: platform_project needs platform, project_ref and evidence_ref")
         else:
             R.check(bool(op.get("token_ref")), "E-ROE-TARGETS", w, f"{t.get('id')}: {op.get('method')} needs token_ref")
-        if t.get("kind") != "http":
-            continue
-        plat = platform_of(safety.host_of(t.get("base_url")))
+        # v0.5 (review 2026-10-25 M-1): a database has no DNS TXT record or web root of its own to prove control with;
+        # db_comment (the engagement token in COMMENT ON DATABASE, read with the read-only oracle credential) or
+        # platform_project does. db_comment proves nothing about an HTTP host
+        if t.get("kind") == "database":
+            R.check(op.get("method") in ("db_comment", "platform_project"), "E-ROE-TARGETS", w,
+                    f"{t.get('id')}: a database target proves ownership with db_comment or platform_project, not {op.get('method')}")
+        else:
+            R.check(op.get("method") != "db_comment", "E-ROE-TARGETS", w, f"{t.get('id')}: db_comment is only for database targets")
+        host = safety.host_of(t.get("base_url")) if t.get("kind") == "http" else safety.endpoint_host(t.get("endpoint"))
+        plat = platform_of(host)
         if plat is None:
             continue
         R.check(op.get("method") == "platform_project" and op.get("platform") == plat, "E-ROE-PLATFORM", w,
-                f"{t.get('id')}: {t.get('base_url')} is on a shared {plat} domain: ownership_proof must be platform_project "
+                f"{t.get('id')}: {t.get('base_url') or t.get('endpoint')} is on a shared {plat} domain: ownership_proof must be platform_project "
                 f"with platform {plat} (dns_txt / well_known_path prove nothing there)")
         R.check(plat in policies, "E-ROE-PLATFORM", w, f"{t.get('id')}: no platform_policies entry for {plat}")
 
@@ -1382,8 +1389,11 @@ def g_gates(R: Report, c: Ctx):
             decs = [x.get("decision") for x in rec.get("decisions", [])]
             if rec.get("outcome") == "PARTIALLY_APPROVED":
                 R.check(gate in ("G3", "G4"), "E-GATE-OUTCOME", w, "PARTIALLY_APPROVED is only allowed at G3 and G4 (D2)")
+            # v0.5 (review 2026-10-25 M-4): over_cap is a G3-only, rule-based rejection written by the Gate Service
+            R.check(gate == "G3" or "over_cap" not in decs, "E-GATE-OUTCOME", w, "decision over_cap is only used at G3")
             if gate in ("G3", "G4") and decs:
-                want = "APPROVED" if all(x == "accept" for x in decs) else ("REJECTED" if all(x == "reject" for x in decs) else "PARTIALLY_APPROVED")
+                rej = [x for x in decs if x in ("reject", "over_cap")]
+                want = "APPROVED" if all(x == "accept" for x in decs) else ("REJECTED" if len(rej) == len(decs) else "PARTIALLY_APPROVED")
                 R.check(rec.get("outcome") == want, "E-GATE-OUTCOME", w, f"{gate} outcome {rec.get('outcome')} but decisions imply {want}")
             if gate == "G2":
                 R.check(rec.get("outcome") in ("APPROVED", "EXPIRED"), "E-GATE-OUTCOME", w,
@@ -1423,7 +1433,11 @@ def g_gates(R: Report, c: Ctx):
                 for x in rec.get("decisions", []):
                     t = c.ix.first("threat", threat_id=x.get("item_id"))
                     if R.check(t is not None, "E-TRACE", w, f"threat {x.get('item_id')} not found"):
-                        want = {"accept": "ACCEPTED", "reject": "REJECTED"}.get(x.get("decision"), "NEEDS_INFO")
+                        want = {"accept": "ACCEPTED", "reject": "REJECTED", "over_cap": "REJECTED"}.get(x.get("decision"), "NEEDS_INFO")
+                        if x.get("decision") == "over_cap":
+                            # the queue cap never applies to high-risk threats (attack tree) or impact high (docs/02 B2)
+                            R.check(not t.data.get("attack_tree_ref") and (t.data.get("risk") or {}).get("impact") != "high",
+                                    "E-GATE-OVER-CAP", w, f"{x.get('item_id')} is high-risk or impact high: it is never over the G3 cap")
                         rv_ = t.data.get("review") or {}
                         R.check(rv_.get("status") == want and rv_.get("gate_record_id") == rec.get("gate_record_id"), "E-TRACE-THREAT-REVIEW",
                                 t.path, f"review must be {want} by {rec.get('gate_record_id')}")
@@ -1582,6 +1596,10 @@ def g_runs(R: Report, c: Ctx):
                                 "request_count exceeds the testcase max_requests")
                         n = (tc.data.get("trials") or {}).get("n")
                         R.check((tr.get("trials") or {}).get("n") == n, "E-RESULT-TRIALS", x.path, f"trials.n must equal the testcase n={n}")
+                        # v0.5 (review 2026-10-25 M-3): a replay job runs the pre-registered replay_n times, not fewer
+                        rn = (tc.data.get("trials") or {}).get("replay_n")
+                        R.check(tr.get("replays", 0) in (0, rn), "E-RESULT-TRIALS", x.path,
+                                f"replays (n_r) {tr.get('replays')} must be 0 (no replay job) or the testcase replay_n={rn}")
                         R.check(set(tr.get("target_ids", [])) <= set(tc.data.get("target_ids", [])), "E-RESULT-TARGETS", x.path, "targets outside the testcase")
                     if black_box:
                         result_build(R, c, x, run)
@@ -1902,7 +1920,7 @@ def g3_rejected(c: Ctx, v: dict, cluster: dict) -> bool:
         for x in rec.get("decisions", []):
             if x.get("item_id") in tids:
                 last[x.get("item_id")] = x.get("decision")
-    return all(last.get(t) == "reject" for t in tids)
+    return all(last.get(t) in ("reject", "over_cap") for t in tids)          # v0.5: over_cap is a rule-based rejection
 
 
 def g2_latest(c: Ctx, cluster: dict) -> tuple[dict | None, str | None]:
@@ -2659,7 +2677,7 @@ def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
     report_only: a white-box cluster, latest verdict UNCORROBORATED and no seed threat from it (the pruning rule; rubric severity
     and the high-risk conditions are the toolkit's to compute). over_cap G2: a cluster of the run that became
     a seed without a G2 decision, while the run's G2 queue was full (exactly g2_max_items decisions). over_cap
-    G3: a seed threat of the run whose threat_id has no G3 decision."""
+    G3: a seed threat of the run whose threat_id has a G3 decision over_cap (v0.5; v0.4: no G3 decision)."""
     rid = rm.get("run_id")
     caps = c.toolkit.get("gate_queues") or {}
     seeds = [sd for d in c.docs("seed-threats") if d.data.get("run_id") == rid for sd in d.data.get("seeds", [])]
@@ -2672,6 +2690,8 @@ def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
                 f"(got {status.get(cid)}) and that is not a seed threat")
     decided = {g: {dec.get("item_id") for rec in c.ix.gate_records(rid, g) for dec in rec.data.get("decisions", [])}
                for g in ("G2", "G3")}
+    over_cap_g3 = {dec.get("item_id") for rec in c.ix.gate_records(rid, "G3") for dec in rec.data.get("decisions", [])
+                   if dec.get("decision") == "over_cap"}
     g2 = c.ix.gate_records(rid, "G2")
     g2_full = bool(g2) and len(g2[-1].data.get("decisions", [])) == caps.get("g2_max_items", 30)
     seen = set()
@@ -2681,8 +2701,9 @@ def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
             ok = status.get(iid) in ("DISPUTED", "UNCORROBORATED") and iid in seed_clusters and iid not in decided["G2"] and g2_full
             why = "a DISPUTED / UNCORROBORATED seed cluster without a G2 decision, while the G2 queue held exactly g2_max_items"
         else:
-            ok = any(sd.get("seed_id") == iid and sd.get("threat_id") not in decided["G3"] for sd in seeds)
-            why = "a seed threat of the run whose threat has no G3 decision"
+            # v0.5 (review 2026-10-25 M-4b): the G3 record names it with decision over_cap, so D5 and R13 see it as rejected
+            ok = any(sd.get("seed_id") == iid and sd.get("threat_id") in over_cap_g3 for sd in seeds)
+            why = "a seed threat of the run whose threat has a G3 decision over_cap"
         R.check(ok and (g, iid) not in seen, "E-REPORT-QUEUE", w, f"over_cap_items: {g} {iid} must be {why}, listed once")
         seen.add((g, iid))
 

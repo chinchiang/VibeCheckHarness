@@ -37,6 +37,10 @@ A request may name the objects it addresses outside the path in `object_refs` ({
 {created:step_id}). A path without variable segments (Server Action, GraphQL mutation, PostgREST
 filter) is then in scope when every ref is valid for this path (BL-24). The Scope Proxy binds the
 body / query object IDs to the resolved refs (body_id_problem) and strips method-override headers.
+
+v0.5 (review 2026-10-25 H-6): request_binding_problem also covers the query string (PostgREST eq. only, no or= /
+and=), lists and objects under id keys, plural id keys and unfiltered writes; Server Actions declare
+server_action {action_id, args} and are bound by exact argument match (server_action_problem).
 """
 from __future__ import annotations
 
@@ -242,24 +246,102 @@ def object_ref_problems(r: dict, manifest, creates: dict[str, dict]) -> list[str
 
 
 ID_KEY_RE = re.compile(r"^(id|.*_id|.*Id|.*ID)$")
+# v0.5 (review 2026-10-25 H-6): plural id keys address several objects at once; never bound
+IDS_KEY_RE = re.compile(r"^(ids|.*_ids|.*Ids|.*IDs)$")
+# PostgREST logical operators in the query string (or=(...), and=(...), not.or=...)
+POSTGREST_LOGICAL = re.compile(r"^(not\.)?(or|and)$")
+POSTGREST_EQ = re.compile(r"^eq\.(.+)$")
+POSTGREST_OP = re.compile(r"^(not\.)?[a-z]+\.")
 
 
-def body_id_problem(payload, allowed: set[str]) -> str | None:
-    """v0.4 reference rule for the Scope Proxy (docs/08 §11.7): every scalar under an id-like key
-    (id, *_id, *Id, *ID) anywhere in a JSON body or query mapping must be one of the resolved seed /
-    created values `allowed`. None = in scope."""
-    stack = [payload]
+def _scalar(v) -> bool:
+    return isinstance(v, (str, int, float)) and not isinstance(v, bool)
+
+
+def request_binding_problem(query, body, allowed: set[str], require_binding: bool = False) -> str | None:
+    """v0.5 (review 2026-10-25 H-6) reference rule for the Scope Proxy (docs/08 §11.7): the object IDs a request
+    carries outside its path are exactly resolved seed / created values `allowed`. None = in scope.
+
+    - query (a mapping of parameter -> value): an id-like key takes a plain value or PostgREST `eq.<value>`; any
+      other PostgREST operator (in., neq., gt., like., is., not. ...) and the logical or= / and= parameters are
+      rejected, because they can select objects other than the bound one;
+    - body (JSON): every scalar under an id-like key (id, *_id, *Id, *ID) anywhere must be allowed; an id-like key
+      holding a list or an object (`{"invoice_id": [999]}`, `where: {id: {eq: ...}}`) and plural keys
+      (ids, *_ids, *Ids, *IDs) are rejected; a top-level array (positional Server Action arguments) is rejected
+      here: Server Actions are bound by `server_action_problem`;
+    - require_binding: a mutation whose path has no variable segment must carry at least one bound ID in the
+      query or body, so an unfiltered PATCH / DELETE of a whole PostgREST table is rejected.
+    v0.4's body_id_problem checked only scalars under id-like keys and ignored the query string."""
+    bound = 0
+    for k, v in (query or {}).items():
+        if not isinstance(k, str):
+            return f"query parameter {k!r} is not a string"
+        if POSTGREST_LOGICAL.match(k):
+            return f"query parameter {k}= (PostgREST logical operator) can select other objects"
+        if IDS_KEY_RE.match(k):
+            return f"query parameter {k} addresses several objects"
+        if ID_KEY_RE.match(k):
+            values = v if isinstance(v, list) else [v]
+            for x in values:
+                x = str(x)
+                m = POSTGREST_EQ.match(x)
+                if x not in allowed and not (m and m.group(1) in allowed):
+                    if m is None and POSTGREST_OP.match(x):
+                        return f"query {k}={x!r}: only the PostgREST eq. operator can bind an object"
+                    return f"query {k}={x!r} is not a seed or created object of this request"
+                bound += 1
+    if isinstance(body, list):
+        return "a top-level array body (positional arguments) cannot be bound by key; declare the call as a server_action"
+    stack = [body]
     while stack:
         cur = stack.pop()
         if isinstance(cur, dict):
             for k, v in cur.items():
-                if isinstance(v, (dict, list)):
+                if isinstance(k, str) and IDS_KEY_RE.match(k):
+                    return f"{k} addresses several objects"
+                if isinstance(k, str) and ID_KEY_RE.match(k):
+                    if isinstance(v, (dict, list)):
+                        return f"{k} holds a {type(v).__name__}: an id-like key must hold one bound value"
+                    if v is not None:
+                        if str(v) not in allowed:
+                            return f"{k}={v!r} is not a seed or created object of this request"
+                        bound += 1
+                elif isinstance(v, (dict, list)):
                     stack.append(v)
-                elif isinstance(k, str) and ID_KEY_RE.match(k) and v is not None and str(v) not in allowed:
-                    return f"{k}={v!r} is not a seed or created object of this request"
         elif isinstance(cur, list):
             stack.extend(cur)
+    if require_binding and bound == 0:
+        return "a mutation without path variables names no bound object ID (an unfiltered write of the whole collection)"
     return None
+
+
+def body_id_problem(payload, allowed: set[str]) -> str | None:
+    """v0.4 name, kept for callers: the body part of request_binding_problem."""
+    return request_binding_problem(None, payload, allowed)
+
+
+SERVER_ACTION_HEADER = "next-action"
+
+
+def server_action_problem(headers: dict, body, spec: dict, resolve: dict[str, str]) -> str | None:
+    """v0.5 (review 2026-10-25 H-6): a Next.js Server Action request carries positional arguments, which no key rule
+    can bind. The allow-list entry declares server_action {action_id, args}; the Scope Proxy forwards the request
+    only when the Next-Action header equals action_id and the body equals args with every {seed:..} / {created:..}
+    string replaced by its resolved value (`resolve`). None = in scope."""
+    got = {str(k).lower(): v for k, v in (headers or {}).items()}.get(SERVER_ACTION_HEADER)
+    if not isinstance(spec, dict) or got != spec.get("action_id"):
+        return f"Next-Action header {got!r} is not the declared server action {(spec or {}).get('action_id')!r}"
+
+    def subst(x):
+        if isinstance(x, str) and (SEED_REF_RE.match(x) or CREATED_REF_RE.match(x)):
+            return resolve.get(x)
+        if isinstance(x, list):
+            return [subst(y) for y in x]
+        if isinstance(x, dict):
+            return {k: subst(v) for k, v in x.items()}
+        return x
+    want = subst(spec.get("args"))
+    return None if body == want else "Server Action arguments differ from the declared args (after resolving refs)"
 
 
 METHOD_OVERRIDE_HEADERS = frozenset({"x-http-method-override", "x-http-method", "x-method-override"})
@@ -353,6 +435,24 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
             out.append(f"{where}: {prob}")
         refs = object_ref_problems(r, manifest, creates)
         out.extend(f"{where}: {p}" for p in refs)
+        sa = r.get("server_action")
+        if sa is not None:
+            # v0.5 (H-6): a Server Action is a POST to a fixed path; every ref in its args is a valid object_refs entry
+            arg_refs = set()
+            stack = [sa.get("args") if isinstance(sa, dict) else None]
+            while stack:
+                x = stack.pop()
+                if isinstance(x, str) and (SEED_REF_RE.match(x) or CREATED_REF_RE.match(x)):
+                    arg_refs.add(x)
+                elif isinstance(x, list):
+                    stack.extend(x)
+                elif isinstance(x, dict):
+                    stack.extend(x.values())
+            if r.get("method") != "POST" or any(is_placeholder(x) for x in segments(path)):
+                out.append(f"{where}: a server_action is a POST to a path without variable segments (v0.5)")
+            missing = sorted(arg_refs - set(r.get("object_refs") or []))
+            if missing:
+                out.append(f"{where}: server_action args use {missing}, which are not in object_refs (v0.5)")
         if r.get("graphql_operation") is not None and not graphql_declared(r, gql):
             out.append(f"{where}: graphql_operation {r.get('graphql_operation')!r} on a path the ROE does not declare as GraphQL "
                        f"for {r.get('target_id')} (targets[].graphql_paths), or not over GET/POST")

@@ -17,7 +17,7 @@
   "resume_node": null,
   "resume_deadline": null,
   "data_class": "C",
-  "toolkit_config_ref": "sha256:219369fe47edd3f03a84732178cad355b34f64c38ba30016af544fdb6d1417ef",
+  "toolkit_config_ref": "sha256:fb3bc33eff2b62ba6140568d8e130aeaf2722c3e2bffdcd43b704130cd3804ff",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
   "engagement_ref": "sha256:fef7b0ab019583ed714efdccd8968f5497fd8579a40a29418dda768551828026",
   "config_refs": {
@@ -108,7 +108,7 @@
     }
   ],
   "rule_version": "05-v0.5",
-  "roe_ref": "sha256:044d9e9ab7dbddb07d4d2ef9189cbfdce1f9608e35d60eb8f6ee37561404db61",
+  "roe_ref": "sha256:b201565a035851b343fe25a39fa68ea310e3239c9a8a4c5de19c7864bb74e655",
   "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
@@ -214,7 +214,7 @@
   "threat_model_ref": "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441",
   "b1_diff_dispositions_ref": "sha256:5647a710ee3efacde3402733bd5692419bcf526667623df8c2954368d00087f4",
   "g3_round": 1,
-  "testplan_ref": "sha256:59ebbb2b2695d9d296a111ac72c42bfc053a6db4ab7fd5a2905a074c0e8e0947",
+  "testplan_ref": "sha256:ed33e4b7f128bcea4efff6cdfae48b5236a0c6696a5147b13af746ac65148b46",
   "testcase_ids": [
     "TC-012-01",
     "TC-027-01",
@@ -222,10 +222,10 @@
     "TC-033-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:a6c67c6ed1a8404ea2eb4a37c274ab1986a98b1728212b5a4c29ef4602dc41a5",
-    "TC-027-01": "sha256:08e0e61990fbba11d3629aa619ab2207d0cd4e42eb098ff5927c3265385499d6",
-    "TC-031-01": "sha256:35ac427b9a6ab2c15232aa345f716d0c9c90ae9356ebb8ff6e9ab8ecc9ca2bde",
-    "TC-033-01": "sha256:dd59734ca60a17345c788972ac5d79580ca99d9e8a7080984803dbaeff2b3182"
+    "TC-012-01": "sha256:49384a3a351e31569036ef858c8d4f1a9a12d1a0bbb2d41498d14f78bdfa0566",
+    "TC-027-01": "sha256:2c96e7ba462bf263e6835c9445ad1dba97f943e7e080426433faae99cb688511",
+    "TC-031-01": "sha256:b8c463671b3d9f93bb9b98acca5de2c0ae48114cfb086ab73fedce3b4d62deed",
+    "TC-033-01": "sha256:4f2dec8fadd0b17d5a95eb82d67b1c91a22ed07a28b024fbf82078c215ffced4"
   },
   "g4_round": 1,
   "approved_testcase_ids": [
@@ -303,7 +303,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:f148b965916f58ab49717f0dd69e9f6f43629955b5935abc1fb8f2263d44e6b2",
+  "report_manifest_ref": "sha256:e1e2c8863e9eeb30efb6d4ab521b9997fa40f700d55bb35ab3561a4a1e720db6",
   "gate_records": [
     {
       "gate": "G0a",
@@ -350,7 +350,7 @@
       "gate_record_id": "GR-G0b-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:044d9e9ab7dbddb07d4d2ef9189cbfdce1f9608e35d60eb8f6ee37561404db61",
+      "subject_hash": "sha256:b201565a035851b343fe25a39fa68ea310e3239c9a8a4c5de19c7864bb74e655",
       "job_id": null,
       "opened_at": "2026-10-01T08:59:00+08:00",
       "decided_at": "2026-10-01T09:00:00+08:00"
@@ -370,7 +370,7 @@
       "gate_record_id": "GR-G4-0001",
       "outcome": "APPROVED",
       "round": 1,
-      "subject_hash": "sha256:59ebbb2b2695d9d296a111ac72c42bfc053a6db4ab7fd5a2905a074c0e8e0947",
+      "subject_hash": "sha256:ed33e4b7f128bcea4efff6cdfae48b5236a0c6696a5147b13af746ac65148b46",
       "job_id": null,
       "opened_at": "2026-10-02T12:00:00+08:00",
       "decided_at": "2026-10-03T11:00:00+08:00"
@@ -380,7 +380,7 @@
       "gate_record_id": "GR-G5-0001",
       "outcome": "APPROVED",
       "round": 1,
-      "subject_hash": "sha256:0acbe59034a21f04d33464f3b0b6e16cc4c5a264ba1e487a3f1b11e29b95d261",
+      "subject_hash": "sha256:48f15363be6cfba07cacab451059985ac91f46102fce4d7508e621196305c684",
       "job_id": "job-zap-active-001",
       "opened_at": "2026-10-05T21:00:00+08:00",
       "decided_at": "2026-10-05T21:50:00+08:00"

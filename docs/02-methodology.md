@@ -533,7 +533,7 @@ flowchart TD
     - 不符合 [B2 高風險威脅](#b2-威脅建模g3-強制簽核) 的任何一條（跨租戶或認證邊界且涉及機密或個資、涉及需人確認的 LLM 工具）；
     - 不是 W4 後才轉為爭議的叢集。
     - G3 審查者可以把清單中的任何一項拉回種子威脅。清單的 10% 列入 ASI09 抽查，以量測剪枝造成的漏報（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
-  - **G3 佇列**（v0.4）[H]：種子威脅依「高風險 → rubric 嚴重度 → 裁決狀態」排序呈現；高風險威脅與 `critical`／`high` 不受任何上限限制，其他項目每個 run 預設最多 50 項需要逐項決定（`gate_queues.g3_max_items`），超出的照 G3 `NEEDS_INFO` 逾時規則處理（視同駁回，理由自動填「超出 G3 上限」，列入 B6 與 report-manifest `over_cap_items`）。
+  - **G3 佇列**（v0.4）[H]：種子威脅依「高風險 → rubric 嚴重度 → 裁決狀態」排序呈現；高風險威脅與 `critical`／`high` 不受任何上限限制，其他項目每個 run 預設最多 50 項需要逐項決定（`gate_queues.g3_max_items`），超出的照 G3 `NEEDS_INFO` 逾時規則處理（視同駁回，理由自動填「超出 G3 上限」，列入 B6 與 report-manifest `over_cap_items`）。v0.5（審查 2026-10-25 M-4）：v0.4 的「超出上限」定義成「沒有決定」，D5 與 R13 卻要 G3 的 reject 決定才成立，結果 `B3_validate_artifacts` 會擋住 G4，或要核准者替自動決定背書。現在 Gate Service 在呈現前把超出的項目寫成 G3 紀錄中的 `decision: over_cap`（只限 G3；高風險與 impact high 的威脅不能是 over_cap，`E-GATE-OVER-CAP`）；核准者的簽章證明的是「這些項目沒有被審查」。`over_cap` 依規則視同駁回：不產生測試案例、威脅 `review.status: REJECTED`、R13 加註 `g3_rejected`（理由「超出 G3 上限」），report-manifest 的 G3 `over_cap_items` 必須正好是這些項目（`E-REPORT-QUEUE`）。
   - `W4_readjudicate` 時才轉為 `DISPUTED` 的叢集（前一版裁決不是 `DISPUTED`，例如 `LIKELY` 經 R11 → `DISPUTED`；與 G2 是否已決定無關）在裁決上加註 `w4_became_disputed`；種子威脅與 run 的 `disputed_after_g2` 由這些註記推導，G3 呈現時標為「W4 後轉為爭議」[H]（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
   - 這樣動態測試可以把確認升級為 `CONFIRMED_EXECUTABLE`、化解跨家族爭議，並替已確認的問題留下回歸測試。
 - **跨 run 指紋與基準狀態** [H]：
@@ -573,7 +573,7 @@ flowchart TD
   1a. **法務審查聲明**（`legal_review`，[06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h)）[H]：G0b 同時檢查 L-1～L-6：聲明存在且每個 `scope` 項目為 `true` 或附 `not_applicable_reason`；`attested_by` 在金鑰登錄中、未撤銷、角色含 `legal_reviewer`（沒有法務人員時可用 `management`，報告首頁標示「未經法務人員審查」）；簽章有效；`attested_at` ≤ ROE `not_before` 且 `expires_at` ≥ ROE `not_after`；`attested_by` 不是 `test_lead`（否則 `E-L5`：`VERIFY_FAILED`，理由 `legal_attester_is_test_lead`，但 run 不中止，而是 `SUSPENDED` 等 ROE 修正；`lite` 兼任者自己聲明時例外，改為警告 `W-L5-LITE`，見 [§1.7](#17-保證等級liteteamfull)）；法務閘門元件在 `component_licenses` 不為 `true` 時從允許清單移除並列入 B6。L-1～L-4 失敗 → G0b 不通過（稽核 `roe_verify_failed`，理由如 `legal_review_missing`）。
      - **元件授權過濾只在這裡做**（L-6）：過濾後的允許工具清單寫入 G0b GateRecord 的驗證結果，B 階段（B3 的工具選擇、B4 的 adapter）只用這份清單；G0b 之前的 W 階段不讀 `legal_review`。
      - **執行中到期**：ROE 的 `not_after` 或 `legal_review.expires_at` 在 run 執行中到期 → `SUSPENDED`（保留 checkpoint）。resume 需要一份新的有效 ROE（新版本、重新簽署），resume 時由 G0b 重驗，`B4_preflight` 在每批開始時也檢查；舊 ROE 不能續用。
-  2. **目標所有權驗證**（`B0_ownership_verify`）：每個目標主機要在 DNS TXT 或 well-known path 放置本次委任的 token。檢查**由 Z3 經 Scope Proxy 執行**（Z1 不能連目標），結果由 Z3 Executor 簽署後回傳給 Policy Engine。我方控制的設施（例如 canary 伺服器）標為 `tester_controlled`。**每個 B4 批次開始時（`B4_preflight`）重新檢查**。
+  2. **目標所有權驗證**（`B0_ownership_verify`）：每個 HTTP 目標主機要在 DNS TXT 或 well-known path 放置本次委任的 token。**DB 目標**（`kind: database`）沒有自己的 DNS 紀錄或網站根目錄可用（v0.5，審查 2026-10-25 M-1）：改用 `db_comment`——基礎設施擁有者把 token 寫進資料庫註解（`COMMENT ON DATABASE`），Z3 以 ROE `db_access` 的唯讀 oracle 憑證連線讀出；只有能修改這個資料庫的人寫得進去。共享平台上的 DB 主機（例如 Supabase 的 `db.<ref>.supabase.co`）改用 `platform_project`，與同一平台的 HTTP 目標一樣（validator：`E-ROE-TARGETS`、`E-ROE-PLATFORM`）。檢查**由 Z3 經 Scope Proxy 執行**（Z1 不能連目標），結果由 Z3 Executor 簽署後回傳給 Policy Engine。我方控制的設施（例如 canary 伺服器）標為 `tester_controlled`。**每個 B4 批次開始時（`B4_preflight`）重新檢查**。
      - **共享平台網域** [H]：主機在共享平台的網域下（`supabase.co`、`vercel.app`、`netlify.app`、`firebaseapp.com`、`web.app`、`onrender.com`、`pages.dev`、`fly.dev`、`herokuapp.com`；本身或其子網域）時，DNS 與網站根目錄由平台控制，所以**不接受** DNS TXT 與 well-known path。清單就是 `tools/vchlib/safety.py` 的 `SHARED_PLATFORM_SUFFIXES`，每個後綴對應一個 `platform` 值：`supabase`、`vercel`、`netlify`、`firebase`（`firebaseapp.com`、`web.app`）、`render`（`onrender.com`），其餘三個是 `other`。
        - 改用 `ownership_proof.method: platform_project`，`platform` 必須等於主機後綴對應的值，`project_ref`、`evidence_ref` 必填。
        - 並在 ROE 的 `platform_policies[]` 記錄同一平台的安全測試政策：`platform`、`policy_url`、`accepted_by`（金鑰登錄中的人）、`accepted_at`、`restrictions[]`。範例 ROE 沒有共享平台目標，所以 `platform_policies` 是空陣列。
@@ -688,7 +688,8 @@ flowchart TD
     - 種子重置改為只處理本 run 命名空間的種子腳本；整庫快照還原只用於 S2，避免在共用 staging 上回滾其他人的資料。
 - **`lite`**：只允許 S0／S1 的測試案例；算出 S2 的測試案例改為 `MANUAL`（附原因）[H]。validator 對 `lite` 中 `tool_binding.kind` 不是 `MANUAL` 的測試案例檢查算出的安全等級是 S0／S1，run 的每個 job 也一樣（`E-PROFILE-SAFETY`）；`MANUAL` 測試案例不受此限，因為工具包不會執行它。
 - 產物驗證（`B3_validate_artifacts`）失敗 → 回到 `B3_derive` 修復，最多 2 次；仍失敗 → 該測試案例改為 `MANUAL`（附原因）[H]。
-- 測試計畫與每個產物都要在 **G4** 綁定 hash 核准；G4 可逐測試案例部分核准。`lite`，或測試計畫只有 S0／S1 job 時，G3 與 G4 可以在同一次審查中處理（[§1.7](#17-保證等級liteteamfull)）。
+- 測試計畫與每個產物都要在 **G4** 綁定 hash 核准；G4 可逐測試案例部分核准。
+- **G4 佇列**（v0.5，審查 2026-10-25 M-6）[H]：G4 要逐一審核每個產生的腳本，v0.4 沒有上限與優先序，量一大就逾時（EXPIRED → `SUSPENDED`）。現在每輪最多 `gate_queues.g4_max_items`（預設 40）個測試案例需要逐一審核，依「高風險威脅 → S2 → S1 → rubric 嚴重度」排序；高風險威脅的測試案例不受上限。超出的測試案例改為 `MANUAL`（理由「超出 G4 上限」），列入 B6；下一輪 run 可以優先處理它們。`lite`，或測試計畫只有 S0／S1 job 時，G3 與 G4 可以在同一次審查中處理（[§1.7](#17-保證等級liteteamfull)）。
 - **覆蓋規則**：每個已接受的威脅有測試案例或 `MANUAL`；每個非 `REJECTED` 的種子威脅有 ≥1 個測試案例，或有 G3 駁回紀錄。
 
 ### B4 執行

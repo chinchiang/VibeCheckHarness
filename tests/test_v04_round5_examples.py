@@ -6,7 +6,7 @@ Positive and negative cases:
 - the cicd_iac facet is mandatory when the inventory has ci_workflows or iac;
 - G1 llm_tools may pin MCP tool descriptions.
 """
-from conftest import codes, doc
+from conftest import codes, doc, resign_gate
 from vchlib import facets
 from vchlib.checks import run_all
 
@@ -20,7 +20,8 @@ def errors(b, code):
 
 # ================================================================ BL-26
 def test_example_queue_fields(b):
-    assert doc(b, "toolkit.yaml").data["gate_queues"] == {"g2_max_items": 30, "g3_max_items": 50, "g2_timeout_warn_ratio": 0.5}
+    assert doc(b, "toolkit.yaml").data["gate_queues"] == {"g2_max_items": 30, "g3_max_items": 50, "g4_max_items": 40,
+                                                         "g2_timeout_warn_ratio": 0.5}
     rm = doc(b, RM).data
     assert rm["over_cap_items"] == [] and rm["report_only_clusters"] == []
     assert not errors(b, "E-REPORT-QUEUE")
@@ -61,11 +62,17 @@ def test_over_cap_g2_rejects_decided_and_unseeded_clusters(b):
     assert len(errors(b, "E-REPORT-QUEUE")) == 2
 
 
-def test_over_cap_g3(b):
+def test_over_cap_g3(b, keys):
     rm = doc(b, RM).data
-    rm["over_cap_items"] = [{"gate": "G3", "item_id": "ST-001"}]   # T-012 was decided at G3
+    rm["over_cap_items"] = [{"gate": "G3", "item_id": "ST-001"}]   # T-012 was accepted at G3
     assert errors(b, "E-REPORT-QUEUE")
-    doc(b, SEEDS).data["seeds"][0]["threat_id"] = "T-999"
+    doc(b, SEEDS).data["seeds"][0]["threat_id"] = "T-999"          # v0.5: undecided is not over_cap either
+    assert errors(b, "E-REPORT-QUEUE")
+    # v0.5 (review 2026-10-25 M-4b): the G3 record names the item with decision over_cap
+    doc(b, SEEDS).data["seeds"][0]["threat_id"] = "T-027"
+    rec = doc(b, "gate-record.g3.example.json").data
+    next(x for x in rec["decisions"] if x["item_id"] == "T-027")["decision"] = "over_cap"
+    resign_gate(b, "gate-record.g3.example.json", keys)
     assert not errors(b, "E-REPORT-QUEUE")
     rm["over_cap_items"].append({"gate": "G3", "item_id": "ST-001"})
     assert len(errors(b, "E-REPORT-QUEUE")) == 1                  # listed twice

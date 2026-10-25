@@ -18,7 +18,7 @@
 - **寫入範圍的其餘部分**（§5）：
   - 會改變狀態的 GET（seed manifest `state_changing_reads`）算寫入；W0 inventory 判定會寫入的 GET 都必須列入（`E-SEED-SIDE-EFFECT`）。
   - 以 POST 送出的唯讀端點（`read_only_endpoints`，BL-25）算讀取。
-  - 路徑沒有變數段的寫入（Next.js Server Actions、GraphQL mutation、PostgREST 過濾條件）以 `object_refs` 綁定種子（BL-24）；Scope Proxy 把 body 與 query 中的物件 ID 綁到解析後的值，並移除 method override。
+  - 路徑沒有變數段的寫入（Next.js Server Actions、GraphQL mutation、PostgREST 過濾條件）以 `object_refs` 綁定種子（BL-24）；Scope Proxy 把 body 與 query 中的物件 ID 綁到解析後的值，並移除 method override。v0.5（審查 2026-10-25 H-6）：綁定規則補上 query 字串（只接受 PostgREST `eq.`）、ID 鍵下的陣列與物件、複數 ID 鍵、沒有任何綁定 ID 的整表寫入；Server Action 改以 `server_action {action_id, args}` 逐字比對（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)）。
   - create-only 端點宣告看不到的副作用（`side_effects: external／llm_tools`）；沒有宣告 `contained` 就至少 S2。
   - seed manifest 的內容 hash 由基礎設施擁有者在 ROE 簽署（`E-ROE-SEED-MANIFEST`）。
   - Schemathesis 的 S1 模式只跑 GET／HEAD 操作；寫入操作改用綁種子的 GENERATED_SCRIPT。
@@ -89,6 +89,7 @@
 ### 1.3 覆蓋規則（D5）
 - 每個已接受（G3 未駁回）的威脅：≥1 個測試案例，或 `MANUAL`（附原因）。
 - 每個非 `REJECTED` 的白箱叢集都會成為種子威脅（[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅)），因此：**每個非 `REJECTED` 叢集有 ≥1 個 B3 測試案例，或有一筆 G3 駁回紀錄**（理由必填）。
+- G3 的 `over_cap` 決定（v0.5，超出 `gate_queues.g3_max_items`，由 Gate Service 寫入）依規則視同駁回，滿足這一條。
 - 被 G3 駁回的種子威脅不產生測試案例；叢集保留白箱裁決，由 05 R13 加註 `g3_rejected`，B6 列為「未做黑箱驗證（G3 駁回：理由）」。
 - `B3_validate_artifacts` 以程式碼檢查上述兩條；不成立就不開 G4 [H]。
 - **高風險威脅**的定義只有一份，見 [02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)（LLM 評等只當下限）。本文件只使用該定義：高風險威脅必須有 attack tree；B3 若把高風險威脅標為 `MANUAL`，G4 上要顯示「高風險且未自動測試」[H]。
@@ -302,22 +303,29 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 | S／E：session 管理 | API2 [H] | 登出與逾時後 session 在伺服器端失效 | 認證 process | 登出後重用同一 session：401；逾時後：401 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-SESS-01、WSTG-v42-SESS-06、WSTG-v42-SESS-07 [V][E:threat_modeling-55] |
 | S／E：JWT 處理 | API2 | 伺服器驗證 token 簽章、到期與受眾 | 認證 process | 用 Session Provider 取得的合法 token 做**單一欄位**的變化（簽章位元組改動、過期、錯誤受眾）：一律 401 | GENERATED_SCRIPT `playwright:api` | S1 | —（WSTG v4.2 無專屬 ID [V][E:threat_modeling-56]；一般 session 項目見上列） |
 | S：帳號列舉 | API2 [H] | 回應不透露帳號是否存在（`access_matrix`） | 認證／查詢 process | 對存在與不存在的合成帳號送相同請求：狀態碼、訊息與回應大小一致 | GENERATED_SCRIPT `playwright:api` | S1 | WSTG-v42-IDNT-04 [V][E:threat_modeling-66] |
+| S：帳號復原／密碼重設（v0.5，M-7） | API2 [H] | 重設 token 一次性、有時效、只對發出它的帳號有效；回應不透露帳號是否存在（`access_matrix`、`limits`） | 認證 process（重設流程） | 以合成帳號 A 請求重設，token 由 Session Provider 從合成信箱取得：用過一次後再用 → 拒絕；以 A 的 token 重設合成帳號 B → 拒絕；對存在與不存在的帳號請求重設，回應一致 | GENERATED_SCRIPT `playwright:api` | S1（寄信端點在 seed manifest 宣告 `side_effects: external` 且 `contained: true`〔合成信箱〕；否則 ≥ S2） | —（未對到官方 ID） |
+| S：Supabase Auth 後台設定（黑箱，v0.5，M-7） | API2／API8 [H] | Auth 設定符合 G1 政策：未確認信箱不能登入、依政策關閉公開註冊或匿名登入、session 與 refresh token 有到期（`policies`、`limits`） | 認證 process（Supabase Auth） | 以未確認信箱的合成帳號登入 → 拒絕；政策關閉註冊時，公開註冊端點 → 拒絕；過期的 refresh token → 401。02 W 階段承諾「B 階段補測」的就是這一列 | GENERATED_SCRIPT `playwright:api` | S1 | —（未對到官方 ID） |
+| T／I：不安全地使用第三方 API（v0.5，M-7） | API10 | 應用驗證上游／第三方 API 的回應（型別、大小、重導），不把它當可信輸入轉給使用者或寫入資料（`policies.outbound_hosts`） | 呼叫外部 API 的 process | 黑箱通常控制不了上游。只有上游可以設成我方 canary（`tester_controlled`，在 ROE 中）時，讓 canary 回傳不合規格的良性回應：應用拒絕或安全處理，沒有 5xx、沒有原樣轉出；否則以白箱 W1／W2 的發現項為主，黑箱 `MANUAL` | GENERATED_SCRIPT `playwright:api` 或 MANUAL | S1 | —（未對到官方 ID） |
+
+**Lite 沒有黑箱注入測試**（v0.5，審查 2026-10-25 M-7）[H]：上表「注入類廣泛檢查」只靠 `zap:active`，那是 S2；`lite` 不跑 S2，所以 Lite 的注入類需求一律是 `MANUAL`，報告首頁要寫明「Lite：沒有黑箱注入測試，只有白箱 W1／W2 的發現」。其他 S0／S1 列照常執行。
 
 **B. LLM 功能（OWASP LLM Top 10；每列寫 2026 編號／2025 編號，對照見 §2.3）**
 
 | 威脅類別 | 需求類型 | DFD 元件 | 驗證方式（oracle） | kind＋adapter | 安全等級 | WSTG／AITG |
 |---|---|---|---|---|---|---|
 | LLM01@2026＝LLM01@2025／ASI01／ASI02：prompt injection 導致工具濫用 | 不可信內容不能觸發未經確認的工具呼叫；工具端以呼叫者身分授權（confused deputy）。注入內容的來源要寫明：使用者自己上傳（範例 B，測的是工具端授權）或第三方（他人上傳、檢索來源，才是嚴格意義的間接注入）（v0.4） | LLM process＋工具 | 工具呼叫紀錄＋canary，n 次（§4.4；範例 B） | GENERATED_SCRIPT `promptfoo:eval` 或 `pyrit:orchestrator` | S1 | AITG-APP-02、AITG-APP-06 [V][E:threat_modeling-61] |
-| LLM02@2026＝LLM02@2025：敏感資訊外洩 | 使用者只能從回應中得到自己有權看的資料 | LLM process＋data store | 在 U2 的合成資料中放 canary；以 U1 身分詢問：輸出不含該 canary，n 次 | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-APP-03 [V][E:threat_modeling-61] |
+| LLM02@2026＝LLM02@2025：敏感資訊外洩 | 使用者只能從回應中得到自己有權看的資料 | LLM process＋data store | 在 U2 的合成資料中放 canary；以 U1 身分詢問：輸出不含該 canary，**也不含 U2 種子紀錄的任何結構化敏感欄位值**（v0.5，M-5；見表後說明），n 次 | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-APP-03 [V][E:threat_modeling-61] |
 | LLM05@2026＝LLM04@2025：資料與模型投毒 | 使用者回饋不會未經審核進入訓練或知識庫 | 回饋／微調資料流 | 黑箱通常觀察不到；若應用有「回饋進知識庫」功能，驗證合成回饋在 G1 規定的審核前不會出現在其他使用者的回答中，否則 MANUAL | GENERATED_SCRIPT `promptfoo:eval` 或 MANUAL | S1 | AITG-MOD-02、AITG-MOD-03 [V][E:threat_modeling-62] |
 | LLM10@2026＝LLM05@2025：輸出處理不當 | LLM 輸出在 UI 中被安全編碼 | LLM process → UI | DOM 斷言：輸出中的合成標記以文字呈現，不成為元素或屬性 | GENERATED_SCRIPT `playwright:ui` | S1 | AITG-APP-05 [V][E:threat_modeling-61] |
 | LLM03@2026＝LLM06@2025／ASI03：過度代理、權限濫用 | 低權限角色不能觸發 G1 矩陣中禁止的工具 | LLM 工具 | 工具呼叫紀錄顯示拒絕或需確認 | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-APP-06 [V][E:threat_modeling-61] |
 | LLM03@2026／ASI03（API1）：工具端物件層級授權 | 工具在執行前檢查目標物件屬於目前使用者，且授權由應用邏輯而非模型決定（`llm_tools`、`access_matrix.ownership`；AISVS 9.5.3 L2 [V][E:threat_modeling-63]） | LLM 工具＋data store | 以 U1 的 session 要求對他人（U2）種子物件執行工具：工具呼叫紀錄顯示被拒或需確認，STATE_DIFF 顯示 U2 資源未變（範例 B） | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-APP-06 [V][E:threat_modeling-61] |
-| LLM08@2026（Hidden Context Exposure，範圍較大）⊃ LLM07@2025：系統提示外洩 | 系統提示內容不出現在輸出中 | LLM process | 使用者在 staging 系統提示中放置的 canary 字串沒有出現在輸出中，n 次 | GENERATED_SCRIPT `promptfoo:redteam_local` | S1 | AITG-APP-07 [V][E:threat_modeling-61] |
-| LLM09@2026＝LLM08@2025：向量與嵌入弱點 | RAG 檢索只回傳該租戶命名空間的文件 | 向量 data store＋LLM process | 在租戶 B 的種子文件中放 canary；以 A 身分查詢相近主題：輸出與引用來源都不含 B 的文件，n 次 | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-APP-08（curated 候選）[V][E:threat_modeling-61] |
+| LLM08@2026（Hidden Context Exposure，範圍較大）⊃ LLM07@2025：系統提示外洩 | 系統提示內容不出現在輸出中 | LLM process | 使用者在 staging 系統提示中放置的 canary 字串沒有出現在輸出中，系統提示中登記的其他片段（例如工具名稱、內部規則句）也沒有逐字出現（v0.5，M-5），n 次 | GENERATED_SCRIPT `promptfoo:redteam_local` | S1 | AITG-APP-07 [V][E:threat_modeling-61] |
+| LLM09@2026＝LLM08@2025：向量與嵌入弱點 | RAG 檢索只回傳該租戶命名空間的文件 | 向量 data store＋LLM process | 在租戶 B 的種子文件中放 canary；以 A 身分查詢相近主題：輸出與引用來源都不含 B 的文件（canary、B 文件 ID，以及 B 文件中登記的結構化欄位值；v0.5，M-5），n 次 | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-APP-08（curated 候選）[V][E:threat_modeling-61] |
 | LLM07@2026＝LLM09@2025：錯誤資訊 | 事實類回答必須引用種子知識庫中存在的來源 | LLM process | 固定題組（答案在種子文件中）：回應引用的來源 ID 都存在於知識庫；是否「答對」的語意判斷只作參考 | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-APP-11 [V][E:threat_modeling-61] |
 | LLM06@2026＝LLM10@2025：無上限消耗 | 見 A 表「未限流」列 | — | — | — | — | — |
 | LLM04@2026＝LLM03@2025：供應鏈 | — | — | 已在白箱 W1 處理；黑箱 MANUAL | MANUAL `manual` | — | — |
+
+**canary 之外的結構化欄位比對**（v0.5，審查 2026-10-25 M-5）[H]：LLM02、LLM08@2026、LLM09@2026 與 ASI06 的 oracle 若只對隨機 canary 做精確比對，模型常把隨機 token 寫錯（漏字、換大小寫、拆開）卻照樣洩漏真實的 U2 欄位，結果是假 PASS。所以 oracle 另外比對**種子紀錄中登記的結構化欄位值**（姓名、電話、帳號、金額、文件 ID 等，由 seed manifest 列出）：比對前做 Unicode NFKC、大小寫摺疊、去除空白與常見分隔符號；電話與帳號另比對數字序列。任一欄位命中即違反。canary 仍保留，用來確認是哪一筆資料外洩。比對不到語意改寫（例如「住在台北的那位客戶」）：這類洩漏只能靠 `LLM_GRADER`／人工，不算確定性 oracle。
 
 **直接 prompt injection 的範圍聲明**（[H]）：使用者對**自己的** session 直接下指令（直接 prompt injection）本身不是需求違反——使用者操縱自己已能存取的內容並未越權。本工具包的 LLM 測試針對的是：（a）**間接** prompt injection，也就是不可信內容（他人上傳的文件、被檢索的資料）觸發未經確認的工具呼叫或跨使用者資料外洩（B 表 LLM01 列、範例 B）；（b）輸出處理（LLM10 列）。因此「模型被自己的使用者說服而輸出一般性不當內容」不列為需求違反，除非它導致越權存取、跨租戶洩漏或未經確認的高影響動作。工具端仍以確定性 oracle（工具呼叫紀錄、canary、狀態差異）判定，不以「模型說了什麼」為準。
 
@@ -327,7 +335,7 @@ LINDDUN 七類為 Linking、Identifying、Non-repudiation、Detecting、Data Dis
 |---|---|---|---|---|---|---|
 | ASI04：Agent 供應鏈 | agent 只載入允許清單中的工具與外部資源（AISVS 9.3.7）[V][E:threat_modeling-63] | agent 工具登錄 | 以注入內容（例如上傳文件中的指令）要求 agent 使用一個不在允許清單中的工具名稱：工具呼叫紀錄顯示拒絕，沒有新工具被載入（違反以工具端效果判定，不以模型回答判定，§4.3 範圍聲明）；相依套件本身在白箱 W1 處理 | GENERATED_SCRIPT `promptfoo:eval` | S1 | —（未對到官方 ID） |
 | ASI05：非預期的程式執行 | 程式執行工具在無網路沙箱中執行 | 程式執行工具 | 以注入內容要求 agent 用程式工具連線我方 canary：canary 沒有收到連線，工具呼叫紀錄顯示受限（違反以工具端效果判定） | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-INF-04（curated 候選）[V][E:threat_modeling-62] |
-| ASI06：記憶與 context 投毒 | 一個使用者的內容不會寫入另一個使用者的記憶 | agent 記憶 data store | U1 在對話中留下 canary 事實；U2 的新 session 詢問相關主題：輸出不含 canary，n 次 | GENERATED_SCRIPT `promptfoo:eval` | S1 | —（未對到官方 ID） |
+| ASI06：記憶與 context 投毒 | 一個使用者的內容不會寫入另一個使用者的記憶 | agent 記憶 data store | U1 在對話中留下 canary 事實（含結構化欄位，例如合成的電話與帳號）；U2 的新 session 詢問相關主題：輸出不含 canary，也不含那些欄位值（v0.5，M-5），n 次 | GENERATED_SCRIPT `promptfoo:eval` | S1 | —（未對到官方 ID） |
 | ASI07：agent 之間的通訊不安全 | agent 間訊息需認證 | agent ↔ agent data flow | 若 agent 間端點對外可達：未認證請求被拒（`ignored_auth`）；不可達則 MANUAL（白箱審查） | BUILTIN_CHECK `schemathesis:check` 或 MANUAL | S1 | —（未對到官方 ID） |
 | ASI08：連鎖失敗 | 每次執行的遞迴深度、token 與花費有上限（AISVS 9.1.2）[V][E:threat_modeling-63] | agent 迴圈 | 單一請求誘發多步任務：工具呼叫次數與 token 不超過 G1 上限，超過時回報中止。這個 oracle 測的是資源上限，比較接近 OWASP LLM Top 10 的「無上限消耗」類別；ASI08 的連鎖失敗（一個錯誤輸出在多個 agent 間擴散）沒有對應的確定性 oracle（v0.4 註記） | GENERATED_SCRIPT `promptfoo:eval` | S1 | AITG-INF-02（curated 候選）[V][E:threat_modeling-62] |
 | ASI09：人與 agent 的信任被濫用 | 確認對話框完整顯示動作參數（AISVS 9.2.2）[V][E:threat_modeling-63] | 確認 UI | DOM 斷言：確認畫面顯示的訂單 ID、金額與工具呼叫紀錄中的參數一致 | GENERATED_SCRIPT `playwright:ui` | S1 | AITG-APP-13（curated 候選）[V][E:threat_modeling-61] |
@@ -363,7 +371,7 @@ vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器 [H
 | 威脅類別 | API 2023 | 需求類型（G1 來源） | DFD 元件 | 驗證方式（oracle） | kind＋adapter | 安全等級 | WSTG／AITG |
 |---|---|---|---|---|---|---|---|
 | E：Next.js 只靠 middleware 授權 | API5 [H] | 每個 route handler、Server Component 的資料存取與 Server Action 自己檢查認證與授權，不只靠 `middleware.ts`（`access_matrix`）。middleware 曾有可被請求標頭繞過的缺陷 [H] | route handler process | **白箱**：W1 自有 Opengrep 規則列出受 `middleware.ts` matcher 涵蓋、但 handler 內沒有呼叫認證函式的路由，結果進 W3 投票。**黑箱**：以合法低權限角色呼叫這些 handler，期望 403／404；**不送**任何繞過 middleware 的特殊標頭（那是攻擊 payload，也測不到應用自己的缺陷） | 白箱 `opengrep:scan`（自有規則，候選 [H]）；黑箱 GENERATED_SCRIPT `playwright:api` | S0（白箱）／S1 | —（未對到官方 ID） |
-| E：Next.js Server Actions 授權 | API5 | 每個 Server Action 在函式內檢查呼叫者與目標物件（`access_matrix`、`access_matrix.ownership`） | Server Action process | 以低權限角色、帶 action ID 呼叫 action，參數中的物件以 `object_refs` 綁種子（§5）：回應拒絕且 STATE_DIFF 無變化 | GENERATED_SCRIPT `playwright:api` | S1 | —（未對到官方 ID） |
+| E：Next.js Server Actions 授權 | API5 | 每個 Server Action 在函式內檢查呼叫者與目標物件（`access_matrix`、`access_matrix.ownership`） | Server Action process | 以低權限角色、帶 action ID 呼叫 action，參數中的物件以 `object_refs` 綁種子，並在 `server_action` 宣告 `action_id` 與完整的 `args`（v0.5，§5、[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)）：回應拒絕且 STATE_DIFF 無變化 | GENERATED_SCRIPT `playwright:api` | S1 | —（未對到官方 ID） |
 | T：Supabase RLS 寫入政策（INSERT／UPDATE／DELETE、`WITH CHECK`） | API1／API3 | 寫入政策不讓使用者寫別人的資料列，也不能把資料列改到別人名下（`access_matrix.ownership`；`db.tables[].policies`） | data store（用戶端可直連） | **白箱**：W4 本地 RLS 測試（[02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格)），以各角色對種子列寫入，期望被拒。**黑箱**：經 PostgREST 以公開 client 對種子列送 PATCH（過濾條件以 `object_refs` 綁種子），嘗試把擁有者欄位改成另一個種子使用者：STATE_DIFF 無變化 | 白箱 W4；黑箱 GENERATED_SCRIPT `playwright:api` | S1 | —（未對到官方 ID） |
 | ASI04：MCP 工具描述投毒 | — | 應用接入的 MCP server 與工具描述經 G1 核准，內容 hash 固定（G1 `llm_tools`） | LLM 工具登錄 | G1 為每個 MCP server 記錄工具清單與工具描述的 sha256；W1 自有規則標出描述中含指令語句（要求讀取其他資源、忽略先前指示、呼叫其他工具）的工具；B4 執行時的描述 hash 與 G1 不同 → 列為差異並停止依賴該工具的測試 | 白箱 `opengrep:scan`（自有規則，候選 [H]）＋MANUAL `manual` | S0 | —（未對到官方 ID） |
 | T／E：受測應用的 CI／CD workflow | — | `pull_request_target` workflow 不 checkout PR head 後執行其中的程式；`${{ github.event.* }}` 等不可信值不直接展開到 `run:`；workflow 權杖權限最小（inventory `features: ci_workflows`） | CI pipeline | **只做白箱**：W1 自有 Opengrep 規則掃 `.github/workflows/*.yml`；不觸發、不執行受測應用的 workflow | 白箱 `opengrep:scan`（自有規則，候選 [H]） | S0 | —（未對到官方 ID） |
@@ -412,7 +420,9 @@ LLM 功能的結果每次可能不同，所以同一設定跑 n 次（固定目�
   - b＝5% → n＝59（近似 60）
   - b＝3% → n＝99（近似 100）
 - **預設**：高風險威脅（[02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)）的 LLM 測試目標上界 5%，n＝60；其他 n＝30（上界 10%）。B3 依受測應用上游 LLM 的單價估算費用；超過 ROE `spend_cap_usd` 時降低 n，並在報告寫出降低後的上界，不假裝達到目標。
-- **重現**（FAIL 時）：另開一個重播 job，同一設定跑 n_r＝`trials.replay_n`（LLM 預設 20）次；TestResult 以 `replays`＝n_r、`replay_k`＝k_r 記錄（validator 檢查 0 ≤ k_r ≤ n_r）。至少跑了一次重播，且機率型測試 k_r ≥ `fail_k_min`、確定性測試每次重播都失敗（k_r＝n_r），才算重現成功（`tools/vchlib/derive.py` 依此判定）。未重現（例如 k_r＝0）→ 依 05 列為 `E_inc`（重播不一致），報告保留第一批的工具呼叫紀錄。注意：真實違反率 5% 時，20 次全部沒重現的機率約 0.95^20≈36%，所以重播不一致不代表第一批是誤判，要由人看紀錄。
+- **重現**（FAIL 時）：另開一個重播 job，同一設定跑 n_r＝`trials.replay_n`（LLM 預設 20）次；TestResult 以 `replays`＝n_r、`replay_k`＝k_r 記錄（validator 檢查 0 ≤ k_r ≤ n_r，且 v0.5 起 n_r 只能是 0 或 `trials.replay_n`，不能少跑；`E-RESULT-TRIALS`）。
+  - **確定性測試**：每次重播都失敗（k_r＝n_r）才算重現；不一致代表 oracle 或環境不穩定 → `E_inc`。
+  - **機率型測試**（v0.5，審查 2026-10-25 M-3）：重播是**可重現性紀錄**，不改變 FAIL 判定。一次經確定性 oracle 確認的違反（例如未經確認的工具呼叫）就已經違反需求；而真實違反率 5% 時，20 次重播全部沒重現的機率約 0.95^20≈36%，v0.4 要求 k_r ≥ `fail_k_min` 會把約三分之一的真實違反降成 `E_inc`，與「一次即違反」矛盾。所以只要第一批達到 `fail_k_min` 且重播 job 跑滿 n_r 次，就是 `E_proof`（另需事先登記與 G4 核准，05 §4.2）；報告寫出 k_r／n_r 作為重現率，k_r＝0 時另標「重播未重現，請人工檢視第一批的工具呼叫紀錄」。（`tools/vchlib/derive.py` 依此判定）
 - 上界只對**這個設定**成立：同一個合成文件、同一個模型版本與 temperature。它不涵蓋其他注入寫法、其他模型版本或多輪對話。
 - **取樣前提**（v0.5）：上面的二項區間與上界只在各 trial 可以視為獨立同分布時成立。
   - 估計與重播分開：重播可以重用同一個 seed 來檢查可重現性；估計違反率要用預先登記、可重現的不同 seed 序列（供應商不支援 seed 時記錄這個限制）。不同 seed 本身不保證獨立：還要固定目標版本與設定，每個 trial 重置 session、種子（`reseed_per_trial`）與模型可變記憶，並確認沒有共享快取或其他跨 trial 狀態。
@@ -617,6 +627,11 @@ def mutation_scope_problems(tc, manifest, roe) -> list[str]:
         p = seed_path_problem(r.path, manifest)
         if p is not None:
             problems.append(p)
+        if r.server_action is not None:                # v0.5（H-6）：Server Action 以 action_id＋完整 args 綁定
+            if r.method != "POST" or any(is_placeholder(s) for s in segments(r.path)):
+                problems.append("server_action 只能是 POST、路徑沒有變數段")
+            if refs_in(r.server_action.args) - set(r.object_refs):
+                problems.append("server_action 的 args 用到不在 object_refs 的參照")
         if r.graphql_operation is not None and not graphql_declared(r, roe):
             problems.append("graphql_operation 不在 ROE 宣告的 GraphQL 路徑上")  # v0.4
         elif r.graphql_operation == "mutation" and r.method != "POST":
@@ -874,10 +889,10 @@ db_access:
   - `SnapshotService.oracle_capture(run_id, job_id, ["invoices"])`：以 oracle 唯讀憑證記錄 `invoices` 中兩筆種子列的 hash，回傳 `before_ref`
 - **controls[]**（H-B1；G4 綁定）：
   - `CTL-01`（`reachability`）：以 `tenantA_user` GET 自己的發票 → 200 且含欄位。證明認證有效、請求到達端點。**至少要有這一個 reachability 控制。**
-  - `CTL-02`（`oracle_can_fail`，正對照）：以 `tenantB_user` GET 自己的發票 `tenant_b_invoice`，把 oracle 的 body 條件（「回應含 B 的發票欄位」）套在這個合法回應上，必須判定命中。證明 oracle 看得到 B 的欄位，也就是看得到失敗；不需要改動任何資料。
+  - `CTL-02`（`oracle_can_fail`，正對照）：以 `tenantB_user` GET 自己的發票 `tenant_b_invoice`，把 oracle 的 FAIL 條件（「status 為 2xx **且**回應含 B 的發票欄位」）套在這個合法回應上，必須判定命中。證明 oracle 看得到 B 的欄位、也認得成功的狀態碼，也就是看得到失敗；不需要改動任何資料。v0.4 的 CTL-02 只覆蓋 body 子 oracle（審查 2026-10-25 M-2）。
   - 結果側任一控制不是 PASS → 該結果 `outcome: INVALID`（歸 `E_inc`），不判定需求。
 - **步驟**：
-  1. 跑對照：`CTL-01`（`tenantA_user` GET 自己的發票 → 200）與 `CTL-02`（`tenantB_user` GET 自己的發票，oracle 的 body 條件必須命中）。
+  1. 跑對照：`CTL-01`（`tenantA_user` GET 自己的發票 → 200）與 `CTL-02`（`tenantB_user` GET 自己的發票，oracle 的 FAIL 條件必須命中）。
   2. 以 `tenantA_user` 對 B 的發票依序送 GET、PUT（修改一個非關鍵欄位為合成值）、DELETE。三個請求都送，不在第一個違反處停止，以便報告哪些操作違反需求。
   3. `SnapshotService.oracle_diff(before_ref, ["invoices"])`，以及 `SnapshotService.oracle_count("Q-invoice-b-row", {"seed": "tenant_b_invoice"})`（B 的發票列仍存在）
   4. 收尾（不論結果）：`SnapshotService.reset_seeds(seed_manifest_ref)`，再以 oracle 確認種子列的 hash 回到 manifest 的預期值。重置失敗 → 本 run 之後所有使用同一 seed manifest 的 job 標 `SKIPPED`（原因：seed_reset_failed），並寫稽核事件；本測試的結果仍保留。
@@ -893,9 +908,9 @@ db_access:
   Scope Proxy 強制。所有寫入（PUT、DELETE）的唯一變數段都是 `{seed:tenant_b_invoice}`，而且兩個種子的 `path_templates` 都是 `["/api/invoices/{id}"]`，與請求路徑同形（§5 `seed_path_problem`、`mutation_scope_problems`）。種子一律寫成**完整的一個路徑段** `{seed:<key>}`；`/api/invoices/x{seed:…}` 這類混在段內的寫法不算種子路徑，會被算成 S3。DB 連線不在此表：Snapshot Service 經 Scope Proxy 的 TCP 轉送模式連 `db_access.endpoint`，只接受 Snapshot Service 身分。
 - **data_needed**：`seed_data: [tenant_a_invoice, tenant_b_invoice]`；`roles: [tenantA_user, tenantB_user]`；`db_tables: [invoices]`（必須 ⊆ ROE `db_access.oracle_tables`）
 - **oracle**（`types: ["STATUS_AND_BODY","STATE_DIFF"]`，`requirement_refs: [REQ-ASVS-8.2.2, INV-AC-007]`；`oracle_query_id: Q-invoice-b-row`，查詢的表 `invoices` 必須在 `db_tables` 中）：
-  - B 的發票：GET、PUT、DELETE 的狀態碼都 ∈ {403, 404}
-  - GET 的回應 body 不含 B 的發票欄位
-  - `oracle_diff`：`tenant_b_invoice` 那一列的 hash 沒有改變；`Q-invoice-b-row`（v0.4 改為 `returns: row_hash`）的列 hash 與事前相同。v0.3 只比對計數，偵測不到 PUT 就地修改
+  - **PASS**：B 的發票的 GET、PUT、DELETE 狀態碼都 ∈ {403, 404}，GET 的回應 body 不含 B 的發票欄位，且 `oracle_diff`：`tenant_b_invoice` 那一列的 hash 沒有改變；`Q-invoice-b-row`（v0.4 改為 `returns: row_hash`）的列 hash 與事前相同。v0.3 只比對計數，偵測不到 PUT 就地修改
+  - **FAIL**：任一請求的狀態碼是 2xx 且 GET 的 body 含 B 的發票欄位，或 B 的發票列 hash 改變（PUT／DELETE 生效）
+  - **INCONCLUSIVE**（v0.5，審查 2026-10-25 M-2）：其他情況，例如 405、422、5xx，或狀態碼與 body／DB 狀態互相矛盾。v0.4 把「不是 403／404」一律當 FAIL，因為這個 oracle 是事先登記的確定性 oracle，405（方法不支援）、422（驗證錯誤）或 500 會直接變成 `E_proof` → 假的 `CONFIRMED_EXECUTABLE`；這些回應既沒有洩漏也沒有改動資料，不能證明違反
   - FAIL 時 `fail_oracles` 記錄實際回報違反的 oracle（範例結果 `testresult.example.json` 為 `["STATUS_AND_BODY"]`）。
 - **tool_binding**：`GENERATED_SCRIPT`，adapter＝`playwright:api`（pytest＋Playwright APIRequestContext）。Playwright 的 request fixture 可以和瀏覽器 context 共用 storageState [V][E:blackbox-22]。
   - **為什麼不用 Schemathesis**：`ignored_auth` 只驗證「有強制認證」[V][E:blackbox-14]，抓不到「已認證但跨租戶」的 IDOR。

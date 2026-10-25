@@ -77,7 +77,8 @@
       "path": "/api/chat/sessions",
       "step_id": "open_session",
       "graphql_operation": null,
-      "object_refs": []
+      "object_refs": [],
+      "server_action": null
     },
     {
       "target_id": "tgt-staging-app",
@@ -85,7 +86,8 @@
       "path": "/api/chat/sessions/{created:open_session}/messages",
       "step_id": "send_message",
       "graphql_operation": null,
-      "object_refs": []
+      "object_refs": [],
+      "server_action": null
     },
     {
       "target_id": "tgt-staging-app",
@@ -93,7 +95,8 @@
       "path": "/api/chat/sessions/{created:open_session}/messages",
       "step_id": null,
       "graphql_operation": null,
-      "object_refs": []
+      "object_refs": [],
+      "server_action": null
     },
     {
       "target_id": "tgt-canary",
@@ -101,7 +104,8 @@
       "path": "/log/{job}",
       "step_id": null,
       "graphql_operation": null,
-      "object_refs": []
+      "object_refs": [],
+      "server_action": null
     }
   ],
   "seed_manifest_ref": "docs/examples/seed-manifest.yaml",
