@@ -72,7 +72,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 - 需要 `tzdata` 套件：Windows 沒有系統時區資料庫，`zoneinfo.ZoneInfo("Asia/Taipei")` 會失敗（已列在 requirements.txt）。
 - 主控台是 cp950 時，中文輸出可能亂碼或 `UnicodeEncodeError`。驗證程式會把 stdout 改成 UTF-8；其他工具請設 `PYTHONUTF8=1`（或 `PYTHONIOENCODING=utf-8`）。
 - 所有檔案以 UTF-8 讀寫；repo 的 `.gitattributes`（`* text=auto eol=lf`）讓簽出一律是 LF。若仍遇到 CRLF 的 `.jsonl`，雜湊鏈以去掉行尾 `\r` 的行計算（`bundle.read_jsonl_lines`）。
-- JSON／JSONL 以嚴格模式載入（`vchlib/jsonstrict.py`）：重複鍵、NaN／Infinity、溢位成無限大的浮點數（如 `1e400`）、絕對值超過 2^53 的整數一律拒絕（`E-JSON-STRICT`），該文件連同其上的簽章或雜湊鏈都不採信，語意與嚴格 YAML 相同。`3e0` 之類的浮點數不會被當成整數：schema 的 `integer` 只接受真正的整數（布林值與 `3.0` 都不算），`seq` 等欄位寫成浮點數 → `E-SCHEMA`（稽核 seq 另有 `E-AUDIT-SEQ`）。
+- JSON／JSONL 以嚴格模式載入（`vchlib/jsonstrict.py`）：重複鍵、NaN／Infinity、溢位成無限大的浮點數（如 `1e400`）、絕對值超過 2^53 的整數，以及（v0.5）巢狀超過 64 層、字串或鍵含孤立的 UTF-16 surrogate 一律拒絕（`E-JSON-STRICT`；v0.4 前者讓 validator 直接 `RecursionError`，後者讓整組檢查變成 `E-INTERNAL`；嚴格 YAML 同樣處理），該文件連同其上的簽章或雜湊鏈都不採信，語意與嚴格 YAML 相同。`3e0` 之類的浮點數不會被當成整數：schema 的 `integer` 只接受真正的整數（布林值與 `3.0` 都不算），`seq` 等欄位寫成浮點數 → `E-SCHEMA`（稽核 seq 另有 `E-AUDIT-SEQ`）。
 - 稽核日誌被嚴格載入器拒絕時，只回報那一個 `E-JSON-STRICT`：該 run 的稽核檢查（`E-AUDIT-*`）與依賴稽核日誌的 `E-RUN-RESTORE-DRILL` 都不再連帶報錯。
 
 ### 檢查項目（21 組）
@@ -134,6 +134,11 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-REPORT-QUEUE` | v0.4（BL-26）：`report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id） |
 | `E-ROE-EDGE-RANGE` | v0.4（BL-15）：`targets[].edge_ip_ranges` 只用於 http 目標，每項是主機位元為 0 的 CIDR，且不與任何非公開網段重疊 |
 | `E-RESULT-TRIALS` | v0.4：`trials` 滿足 k ≤ `n_effective` ≤ n；機率型 PASS 以 `n_effective`（n′）≥ 30 判定 `E_pass` |
+| `E-FINDING-ROUND` | v0.5：發現項的 `reporter.round` 由 run 的指揮官計畫推導（round 1＝CMD-1 派給該 agent 與切片；round n＞1＝round n−1 的 CMD-2 加派）；Lane A 不檢查 |
+| `E-TC-TOOL` | v0.5：`schemathesis:*` 的 `request_allowlist` 只有 GET／HEAD；`zap:baseline` 需要 `params.safe_mode: true`（`-S`） |
+| `E-THREAT-ATTACK-TREE` | v0.5：likelihood high＋impact high 的威脅必須有 `attack_tree_ref`；`attack_tree_ref` 指向該威脅自己的 `…/<threat_id>.json` |
+| `E-COVERAGE-D5` | v0.5：run 有 G4 紀錄後，每個最新 G3 決定為 accept 的威脅都有測試案例（含 MANUAL） |
+| `E-ROE-MISSING` | 沒有 ROE；v0.5 起只在 bundle 含黑箱內容（測試案例、測試結果、威脅、G0b 以後的關卡紀錄或 `run.jobs`）時才是錯誤，純白箱 bundle 可以沒有 ROE |
 | `E-TC-CONTROLS`、`E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-PRECONDITION` | testcase 至少一個 reachability 對照；結果恰好涵蓋所有對照；任何對照沒有 PASS → outcome 必須是 INVALID；`precondition_reached`＝所有 reachability 對照 PASS；`positive_control`＝oracle_can_fail 對照 PASS（沒有時為 null） |
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate）由 run 的測試結果重算 |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |

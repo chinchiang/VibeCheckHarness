@@ -743,6 +743,7 @@ stateDiagram-v2
 **resume 規則** [H]：
 - `SUSPENDED`：run_owner 或任何發起者以 `vibecheck run resume` 續跑；若停在關卡，重新開啟該關卡（新的 GateRecord，`round` 不增加）。
 - `STOPPED`：需由 ROE 的 `test_lead` 簽署 resume 紀錄（稽核事件 `run_resume`，附簽章與停止原因已處理的說明）。
+- 兩種 resume 都寫成簽章的 `run_resume` 事件，`payload.from_status` 寫明是 `SUSPENDED` 還是 `STOPPED`：`SUSPENDED` 由 run_owner 或發起者以自己的金鑰簽；`STOPPED`（或沒寫 `from_status`）要 `test_lead`（v0.5，審查 2026-10-25 §4.3：v0.4 的 validator 對每個 resume 都要求 test_lead，與上一條不一致）。
 - 兩者都只能在委任設定的 `not_after` 之前續跑（停在關卡時，重開的關卡會得到新的 `resume_deadline`＝`opened_at`＋關卡逾時）；續跑一律重驗 G0a，若 `resume_node` 在 B 階段再重驗 G0b 與所有權。B 階段的 resume 需要當時有效的 ROE：原 ROE 已到期 → 必須提供新簽署的有效 ROE，否則 resume 被拒、run 維持 `SUSPENDED`。
 - **job 的續跑規則**：`EXECUTED` 不重跑；`INTERRUPTED` 的 S0 可重跑；S1 先重置種子資料再重跑；S2 必須重新走 G5（原 G5 核准失效）。
 
@@ -845,7 +846,7 @@ stateDiagram-v2
 | 設定檔釘選（v0.4） | 委任設定的 `config_pins` 記錄 `models.yaml`、`agents.yaml`、`tools.yaml`、`licenses.yaml` 的內容 hash（sha256(JCS)；v0.5 加入 `calibration.yaml`、`crosswalk.yaml`），受 G0a 簽章保護；載入的檔案與釘選值不同 → `E-ENG-CONFIG-PIN`。這四份決定 C 級資料路由、家族多樣性、S0／S2 與法務閘門，v0.3 卻沒有簽章 |
 | `toolkit.yaml`（`toolkit-config.schema.json`） | 釘選組織根金鑰：`org_root_key.fingerprint`、`alg`；`key_registry.location`；`key_registry.min_version`（防回滾）；`automation_accounts`；`restore_drill_interval_days` |
 | `key-registry.yaml`（`key-registry.schema.json`） | `registry_id`、`version`（單調遞增）、`issued_at`、`entries[]`：`person_id`、`roles[]`（含 `legal_reviewer`、`z3_executor`）、`public_key`、`alg`、`fingerprint`、`not_before`、`not_after`、`revoked_at`、`revocation_reason`（`compromised`／`role_change`／`retired`）；`signatures[]`：組織根金鑰的簽章 |
-| 被簽署的文件 | `engagement.yaml`、`roe.yaml`、GateRecord（G0a／G0b 除外）；人為的稽核事件 `initiator_claim`、`run_resume`。每位簽署人在 `signatures[]` 中一筆：`{signer, key_fingerprint, alg: ed25519, value}`（舊的 `signature_ref` 欄位已移除） |
+| 被簽署的文件 | `engagement.yaml`、`roe.yaml`、GateRecord（G0a／G0b 除外）；人為的稽核事件 `initiator_claim`、`run_resume`、`spot_check_result`（v0.5）。每位簽署人在 `signatures[]` 中一筆：`{signer, key_fingerprint, alg: ed25519, value}`（舊的 `signature_ref` 欄位已移除） |
 
 **提案的簽章方案** [H]：Ed25519 簽章，`value` 的簽署對象是「解析文件後、移除 `signatures` 欄位（稽核事件則移除 `signature`），再以 JCS 正規化」的位元組。
 - **金鑰指紋**：`ed25519:SHA256:` 加上原始 32-byte 公鑰之 SHA-256 的 base64（不含 padding）[H]。
@@ -863,7 +864,7 @@ stateDiagram-v2
 
 **驗證流程**（Policy Engine，Z1）：
 1. 讀 `toolkit.yaml`（隨部署設定管理，不由 run 輸入）取得根金鑰指紋 `org_root_key.fingerprint`。
-2. 驗證 `key-registry.yaml` 的根簽章；`version` < `key_registry.min_version` → 拒絕（回滾）；登錄的 `registry_id`、`toolkit.yaml` 的 `key_registry.location` 與委任設定／ROE 的 `key_registry_ref` 必須一致。
+2. 驗證 `key-registry.yaml` 的根簽章；`version` < `key_registry.min_version` → 拒絕（回滾）。限制（v0.5 註記）：`min_version` 是手動調整的，撤銷金鑰後若沒有同時調高它，舊版登錄（撤銷之前的）仍會被接受；實作時應在 `vibecheck keys rotate` 中同時更新，並在 M1 的安全測試涵蓋；登錄的 `registry_id`、`toolkit.yaml` 的 `key_registry.location` 與委任設定／ROE 的 `key_registry_ref` 必須一致。
 3. 對被簽署文件：解析 → 移除 `signatures` → 正規化 → 對每份簽章以登錄中的公鑰驗證。
 4. 檢查每位簽署人：`key_fingerprint` 在登錄中、角色符合該文件或關卡的要求、簽署時間在 `not_before`–`not_after` 之間。**簽署時間**：
    - GateRecord（v0.4）：以 Audit Writer 寫入 `gate_decision` 事件時的 `ts`（收件時間）為準；v0.5 起有關卡紀錄的 run 一定要有稽核紀錄，找不到收件時間就是錯誤（`E-AUDIT-GATE`），不退回自填時間；核准者自填的 `timestamp` 必須與它相差不超過 5 分鐘（`E-AUDIT-GATE`）。金鑰效期、撤銷、ROE 有效期、關卡逾時與 G5 時間窗都以收件時間判定，所以核准者無法把決定倒填到撤銷之前或 ROE 效期之內。
@@ -1356,7 +1357,7 @@ erDiagram
 | secrets 與資料 | `redaction_map_created`、`secret_detected`（只含位置與 hash）、`pii_detected` |
 | LLM | `llm_request`、`llm_response`、`llm_refused_policy`、`schema_repair`、`retry`、`missing_vote`、`fallback_used`、`relay_call` |
 | 規劃與政策 | `commander_plan`、`policy_decision`（allow／deny＋規則 ID）、`coverage_floor_applied` |
-| 關卡 | `gate_opened`、`gate_decision`、`gate_expired`、`gate_skipped`、`gate_load_warning`（v0.5：G2 未決比例超過 `gate_queues.g2_timeout_warn_ratio`，[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)） |
+| 關卡 | `gate_opened`、`gate_decision`、`gate_expired`、`gate_skipped`、`gate_load_warning`（v0.5：G2 未決比例超過 `gate_queues.g2_timeout_warn_ratio`，[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）、`spot_check_result`（v0.5：ASI09 抽查結果，人為事件、必須簽章，不是 `gate_decision`） |
 | 預算 | `budget_threshold`、`budget_exhausted` |
 | 產物與裁決 | `artifact_stored`、`artifact_validation`、`verdict_changed` |
 | 執行 | `sandbox_job_start`、`sandbox_job_end`、`tool_invocation_start`、`tool_invocation_end`、`session_login`、`egress_blocked`、`third_party_contact`、`job_skipped` |

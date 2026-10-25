@@ -37,7 +37,8 @@ def test_probabilistic_pass_needs_30_effective_trials(b):
     assert classify_result(c.ix, tr, cl)[0] == "E_pass"          # n = n' = 60 in the example
     tr["trials"]["n_effective"] = 29                             # 31 trials never reached the document
     cls, why = classify_result(c.ix, tr, cl)
-    assert cls == "E_inc" and "n'>=30" in why
+    # v0.5 (review 2026-10-25 §4.3): T-031 is high-risk (attack tree), so the bar is n' >= 60, not 30
+    assert cls == "E_inc" and "n'>=60" in why
 
 
 def test_row_hash_oracle_queries(b):

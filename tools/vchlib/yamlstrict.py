@@ -18,6 +18,8 @@ import re
 
 import yaml
 
+from . import jsonstrict
+
 MAX_SAFE_INT = 2 ** 53
 
 
@@ -104,5 +106,8 @@ def load(text: str):
         data = yaml.load(text, Loader=_StrictLoader)  # noqa: S506 - strict SafeConstructor-based loader
     except yaml.YAMLError as exc:
         raise StrictYAMLError(str(exc)) from exc
+    except RecursionError as exc:                     # v0.5: deep nesting is a strict violation, not E-INTERNAL
+        raise StrictYAMLError("nesting deeper than the parser can follow") from exc
+    jsonstrict.check_tree(data, StrictYAMLError)       # depth limit and lone surrogates first (iterative)
     _check_numbers(data)
     return data

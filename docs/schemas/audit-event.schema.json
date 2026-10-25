@@ -10,7 +10,7 @@
  "redaction_map_created","secret_detected","pii_detected",
  "llm_request","llm_response","llm_refused_policy","schema_repair","retry","missing_vote","fallback_used","relay_call",
  "commander_plan","policy_decision","coverage_floor_applied",
- "gate_opened","gate_decision","gate_expired","gate_skipped","gate_load_warning",
+ "gate_opened","gate_decision","gate_expired","gate_skipped","gate_load_warning","spot_check_result",
  "budget_threshold","budget_exhausted",
  "artifact_stored","artifact_validation","verdict_changed",
  "sandbox_job_start","sandbox_job_end","tool_invocation_start","tool_invocation_end","session_login","egress_blocked","third_party_contact","job_skipped",

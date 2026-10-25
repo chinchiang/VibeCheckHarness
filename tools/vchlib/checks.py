@@ -40,7 +40,7 @@ GATE_ROLES = {
 }
 DETERMINISTIC_ROLES = {"aggregator", "scope_proxy", "executor"}
 NON_ADJUDICATING_ROLES = {"reporter"}
-SIGNED_EVENTS = {"initiator_claim", "run_resume"}
+SIGNED_EVENTS = {"initiator_claim", "run_resume", "spot_check_result"}   # v0.5: ASI09 spot checks are a person's act
 REQUIRED_AUTOMATION = {"run-controller", "scheduler", "ci-bot"}
 LEGAL_GATE = "法務閘門"
 M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
@@ -564,11 +564,21 @@ def g_signatures(R: Report, c: Ctx):
                 if not R.check(isinstance(sig, dict), "E-AUDIT-SIG", where, f"{ev.get('event_type')} by a human must be signed"):
                     continue
                 R.check(sig.get("signer") == actor.get("id"), "E-SIG-SIGNER", where, "signature signer != actor.id")
-                # v0.4: only a test_lead may resume a run (docs/03 §5.6)
-                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where),
-                                 "test_lead" if ev.get("event_type") == "run_resume" else None)
+                # docs/03 §5.6: resuming a STOPPED run needs the ROE test_lead; v0.5 (review 2026-10-25 §4.3): a SUSPENDED
+                # run is resumed by its run_owner or an initiator (v0.4 demanded a test_lead for every resume, against
+                # the docs). payload.from_status names which; a resume without it is judged as STOPPED (the stricter)
+                need = None
+                if ev.get("event_type") == "run_resume":
+                    p = ev.get("payload") or {}
+                    run = c.runs.get(ev.get("run_id")) or {}
+                    if p.get("from_status") == "SUSPENDED":
+                        R.check(actor.get("id") == run.get("run_owner") or actor.get("id") in (run.get("initiators") or []),
+                                "E-AUDIT-ACTOR", where, f"a SUSPENDED run is resumed by its run_owner or an initiator, not {actor.get('id')}")
+                    else:
+                        need = "test_lead"
+                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where), need)
             else:
-                R.check(ev.get("signature") is None, "E-AUDIT-SIG", where, "only human initiator_claim / run_resume events are signed")
+                R.check(ev.get("signature") is None, "E-AUDIT-SIG", where, "only human initiator_claim / run_resume / spot_check_result events are signed")
 
 
 # ============================================================== 6 person references
@@ -800,10 +810,18 @@ def decision_time(c: Ctx, rec: dict) -> dt.datetime | None:
     return c.ix.decision_time(rec)
 
 
+BLACK_BOX_KINDS = ("testcase", "testresult", "threat")          # B2-B4 artefacts (seed threats are W5 output)
+
+
 def g_roe(R: Report, c: Ctx):
     r, e, tk, w = c.roe, c.engagement, c.toolkit, "roe.yaml"
     if not r:
-        R.error("E-ROE-MISSING", w, "no ROE")
+        # v0.5 (review 2026-10-25 §4.3): the ROE is read from G0b on, so a white-box-only bundle (no black-box artefact,
+        # no G0b-or-later gate record) is valid without one; anything of the B phase still needs it
+        black = [k for k in BLACK_BOX_KINDS if c.docs(k)] + sorted(
+            {g.data.get("gate") for g in c.docs("gate-record") if g.data.get("gate") in ROE_GATES})
+        if black or any((run.get("jobs") or {}) for run in c.runs.values()):
+            R.error("E-ROE-MISSING", w, f"no ROE, but the bundle has black-box content {black or ['run.jobs']}")
         return
     eng = r.get("engagement") or {}
     R.check(eng.get("id") == e.get("engagement_id") and eng.get("version") == e.get("version"), "E-ROE-ENGAGEMENT", w,
@@ -1021,6 +1039,11 @@ def legal(R: Report, c: Ctx):
                 f"enabled tools {gated} are 法務閘門 in licenses.yaml: legal_review.scope.component_licenses must be true")
 
 
+def path_shape(path) -> str | None:
+    """A path template with every {variable} segment reduced to {} (placeholder names do not matter)."""
+    return re.sub(r"\{[^/}]*\}", "{}", path) if isinstance(path, str) else None
+
+
 def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
     """v0.4 (write scope):
     - E-ROE-SEED-MANIFEST: ROE db_access.seed_manifest_sha256 is the content hash of the loaded seed manifest, so
@@ -1033,7 +1056,9 @@ def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
         R.check(db.get("seed_manifest_sha256") == content_hash(c.manifest), "E-ROE-SEED-MANIFEST", w,
                 f"db_access.seed_manifest_sha256 {db.get('seed_manifest_sha256')} != content hash of the seed manifest "
                 f"{content_hash(c.manifest)}: the infrastructure owner must sign the manifest the run uses")
-    declared = {(e.get("method"), e.get("path_template")) for e in c.manifest.get("state_changing_reads") or [] if isinstance(e, dict)}
+    # v0.5 (review 2026-10-25 §4.3): compare path shapes, not literal text: /api/x/{id} (W0) and /api/x/{invoice}
+    # (manifest) are the same endpoint
+    declared = {(e.get("method"), path_shape(e.get("path_template"))) for e in c.manifest.get("state_changing_reads") or [] if isinstance(e, dict)}
     for key in ("state_changing_reads", "read_only_endpoints"):
         for e in c.manifest.get(key) or []:
             if isinstance(e, dict):
@@ -1042,7 +1067,7 @@ def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
     for d in c.docs("inventory"):
         for ep in d.data.get("endpoints") or []:
             if isinstance(ep, dict) and ep.get("method") in ("GET", "HEAD") and ep.get("writes") is True:
-                R.check((ep.get("method"), ep.get("path")) in declared, "E-SEED-SIDE-EFFECT", d.path,
+                R.check((ep.get("method"), path_shape(ep.get("path"))) in declared, "E-SEED-SIDE-EFFECT", d.path,
                         f"{ep.get('method')} {ep.get('path')} writes (W0) but is not in the seed manifest's state_changing_reads: "
                         "requests to it would be classified as reads (S0)")
 
@@ -1612,6 +1637,9 @@ def g_runs(R: Report, c: Ctx):
                     R.check(0 <= t.get("k", 0) <= t.get("n", 0), "E-RESULT-TRIALS", x.path, "k must be between 0 and n")
                     if tr.get("outcome") == "FAIL":
                         R.check(t.get("k", 0) >= 1, "E-RESULT-TRIALS", x.path, "FAIL needs k >= 1")
+                        # v0.5 (review 2026-10-25 §4.3): the pre-registered threshold, not just k >= 1
+                        kmin = ((tc.data if tc else {}).get("trials") or {}).get("fail_k_min", 1)
+                        R.check(t.get("k", 0) >= kmin, "E-RESULT-TRIALS", x.path, f"FAIL needs k >= the testcase fail_k_min {kmin}")
                     R.check(0 <= tr.get("replay_k", 0) <= tr.get("replays", 0), "E-RESULT-TRIALS", x.path,
                             "replay_k (k_r) must be between 0 and replays (n_r)")
             rm = c.ix.first("report-manifest", run_id=rid)
@@ -1813,6 +1841,21 @@ def plan_checks(R: Report, c: Ctx, d: Doc):
 
 
 # ============================================================== 12 testcases vs ROE
+def tool_binding_rules(R: Report, tc: dict, w: str):
+    """v0.5 (review 2026-10-25 §4.3, E-TC-TOOL): limits of a mode that the safety class cannot see.
+    - schemathesis:* run only GET / HEAD operations (tools.yaml): a write would hit non-seed objects;
+    - zap:baseline runs zap-api-scan.py, which scans actively unless -S is given: params.safe_mode must be true
+      (the adapter renders -S; B3_validate_artifacts rejects an artefact without it)."""
+    tb = tc.get("tool_binding") or {}
+    adapter = tb.get("adapter") or ""
+    if adapter.startswith("schemathesis:"):
+        bad = sorted({r.get("method") for r in tc.get("request_allowlist") or [] if r.get("method") not in ("GET", "HEAD")})
+        R.check(not bad, "E-TC-TOOL", w, f"{adapter} only runs GET / HEAD operations; request_allowlist has {bad}")
+    if adapter == "zap:baseline":
+        R.check((tb.get("params") or {}).get("safe_mode") is True, "E-TC-TOOL", w,
+                "zap:baseline needs params.safe_mode true (zap-api-scan.py -S); without it the scan is active (zap:active, S2)")
+
+
 def g_testcases(R: Report, c: Ctx):
     r = c.roe
     if not r:
@@ -1825,6 +1868,7 @@ def g_testcases(R: Report, c: Ctx):
     for d in c.docs("testcase"):
         with doc_guard(R, d.path):
             tc, w = d.data, d.path
+            tool_binding_rules(R, tc, w)
             ref = tc.get("seed_manifest_ref")
             mk = c.manifest if ref and ref == c.manifest.get("manifest_ref") else None
             # v0.5 (review 2026-10-25 H-5): required. Without the manifest the safety class cannot see the seeds,
@@ -1961,9 +2005,15 @@ def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
     """model key -> models.yaml entry of every agents.yaml `verifier` whose registry family is not in
     cluster.families and whose registry lineage is not in cluster.lineages (never self-declared)."""
     fams, lins = set(cluster.get("families") or []), set(cluster.get("lineages") or [])
+    # v0.5 (review 2026-10-25 §4.3): a verifier that may not receive the run's data class (engagement allowed_models)
+    # can never vote on it; counting it inflated |E| and left C-class clusters diversity_degraded for good
+    dc = (c.runs.get(cluster.get("run_id")) or {}).get("data_class")
+    allowed = set(((c.engagement.get("allowed_models") or {}).get(dc)) or []) if dc else set()
     out = {}
     for a in (c.agents or {}).values():
         if not isinstance(a, dict) or a.get("role") != "verifier":
+            continue
+        if allowed and a.get("model") not in allowed:
             continue
         m = c.model(a.get("model"))
         if m and m.get("family") not in fams and m.get("lineage") not in lins and isinstance(m.get("family"), str):
@@ -2460,6 +2510,29 @@ def inventory_of_run(c: Ctx, run_id) -> dict | None:
     return d.data if d else None
 
 
+def finding_round(R: Report, c: Ctx, d: Doc):
+    """v0.5 (review 2026-10-25 §4.3, E-FINDING-ROUND): reporter.round decides independence (only round-1 members count,
+    derive.independent_families), so it is derived from the run's commander plans instead of trusted: round 1 = the
+    CMD-1 plan dispatched this agent on this slice; round n > 1 = a CMD-2 plan of round n - 1 dispatched this agent
+    (extra_dispatch). Lane A runs have no commander and are not checked."""
+    f, w = d.data, d.path
+    run = c.runs.get(f.get("run_id")) or {}
+    if run.get("run_kind") == "lane_a":
+        return
+    rep = f.get("reporter") or {}
+    agent, rnd = rep.get("agent_id"), rep.get("round")
+    plans = [p.data for p in c.docs("commander-plan") if p.data.get("plan_id") in (run.get("plan_ids") or [])]
+    if rnd == 1:
+        ok = any(p.get("decision_node") == "CMD-1" and any(s.get("slice_id") == f.get("slice_id") and agent in (s.get("agents") or [])
+                                                          for s in p.get("slices") or []) for p in plans)
+        why = f"no CMD-1 plan of run {f.get('run_id')} dispatched {agent} on slice {f.get('slice_id')}"
+    else:
+        ok = isinstance(rnd, int) and any(p.get("decision_node") == "CMD-2" and p.get("round") == rnd - 1 and any(
+            agent in (x.get("agents") or []) for x in p.get("extra_dispatch") or []) for p in plans)
+        why = f"no CMD-2 plan of round {rnd - 1 if isinstance(rnd, int) else '?'} dispatched {agent}"
+    R.check(ok, "E-FINDING-ROUND", w, f"{f.get('finding_id')}: reporter.round {rnd!r} is not derivable: {why}")
+
+
 def finding_evidence(R: Report, c: Ctx, d: Doc):
     """B1: evidence kinds, inventory facts recomputed against the run's W0 inventory, status from matches."""
     f, w = d.data, d.path
@@ -2654,6 +2727,7 @@ def g_trace(R: Report, c: Ctx):
             if run.get("run_kind") != "lane_a":
                 R.check(set(f.get("invariant_refs", [])) <= inv_ids, "E-TRACE", w, "invariant_refs not in invariants.yaml")
             finding_evidence(R, c, d)
+            finding_round(R, c, d)
     for d in c.docs("cluster"):
         with doc_guard(R, d.path):
             k, w = d.data, d.path
@@ -3227,8 +3301,36 @@ def id_uniqueness(R: Report, c: Ctx):
             R.check(len(paths) == 1, "E-ID-DUP", paths[-1], f"{kind} {key} {i!r} is used by {len(paths)} documents: {paths}")
 
 
+def threat_coverage(R: Report, c: Ctx):
+    """v0.5 (review 2026-10-25 §4.3), docs/04 §1.3 (D5) and docs/02 B2, enforced instead of only described:
+    - E-THREAT-ATTACK-TREE: a threat rated likelihood high and impact high is high-risk and needs attack_tree_ref; a
+      set attack_tree_ref names this threat's tree (…/<threat_id>.json);
+    - E-COVERAGE-D5: once a run has a G4 record (B3 finished), every threat whose latest G3 decision is accept has at
+      least one testcase (a MANUAL one counts); reject and over_cap need none."""
+    for d in c.docs("threat"):
+        t, w = d.data, d.path
+        ref, risk = t.get("attack_tree_ref"), t.get("risk") or {}
+        if risk.get("likelihood") == "high" and risk.get("impact") == "high":
+            R.check(bool(ref), "E-THREAT-ATTACK-TREE", w, f"{t.get('threat_id')} is rated high/high (high-risk) and needs attack_tree_ref")
+        if ref:
+            R.check(isinstance(ref, str) and ref.rsplit("/", 1)[-1] == f"{t.get('threat_id')}.json", "E-THREAT-ATTACK-TREE", w,
+                    f"attack_tree_ref {ref!r} must name this threat's tree (…/{t.get('threat_id')}.json)")
+    tested = {x.data.get("threat_id") for x in c.docs("testcase")}
+    for rid in c.runs:
+        if not c.ix.gate_records(rid, "G4"):
+            continue
+        latest = {}
+        for rec in c.ix.gate_records(rid, "G3"):
+            for x in rec.data.get("decisions") or []:
+                latest[x.get("item_id")] = x.get("decision")
+        for tid, dec in latest.items():
+            if dec == "accept":
+                R.check(tid in tested, "E-COVERAGE-D5", f"run {rid}", f"threat {tid} was accepted at G3 but has no testcase (not even MANUAL)")
+
+
 def g_misc(R: Report, c: Ctx):
     id_uniqueness(R, c)
+    threat_coverage(R, c)
     for d in c.docs("dfd"):
         with doc_guard(R, d.path):
             els = d.data.get("elements", [])

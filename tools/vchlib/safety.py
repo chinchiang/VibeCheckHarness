@@ -344,6 +344,41 @@ def server_action_problem(headers: dict, body, spec: dict, resolve: dict[str, st
     return None if body == want else "Server Action arguments differ from the declared args (after resolving refs)"
 
 
+def allowlist_match(target_id: str, method: str, path: str, allowlist: list, resolve: dict[str, str],
+                    gql: dict[str, set[str]] | None = None, manifest=None) -> dict | None:
+    """v0.5 (review 2026-10-25 §4.3) reference rule for the Scope Proxy (docs/08 §11.7): the allow-list entry a concrete
+    request matches, or None (blocked).
+
+    The concrete path must already be in normal form (normalize_for_match leaves it unchanged except for case, so a
+    percent-encoded or dot-segment path is blocked rather than matched). Segment by segment against an entry of the
+    same target and method: a literal must be equal; {seed:k} / {created:s} must equal its resolved value
+    (`resolve`, from the seed manifest and the run's create responses); a plain {name} matches one non-empty
+    segment only on a read (is_mutation false), never on a write."""
+    if not isinstance(path, str) or normalize_for_match(path) != path.lower() or "%" in path:
+        return None
+    segs = segments(path)
+    for r in allowlist or []:
+        if not isinstance(r, dict) or r.get("target_id") != target_id or r.get("method") != method:
+            continue
+        tsegs = segments(r.get("path", ""))
+        if len(tsegs) != len(segs):
+            continue
+        write = is_mutation(r, gql, manifest)
+        ok = True
+        for t, s in zip(tsegs, segs):
+            if SEED_SEG_RE.match(t) or CREATED_SEG_RE.match(t):
+                ok = resolve.get(t) is not None and s == resolve[t]
+            elif is_placeholder(t):
+                ok = not write and s != ""
+            else:
+                ok = s == t
+            if not ok:
+                break
+        if ok:
+            return r
+    return None
+
+
 METHOD_OVERRIDE_HEADERS = frozenset({"x-http-method-override", "x-http-method", "x-method-override"})
 METHOD_OVERRIDE_PARAMS = frozenset({"_method"})
 
@@ -738,9 +773,15 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
     trace = []
     level = entry.get("base_class") or "S2"
     trace.append(f"{tb['adapter']}: base_class {entry.get('base_class')} -> {level}")
+    # v0.5 (review 2026-10-25 §4.3): the floor follows is_mutation, not only the HTTP method, so a mutation that rides a
+    # read method (a GraphQL mutation label, a declared state-changing read) cannot keep an S0 base class
+    gql = graphql_paths(roe)
     if any(r["method"] in STATE_CHANGING for r in reqs):
         level = hi(level, "S1")
         trace.append("state-changing method -> >=S1")
+    elif any(is_mutation(r, gql, manifest) for r in reqs):
+        level = hi(level, "S1")
+        trace.append("mutation on a read method -> >=S1")
     if any(_endpoint_in(manifest, "state_changing_reads", r) is not None for r in reqs):
         level = hi(level, "S1")
         trace.append("state-changing GET/HEAD (seed manifest state_changing_reads) -> >=S1")

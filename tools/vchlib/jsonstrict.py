@@ -10,6 +10,9 @@ Rejected (same number rules as yamlstrict._check_numbers):
   - NaN, Infinity, -Infinity (not JSON; not representable in RFC 8785 JCS)
   - number literals that overflow to a non-finite float (1e400, -1e400)
   - integer literals beyond +-2^53 (not exactly representable in I-JSON / RFC 8785)
+  - v0.5 (review 2026-10-25 §4.3): nesting deeper than MAX_DEPTH (the parser's RecursionError used to escape as an
+    internal error) and lone UTF-16 surrogates in keys or strings (not representable in UTF-8 or RFC 8785 JCS, so
+    every hash and signature over the document failed later as E-INTERNAL for the whole group)
 Float literals such as 3e0 or 3.0 stay floats (never silently integers); integer-typed fields
 reject them in the schema check (checks.format_checker type checker) and in the audit seq check.
 """
@@ -19,6 +22,7 @@ import json
 import math
 
 MAX_SAFE_INT = 2 ** 53
+MAX_DEPTH = 64          # the deepest example is far below; a signed document has no reason to nest deeper
 
 
 class StrictJSONError(ValueError):
@@ -55,7 +59,38 @@ def _int(text: str) -> int:
     return value
 
 
+def _lone_surrogate(s: str) -> bool:
+    return any(0xD800 <= ord(ch) <= 0xDFFF for ch in s)
+
+
+def check_tree(value, error=StrictJSONError, max_depth: int = MAX_DEPTH):
+    """Iteratively reject nesting deeper than max_depth and lone surrogates in strings and keys."""
+    stack = [(value, 1, "$")]
+    while stack:
+        cur, depth, path = stack.pop()
+        if isinstance(cur, str):
+            if _lone_surrogate(cur):
+                raise error(f"{path}: lone UTF-16 surrogate in a string")
+            continue
+        if not isinstance(cur, (dict, list)):
+            continue
+        if depth > max_depth:
+            raise error(f"{path}: nesting deeper than {max_depth}")
+        if isinstance(cur, dict):
+            for k, v in cur.items():
+                if isinstance(k, str) and _lone_surrogate(k):
+                    raise error(f"{path}: lone UTF-16 surrogate in a key")
+                stack.append((v, depth + 1, f"{path}.{k}"))
+        else:
+            stack.extend((v, depth + 1, f"{path}[{i}]") for i, v in enumerate(cur))
+
+
 def loads(text: str):
     """Parse JSON; raises StrictJSONError (strict violation) or json.JSONDecodeError (syntax)."""
-    return json.loads(text, object_pairs_hook=_pairs, parse_constant=_constant,
-                      parse_float=_float, parse_int=_int)
+    try:
+        data = json.loads(text, object_pairs_hook=_pairs, parse_constant=_constant,
+                          parse_float=_float, parse_int=_int)
+    except RecursionError as exc:
+        raise StrictJSONError(f"nesting deeper than the parser can follow (limit {MAX_DEPTH})") from exc
+    check_tree(data)
+    return data

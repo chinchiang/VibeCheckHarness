@@ -256,6 +256,14 @@ def positive_control_value(tc: dict, tr: dict) -> bool | None:
     return controls_of_kind_pass(tc, tr, "oracle_can_fail")
 
 
+def pass_min_effective(ix: "Index", tc: dict) -> int:
+    """docs/04 §4.4: the effective trials a probabilistic PASS needs. 30 (one-sided 95% bound about 10%); v0.5 (review
+    2026-10-25 §4.3): 60 (bound about 5%) for a high-risk threat, recognised by its attack tree (docs/02 B2: every
+    high-risk threat has one), so a PASS cannot claim the high-risk target bound with only 30 valid trials."""
+    t = ix.first("threat", threat_id=tc.get("threat_id")) if tc.get("threat_id") else None
+    return 60 if t is not None and t.data.get("attack_tree_ref") else 30
+
+
 def fail_reproduced(tc: dict, tr: dict) -> tuple[bool, str]:
     """docs/04 §4.4: the first batch reaches fail_k_min and a separate replay job ran: a deterministic test fails on
     every replay (k_r = n_r). v0.5 (review 2026-10-25 M-3): for a probabilistic test the replay is a reproducibility
@@ -276,12 +284,18 @@ def fail_reproduced(tc: dict, tr: dict) -> tuple[bool, str]:
 
 
 def g4_approved(ix: "Index", tr: dict) -> bool:
-    """The latest G4 record of the result's run accepts the testcase (black-box pre-registration)."""
-    recs = ix.gate_records(tr.get("run_id"), "G4")
-    if not recs or recs[-1].data.get("outcome") not in ("APPROVED", "PARTIALLY_APPROVED"):
-        return False
-    return any(x.get("item_id") == tr.get("testcase_id") and x.get("decision") == "accept"
-               for x in recs[-1].data.get("decisions") or [] if isinstance(x, dict))
+    """The latest G4 record of the result's run that decides this testcase accepts it (black-box pre-registration).
+
+    v0.5 (review 2026-10-25 §4.3): v0.4 read only the run's last G4 record, so a second-round G4 that covered other
+    testcases turned an approved one into "not approved" (E_proof -> E_fail_u)."""
+    latest = None
+    for rec in ix.gate_records(tr.get("run_id"), "G4"):          # receive-time order
+        if rec.data.get("outcome") not in ("APPROVED", "PARTIALLY_APPROVED"):
+            continue
+        for x in rec.data.get("decisions") or []:
+            if isinstance(x, dict) and x.get("item_id") == tr.get("testcase_id"):
+                latest = x.get("decision")
+    return latest == "accept"
 
 
 def preregistered(ix: "Index", tc: dict, tr: dict, control_kind: str) -> bool:
@@ -352,8 +366,9 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     if not reachability_reached(tc, tr):
         return "E_inc", "reachability control not passed"
     n_eff = got.get("n_effective", n)          # v0.4: n' = trials whose precondition was reached (docs/04 §4.4)
-    if probabilistic and not (k == 0 and isinstance(n_eff, int) and n_eff >= 30):
-        return "E_inc", "probabilistic PASS needs k=0 and n'>=30"
+    need = pass_min_effective(ix, tc)
+    if probabilistic and not (k == 0 and isinstance(n_eff, int) and n_eff >= need):
+        return "E_inc", f"probabilistic PASS needs k=0 and n'>={need}"
     if not (oracle_types(tc) & DETERMINISTIC_ORACLES):
         return "E_inc", "no deterministic oracle"
     if preregistered(ix, tc, tr, "oracle_can_fail"):
