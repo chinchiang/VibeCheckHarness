@@ -100,7 +100,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
     - R0＝每個成員的每一項證據都是 NOT_FOUND（沒有成員時不成立）；independent_families＝第一輪、reviewer 角色、至少一項證據不是 NOT_FOUND 的成員家族（`E-CLUSTER-FAMILIES`）
     - 測試證據分類（`derive.classify_result`）：非 PASS／FAIL（ERROR、SKIPPED、STOPPED、INVALID）→ E_inc；重現的 FAIL 若只有 HUMAN／LLM_GRADER oracle 判定違反 → E_inc；解讀已預先登記（B4：G4 核准；W4：需求都經 G1 核准且 oracle_can_pass 對照 PASS）→ E_proof，不需要 LLM；否則由家族與血統都不在叢集中、且同意解讀的 Result Analyst → E_proof；否則 E_fail_u。PASS 需要所有 reachability 對照 PASS、機率型 k＝0 且 n′ ≥ 30、有確定性 oracle，以及預先登記（W4 用 oracle_can_fail）或合格分析者 → E_pass
 14. **追溯鏈**：finding → cluster → verdict → threat → testcase → testresult → report；requirement 範例與 invariants.yaml 一致；種子威脅、DFD 元件、G2 參照。
-15. **稽核紀錄結構**：seq 是整數且連號（`3e0` 之類 → `E-AUDIT-SEQ`）、時間不倒退、每個 gate_decision 後緊接 audit_anchor、`run.audit_anchors` 的 `{seq, line_sha256}` 與日誌行一致（`E-AUDIT-ANCHOR`／`-MISMATCH`／`-TRUNCATED`），而且必須依序列出日誌中**每一個** audit_anchor 事件（漏列任何一個，包括最後一個 → `E-AUDIT-ANCHOR`，不論 run 狀態）、最後錨點之後的尾段（非終止 → `W-AUDIT-UNANCHORED-TAIL`；終止狀態的 run 必須以 `run_end` anchor 結尾，所有原因合併成**一個** `E-AUDIT-TAIL`）、每份關卡紀錄都有事件；gate_decision 事件的 `ts`（Audit Writer 的收件時間）與關卡紀錄自填的 `timestamp` 相差不超過 5 分鐘（v0.4，`E-AUDIT-GATE`），而關卡的金鑰效期、ROE 有效期、逾時與 G5 時間窗都以收件時間判定。
+15. **稽核紀錄結構**：v0.5：有關卡紀錄的 run 必須有稽核紀錄，每份關卡紀錄都要有 `gate_decision` 事件（收件時間），沒有 → `E-AUDIT-GATE`（不退回核准者自填的時間）；seq 是整數且連號（`3e0` 之類 → `E-AUDIT-SEQ`）、時間不倒退、每個 gate_decision 後緊接 audit_anchor、`run.audit_anchors` 的 `{seq, line_sha256}` 與日誌行一致（`E-AUDIT-ANCHOR`／`-MISMATCH`／`-TRUNCATED`），而且必須依序列出日誌中**每一個** audit_anchor 事件（漏列任何一個，包括最後一個 → `E-AUDIT-ANCHOR`，不論 run 狀態）、最後錨點之後的尾段（非終止 → `W-AUDIT-UNANCHORED-TAIL`；終止狀態的 run 必須以 `run_end` anchor 結尾，所有原因合併成**一個** `E-AUDIT-TAIL`）、每份關卡紀錄都有事件；gate_decision 事件的 `ts`（Audit Writer 的收件時間）與關卡紀錄自填的 `timestamp` 相差不超過 5 分鐘（v0.4，`E-AUDIT-GATE`），而關卡的金鑰效期、ROE 有效期、逾時與 G5 時間窗都以收件時間判定。
 16. **校準**：重算 a、w、near_zero 與原因（±0.0005）、θ 可行性、arms（只有 ⑤ 探索性）、M-11 flag、κ。
 17. **授權**：`tools.yaml` 的 license_ref 與 requirements.txt 的套件都在 licenses.yaml。
 18. **對照表**：curated 必須有 reviewed_by、llm-suggested 不得有；OWASP 預設版本＝toolkit。
@@ -116,6 +116,8 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RESULT-ORACLE` | `fail_oracles` 非空 ⇔ outcome FAIL，且 ⊆ testcase `oracle.types` |
 | `E-GATE-EXPIRED-EARLY` | v0.4：EXPIRED 關卡紀錄的收件時間必須在 `opened_at` 加上該關卡逾時之後（EXPIRED 是唯一沒有簽章的結果） |
 | `E-AUDIT-IDEMPOTENCY` | v0.4：`idempotency_key` 必填，格式 `<run_id>:<node>:<鍵>`，前兩段等於事件的 run_id 與 node，同一 run 內不重複 |
+| `E-TRACE`（v0.5 補充） | 測試結果的 `cluster_ids` 必須含威脅的來源叢集，而且只能列該威脅的叢集（來源叢集與威脅以 `evidence.kind: cluster` 引用的叢集）；不能掛到無關的叢集改寫它的裁決 |
+| `E-TC-SEEDS`（v0.5 補充） | `seed_manifest_ref` 必填，且等於 ROE 的 `db_access.seed_manifest_ref`；沒有 manifest，安全等級計算看不到種子、`state_changing_reads` 與 `read_only_endpoints` |
 | `E-AUDIT-ANCHOR-SIG` | v0.4：每個 `audit_anchor` 的 `payload.z3_countersignature` 必須是金鑰登錄中 `z3-executor`（角色 `z3_executor`）對 JCS(`{run_id, seq, prev_hash}`) 的有效簽章 |
 | `E-SIG-BACKDATED` | v0.4：委任設定或 ROE 的簽章金鑰後來以非 `compromised` 原因撤銷時，該文件第一次被驗章（G0a／G0b 紀錄的收件時間）必須早於 `revoked_at` |
 | `E-REPORT-QUEUE` | v0.4（BL-26）：`report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id） |

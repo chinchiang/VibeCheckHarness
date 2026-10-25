@@ -10,6 +10,13 @@
 - `create_only_endpoints[]` 必填 `created_resource`（`type`、`id_pointer`、`path_templates`）；`{created:step_id}` 只能用在宣告的路徑，其他變數段綁定那次建立請求的值，巢狀資源由內層的建立端點宣告；建立的 `step_id` 不能重複（`E-SEED-MANIFEST`、`E-TC-MUTATION-SCOPE`；`safety.created_resource_problem`、`created_path_allowed`）。缺少宣告的舊 manifest 一律 S3，要由基礎設施擁有者補齊並重新簽署。
 - GraphQL mutation 只能以 POST 送出（v0.4 的 ROE `graphql_paths` 規則保留）。
 
+### validator 漏洞（第 1 組）
+- 有關卡紀錄的 run 必須有稽核紀錄，關卡決定一定要有收件時間（`E-AUDIT-GATE`）；範例後續 run 補上稽核紀錄。
+- 測試結果只能掛到自己威脅的叢集（`E-TRACE`）。
+- R10 只套用到 G2 之後的裁決版本；新增 `readjudicated_by: G2_apply`。
+- `testcase.seed_manifest_ref` 必填（`E-TC-SEEDS`）。
+- 新增 `tests/test_v05_round6_group1.py`。
+
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
 - 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。

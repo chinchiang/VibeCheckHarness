@@ -573,7 +573,7 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
         if version is not None and ix.calibration.get("calibration_version") == version:
             exp(d, ["theta_confirm"], t_conf, "calibration theta_confirm")
             exp(d, ["theta_reject"], t_rej, "calibration theta_reject")
-        results = [] if v.get("readjudicated_by") == "W3_adjudicate" else linked_results(ix, cluster)
+        results = [] if v.get("readjudicated_by") in ("W3_adjudicate", "G2_apply") else linked_results(ix, cluster)
         classes = []
         exp(d, ["test_evidence", "results"], _merge_results(v, ix, results, cluster, classes), "linked testresults (docs/05 §4.2)")
         cls = strongest(classes)
