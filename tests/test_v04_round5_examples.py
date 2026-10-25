@@ -23,7 +23,7 @@ def test_example_queue_fields(b):
     assert doc(b, "toolkit.yaml").data["gate_queues"] == {"g2_max_items": 30, "g3_max_items": 50, "g4_max_items": 40,
                                                          "g2_timeout_warn_ratio": 0.5}
     rm = doc(b, RM).data
-    assert rm["over_cap_items"] == [] and rm["report_only_clusters"] == []
+    assert rm["over_cap_items"] == [] and rm["report_only_clusters"] == ["K-016"]      # v0.5: the tool-only cluster (BL-13)
     assert not errors(b, "E-REPORT-QUEUE")
 
 

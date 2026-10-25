@@ -1317,7 +1317,7 @@ def gate_sod(R: Report, c: Ctx, rec: dict, w: str):
 
 def g5_g4_link(R: Report, c: Ctx, rec: dict, w: str, job: dict | None, opened: dt.datetime):
     """v0.5 (BL-04, E-G5-G4): a G5 names the G4 that approved its job's testcase in this run: a G4 record of the same
-    run, decided before the G5 opened, whose latest decision on that testcase is accept; no person approves both
+    run, decided before the G5 opened, whose decision on that testcase is the latest one when the G5 opened and is accept; no person approves both
     (the separation of duties is checked against the actual G4 approvers, not only against run.initiators)."""
     ref = rec.get("g4_gate_record_id")
     g4 = c.record(ref) if ref else None
@@ -1327,13 +1327,17 @@ def g5_g4_link(R: Report, c: Ctx, rec: dict, w: str, job: dict | None, opened: d
     tcid = (job or {}).get("testcase_id")
     at = decision_time(c, g4) or ts(R, g4.get("timestamp"), w)
     R.check(at is not None and at <= opened, "E-G5-G4", w, f"{ref} was decided after this G5 opened")
+    # the latest G4 decision on the testcase when this G5 opened: a later G4 round does not undo a G5 already decided
     latest = None
     for d in c.ix.gate_records(rec.get("run_id"), "G4"):
+        t = decision_time(c, d.data) or ts(R, d.data.get("timestamp"), d.path)
+        if t is None or t > opened:
+            continue
         for x in d.data.get("decisions") or []:
             if x.get("item_id") == tcid:
                 latest = (d.data.get("gate_record_id"), x.get("decision"))
     R.check(latest == (ref, "accept"), "E-G5-G4", w,
-            f"{ref} is not the latest G4 decision on {tcid} or does not accept it (latest: {latest})")
+            f"{ref} is not the latest G4 decision on {tcid} when this G5 opened, or does not accept it (latest: {latest})")
     both = {a.get("person_id") for a in rec.get("approvers", [])} & {a.get("person_id") for a in g4.get("approvers", [])}
     R.check(not both, "E-G5-G4", w, f"{sorted(both)} approved both the G4 {ref} and this G5")
 
@@ -1800,17 +1804,19 @@ MAX_EXTRA_DISPATCH_ROUNDS = 2
 
 
 RUN_INIT_CONFIGS = ("models", "agents", "tools", "calibration")
+COMPLETED_RUN_STATES = ("COMPLETED", "COMPLETED_WITH_GAPS")
 PRODUCING_NODE = {"invariants": "G1", "seed_manifest": "G0b"}   # invariants are approved at G1; G0b needs the seed manifest
 
 
 def _run_reached(c: Ctx, run: dict) -> dict:
-    """What the run's own records show it reached: G1 approved, G0b passed, any B-phase content, W2 started."""
+    """What the run's own records show it reached: G1 approved, G0b passed, any B-phase content, W2 started.
+    An aborted or failed run is judged by the nodes it reached, like a running one."""
     rid = run.get("run_id")
     g1 = any(g.data.get("outcome") == "APPROVED" for g in c.ix.gate_records(rid, "G1"))
     g0b = bool(c.ix.gate_records(rid, "G0b"))
     black = g0b or bool(run.get("jobs")) or any(c.ix.gate_records(rid, g) for g in ("G3", "G4", "G5"))
     w2 = any(f.data.get("run_id") == rid for f in c.docs("finding")) or any(s.data.get("run_id") == rid for s in c.docs("slice"))
-    return {"g1": g1, "g0b": g0b, "black": black, "w2": w2, "terminal": run.get("status") in TERMINAL_RUN_STATES}
+    return {"g1": g1, "g0b": g0b, "black": black, "w2": w2}
 
 
 def artefact_state(R: Report, c: Ctx, run: dict, w: str, key: str, ref: dict):
@@ -1826,9 +1832,13 @@ def artefact_state(R: Report, c: Ctx, run: dict, w: str, key: str, ref: dict):
         R.check(ref.get("expected_node") == PRODUCING_NODE[key], "E-RUN-CONFIG", where,
                 f"pending {key} names expected_node {ref.get('expected_node')!r}; it is produced by {PRODUCING_NODE[key]}")
         done = (reached["g1"] or reached["w2"]) if key == "invariants" else (reached["g0b"] or reached["black"])
-        R.check(not done and not reached["terminal"], "E-RUN-CONFIG", where,
-                f"{key} is pending but its producing node already finished or a consumer used it (or the run is "
-                f"{run.get('status')}): should exist but missing")
+        # a run that stopped early (ABORTED, FAILED) before the producing node never had the artefact, so it stays
+        # pending (docs/08 §11.13: missing = the producing node finished); a completed run has nothing left pending:
+        # it produced the artefact or its plan did not need it (not_applicable)
+        completed = run.get("status") in COMPLETED_RUN_STATES
+        R.check(not done and not completed, "E-RUN-CONFIG", where,
+                f"{key} is pending but its producing node already finished, a consumer used it or the run is "
+                f"{run.get('status')}: should exist but missing")
     else:                                                   # not_applicable
         if key == "invariants":
             R.check(run.get("run_kind") == "lane_a", "E-RUN-CONFIG", where, "invariants are not_applicable only in a Lane A run (every other run has G1)")

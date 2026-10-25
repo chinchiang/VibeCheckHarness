@@ -1254,7 +1254,8 @@ class ToolResult(BaseModel):
   - **引發這個叢集的工具結果是「回報」，不是佐證**：它不計入 `tool_corroboration`、`tool_signal` 或 `independent_sources`。否則同一次命中會同時算成「回報」與「佐證」。同一位置上**其他**工具的結果照常算佐證或訊號。
   - 結果：校準前，tool-only 叢集最多是 `UNCORROBORATED`（R7），照一般的 CMD-2 與 G2 路由；有了校準權重之後，可以經投票確認。
   - **schema**（v0.5）：`origin: tool_only`；`member_finding_ids`、`families`、`lineages`、`independent_families` 都是空的，`threat_id` 為 null，`canonical_location` 有 `file` 與 `symbol`。引發叢集的工具結果記在 `tool_report_refs`（至少一筆，解析規則同 `sarif_refs`，所以位置與桶必須等於這些結果，`E-SARIF-REF`）；`sarif_refs` 只能放**其他工具**在同一位置的結果。validator（`E-CLUSTER-ORIGIN`）檢查以上各點，並拒絕把回報再放進 `sarif_refs`、或在其他 origin 的叢集填 `tool_report_refs`。成員證據的位置綁定（`E-CLUSTER-BINDING`）不適用，因為沒有成員；同一 run 指紋不得重複仍然適用。
-  - 範例沒有 tool-only 叢集；測試（`tests/test_v05_backlog_high.py`）把 K-014 改成 tool-only，驗證它可以通過、而且只有一筆工具回報時裁決是 `UNCORROBORATED`（R7，獨立來源 0），沒有捏造的成員或投票。
+  - 範例：K-016 是 opengrep `vc.authz.delete-without-owner` 在 `routes/invoices.ts::deleteInvoice` 的結果，該位置沒有 LLM 發現項。它的 `tool_report_refs` 是 W1 稽核事件（seq 13）中的那筆結果，`sarif_refs` 是空的，所以獨立來源是 0、裁決 V-016-1 是 `UNCORROBORATED`（R7），沒有捏造的成員或投票；報告清單把它列在 `report_only_clusters`，工具發現因此追溯得到報告。測試（`tests/test_v05_backlog_high.py`）另把 K-014 改成 tool-only，驗證回報不能再放進 `sarif_refs`。
+  - 尚未涵蓋：「沒有任何發現」的 run 範例；validator 也還不檢查 tool-only 叢集是否出現在 W5 的 SARIF 輸出（範例沒有 SARIF 輸出檔）。
 - **強與弱**：`sarif_refs` 的每一項，以稽核事件的 (adapter, rule_id, tool_version) 加上叢集的桶，查 `calibration.yaml` 的 `result.high_precision_rules`：
   - 有相同的一列，而且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90）→ **強**，進 `tool_corroboration`。掃描器或規則包的版本與校準時不同 → 弱；
   - 其他 → **弱**，進 `tool_signal`，算 1 個獨立來源。
@@ -1780,7 +1781,7 @@ class SessionProvider(Protocol):
 
 **schema 與 validator**（v0.5，[09 BL-22／BL-23](09-backlog.md)）：`config_refs` 的六個鍵都必填，不能是沒有說明的 null（`E-RUN-CONFIG`）。
 - `models`、`agents`、`tools`、`calibration` 在 `run_init` 就必須是 `{path, sha256}`。`calibration` 也一樣：校準前仍要有一份 `calibration.yaml`，`calibration.schema.json` 允許它的 `result` 是 null（Calibration Lab 還沒有結果）。
-- 尚未產生＝`{state: pending, expected_node}`：`expected_node` 必須是產生節點（`invariants` → `G1`，`seed_manifest` → `G0b`）。run 已經到達該節點或下游（`invariants`：G1 已核准或已有 W2 的切片／發現項；`seed_manifest`：已有 G0b、job 或 G3–G5 紀錄），或 run 已結束，卻仍是 pending → 「應存在但遺失」（`E-RUN-CONFIG`）。
+- 尚未產生＝`{state: pending, expected_node}`：`expected_node` 必須是產生節點（`invariants` → `G1`，`seed_manifest` → `G0b`）。run 已經到達該節點或下游（`invariants`：G1 已核准或已有 W2 的切片／發現項；`seed_manifest`：已有 G0b、job 或 G3–G5 紀錄），或 run 已正常完成（`COMPLETED`、`COMPLETED_WITH_GAPS`），卻仍是 pending → 「應存在但遺失」（`E-RUN-CONFIG`）。中途結束（`ABORTED`、`FAILED`）的 run 只看它到達的節點：G1 前就中止的 run，`invariants` 可以維持 pending。
 - 不適用＝`{state: not_applicable, reason}`：`invariants` 只有 Lane A run 可以不適用；`seed_manifest` 只要 run 沒有任何 B 階段內容（G0b、job、G3–G5）就可以不適用，Lane A 與純白箱的 Lane B run 都一樣（範例的 Lane A run 就是這樣填）。
 - 已產生的項目照舊重算 hash（`E-DERIVED`）並檢查檔案種類（`E-RUN-CONFIG`）。
 

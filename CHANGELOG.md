@@ -86,6 +86,9 @@
 - 逐項決定新增必填的 `carried_from`，重新啟用跨 run 的 G1／G3 沿用：只限 accept、來源是祖先 run 的同一關卡、同項目同 hash，來源簽章以現行金鑰登錄重新驗證，G3 另要求同一份 ROE；G4／G5 不沿用（`E-GATE-CARRY`，BL-21）。
 - run 的 `config_refs.invariants`／`seed_manifest` 可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}`；validator 依 run 已到達的節點判斷「應存在但遺失」，沒有說明的 null 一律是錯誤（`E-RUN-CONFIG`，BL-22）。沒有 B 階段內容的 run 可以把 `seed_manifest` 標為不適用（BL-23）；範例的 Lane A run 改用這個寫法。
 - 叢集新增 `origin: tool_only` 與必填的 `tool_report_refs`：沒有 LLM 成員，引發叢集的工具結果是回報、不算佐證（`E-CLUSTER-ORIGIN`、`E-SARIF-REF`）；run 新增 writer 導出的 `tool_results_ref`（BL-13）。
+- 範例新增純工具叢集 K-016 與裁決 V-016-1（`UNCORROBORATED`，列在報告的 `report_only_clusters`）；W1 稽核事件加一筆 opengrep 結果，其後的稽核序號順延一號。
+- 修正：中途結束（ABORTED、FAILED）、沒有走到產生節點的 run，產物仍可以是「尚未產生」（正常完成的 run 不能留下「尚未產生」），不再誤報「應存在但遺失」；G5 只看它開啟時最新的 G4 決定，之後的 G4 重審不會讓已核准的 G5 變成錯誤。
+- 本節之前的「跨 run 的 G1／G3 沿用停用，直到 BL-21 完成」由上面的 `carried_from` 取代。
 - 新增 `tests/test_v05_backlog_high.py`；09 待辦清單把這五項移到 §5。
 
 ### 執行期契約（只有規格）

@@ -122,7 +122,7 @@
     {
       "kind": "audit_log",
       "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
-      "sha256": "sha256:acdc53d253d6e3f48f580747c33f42cbeef69764a50d7436cb3d3b95e82598db"
+      "sha256": "sha256:c170412938671b0143710e61d339b9355ebbc22a3174562a7ad590c6048798d4"
     },
     {
       "kind": "followup_draft",
@@ -134,7 +134,7 @@
     "CONFIRMED_EXECUTABLE": 2,
     "CONFIRMED_CORROBORATED": 0,
     "LIKELY": 1,
-    "UNCORROBORATED": 3,
+    "UNCORROBORATED": 4,
     "DISPUTED": 0,
     "REJECTED": 0
   },
@@ -149,5 +149,7 @@
   "build_unverified_targets": [],
   "absent_fingerprints": [],
   "over_cap_items": [],
-  "report_only_clusters": []
+  "report_only_clusters": [
+    "K-016"
+  ]
 }

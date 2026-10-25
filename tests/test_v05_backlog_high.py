@@ -15,6 +15,7 @@ from vchlib import derive
 from vchlib.checks import run_all
 
 PARENT, FOLLOWUP = "run-2026-09-23-001", "run-2026-10-07-001"
+AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
 
 
 def errors(b, code, where=None):
@@ -61,6 +62,15 @@ def test_g5_names_the_latest_g4_decision(b):
                      gate_record_id="GR-G4-0002", round=2, timestamp=g4["timestamp"])
     later.data["decisions"] = [dict(x, decision="reject") for x in later.data["decisions"] if x["item_id"] == tc]
     assert any("latest G4 decision" in i.msg for i in errors(b, "E-G5-G4", "g5.example"))
+
+
+def test_a_g4_round_after_the_g5_does_not_undo_it(b):
+    """The G5 is judged by the G4 decisions known when it opened; a later round rejecting the testcase is not E-G5-G4."""
+    tc = doc(b, "gate-record.g5.example.json").data["decisions"][0]["item_id"]
+    later = add_copy(b, "gate-record.g4.example.json", "gate-record.g4-round2.example.json",
+                     gate_record_id="GR-G4-0002", round=2, timestamp="2026-10-06T09:00:00+08:00")   # after the G5 opened
+    later.data["decisions"] = [dict(x, decision="reject") for x in later.data["decisions"] if x["item_id"] == tc]
+    assert not errors(b, "E-G5-G4", "g5.example")
 
 
 # ================================================================ BL-21 carried G1 / G3 approvals
@@ -148,6 +158,20 @@ def test_invariants_pending_before_g1(b):
     assert not run_config_errors(b)
 
 
+@pytest.mark.parametrize("status", ["ABORTED", "FAILED"])
+def test_a_run_that_ended_before_g1_keeps_its_invariants_pending(b, status):
+    """docs/08 §11.13: missing = the producing node finished. A run that ended before G1 never had invariants."""
+    doc(b, "run.followup.example.json").data["status"] = status
+    cfg(b)["invariants"] = {"state": "pending", "expected_node": "G1"}
+    assert not [i for i in run_config_errors(b) if "invariants" in i.where]
+
+
+def test_a_completed_run_has_nothing_pending(b):
+    cfg(b, "run.lane-a.example.json")["seed_manifest"] = {"state": "pending", "expected_node": "G0b"}
+    assert doc(b, "run.lane-a.example.json").data["status"] in ("COMPLETED", "COMPLETED_WITH_GAPS")
+    assert any("should exist but missing" in i.msg for i in run_config_errors(b, "run.lane-a.example.json"))
+
+
 def test_pending_names_the_producing_node(b):
     cfg(b)["invariants"] = {"state": "pending", "expected_node": "W0"}
     assert any("produced by G1" in i.msg for i in run_config_errors(b))
@@ -195,6 +219,17 @@ def tool_only(b):
         k[x] = []
     k["tool_report_refs"], k["sarif_refs"] = k["sarif_refs"], []      # the opengrep result reported the cluster
     return k
+
+
+def test_tool_only_example_reaches_the_report(b):
+    """K-016: opengrep's delete-without-owner result, no LLM finding at that location. Its own result is the report
+    (tool_report_refs), so it has no signal: UNCORROBORATED (R7), listed in the report as report-only."""
+    k = doc(b, "cluster.k-016.example.json").data
+    v = doc(b, "verdict.k-016-w3.example.json").data
+    assert k["origin"] == "tool_only" and not k["member_finding_ids"] and k["tool_report_refs"] and not k["sarif_refs"]
+    assert v["status"] == "UNCORROBORATED" and v["independent_sources"] == 0 and v["tool_signal"] == []
+    assert "K-016" in doc(b, "report-manifest.example.json").data["report_only_clusters"]
+    assert k["tool_report_refs"][0] in doc(b, AUDIT).data[12]["payload_refs"]
 
 
 def test_tool_only_cluster_is_accepted(b, keys):
