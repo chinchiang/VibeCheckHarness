@@ -2,6 +2,31 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
+## v0.5（2026-10-25）
+
+依 [2026-10-25 設計審查](docs/evidence/review-2026-10-25.md)。v0.5 分支（`07658d7`）是從 v0.3 分出的，直接合併會還原 v0.4；本版把它的內容在 v0.4 上重做（審查紀錄 §3、§7）。工具包本體仍未實作；新增的契約大多只有規格，交付時點見 [07 §1.4](docs/07-roadmap.md#14-v05-的前置工作與驗收順序-h)。裁決規則未改，`rule_version` 仍是 `05-v0.4`；R10 保留 v0.4 的語意（使用者確認）。
+
+### 寫入範圍（schema 與 validator，不相容的收緊）
+- `create_only_endpoints[]` 必填 `created_resource`（`type`、`id_pointer`、`path_templates`）；`{created:step_id}` 只能用在宣告的路徑，其他變數段綁定那次建立請求的值，巢狀資源由內層的建立端點宣告；建立的 `step_id` 不能重複（`E-SEED-MANIFEST`、`E-TC-MUTATION-SCOPE`；`safety.created_resource_problem`、`created_path_allowed`）。缺少宣告的舊 manifest 一律 S3，要由基礎設施擁有者補齊並重新簽署。
+- GraphQL mutation 只能以 POST 送出（v0.4 的 ROE `graphql_paths` 規則保留）。
+
+### 執行期契約（只有規格）
+- job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
+- 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。
+- CAS 依委任隔離、hash 不是授權、每個 run 一筆生命週期參照（08 §7.3、§7.5，BL-29）。
+- 取樣與重播分開；無法支持獨立同分布時不給二項上界（04 §4.4，BL-30）。
+- run 產物的四種狀態（08 §11.13，BL-22／23）、純工具路徑（08 §11.2，BL-13）、Scope Proxy 選型前的原型關卡（08 §11.7、07 MVP2-X5，BL-32）。
+
+### 流程與報告
+- 跨 run 的 G1／G3 沿用停用，直到 BL-21 完成；W0 → W0.5／認領與 G1 → W1，自動觸發的 run 在 G1 前停在 `claim_run`。
+- G2 駁回後的新證據：裁決依 R10，報告醒目呈現、去重、不覆寫歷史（02 B6，BL-34）。
+- 前導實驗加入純工具組、等費用比較與盲測紀律（07 §1.2，BL-33）；07 §1.4 列出各項前置工作的交付時點。
+- 06 §3 增為 43 條（#42 共用 staging 無法安全整庫還原、#43 二項上界的前提）。
+
+### 文件
+- `rule_version` 的「目前版本」陳述在 03、08、schemas README 改為 `05-v0.4`；08 §11.6 的範例說明改為 `delete_namespace`；08 §11.7 的 `edge_ip_ranges` 說明更新。
+- 新增 [docs/evidence/review-2026-10-25.md](docs/evidence/review-2026-10-25.md)、`tests/test_v05_round6_group0.py`。
+
 ## v0.4（2026-10-24）
 
 依 [2026-10-24 設計審查](docs/evidence/review-2026-10-24.md) 的第一到第三優先項目：修正裁決規則的邊界與 validator 的繞過；把跨境聲明移到 G0a、補上事故應變、釘選設定檔、修正信任錨與 Scope Proxy；在 MVP-1 前加入核心假設的前導實驗、降低人工關卡負擔、修正對照表與範例。其餘審查項目與理由見該紀錄 §5。

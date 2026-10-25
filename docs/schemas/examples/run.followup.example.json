@@ -45,7 +45,7 @@
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:915bdd71068bce5651eb29788e4849436d6e979ca3bd321a21265d491682554d"
+      "sha256": "sha256:ca67cf2c35d2eb15edb019c126280932d78f248199acad399e08be7bbad3c61b"
     }
   },
   "prompt_templates": [
@@ -63,7 +63,7 @@
     }
   ],
   "rule_version": "05-v0.4",
-  "roe_ref": "sha256:3e69977166a93ad4d011007188c9eb479f867bad67854e3bb745b21b4fcfa359",
+  "roe_ref": "sha256:044d9e9ab7dbddb07d4d2ef9189cbfdce1f9608e35d60eb8f6ee37561404db61",
   "repo_commit": "7d3e1a0",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
@@ -139,7 +139,7 @@
       "gate_record_id": "GR-G0b-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:3e69977166a93ad4d011007188c9eb479f867bad67854e3bb745b21b4fcfa359",
+      "subject_hash": "sha256:044d9e9ab7dbddb07d4d2ef9189cbfdce1f9608e35d60eb8f6ee37561404db61",
       "job_id": null,
       "opened_at": "2026-10-07T10:01:00+08:00",
       "decided_at": "2026-10-07T10:02:00+08:00"

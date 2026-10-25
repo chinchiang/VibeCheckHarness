@@ -343,7 +343,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 | 3 個家族都在第一輪回報（`no_eligible_verifier`） | 沒有票；獨立來源 ≥ 3 → `LIKELY`（R6）；不進 G2，改由 W4 與黑箱測試確認（§3 規則 2） |
 | 黑箱起源叢集（`origin: black_box`） | 確定性 FAIL（G4 核准即事先登記）→ `E_proof` → `CONFIRMED_EXECUTABLE`（R1）；沒有 `E_proof` → `UNCORROBORATED`（R7） |
 | G3 駁回種子威脅（D5） | 狀態不變，加註 `g3_rejected`（R13）；不產生 B3 測試案例；B6 列為「未做黑箱驗證（G3 駁回：理由）」 |
-| G2 駁回後才出現 FAIL 證明 | `E_proof` → `CONFIRMED_EXECUTABLE`（R10、R1，v0.4）；`E_fail_u` → 維持 `REJECTED`（R10）。兩者都加註 `post_g2_conflict` 並列入 B6 人工複核清單 |
+| G2 駁回後才出現 FAIL 證明 | `E_proof` → `CONFIRMED_EXECUTABLE`（R10、R1，v0.4；v0.5 保留這個語意）；`E_fail_u` → 維持 `REJECTED`（R10）。報告的呈現、去重與複核流程見 [02 B6](02-methodology.md#b6-報告) 的「G2 駁回後的新證據」。兩者都加註 `post_g2_conflict` 並列入 B6 人工複核清單 |
 | 成員片段全部 `NOT_FOUND`，但同一位置有 SARIF 或可重現的 FAIL | R0 不成立（v0.4）：照 R2–R7 裁決，例如只有一筆弱 SARIF → `UNCORROBORATED`（R7），成為種子威脅 |
 | Lane A 參考性發現項 | `UNCORROBORATED`（R9），`advisory: true`；帶入下一個 Lane B run 作為額外輸入，在那次 run 中重新從頭裁決，但不計入獨立家族數（§4.1） |
 

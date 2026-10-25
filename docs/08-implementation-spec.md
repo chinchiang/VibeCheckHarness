@@ -396,7 +396,7 @@ class AdjudicationInputs(BaseModel):   # 欄位與 tools/vchlib/adjudicate.py �
 # status_cap, advisory, annotations, sources)，與 vchlib 相同。裁決的 provisional 推導為：calibration_version
 # 為 null、theta_confirm 為 null，或叢集的每個合格驗證者模型（E 的模型，由登錄推得，不看出席的票）在該桶的
 # 權重都是 0（E-VERDICT-PROVISIONAL，§11.11）。裁決與 run 的 rule_version 都必須等於 vchlib 的
-# RULE_VERSION（目前 "05-v0.3"；E-VERDICT-RULE-VERSION、E-RUN-RULE-VERSION）
+# RULE_VERSION（目前 "05-v0.4"；E-VERDICT-RULE-VERSION、E-RUN-RULE-VERSION）
 
 class Aggregator(Protocol):
     def adjudicate(self, cluster: BaseModel, x: AdjudicationInputs,
@@ -665,7 +665,7 @@ class ToolAdapter(ABC):
 | 發現項（finding） | 證據的 `kind`（`code_snippet`、`inventory_fact`、`config_fact`）、`fact_ref`、`key_path`、`asserted`；`match` 新增 `MATCHED_SHIFTED`；`facet`（13 個面向） | 不是程式片段的證據；審查面向 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-INVENTORY-REF`；所屬叢集的桶必須在 `FACET_BUCKETS[facet]` 中（`E-FINDING-FACET`） | §11.1、[05 §3](05-bias-calibration.md#3-設計規則) |
 | 切片（slice） | `redaction_map_sha256`、`prompt_template_sha256` | 新的 `slice_id` | `slice_id` 重算（`E-DERIVED`）；範本不是 run 的 `prompt_templates` 之一，或遮罩表不是 run 的 `redaction_map_ref` → `E-SLICE-IDENTITY` | §11.3 |
 | 叢集（cluster） | `origin`（`white_box`、`black_box`）、`threat_id`、`canonical_location.endpoint`、`fingerprint`、`baseline_state`、`reopened` | 黑箱起源的叢集；跨 run 的指紋 | `E-CLUSTER-ORIGIN`、`E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | §11.16 |
-| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為 `05-v0.3` | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
+| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為 `05-v0.4`（v0.4 起） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
 | 測試案例（testcase） | `oracle.types[]`、`controls[]`、`script_turns`、`request_allowlist[].step_id`、`request_allowlist[].graphql_operation` | 對照組、多輪腳本、寫入範圍 | `E-TC-CONTROLS`、`E-TC-SCRIPT`、`E-TC-MUTATION-SCOPE`、`E-TC-REQ-UNAPPROVED` | §11.6、§11.15 |
 | 測試結果（testresult） | `controls[]`、`fail_oracles[]`、`outcome: INVALID`、`observed_build_id`、`request_log_sha256`、`interpretation` | 對照結果、build 識別、解讀 | `E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-ORACLE`、`E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG`、`E-RESULT-ANALYST`、`E-RESULT-ANALYST-ROLE` | §11.7、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) |
 | report-manifest | `metrics`（`results_total`、`results_invalid`、`control_pass_rate`）、`build_unverified_targets[]`、`absent_fingerprints[]` | 報告的確定性計數 | `E-REPORT-METRICS`、`E-RESULT-BUILD`、`E-CLUSTER-BASELINE` | §11.16、§11.17 |
@@ -796,14 +796,16 @@ class ToolAdapter(ABC):
 ### 7.3 CAS 配置
 
 ```text
-$VIBECHECK_CAS_ROOT/
+$VIBECHECK_CAS_ROOT/<engagement_id>/            # v0.5：每個委任一個儲存根，不跨委任共用內容或快取
   sha256/ab/cd/abcd…ef          # 密文（AEAD；演算法與 KMS 見 §10）
-  sha256/ab/cd/abcd…ef.meta.json
-      # {media_type, data_class, retention_days, created_at, legal_hold, kek_id, size}
+  refs/ab/cd/abcd…ef/<run_id>.<ref_id>.json
+      # v0.5：生命週期參照 {run_id, producer_node, media_type, data_class, retention_starts_at,
+      #        retention_days, legal_hold, created_at}；同一內容可以有多筆參照
 ```
 
 - ref ＝ 明文的 sha256。`get()` 先解密，再重算 hash。
-- 寫入的方式：先寫暫存檔，再原子性地 rename。已存在 → 不覆寫。
+- **hash 不是授權**（v0.5）[H]：讀取要檢查呼叫者、委任與一筆仍有效的生命週期參照；知道 hash 不代表有權讀。儲存根依委任隔離，金鑰（KEK）也依委任分開；跨委任去重要先完成授權與金鑰隔離設計，MVP 不啟用。LLM 快取（03 §5.8）的鍵已含 `engagement_id`，與此一致。
+- 寫入的方式：先寫暫存檔，再原子性地 rename。內容已存在 → 不覆寫內容，但**新增一筆自己的生命週期參照**；同 hash 的第二次寫入不能沿用第一筆的資料等級、起算點或保留期限（v0.5）。
 - **Z3 有自己的儲存區**，不同步到 Z1：`oracle_capture` 的 before 內容、session 狀態。Z1 只收到 hash 與比對結果（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）。
 
 ### 7.4 稽核檔配置
@@ -832,7 +834,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
   - `audit_days: 1095`（稽核檔與 GateRecord；必須 ≥ 兩個內容期限）；
   - `checkpoint_days_after_run_end: 30`、`checkpoint_keep_last: 1`；
   - `legal_hold: []`（列入的範圍一律不刪）。
-- `ContentStore.gc(now)` 只刪除「超過保留期限、而且沒有 `legal_hold`」的物件。每次刪除都寫稽核事件。
+- `ContentStore.gc(now)`（v0.5）：每筆生命週期參照各自到期，到期即撤銷**該參照**的讀取權；實體內容只有在**所有**參照都到期、而且都沒有 `legal_hold` 時才刪除。較晚的新參照不能替已到期的舊參照延長存取；legal hold 期間的讀取權限由獨立政策決定。每次撤銷與刪除都寫稽核事件。驗收：相同內容的不同期限、不同資料等級、legal hold、多 run 共用、刪除後的稽核驗證。
 - 刪除 C 級內容之後，稽核檔中的 hash 仍然保留，所以 `audit verify` 不受影響。
 
 ## 8. 測試
@@ -1261,6 +1263,8 @@ class ToolResult(BaseModel):
 - `E-VERDICT-TOOLSIGNAL`：`tool_signal` 必須等於「弱 SARIF ∪ `E_fail_u` 測試結果的 `result_ref`」。
 - `E-VERDICT-SOURCES`：`independent_sources` 必須等於推導值。
 
+**沒有 LLM 發現項的路徑**（v0.5，[09 BL-13](09-backlog.md)，MVP-0 前）[H]：MVP-0 必須有 `W1 → ToolResult 正規化 → 純工具叢集 → 裁決 → W5 報告／SARIF` 的完整路徑。run 要能參照 ToolResult 清單，叢集要能表示零個 LLM 成員，並追溯工具版本、規則、位置與證據（現有 schema 不支援，見 BL-13）。沿用本節的去重與裁決規則：工具自己的回報不能再算成自己的獨立佐證；校準前不能因為沒有 LLM 成員就套用「所有成員都沒有證據」的 R0，也不能憑空產生合格票；強弱證據、暫定標示與報告覆蓋限制都保留。驗收要包含「只有工具發現」「工具與 LLM 合併」「沒有任何發現」三種輸入，不能靠捏造 LLM 發現項讓流程通過。
+
 **失敗**：單一工具失敗 → 列為缺口，其他工具繼續；全部 W1 工具失敗 → `FAILED`（[02 W1](02-methodology.md#w1-確定性掃描建立基準不用-llm)）。正規化本身失敗（例如 SARIF 不合 schema）→ 該工具視同失敗。
 
 ### 11.3 Slicer
@@ -1425,9 +1429,9 @@ class ToolResult(BaseModel):
 - `seeding`：`{job_kind: "S1_seed", idempotent: true}`（兩個值都是固定的）。
 - `teardown`：`{method}`，值為 `delete_namespace`、`restore_snapshot` 或 `manual`。
 - `reseed_per_trial`：LLM 試驗之間是否重建種子。
-- `create_only_endpoints[]`（manifest **頂層**）：`{target_id, method, path_template}`，`method` 只能是 `POST` 或 `PUT`；可以在 run 命名空間中建立新物件的端點。`target_id` 必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。
+- `create_only_endpoints[]`（manifest **頂層**）：`{target_id, method, path_template, side_effects, contained, created_resource}`，`method` 只能是 `POST` 或 `PUT`；可以在 run 命名空間中建立新物件的端點。`target_id` 必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。v0.5 的 `created_resource`（`type`、`id_pointer`、`path_templates`）宣告 `{created:<step_id>}` 可以用在哪些路徑，規則與例子見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)；參考實作 `safety.created_resource_problem`、`safety.created_path_allowed`。
 - `seeds.<key>.path_templates[]`（每個種子各自一份，必填，至少一項）：這個種子屬於哪些資源路徑（D11）；請求中 `{seed:key}` 所在的位置必須是其中一個樣板的變數段。
-- 範例（[docs/examples/seed-manifest.yaml](examples/seed-manifest.yaml)）：`namespace: "vc-{run_id}-"`、`teardown: {method: restore_snapshot}`、`reseed_per_trial: true`；`create_only_endpoints` 是 `tgt-staging-app` 的 `POST /api/chat/sessions` 與 `POST /api/chat/sessions/{session}/messages`；`tenant_a_invoice`、`tenant_b_invoice` 的 `path_templates` 都是 `["/api/invoices/{id}"]`。
+- 範例（[docs/examples/seed-manifest.yaml](examples/seed-manifest.yaml)）：`namespace: "vc-{run_id}-"`、`teardown: {method: delete_namespace}`、`reseed_per_trial: true`；`create_only_endpoints` 是 `tgt-staging-app` 的 `POST /api/chat/sessions`（建立 `chat_session`）與 `POST /api/chat/sessions/{session}/messages`（建立 `chat_message`，只能在同一個對話底下引用）；`tenant_a_invoice`、`tenant_b_invoice` 的 `path_templates` 都是 `["/api/invoices/{id}"]`。
 
 **生命週期** [H]：
 
@@ -1464,7 +1468,7 @@ class SeedService(Protocol):
 - ID 在 Z3 內解析，所以 Z1 不需要知道實際 ID。
 - 計數型 oracle（`oracle_count`）的參數仍只能是 `seed:` 或 `const:`（seed manifest 的 `oracle_queries`）。
 
-**validator**：寫入範圍規則（`E-TC-MUTATION-SCOPE`，該測試案例同時成為 S3 → `E-TC-ADMISSIBLE`）；`{seed:}` 的路徑樣板必須屬於該種子（D11，同樣是 `E-TC-MUTATION-SCOPE`）；`create_only_endpoints` 的目標（`E-SEED-MANIFEST`）；其他新欄位由 schema 檢查形狀（例如 `namespace` 不含 `{run_id}`、`seeding.idempotent` 不是 true → `E-SCHEMA`）。
+**validator**：寫入範圍規則（`E-TC-MUTATION-SCOPE`，該測試案例同時成為 S3 → `E-TC-ADMISSIBLE`）；`{seed:}` 的路徑樣板必須屬於該種子（D11，同樣是 `E-TC-MUTATION-SCOPE`）；`create_only_endpoints` 的目標與 `created_resource` 宣告（`E-SEED-MANIFEST`）；`{created:}` 必須用在宣告的路徑、建立的 `step_id` 不重複、GraphQL mutation 只用 POST（v0.5，`E-TC-MUTATION-SCOPE`）；其他新欄位由 schema 檢查形狀（例如 `namespace` 不含 `{run_id}`、`seeding.idempotent` 不是 true → `E-SCHEMA`）。
 
 ### 11.7 Scope Proxy 實作
 
@@ -1543,7 +1547,9 @@ class SeedService(Protocol):
 
 **攔截式 proxy 的選型**仍未決定（§10 U-13）。mitmproxy 12.2.3 的 PyPI classifier 為 MIT [V][E:blackbox-67]，是候選之一，**尚未選定**。不論選哪一個，本節的規則都由工具包自己的程式碼強制，並以 §8.2 的 N-17、N-18、N-32、N-33 驗證。
 
-**`JobAllowlist` 的擴充欄位**（§2.3）：`protocols`、`job_token_id`、`edge_ip_ranges`（ROE 尚無來源欄位，一律為空；見 [09 BL-15](09-backlog.md)）。
+**`JobAllowlist` 的擴充欄位**（§2.3）：`protocols`、`job_token_id`、`fencing_token`（v0.5，[03 §5.8](03-system-architecture.md#58-節點邊界規則)）、`edge_ip_ranges`（v0.4 起取自 ROE `targets[].edge_ip_ranges`）。
+
+**選型前的原型關卡**（v0.5，[09 BL-32](09-backlog.md)，MVP-2 前）[H]：以本地拋棄式 HTTPS 目標與「越界接收器」驗證候選代理；本輪不選定產品，也不宣稱原型已通過。依上面的協定矩陣測試 Executor、ZAP、Playwright 的代理認證與信任根配置，記錄實際版本、支援與拒絕情況。必要案例：SNI／Host／`:authority` 不一致、路徑編碼與正規化差異、重複或衝突的長度標頭、越界轉址、DNS 改變、HTTP/2 多 stream 的預算、WebSocket 的核准腳本與上限、SSE 上限、租約失效與代理中斷。每個允許的案例要收到預期回應；每個禁止的案例要有拒絕紀錄，且越界接收器零命中；直接繞過出口也必須失敗。代理不支援的工具或協定標為不支援或 `MANUAL`，禁止改用直連或關閉 TLS 驗證。Executor 的必要 HTTP 工作流沒有通過就不能進 MVP-2；選用的 adapter 只在通過後啟用。U-13 依這份證據結案，之後才能宣稱實際的相容範圍。
 
 ### 11.8 Session Provider
 
@@ -1757,13 +1763,28 @@ class SessionProvider(Protocol):
 | `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`，每一項是 `{path, sha256}`；只有 Lane A run 的 `seed_manifest` 可以是 null | `run_init`（設計上 `invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之後才有內容；schema 的限制見表下） |
 | `prompt_templates[]` | `{template_id, version, sha256}` | `run_init`：列出本 run 的 agent 會用到的全部範本 |
 | `tool_versions[]` | `{adapter, version, image_digest}`；工具包自有程式碼的 adapter 填 Z2 映像的 digest | 每個工具第一次執行時 |
-| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.3`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
+| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.4`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
 | `baseline_run_id` | 計算 `baseline_state` 用的基準 run（§11.16）；null＝沒有基準 | `run start` 的選項；`followup`、`regression` 預設為 `parent_run_id`（範例跟進 run 的基準是 `run-2026-09-23-001`） |
 
 **schema 的限制**：`run.schema.json` 要求 `config_refs` 的六個鍵都存在，每一項都是 `{path, sha256}`；只有 `seed_manifest` 可以是 null，而且 validator 只在 Lane A run 接受 null（`E-RUN-CONFIG`）。因此：
 - 沒有黑箱階段的非 Lane A run，也要參照一份 seed manifest（範例的 initial 與 followup run 都參照 `docs/examples/seed-manifest.yaml`）。
 - `calibration` 也必填：校準前仍要有一份 `calibration.yaml`，`calibration.schema.json` 允許它的 `result` 是 null（Calibration Lab 還沒有結果）。
-- schema 還沒有「執行中暫缺」的表示法：G1 核准前的 `invariants`、G0b 之前的 `seed_manifest` 在 run 紀錄中怎麼填，目前沒有規定（待補）。
+- schema 還沒有「執行中暫缺」的表示法：G1 核准前的 `invariants`、G0b 之前的 `seed_manifest` 在 run 紀錄中怎麼填，目前沒有規定。v0.5 的規格如下，schema 與 validator 待實作（[09 BL-22／BL-23](09-backlog.md)，MVP-0 前）。
+
+**run 產物的生命週期**（v0.5）[H]：每個預期產物都要能區分四種狀態，不能用一個沒有說明的 null 混合表示：
+
+| 狀態 | 要求 | 消費端 |
+|---|---|---|
+| 尚未產生 | 記錄預期的產生節點，而且該節點尚未完成 | 可以保存中間狀態；禁止進入依賴它的節點 |
+| 不適用 | 記錄省略原因與本 run 的階段計畫 | 只能略過不在計畫內的消費節點 |
+| 已產生 | 有內容 hash、參照與產生節點；可讀且 hash 相符 | 通過授權與完整性檢查後才能使用 |
+| 應存在但遺失 | 產生節點已完成卻沒有產物，或參照讀不到、hash 不符 | 阻止消費與 resume；不能降級成「尚未產生」或「不適用」 |
+
+- `run_init` 必須有委任設定、toolkit、models、agents、tools、calibration（校準結果可以還沒有，但設定檔要有）。
+- W0.5 完成後要有不變量草稿，G1 之後要有它的核准紀錄；兩者是不同的產物狀態，W2 等消費端同時檢查內容與授權。
+- 純白箱的 run（含非 Lane A）把 `seed_manifest` 標為「不適用」；計畫含 B 階段時可以先標「尚未產生」，但 G0b 驗證 ROE 的引用前必須備齊，B4 前另外驗證種子與目標已就緒。
+- resume 依已完成的節點重新檢查必要產物；擴大階段計畫時重新驗證前置條件，不能沿用「不適用」跳過檢查。
+- 驗收：G1 前保存、純白箱完成、缺必要產物時 resume——前兩者可以表示，最後一個被阻擋且不偽造空產物。
 
 **validator**：
 - 依 `config_refs` 的路徑讀取檔案、重算 sha256，不符 → `E-DERIVED`（做法與既有的 toolkit、engagement 參照相同）；路徑指到的不是該種類的檔案，或不該是 null 的項目是 null → `E-RUN-CONFIG`。
