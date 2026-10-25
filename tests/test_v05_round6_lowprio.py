@@ -28,13 +28,15 @@ def errors(b, code, where=None):
 
 
 # ================================================================ robustness
-@pytest.mark.parametrize("text", ["[" * 100000 + "]" * 100000, "[" * 70 + "]" * 70, '{"a": "\\ud800"}', '{"\\udc00": 1}'])
+# short ids: a 200 000-character test id overflows PYTEST_CURRENT_TEST on Windows (32 767-character environment limit)
+@pytest.mark.parametrize("text", ["[" * 100000 + "]" * 100000, "[" * 70 + "]" * 70, '{"a": "\\ud800"}', '{"\\udc00": 1}'],
+                         ids=["deep-100000", "deep-70", "surrogate-value", "surrogate-key"])
 def test_strict_json_rejects_deep_nesting_and_lone_surrogates(text):
     with pytest.raises(jsonstrict.StrictJSONError):
         jsonstrict.loads(text)
 
 
-@pytest.mark.parametrize("text", ['a: "\\ud800"', "a: " + "[" * 80 + "]" * 80])
+@pytest.mark.parametrize("text", ['a: "\\ud800"', "a: " + "[" * 80 + "]" * 80], ids=["surrogate", "deep-80"])
 def test_strict_yaml_rejects_deep_nesting_and_lone_surrogates(text):
     with pytest.raises(yamlstrict.StrictYAMLError):
         yamlstrict.load(text)
