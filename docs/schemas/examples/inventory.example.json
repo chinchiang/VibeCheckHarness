@@ -122,6 +122,14 @@
       "bytes": 800,
       "excluded": true,
       "exclude_reason": "path_blacklist"
+    },
+    {
+      "path": "jobs/overdue-reminders.ts",
+      "sha256": "sha256:96beb7559aedc23db6fe2d10dd104324a5464db71a21fcf32a898db7267645ee",
+      "language": "typescript",
+      "bytes": 980,
+      "excluded": false,
+      "exclude_reason": null
     }
   ],
   "manifests": [
@@ -225,6 +233,16 @@
       "middleware_refs": [
         "MW-002"
       ],
+      "writes": true
+    },
+    {
+      "method": null,
+      "path": "schedule:overdue-invoice-reminders",
+      "file": "jobs/overdue-reminders.ts",
+      "line": 7,
+      "kind": "scheduled",
+      "auth_required": null,
+      "middleware_refs": [],
       "writes": true
     }
   ],

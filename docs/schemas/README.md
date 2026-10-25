@@ -53,6 +53,7 @@
 | [commander-plan](commander-plan.schema.json) | 指揮官計畫與後續草稿 | [CMD-1](examples/commander-plan.example.json)、[CMD-5](examples/commander-plan.cmd5.example.json) |
 | [testcase](testcase.schema.json) | 測試案例（oracle.types、controls） | [IDOR（S1）](examples/testcase.idor.example.json)、[LLM（S1）](examples/testcase.llm.example.json)、[ZAP active（S2）](examples/testcase.zap-active.example.json)、[發票列表 BOLA（S0）](examples/testcase.bola-list.example.json) |
 | [w4-testcase](w4-testcase.schema.json) | v0.5（BL-27）：W4 白箱測試案例（unit／property／local_rls／fake_model、Z2 環境、對照、oracle 引用的 G1 條目） | [WTC-015-01](examples/w4-testcase.k-015.example.json)（K-015 的本地 RLS 測試） |
+| [feedback](feedback.schema.json) | v0.5（BL-18）：簽署的誤報／確認回饋（指紋、標籤、SARIF suppression、單一簽章） | [FB-001](examples/feedback.k-016.example.json)（app_owner 把 K-016 標為誤報） |
 | [testresult](testresult.schema.json) | 測試結果（fail_oracles、controls、observed_build_id） | [IDOR](examples/testresult.example.json)、[W4 本地 RLS](examples/testresult.w4-k-015.example.json)、[LLM](examples/testresult.llm-pass.example.json)、[ZAP](examples/testresult.zap-active.example.json)、[發票列表](examples/testresult.bola-list.example.json) |
 | [report-manifest](report-manifest.schema.json) | 報告清單與雜湊、metrics、build_unverified_targets、absent_fingerprints | [report-manifest.example.json](examples/report-manifest.example.json) |
 | [selftest-report](selftest-report.schema.json) | 工具包自測結果 | [selftest-report.m1.example.json](examples/selftest-report.m1.example.json) |
@@ -144,11 +145,17 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-W4-TC` | v0.5（BL-27）：W4 測試案例的 run 存在、叢集是同 run 的 white_box／tool_only 叢集、oracle 只引用 requirement_ids、local_rls 有拋棄式 Postgres 與 inventory 中的 migration；W4 結果不借用黑箱測試案例、只掛在測試案例的叢集上 |
 | `E-W4-AUDIT` | v0.5（BL-27）：W4 結果恰好對應一筆已錨定的 W4／Z2 `sandbox_job_end`（同 result_id、testcase_id、outcome），`executed_at` 在該 job 的開始與結束之間 |
 | `E-W4-COVERAGE` | v0.5（BL-27）：run 有 W4 產物或種子威脅後，每條 G1 核准的不變量有 W4 測試案例或列在 `w4_manual_requirements`（不能兩者都有）；MANUAL 只能列 G1 核准的不變量 |
-| `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate）由 run 的測試結果重算 |
+| `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate；v0.5 BL-20：access_matrix_coverage、endpoint_slice_coverage、endpoint_test_coverage）由 run 的測試結果、testcase 的 access_cells、切片與 request_allowlist 重算 |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；tool_only 叢集（v0.5，BL-13）沒有成員、`tool_report_refs` 至少一筆能解析，`sarif_refs` 不能含回報或同一工具的結果，其他 origin 的 `tool_report_refs` 為空；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |
 | `E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | 指紋＝sha256(JCS({cwe_bucket, file, symbol}))（black_box：{cwe_bucket, target_id, method, path_template}）；`baseline_state` 依 run `baseline_run_id` 推導；report `absent_fingerprints` |
 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-FINDING-FACET` | 證據 kind 的欄位；code_snippet 至少 12 個非空白字元並含 3 字元以上的識別字，`file` 在發現項的切片中（v0.4）；inventory_fact 由 inventory 重算 match；status 由 match 推導；facet 與叢集 CWE 桶（`FACET_BUCKETS`） |
-| `E-INVENTORY`、`E-INVENTORY-REF` | inventory 內部參照（middleware、來源檔、public_prefix）；finding／threat／DFD 的 inventory JSON Pointer 必須可解析 |
+| `E-INVENTORY`、`E-INVENTORY-REF` | inventory 內部參照（middleware、來源檔、public_prefix；v0.5 BL-19：`kind: scheduled` 沒有 method、path 為 `schedule:`／`queue:`，其他 kind 必須有 method）；finding／threat／DFD 的 inventory JSON Pointer 必須可解析 |
+| `E-ENG-BUDGET` | 每一層 `max_cost_usd` 等上限必填、階段上限不超過 run_total；v0.5（BL-14）：`budgets.families` 的家族是 models.yaml 的家族、上限不超過 run_total |
+| `E-ENG-PUBLISH` | v0.5（BL-17）：`publishing` 關閉時 platform 為 null、token_scopes 為空；開啟時平台為 github、權杖範圍只能是 metadata:read／issues:write／pull_requests:write |
+| `E-TOOLKIT-B1` | v0.5（BL-16）：toolkit `b1_crawl.skip_keywords` 包含 08 §11.7 的基本清單（方法、表單、origin、上限由 schema 限制） |
+| `E-FEEDBACK` | v0.5（BL-18）：回饋的 run 屬於同一委任、指紋是所指叢集的指紋、duplicate 指向另一個叢集、sarif_suppression 依標籤、恰好一個 signed_by 的簽章（簽章與角色另由 E-SIG-* 檢查） |
+| `E-TC-ACCESS-CELL` | v0.5（BL-20）：testcase／w4-testcase 的 `access_cells` 每格都在 G1 存取矩陣中 |
+| `E-SEED-SENSITIVE` | v0.5（BL-40）：seed `sensitive_fields` 的 phone／account 至少 6 位數字；同一正規化值不登記在兩個種子 |
 | `E-INVARIANT-LEVEL`、`E-INVARIANT-REF` | L2 以上的 ASVS／AISVS 需求由 baseline_levels 或 level_triggers 涵蓋；llm_tools 的資料分級、access_matrix.ownership |
 | `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES` | v0.4：CMD-1 計畫涵蓋 run 的每個切片；每個切片的 reviewer 至少 min(2, 合格 reviewer 家族數) 個家族（合格＝reviewer 角色、模型在 engagement 該資料等級的 `allowed_models`、不在切片 `excluded_models`） |
 | `E-PLAN-FACETS`、`E-PLAN-TARGET`、`E-PLAN-ROUNDS`、`E-PLAN-AGENTS`、`E-PLAN-BUDGET` | 計畫每個切片涵蓋 `MANDATORY_FACETS`；型別化目標；輪次 ≤ 2；代理角色；token 預算 ≤ run 階段預算 |

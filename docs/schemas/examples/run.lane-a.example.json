@@ -16,9 +16,9 @@
   "resume_node": null,
   "resume_deadline": null,
   "data_class": "C",
-  "toolkit_config_ref": "sha256:1ad29c05a7cd37ff60283fe1ff50c4648b8bca018f18b69f27352a2b94528ac8",
+  "toolkit_config_ref": "sha256:035665b0b19e92b4c27c24fd38cf7881fbc6e59e692e67f3df61354688521ecf",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:55c49459bc24b489353ff8627c5cbd6244e75cfb66d1180337a581a27a342b9f",
+  "engagement_ref": "sha256:3688497501eb7b177db42c7e75f13ae64485aa26668c9e3135692c6dd8be4a10",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -124,7 +124,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:55c49459bc24b489353ff8627c5cbd6244e75cfb66d1180337a581a27a342b9f",
+      "subject_hash": "sha256:3688497501eb7b177db42c7e75f13ae64485aa26668c9e3135692c6dd8be4a10",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"

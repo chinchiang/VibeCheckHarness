@@ -502,6 +502,31 @@
           "type": "null"
         }
       ]
+    },
+    "access_cells": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "resource",
+          "action"
+        ]
+      },
+      "description": "v0.5（09 BL-20）：本測試涵蓋的 G1 存取矩陣格子（role × resource × action）；每格必須在 invariants.yaml 的 access_matrix 中（E-TC-ACCESS-CELL）。不針對存取控制的測試為空陣列"
     }
   },
   "required": [
@@ -526,7 +551,8 @@
     "multi_turn",
     "script_turns",
     "strategy_template_sha256",
-    "artifact_sha256"
+    "artifact_sha256",
+    "access_cells"
   ],
   "title": "TestCase（測試案例）",
   "description": "B3 產出（LLM 直接輸出，保持自足以便降級成跨廠商子集）。safety_class_computed 由程式碼依 docs/04 §5 計算，LLM 的 safety_class_proposed 只當下限。工具與模式用 D13 的 tool:mode（tools.yaml）。"

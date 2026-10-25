@@ -17,9 +17,9 @@
   "resume_node": null,
   "resume_deadline": null,
   "data_class": "C",
-  "toolkit_config_ref": "sha256:1ad29c05a7cd37ff60283fe1ff50c4648b8bca018f18b69f27352a2b94528ac8",
+  "toolkit_config_ref": "sha256:035665b0b19e92b4c27c24fd38cf7881fbc6e59e692e67f3df61354688521ecf",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:55c49459bc24b489353ff8627c5cbd6244e75cfb66d1180337a581a27a342b9f",
+  "engagement_ref": "sha256:3688497501eb7b177db42c7e75f13ae64485aa26668c9e3135692c6dd8be4a10",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -43,7 +43,7 @@
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:ca67cf2c35d2eb15edb019c126280932d78f248199acad399e08be7bbad3c61b"
+      "sha256": "sha256:b93dcd96b838bacb9ffd4cdd9a57fb3037c4335b309a0b25fb8fa219a4415f57"
     }
   },
   "prompt_templates": [
@@ -108,11 +108,11 @@
     }
   ],
   "rule_version": "05-v0.5",
-  "roe_ref": "sha256:b201565a035851b343fe25a39fa68ea310e3239c9a8a4c5de19c7864bb74e655",
+  "roe_ref": "sha256:ba429b0893ee7e1a3735f543742a939b71c052ebdbc1ec3976762c3daf637ca4",
   "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
-  "inventory_ref": "sha256:b282c525fc15d27e3e7582528b3ced52c2db3a445a9838e7e7c4234656f052aa",
+  "inventory_ref": "sha256:d864ce2840e009db11db894770c55fdd38ae9c79529f2ad86f342b8be746cc23",
   "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f",
   "tool_results_ref": "sha256:e9cbd381ac92a2a663ce90d675d82477d5e125be43e9ed608cb3020f4685bf37",
   "w4_manual_requirements": [
@@ -224,7 +224,7 @@
   "threat_model_ref": "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441",
   "b1_diff_dispositions_ref": "sha256:5647a710ee3efacde3402733bd5692419bcf526667623df8c2954368d00087f4",
   "g3_round": 1,
-  "testplan_ref": "sha256:ed33e4b7f128bcea4efff6cdfae48b5236a0c6696a5147b13af746ac65148b46",
+  "testplan_ref": "sha256:8f4fe96b5af727af263e536c393267ca11790b02f9758a7386bfda866d3c460d",
   "testcase_ids": [
     "TC-012-01",
     "TC-027-01",
@@ -232,10 +232,10 @@
     "TC-033-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:49384a3a351e31569036ef858c8d4f1a9a12d1a0bbb2d41498d14f78bdfa0566",
-    "TC-027-01": "sha256:2c96e7ba462bf263e6835c9445ad1dba97f943e7e080426433faae99cb688511",
-    "TC-031-01": "sha256:b8c463671b3d9f93bb9b98acca5de2c0ae48114cfb086ab73fedce3b4d62deed",
-    "TC-033-01": "sha256:4f2dec8fadd0b17d5a95eb82d67b1c91a22ed07a28b024fbf82078c215ffced4"
+    "TC-012-01": "sha256:b8436a5875891d82e0eb7aca0deed197b19194a83ef5dfe3fcb804e5ef1eaebe",
+    "TC-027-01": "sha256:54b60a5d79d27dcc56b94fa2e96721631a11b7ad30a2a7cc76652409f77e413e",
+    "TC-031-01": "sha256:b9443e5d8e89c40f623145dc3fba6c8a78ff3afa42bac0fa21fb76c533836187",
+    "TC-033-01": "sha256:fdb6611d565238a77571e859e411afe73737e6e6265da9bceb995da836ceb2ac"
   },
   "g4_round": 1,
   "approved_testcase_ids": [
@@ -314,14 +314,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:c718862bf59465db01ab7aa9a3e777cc70bf5514f1f40f28c83805800bdb244d",
+  "report_manifest_ref": "sha256:cfccf7ec31628c7e38120d7d025c1dc0d13684f12c8ddaa354eac3a4be961ab9",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:55c49459bc24b489353ff8627c5cbd6244e75cfb66d1180337a581a27a342b9f",
+      "subject_hash": "sha256:3688497501eb7b177db42c7e75f13ae64485aa26668c9e3135692c6dd8be4a10",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"
@@ -361,7 +361,7 @@
       "gate_record_id": "GR-G0b-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:b201565a035851b343fe25a39fa68ea310e3239c9a8a4c5de19c7864bb74e655",
+      "subject_hash": "sha256:ba429b0893ee7e1a3735f543742a939b71c052ebdbc1ec3976762c3daf637ca4",
       "job_id": null,
       "opened_at": "2026-10-01T08:59:00+08:00",
       "decided_at": "2026-10-01T09:00:00+08:00"
@@ -381,7 +381,7 @@
       "gate_record_id": "GR-G4-0001",
       "outcome": "APPROVED",
       "round": 1,
-      "subject_hash": "sha256:ed33e4b7f128bcea4efff6cdfae48b5236a0c6696a5147b13af746ac65148b46",
+      "subject_hash": "sha256:8f4fe96b5af727af263e536c393267ca11790b02f9758a7386bfda866d3c460d",
       "job_id": null,
       "opened_at": "2026-10-02T12:00:00+08:00",
       "decided_at": "2026-10-03T11:00:00+08:00"
@@ -391,7 +391,7 @@
       "gate_record_id": "GR-G5-0001",
       "outcome": "APPROVED",
       "round": 1,
-      "subject_hash": "sha256:48f15363be6cfba07cacab451059985ac91f46102fce4d7508e621196305c684",
+      "subject_hash": "sha256:e64359dcbdb0aae52b2d4fe00a9b9cc00315adf4d95b75c14e565eb548e97053",
       "job_id": "job-zap-active-001",
       "opened_at": "2026-10-05T21:00:00+08:00",
       "decided_at": "2026-10-05T21:50:00+08:00"

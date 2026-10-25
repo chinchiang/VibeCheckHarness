@@ -354,6 +354,58 @@
         "checkpoint_keep_last",
         "legal_hold"
       ]
+    },
+    "b1_crawl": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "methods": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "GET",
+              "HEAD",
+              "OPTIONS"
+            ]
+          }
+        },
+        "skip_keywords": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "submit_forms": {
+          "const": false
+        },
+        "same_origin_only": {
+          "const": true
+        },
+        "max_requests_per_target": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      },
+      "required": [
+        "methods",
+        "skip_keywords",
+        "submit_forms",
+        "same_origin_only",
+        "max_requests_per_target",
+        "max_depth"
+      ],
+      "description": "v0.5（09 BL-16，docs/08 §11.7）：B1 爬行 job 的預設規則（只有 S0 方法、不送出表單、同一 origin、請求與深度上限；ROE 只能再調低）。skip_keywords 必須包含 08 §11.7 的基本清單（E-TOOLKIT-B1）"
     }
   },
   "required": [
@@ -368,6 +420,7 @@
     "sandbox",
     "path_blacklist",
     "relay",
+    "b1_crawl",
     "b4_batch",
     "restore_drill_interval_days",
     "automation_accounts",

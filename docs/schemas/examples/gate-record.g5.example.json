@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "s2_job",
-    "sha256": "sha256:48f15363be6cfba07cacab451059985ac91f46102fce4d7508e621196305c684"
+    "sha256": "sha256:e64359dcbdb0aae52b2d4fe00a9b9cc00315adf4d95b75c14e565eb548e97053"
   },
   "job_id": "job-zap-active-001",
   "g4_gate_record_id": "GR-G4-0001",
@@ -22,7 +22,7 @@
   "decisions": [
     {
       "item_id": "TC-027-01",
-      "item_sha256": "sha256:2c96e7ba462bf263e6835c9445ad1dba97f943e7e080426433faae99cb688511",
+      "item_sha256": "sha256:54b60a5d79d27dcc56b94fa2e96721631a11b7ad30a2a7cc76652409f77e413e",
       "decision": "accept",
       "risk_override": null,
       "note": "快照 snap-2026-10-05-01 已建立；還原演練 10-02 通過",
@@ -38,7 +38,7 @@
       "signer": "heidi",
       "key_fingerprint": "ed25519:SHA256:1jyZZuA652L7cTLJWgVC2VwK7buTjLotvqc4xrc9bKk",
       "alg": "ed25519",
-      "value": "e2+EsCy7XLyuNapNijtr4yRmtkxajWzoQ9Fx9QNCuy0tf7LvAZNWP8aiDVzyty9Ks8q51J8rryvlHuT2hisRAQ=="
+      "value": "38PNc1EQrfQNbojpcD74VHfyMi/2AAdoCfUT52eptwO+ZYArqxvFaiwld7fVGa8Q2EFDpCeqbVDKKCyuEnQFDg=="
     }
   ]
 }

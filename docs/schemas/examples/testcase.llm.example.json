@@ -138,5 +138,12 @@
   "multi_turn": false,
   "script_turns": null,
   "strategy_template_sha256": null,
-  "artifact_sha256": "sha256:05bd88d75d904dbe1aec89a715f6652d480efefcdb23fc43daedbdfe79da149a"
+  "artifact_sha256": "sha256:05bd88d75d904dbe1aec89a715f6652d480efefcdb23fc43daedbdfe79da149a",
+  "access_cells": [
+    {
+      "role": "support_agent",
+      "resource": "refund_tool",
+      "action": "invoke"
+    }
+  ]
 }

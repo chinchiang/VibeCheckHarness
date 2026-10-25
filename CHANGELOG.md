@@ -81,6 +81,16 @@
 ### 待辦清單整理
 - `docs/09-backlog.md` 新增 §4：第六輪只寫成規格或參考實作的部分，以及處理時記下的限制（BL-36～BL-47）；已處理的 BL-15、BL-24、BL-25、BL-26 移到 §5，編號保留。
 
+### schema 待辦（BL-14、16～20、40）
+- 每家族的 USD 上限：engagement `budgets.families`（家族必須存在於 models.yaml，上限不超過 run_total；`E-ENG-BUDGET`）。
+- B1 爬行預設：toolkit `b1_crawl`（只允許 GET／HEAD／OPTIONS、不送表單、同 origin、每目標 ≤ 200 個請求、深度 ≤ 5；跳過關鍵字只能加不能刪，`E-TOOLKIT-B1`）。
+- PR／issue 發布：engagement `publishing`，預設關閉；開啟時必須宣告平台與最小權限的權杖範圍（`E-ENG-PUBLISH`）。
+- 誤報回饋：新增 `feedback.schema.json`。回饋紀錄要簽章、指紋必須是所指叢集的、SARIF suppression 依標籤決定（`E-FEEDBACK`）；`sign_examples.py` 會簽回饋範例 FB-001。
+- 排程工作：inventory 的 `kind: scheduled`（`method` 為 null、路徑寫成 `schedule:`／`queue:`；`E-INVENTORY`）；範例加上一個排程工作。
+- 覆蓋指標：testcase 與 w4-testcase 新增 `access_cells`（`E-TC-ACCESS-CELL`）；report `metrics` 新增 `access_matrix_coverage`、`endpoint_slice_coverage`、`endpoint_test_coverage`，由 validator 重算（`E-REPORT-METRICS`）。
+- 外洩比對：seed `sensitive_fields` 與參考實作 `safety.sensitive_leaks`（`E-SEED-SENSITIVE`）。seed manifest 內容改變，ROE 的 `seed_manifest_sha256` 隨之更新並重簽。
+- 新增 `tests/test_v05_schema_backlog.py`。每個新檢查都做過驗證：單獨停用時，只有它自己的測試失敗。
+
 ### 白箱測試案例（BL-27）
 - 新增 `w4-testcase.schema.json`：W4 在 Z2 執行的單元、性質、本地 RLS 與假模型測試，與黑箱 testcase 分開。validator 檢查 run 與叢集、oracle 只引用 G1 已核准的 `requirement_ids`、reachability 對照、`local_rls` 的拋棄式 Postgres 與 migration（`E-W4-TC`、`E-TC-REQ-UNAPPROVED`、`E-TC-CONTROLS`）。
 - 修正：W4 的測試結果原本只能在黑箱測試案例中查找，等於借用黑箱測試案例的對照與 oracle。現在 `phase: W4` 的結果以 `testcase_id` 指向 W4 測試案例，借用黑箱測試案例是錯誤；W4 結果的 `target_ids` 為空，B4 結果至少一個目標（`E-RESULT-TARGETS`）。
