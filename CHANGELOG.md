@@ -40,6 +40,17 @@
 - 每個裁決版本都必須有 `verdict_changed` 事件。
 - 範例重簽；新增 `tests/test_v05_round6_group3.py`。
 
+### 方法論（第 4 組）
+- Scope Proxy 的物件綁定規則（`safety.request_binding_problem`）補上 query 字串（PostgREST 只接受 `eq.`，擋 `or=`／`and=` 與其他運算子）、ID 鍵下的陣列或物件、複數 ID 鍵，以及沒有任何綁定 ID 的整表寫入。
+- Server Action 以 `request_allowlist[].server_action {action_id, args}` 逐字綁定（`safety.server_action_problem`）；testcase schema 新增必填欄位 `server_action`（不是 Server Action 時為 null）。
+- DB 目標的所有權改以 `db_comment`（token 放在資料庫註解，Z3 以唯讀 oracle 憑證讀出）或 `platform_project` 證明；共享平台上的 DB 主機也要 `platform_project`。範例 ROE 已改並重簽。
+- 範例 A 的 oracle：只有 2xx 且洩漏或改動才是 FAIL，405／422／5xx 為 INCONCLUSIVE；CTL-02 涵蓋狀態碼。
+- 機率型測試的重播只記錄重現率，不再把達到 `fail_k_min` 的 FAIL 降成 `E_inc`；重播次數必須等於 `replay_n`。
+- G3 超出上限的項目以 `decision: over_cap` 記錄（只限 G3、不能是高風險項目），視同駁回（D5、R13、`over_cap_items`）。
+- G4 佇列上限 `gate_queues.g4_max_items`（預設 40），超出的測試案例改 `MANUAL`。
+- LLM02／08／09、ASI06 的 oracle 另比對種子紀錄的結構化欄位值；04 補上帳號復原、Supabase Auth 設定、API10 三列，並寫明 Lite 沒有黑箱注入測試。
+- 新增 `tests/test_v05_round6_group4.py`。
+
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
 - 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。

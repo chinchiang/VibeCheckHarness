@@ -257,8 +257,10 @@ def positive_control_value(tc: dict, tr: dict) -> bool | None:
 
 
 def fail_reproduced(tc: dict, tr: dict) -> tuple[bool, str]:
-    """docs/04 §4.4: the first batch reaches fail_k_min and a separate replay job reproduces it: a
-    deterministic test fails on every replay (k_r = n_r); a probabilistic test needs k_r >= fail_k_min."""
+    """docs/04 §4.4: the first batch reaches fail_k_min and a separate replay job ran: a deterministic test fails on
+    every replay (k_r = n_r). v0.5 (review 2026-10-25 M-3): for a probabilistic test the replay is a reproducibility
+    record, not a second verdict: one confirmed violation already breaks the requirement, and a real 5% rate stays
+    silent in all 20 replays about 36% of the time, so k_r is reported but does not demote the FAIL."""
     trials = tc.get("trials") or {}
     probabilistic = (trials.get("n") or 1) > 1
     k = (tr.get("trials") or {}).get("k", 0)
@@ -268,7 +270,7 @@ def fail_reproduced(tc: dict, tr: dict) -> tuple[bool, str]:
         return False, "FAIL below fail_k_min"
     if n_r < 1:
         return False, "FAIL not replayed"
-    if not (k_r >= fail_k_min if probabilistic else k_r == n_r):
+    if not probabilistic and k_r != n_r:
         return False, "FAIL not reproduced by the replay job"
     return True, ""
 

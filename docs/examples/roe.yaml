@@ -83,7 +83,7 @@ targets:
     endpoint: "db.staging.example.com:5432"
     environment: staging
     ownership_proof:
-      method: dns_txt
+      method: db_comment             # v0.5（M-1）：token 放在 COMMENT ON DATABASE，Z3 以唯讀 oracle 憑證讀出
       token_ref: "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
     build_identity: {method: none, header_name: null, path: null, json_pointer: null}
 
@@ -197,16 +197,16 @@ signatures:                      # 每位 signatory 與 legal_review.attested_by
   - signer: alice
     key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    value: "6hkJRnb+GG5RxJj9x5e3QYxTiaD1Xfj+XkpnnOozNsVrF76lL4PJEyZ0yTNTlITSZ4+7HfUtn2ce1CgSqH+BCQ=="
+    value: "G4TibYNqsfSeYTtbwDX+LsloT4LfDQn5DQeh/zd201Vb43KVsbQ5iedtEGP6E2IJtpIkwQYyTVHVZ+hpHfYyDQ=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "oof5u4UwDbPSTr5sCmKIfwCK5cRLWx7s6jGjG0kFJZqFsWLCZyJ7/8onxDVGHOGRZ7M0Aw1ddnet27LgMtZSDQ=="
+    value: "76TzHLqEnzeuUj07JV6ZORZ2NbEiZjfQiK4gsFoXxB0Oy+1Hm/rDfKx0TSMhrzvnCK2J0i3tCnXcapqFy26dDg=="
   - signer: dave
     key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    value: "Zok3m2faNwX3/tqbMIfdN5wcoZhmkxmj/sWj3MdYCuiV7dNykAnYVJLXJrNHf78sOfaw8l6BqsPRYg2gYAfVDA=="
+    value: "retRLU59ZrLnsK4BjPMgLub+atxgFJwOYw7jy8/raYbBfV4icngC8AZiIUULcV8BJ86i8R98meBjfrbvZwROCA=="
   - signer: grace
     key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
     alg: ed25519
-    value: "itnuqOMy1ZgOvg/+lMVRBOPD8sx4b9RnJ5ymhuDaDymY8dehAuQS/0GkV8K/IyeB3OYnWOiQgL+fSTcgLjOADg=="
+    value: "6THfq6qXwgdCLsjQwG8DM2nCefkHJpntNfH0THnWq8FEDwv8bgq7yZvmfo/EaqpL+Wn6rBN50pcERETfqSK8Ag=="

@@ -123,15 +123,20 @@ def test_fail_not_reproduced_cannot_confirm_executable(b):
     assert any("verdict.executable" in w for w in msgs)              # class must now be E_inc, not E_proof
 
 
-def test_probabilistic_fail_needs_replay_k_at_least_fail_k_min(b):
+def test_probabilistic_fail_is_not_demoted_by_the_replay(b):
+    """v0.5 (review 2026-10-25 M-3): the replay of a probabilistic test records reproducibility; k_r does not demote
+    a FAIL that reached fail_k_min (a true 5% rate is silent in all 20 replays about 36% of the time)."""
     tc = doc(b, "testcase.idor.example.json").data
-    tc["trials"]["n"], tc["trials"]["fail_k_min"] = 5, 2
+    tc["trials"]["n"], tc["trials"]["fail_k_min"], tc["trials"]["replay_n"] = 5, 2, 5
     tr = doc(b, "testresult.example.json").data
     tr["trials"] = {"n": 5, "k": 2}
-    tr["replays"], tr["replay_k"] = 5, 1
+    for k_r in (0, 1, 2):
+        tr["replays"], tr["replay_k"] = 5, k_r
+        assert _fail_class(b) in ("E_proof", "E_fail_u"), k_r
+    tr["trials"] = {"n": 5, "k": 1}                                # below fail_k_min
     assert _fail_class(b) == "E_inc"
-    tr["replay_k"] = 2
-    assert _fail_class(b) in ("E_proof", "E_fail_u")
+    tr["trials"], tr["replays"], tr["replay_k"] = {"n": 5, "k": 2}, 0, 0   # never replayed
+    assert _fail_class(b) == "E_inc"
 
 
 def test_replay_k_above_replays_is_rejected(b):

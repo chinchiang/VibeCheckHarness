@@ -16,7 +16,7 @@
   "resume_node": null,
   "resume_deadline": null,
   "data_class": "C",
-  "toolkit_config_ref": "sha256:219369fe47edd3f03a84732178cad355b34f64c38ba30016af544fdb6d1417ef",
+  "toolkit_config_ref": "sha256:fb3bc33eff2b62ba6140568d8e130aeaf2722c3e2bffdcd43b704130cd3804ff",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
   "engagement_ref": "sha256:fef7b0ab019583ed714efdccd8968f5497fd8579a40a29418dda768551828026",
   "config_refs": {

@@ -19,7 +19,7 @@
   "resume_node": null,
   "resume_deadline": "2026-10-10T10:30:00+08:00",
   "data_class": "C",
-  "toolkit_config_ref": "sha256:219369fe47edd3f03a84732178cad355b34f64c38ba30016af544fdb6d1417ef",
+  "toolkit_config_ref": "sha256:fb3bc33eff2b62ba6140568d8e130aeaf2722c3e2bffdcd43b704130cd3804ff",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
   "engagement_ref": "sha256:fef7b0ab019583ed714efdccd8968f5497fd8579a40a29418dda768551828026",
   "config_refs": {
@@ -63,7 +63,7 @@
     }
   ],
   "rule_version": "05-v0.5",
-  "roe_ref": "sha256:044d9e9ab7dbddb07d4d2ef9189cbfdce1f9608e35d60eb8f6ee37561404db61",
+  "roe_ref": "sha256:b201565a035851b343fe25a39fa68ea310e3239c9a8a4c5de19c7864bb74e655",
   "repo_commit": "7d3e1a0",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
@@ -105,12 +105,12 @@
   "threat_model_ref": null,
   "b1_diff_dispositions_ref": null,
   "g3_round": 0,
-  "testplan_ref": "sha256:3d4350b7df974b2ea338eec943137331f22d52cc3b8a1049a4361b51af476102",
+  "testplan_ref": "sha256:8047cf309cf3d92243bc13a05b3605362e602f915052ecbaf638fa2f62d425c3",
   "testcase_ids": [
     "TC-012-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:a6c67c6ed1a8404ea2eb4a37c274ab1986a98b1728212b5a4c29ef4602dc41a5"
+    "TC-012-01": "sha256:49384a3a351e31569036ef858c8d4f1a9a12d1a0bbb2d41498d14f78bdfa0566"
   },
   "g4_round": 1,
   "approved_testcase_ids": [],
@@ -139,7 +139,7 @@
       "gate_record_id": "GR-G0b-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:044d9e9ab7dbddb07d4d2ef9189cbfdce1f9608e35d60eb8f6ee37561404db61",
+      "subject_hash": "sha256:b201565a035851b343fe25a39fa68ea310e3239c9a8a4c5de19c7864bb74e655",
       "job_id": null,
       "opened_at": "2026-10-07T10:01:00+08:00",
       "decided_at": "2026-10-07T10:02:00+08:00"
@@ -149,7 +149,7 @@
       "gate_record_id": null,
       "outcome": null,
       "round": 1,
-      "subject_hash": "sha256:3d4350b7df974b2ea338eec943137331f22d52cc3b8a1049a4361b51af476102",
+      "subject_hash": "sha256:8047cf309cf3d92243bc13a05b3605362e602f915052ecbaf638fa2f62d425c3",
       "job_id": null,
       "opened_at": "2026-10-07T10:30:00+08:00",
       "decided_at": null

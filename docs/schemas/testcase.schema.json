@@ -322,7 +322,34 @@
               "pattern": "^\\{(seed:[a-z0-9_]+|created:[a-z][a-z0-9_]*)\\}$"
             },
             "uniqueItems": true,
-            "description": "v0.4（BL-24／BL-25 延伸）：請求在路徑以外（body、query、GraphQL variables、Server Action 參數、PostgREST 過濾條件）指向的物件。路徑沒有變數段的寫入（Server Action、GraphQL mutation、PostgREST），只要這裡至少一項、每一項都是有效的 {seed:key}（種子的 path_templates 含這條路徑）或較早的 {created:step_id}，就在寫入範圍內。Scope Proxy 強制 body 與 query 中的物件 ID 只能是這些值解析後的結果（docs/08 §11.7）。沒有時為空陣列"
+            "description": "v0.4（BL-24／BL-25 延伸）：請求在路徑以外（body、query、GraphQL variables、Server Action 參數、PostgREST 過濾條件）指向的物件。路徑沒有變數段的寫入（Server Action、GraphQL mutation、PostgREST），只要這裡至少一項、每一項都是有效的 {seed:key}（種子的 path_templates 含這條路徑）或較早的 {created:step_id}，就在寫入範圍內。Scope Proxy 強制 body 與 query 中的物件 ID 只能是這些值解析後的結果（docs/08 §11.7）。沒有時為空陣列。v0.5：Scope Proxy 的參考規則（safety.request_binding_problem）另外擋下 query 中 eq. 以外的 PostgREST 運算子與 or=／and=、id 鍵下的陣列或物件、複數 id 鍵（ids、*_ids），以及沒有變數段卻沒帶任何綁定 ID 的寫入（整表 PATCH／DELETE）"
+          },
+          "server_action": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "action_id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-Za-z_-]{8,128}$",
+                    "description": "Next-Action 標頭的值（Server Action ID）"
+                  },
+                  "args": {
+                    "type": "array",
+                    "description": "完整的位置參數；字串恰好是 {seed:key}／{created:step_id} 的元素由 Scope Proxy 代換為解析後的值，且必須列在 object_refs"
+                  }
+                },
+                "required": [
+                  "action_id",
+                  "args"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "v0.5（審查 2026-10-25 H-6）：Next.js Server Action 的位置參數無法以鍵名綁定。宣告後 Scope Proxy 只在 Next-Action 標頭等於 action_id、body 等於代換後的 args 時放行（safety.server_action_problem）；只能用於 POST、沒有變數段的路徑。null＝不是 Server Action"
           }
         },
         "required": [
@@ -331,7 +358,8 @@
           "path",
           "step_id",
           "graphql_operation",
-          "object_refs"
+          "object_refs",
+          "server_action"
         ]
       },
       "minItems": 1,

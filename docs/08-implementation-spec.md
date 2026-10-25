@@ -1517,7 +1517,13 @@ class SeedService(Protocol):
 - 解碼一次之後仍含「`%`＋兩個十六進位字元」（雙重編碼）→ 擋下 [H]。
 - **反斜線**（v0.4）：解碼後的 `\` 一律視為 `/`（部分伺服器把 `\` 當成路徑分隔，例如 IIS 與部分 Node 路由器）；`/admin%5Cbilling/x` 正規化為 `/admin/billing/x`，會被 `/admin/billing/*` 擋下。
 - **method override**（v0.4）[H]：請求中的 `X-HTTP-Method-Override`、`X-HTTP-Method`、`X-Method-Override` 標頭一律移除並記錄，query 或表單 body 中的 `_method` 參數 → 擋下（`safety.METHOD_OVERRIDE_HEADERS`／`METHOD_OVERRIDE_PARAMS`）。否則一個核准為 GET 或 POST 的請求可以在伺服器端變成 DELETE。
-- **body 與 query 的物件 ID 綁定**（v0.4）[H]：白名單只約束目標、方法與路徑；寫入請求的 body 或 query 若含 ID 類欄位（鍵名為 `id`、`*_id`、`*Id`、`*ID`，任何巢狀層級），值必須是本請求路徑上的 `{seed:}`／`{created:}` 或 `object_refs` 解析後的值之一，否則擋下（參考實作 `safety.body_id_problem`，parity 測試對齊）。這也涵蓋 Next.js Server Action 的參數、GraphQL variables 與 PostgREST 的 `?id=eq.<值>` 過濾條件（BL-24）。限制：不是 ID 類鍵名的欄位（例如 `invoice` 物件裡的 `ref`）無法用鍵名辨識，靠 G4 審查產物 [H]。
+- **body 與 query 的物件 ID 綁定**（v0.4）[H]：白名單只約束目標、方法與路徑；寫入請求的 body 或 query 若含 ID 類欄位（鍵名為 `id`、`*_id`、`*Id`、`*ID`，任何巢狀層級），值必須是本請求路徑上的 `{seed:}`／`{created:}` 或 `object_refs` 解析後的值之一，否則擋下（參考實作 `safety.body_id_problem`，parity 測試對齊）。v0.4 宣稱這也涵蓋 Server Action 參數與 PostgREST 過濾條件，實際上擋不住（審查 2026-10-25 H-6）：參考實作沒有看 query，`id=eq.X` 反而因為值帶運算子前綴被擋；沒有過濾條件的整表 `PATCH`、`or=(...)`、`ids: [...]`、`{"invoice_id": [999]}`、`where: {id: {eq: ...}}` 與 Server Action 的位置參數全部放行。
+  - **v0.5 規則**（參考實作 `safety.request_binding_problem`，parity 測試對齊）：
+    - query：ID 類參數只接受原值或 PostgREST 的 `eq.<值>`；其他運算子（`in.`、`neq.`、`gt.`、`like.`、`is.`、`not.` 等）與邏輯參數 `or=`／`and=` 一律擋下，因為它們能選到綁定物件以外的資料列。
+    - body：ID 類鍵下的陣列或物件、複數 ID 鍵（`ids`、`*_ids`、`*Ids`、`*IDs`）一律擋下；頂層是陣列的 body（位置參數）不以鍵名綁定，見下一點。
+    - 路徑沒有變數段的寫入，query 或 body 中至少要有一個已綁定的 ID，否則擋下（整表 `PATCH`／`DELETE`）。
+  - **Server Action**：位置參數沒有鍵名可比對。測試案例的 `request_allowlist[].server_action` 宣告 `{action_id, args}`；Scope Proxy 只在 `Next-Action` 標頭等於 `action_id`、body 等於把 `{seed:}`／`{created:}` 代換成解析值後的 `args` 時放行（`safety.server_action_problem`）。validator 檢查：只能用在 POST、沒有變數段的路徑，`args` 用到的參照都要列在 `object_refs`（`E-TC-MUTATION-SCOPE`）。
+  - 限制：不是 ID 類鍵名的欄位（例如 `invoice` 物件裡的 `ref`）仍無法用鍵名辨識，靠 G4 審查產物 [H]。
 - **協定**（v0.4）[H]：請求帶 `Upgrade: h2c` → 拒絕（h2c smuggling）；回應的 `Alt-Svc` 標頭被移除，UDP 443 在 job 的網路命名空間中封鎖（HTTP/3／QUIC 不經 TCP proxy）；CONNECT 之後的第一個位元組不是 TLS ClientHello → 斷線。
 - Scope Proxy 與 `policy/safety.py`（移植自 `vchlib/safety.py`）使用**同一個**正規化函式，由 parity 測試比對（§2.4）。
 
