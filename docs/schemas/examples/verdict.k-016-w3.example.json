@@ -1,0 +1,69 @@
+{
+  "verdict_id": "V-016-1",
+  "cluster_id": "K-016",
+  "readjudicated_by": "W3_adjudicate",
+  "supersedes_verdict_id": null,
+  "votes": [
+    {
+      "voter_agent_id": "ver_1",
+      "voter_model_key": "nemotron_self",
+      "voter_family": "nvidia",
+      "voter_lineage": "nemotron3",
+      "stance": "SUPPORT",
+      "rationale": "routes/invoices.ts:82 以 req.params.id 直接刪除，沒有 tenant_id／擁有者條件。",
+      "cited_evidence": [
+        "routes/invoices.ts:82"
+      ],
+      "fallback_used": null,
+      "anonymized": true,
+      "order_randomized": true,
+      "valid": false,
+      "weight": 0.6933,
+      "weighted_valid": false
+    },
+    {
+      "voter_agent_id": "ver_3",
+      "voter_model_key": "gpt_oss_self",
+      "voter_family": "openai",
+      "voter_lineage": "gpt-oss",
+      "stance": "SUPPORT",
+      "rationale": "同意：delete 的 where 只有 id。",
+      "cited_evidence": [
+        "routes/invoices.ts:82"
+      ],
+      "fallback_used": null,
+      "anonymized": true,
+      "order_randomized": true,
+      "valid": false,
+      "weight": 0.0,
+      "weighted_valid": false
+    }
+  ],
+  "missing_votes": [],
+  "tool_corroboration": [],
+  "tool_signal": [],
+  "independent_sources": 0,
+  "executable_proof": null,
+  "test_evidence": {
+    "class": null,
+    "results": []
+  },
+  "diversity_degraded": true,
+  "no_eligible_verifier": false,
+  "calibration_version": 3,
+  "theta_confirm": 1.2,
+  "theta_reject": null,
+  "provisional": false,
+  "score": 0.0,
+  "g2_decision_ref": null,
+  "status": "UNCORROBORATED",
+  "status_cap": null,
+  "advisory": false,
+  "annotations": [],
+  "decided_by": "aggregator",
+  "rule_version": "05-v0.5",
+  "rule_trace": [
+    "R2:weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=0 (the reporting opengrep result is a report, not a signal)",
+    "R7:independent_sources=0 (tool-only cluster, no LLM member)->UNCORROBORATED"
+  ]
+}

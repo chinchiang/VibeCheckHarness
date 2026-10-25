@@ -211,7 +211,7 @@ flowchart TD
 各關卡的逾時預設值見 [03 §6](03-system-architecture.md#6-人工關卡服務)。
 
 ### 1.5 自動觸發與發起者
-- 排程或合併到主幹觸發的 Lane B run，只能自動執行 **W0 與 W0.5 的草稿**：沒有網路出站（Z2 只到鏡像）、不執行受測程式。v0.5 起 G1 在 W1 之前一律由本 run 核准（跨 run 沿用停用，§1.6），所以自動觸發的 run 在 G1 前停在 `claim_run`；v0.4 以前「沿用上一版規格時可自動跑到 W3」的路徑已移除。紀錄上的發起者是委任設定指定的人類 **`run_owner`** [H]。
+- 排程或合併到主幹觸發的 Lane B run，只能自動執行 **W0 與 W0.5 的草稿**：沒有網路出站（Z2 只到鏡像）、不執行受測程式。v0.5 起 G1 在 W1 之前一律由本 run 的核准者簽署（沿用的項目也要，§1.6），所以自動觸發的 run 在 G1 前停在 `claim_run`；v0.4 以前「沿用上一版規格時可自動跑到 W3」的路徑已移除。紀錄上的發起者是委任設定指定的人類 **`run_owner`** [H]。
 - 在做任何 **G1 決定**、進入 **W4** 或任何 **B 階段節點**之前，必須有一位人類以 `vibecheck run claim` **認領**該 run（稽核事件 `initiator_claim`，附簽章）。狀態機中是 `claim_run` 節點（interrupt）。
 - 認領者成為發起者；**G5 核准者 ≠ 發起者**，G4 核准者也計入發起者集合。
 
@@ -220,16 +220,16 @@ flowchart TD
 | `run_kind` | 用途 | 從哪裡開始 | 關卡重簽規則 |
 |---|---|---|---|
 | `initial` | 第一次完整評估 | W0 | 全部 |
-| `followup` | B2 衍生的新需求回寫、CMD-5 追加的測試 | W0（新 commit 時重算）→ W0.5 帶入「威脅衍生需求」草稿 | v0.5：G1、G3 由本 run 重新核准（跨 run 沿用停用，見下）；G4 每個 run、G5 每個 S2 job 都重新核准 |
+| `followup` | B2 衍生的新需求回寫、CMD-5 追加的測試 | W0（新 commit 時重算）→ W0.5 帶入「威脅衍生需求」草稿 | v0.5：G1、G3 由本 run 簽署，沒有變更的項目可以逐項沿用（`carried_from`，見下）；G4 每個 run、G5 每個 S2 job 都重新核准 |
 | `regression` | 修正後重跑已確認問題的白箱回歸測試與對應黑箱測試 | W0 → W0.5／認領與 G1 → W1 → W4（只跑回歸集）→ B 階段只跑對應測試案例 | 同上 |
 | `lane_a` | 每個 PR 的同步檢查 | W0 → W1 →（可選）單一家族 diff 審查 → 結束 | 只需 G0a；不進 B 階段 |
 
 - 每個 run 有 `parent_run_id`（`initial` 可為空）與 `reuse` 清單：以 content hash 引用上一個 run 的產物。只有當產物的**所有輸入 hash**（repo commit 或切片 `slice_id`、設定、模型 ID 與版本）都相同時才能沿用，否則重算 [H]。
 - `followup`／`regression` run 另以 `baseline_run_id` 指定比較基準（通常就是 `parent_run_id`；`initial` 為 `null`）。W5 用它計算每個叢集的 `baseline_state`。
-- **跨 run 沿用核准：v0.5 起停用** [H]：
-  - 內容可以重用（`reuse[]` 以 content hash 引用上一個 run 的不變量、威脅模型），**授權不能重用**：G1、G3 由本 run 的合格核准者重新核准，G4 每個 run、G5 每個 S2 job 都重新核准。一個 run 只能列出自己的關卡紀錄。
-  - 理由：`decisions[]` 沒有指回來源紀錄的欄位，validator 也不比對跨 run 的沿用，所以「hash 相同就沿用」無法被驗證；來源紀錄的金鑰可能已撤銷、核准者可能已失去資格、委任或 ROE 可能已換版。
-  - 重新啟用的條件（[09 BL-21](09-backlog.md)）：逐項記錄來源 run、GateRecord、項目與 hash；重新驗證來源簽章、現行撤銷狀態、核准者資格、委任範圍與效期；G3 另要求同一份仍有效的 ROE。任一項缺漏或改變都要重新核准，不能只憑 `baseline_state: unchanged` 判斷。沿用只省下重審內容，不省下簽章。
+- **跨 run 沿用核准：只限 G1／G3 中沒有變更的項目，而且逐項可驗證**（v0.5，[09 BL-21](09-backlog.md)）[H]：
+  - 內容可以重用（`reuse[]` 以 content hash 引用上一個 run 的不變量、威脅模型）；授權只能以「逐項指出來源」的方式沿用。一個 run 只能列出自己的關卡紀錄：沿用的項目仍列在本 run 的新 GateRecord 中，由本 run 的合格核准者簽署整份紀錄。沿用只省下重審內容，不省下簽章。
+  - 沿用的逐項決定填 `carried_from`＝{來源 `run_id`、`gate_record_id`、`item_sha256`}；validator 檢查（`E-GATE-CARRY`）：只有 G1／G3 的 `accept` 能沿用；來源 run 必須是本 run 的祖先（`parent_run_id` 鏈）、同一個委任；來源紀錄是同一關卡，對同一項目的決定是 `accept`，而且三處的 `item_sha256` 相同；來源簽章以現行金鑰登錄重新驗證（遭入侵而撤銷的金鑰、決定時間不在效期內、核准者已失去關卡角色都不算）；G3 另要求來源 run 與本 run 的 G0b 驗證同一份 ROE。任一項不符就要重新核准，不能只憑 `baseline_state: unchanged` 判斷。
+  - G4 每個 run、G5 每個 S2 job 都重新核准，永遠不沿用（G4 帶 `carried_from` 也是 `E-GATE-CARRY`）。
 - **G0a／G0b 簽章每次 run 開始（與每次 resume）都重新驗證**，不能沿用。
 - 回饋不在同一張圖內迴圈：CMD-5 只**建立**後續 run 的草稿（`followup` 或 `regression`），由人啟動或認領。
 
@@ -546,7 +546,7 @@ flowchart TD
     - 沒有基準 run 時為 `null`。本次為 `new`、但更早的 run 曾是 `absent` 的叢集，另標 `reopened`（只供參考）。
   - **逐項核准**：
     - GateRecord 的逐項決定都綁定該項目的 `item_sha256`；核准綁的是逐項 hash，不是整份檔案。
-    - v0.5 起下一個 run 的 G1、G3、G4 都由本 run 重新核准（跨 run 沿用停用，[§1.6](#16-執行種類與後續執行)）；`baseline_state` 只幫審查者標出哪些項目沒變，不代表已核准。
+    - v0.5：下一個 run 的 G1、G3 只能以 `carried_from` 逐項沿用沒有變更的項目，G4 每個 run 重新核准（[§1.6](#16-執行種類與後續執行)）；`baseline_state` 只幫審查者標出哪些項目沒變，不代表已核准。
     - **G5 永遠不沿用**：每個 S2 job 每次都要核准。
 - **覆蓋指標** [H]（寫入白箱報告；B6 延續）：
   - 存取控制矩陣：G1 矩陣中至少有一個測試的格數 ÷ 總格數。
@@ -773,7 +773,7 @@ flowchart TD
 | W0.5（G1） | W4、B3 | `invariants.yaml` | oracle 只能引用 G1 已核准條目；L2 以上的引用須有觸發 |
 | W3 | W4 | `LIKELY` 以上、`DISPUTED`、critical／high 的 `UNCORROBORATED` 叢集 | 解讀事先登記的確定性 FAIL → `E_proof`，不需要 LLM |
 | W5 | B1、B2 | `dfd.json`、`seed-threats.json` | 除 `REJECTED` 外的叢集都成為種子威脅；每個都要在 B2 模型中，且有 ≥1 個 B3 測試或 G3 駁回紀錄 |
-| W5 | 下一個 run | 叢集 `fingerprint`、`baseline_state`、逐項核准的 `item_sha256` | 內容可重用、核准不沿用（v0.5，§1.6）；`baseline_state` 只標示差異 |
+| W5 | 下一個 run | 叢集 `fingerprint`、`baseline_state`、逐項核准的 `item_sha256` | 內容可重用；核准只有 G1／G3 能以 `carried_from` 逐項沿用（v0.5，§1.6）；`baseline_state` 只標示差異 |
 | G0b | B0–B4 | G0b GateRecord 的驗證結果（含 L-6 元件授權過濾後的允許工具清單） | B 階段只用這份清單；G0b 之前的節點不讀任何 ROE 欄位 [H] |
 | B0 | B1–B4 | 所有權與版本識別結果、出站白名單 | 未通過的目標不測；版本不符的目標不測；`none` 的目標列入 `build_unverified_targets[]`（`tester_controlled` 除外） |
 | B1 | B2 | `b1_diff` | B2 critic 逐項處置（納入或駁回附理由） |

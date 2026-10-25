@@ -723,6 +723,15 @@ def _merge_results(v, ix, results, cluster, classes):
     return merged
 
 
+def tool_results_ref(ix: Index, rid) -> str | None:
+    """v0.5 (BL-13): the run's ToolResult list, as the sorted unique payload_refs of its W1 / Z2 tool_invocation_end
+    audit events; None when W1 recorded none."""
+    audit = ix.audit_for(rid)
+    refs = sorted({r for e in (audit.data if audit else []) if isinstance(e, dict) and e.get("event_type") == "tool_invocation_end"
+                   and e.get("node") == "W1" and e.get("zone") == "Z2" for r in e.get("payload_refs") or [] if isinstance(r, str)})
+    return sha256_ref(jcs(refs)) if refs else None
+
+
 def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     r = d.data
     rid = r.get("run_id")
@@ -748,6 +757,7 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
 
     inv = by_run("inventory", "inventory_ref")
     exp(d, ["sbom_ref"], inv.data.get("sbom_ref") if inv else None, "inventory.sbom_ref")
+    exp(d, ["tool_results_ref"], tool_results_ref(ix, rid), "sha256(JCS(sorted payload_refs of the run's W1 Z2 tool_invocation_end events))")
     by_run("redaction-map", "redaction_map_ref")
     by_run("seed-threats", "seed_threats_ref")
     merged = by_run("dfd", "dfd_ref", viewpoint="merged")

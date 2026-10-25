@@ -171,9 +171,10 @@
 
 **叢集來源（`origin`）** [H]
 - `white_box`：由 W2 發現項形成，使用上面的叢集鍵。`threat_id` 為 null。
+- `tool_only`（v0.5，[09 BL-13](09-backlog.md)）：W3 只由 W1 工具結果建立、沒有 LLM 成員的叢集（[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）。叢集鍵與 `white_box` 相同，但位置與桶取自 `tool_report_refs` 中引發它的工具結果；這些結果是「回報」不是佐證，不計入 `tool_signal`、`tool_corroboration` 或 `independent_sources`，`sarif_refs` 只放其他工具在同一位置的結果。R0 不適用（沒有成員）；校準前最多是 `UNCORROBORATED`（R7）。
 - `black_box`：黑箱階段發現、沒有對應白箱叢集的問題。也就是威脅沒有 `source_cluster_id`（例如只有 B1 外部視角看得到的威脅）。這種威脅的測試案例，**每一筆** B5 測試結果（FAIL、PASS、INVALID 等都一樣，不只 FAIL）都寫到該威脅的黑箱叢集，由 B5 以程式碼建立，`threat_id` 必填。validator 檢查：這類結果的 `cluster_ids` 不能是空的，而且只能指向 `origin: black_box`、`threat_id` 相同的叢集（`E-CLUSTER-ORIGIN`）。所以 PASS 也有裁決紀錄（例如 R7＋R11 的 `test_not_reproduced`）。
   - **叢集鍵**：(`target_id`, HTTP 方法, `path_template`)＋桶，記在 `canonical_location.endpoint`（`file`、`symbol`、`source`、`sink` 為 null）。端點必須是該威脅某個測試案例 `request_allowlist` 中的請求（`E-CLUSTER-ORIGIN`）。
-  - **沒有成員**：`member_finding_ids`、`families`、`lineages`、`independent_families`、`sarif_refs` 可以是空的；只有 `black_box` 能這樣（validator `E-CLUSTER-ORIGIN`）。
+  - **沒有成員**：`member_finding_ids`、`families`、`lineages`、`independent_families`、`sarif_refs` 可以是空的；只有 `black_box` 與 `tool_only` 能沒有成員（validator `E-CLUSTER-ORIGIN`）。
   - **會觸發的規則**：
     - R1：`E_proof` → `CONFIRMED_EXECUTABLE`。黑箱測試都經 G4 核准，所以解讀算事先登記（§4.2）。「經 G4 核准」看的是該 run 中**最後一份對這個測試案例做出決定**的 G4 紀錄（v0.5，審查 2026-10-25 §4.3：v0.4 只看最後一份 G4 紀錄，第二輪 G4 沒列到的測試案例就從 `E_proof` 掉成 `E_fail_u`）。
     - R7：沒有 `E_proof` → `UNCORROBORATED`。單一個 `E_fail_u` 只算 1 個獨立來源，到不了 R6。
@@ -291,7 +292,7 @@
   - `tool_signal`：＝ 已解析但為弱的 `sarif_refs` ∪ 每個 `E_fail_u` 測試結果的 `result_ref`（不可重複）；不一致 → `E-VERDICT-TOOLSIGNAL`。
   - `independent_sources`：＝ 叢集的獨立家族數＋（有弱 SARIF 時 1）＋（有 `E_fail_u` 時 1）；不一致 → `E-VERDICT-SOURCES`。
   - `provisional`：依上面的定義；不一致 → `E-VERDICT-PROVISIONAL`。
-  - `sarif_refs` 也不採信叢集自我宣告：每一項都必須出現在同一個 run 稽核檔中某個 `tool_invocation_end` 事件的 `payload_refs`，且該事件在 Z2、`payload.ok` 為 true、`payload.adapter` 是 `tools.yaml` 登錄的白箱工具模式（工具在 Z2、`b4_executable: false`），該工具在 `licenses.yaml` 的狀態是 `OK` 或 `注意`（`法務閘門` 等其他狀態都不行，N-7）；否則 → `E-SARIF-REF`，該項既不算強佐證，也不算弱訊號。**位置綁定**（v0.4）：同一事件 `payload.sarif_results[]` 中這個 ref 的 `file`、`symbol`、`cwe_bucket` 必須等於叢集的 `canonical_location.file`、`canonical_location.symbol` 與 `cwe_bucket`；`origin: black_box` 的叢集不收任何 SARIF。這三欄是正規化器（[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 步驟 3–5）算出的叢集鍵，所以 SARIF 只能佐證它自己位置的叢集。強弱的判斷另外需要同一事件的 `payload.sarif_results[]` 有這個 ref 的 `rule_id`，以及 `payload.tool_version`；validator 另檢查 `payload.tool_version` 等於 `run.tool_versions` 中該 adapter 的版本（`E-RUN-CONFIG`）。
+  - `sarif_refs` 也不採信叢集自我宣告：每一項都必須出現在同一個 run 稽核檔中某個 `tool_invocation_end` 事件的 `payload_refs`，且該事件是 W1 節點（v0.5）、在 Z2、`payload.ok` 為 true、`payload.adapter` 是 `tools.yaml` 登錄的白箱工具模式（工具在 Z2、`b4_executable: false`），該工具在 `licenses.yaml` 的狀態是 `OK` 或 `注意`（`法務閘門` 等其他狀態都不行，N-7）；否則 → `E-SARIF-REF`，該項既不算強佐證，也不算弱訊號。**位置綁定**（v0.4）：同一事件 `payload.sarif_results[]` 中這個 ref 的 `file`、`symbol`、`cwe_bucket` 必須等於叢集的 `canonical_location.file`、`canonical_location.symbol` 與 `cwe_bucket`；`origin: black_box` 的叢集不收任何 SARIF。這三欄是正規化器（[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 步驟 3–5）算出的叢集鍵，所以 SARIF 只能佐證它自己位置的叢集。強弱的判斷另外需要同一事件的 `payload.sarif_results[]` 有這個 ref 的 `rule_id`，以及 `payload.tool_version`；validator 另檢查 `payload.tool_version` 等於 `run.tool_versions` 中該 adapter 的版本（`E-RUN-CONFIG`）。
   - 這樣裁決無法靠自行宣告「有工具佐證」或把弱訊號寫成強佐證來繞過 R6／R8，也無法靠漏寫 `diversity_degraded` 避開 `LIKELY` 上限。
 
 #### 決定表

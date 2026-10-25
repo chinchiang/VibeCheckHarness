@@ -9,6 +9,7 @@
     "sha256": "sha256:ac09280bea60913c1afa31a81a5e100338fb98c0f9e4e2c7dbc0d9fb47821b94"
   },
   "job_id": null,
+  "g4_gate_record_id": null,
   "initiator": "alice",
   "approvers": [
     {
@@ -24,7 +25,8 @@
       "item_sha256": null,
       "decision": "accept",
       "risk_override": null,
-      "note": "W 階段輸入 token 上限 15M → 20M"
+      "note": "W 階段輸入 token 上限 15M → 20M",
+      "carried_from": null
     }
   ],
   "gb": {
@@ -49,7 +51,7 @@
       "signer": "alice",
       "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
       "alg": "ed25519",
-      "value": "IQg40uiYLtwN58VdCJCXKXRzNguziSO2wfxvYJOtmigrZalLvdMHtyoDkvxcb1f7Omd6w+jmRHjlvnQlO8EOBw=="
+      "value": "wgMBUvVLAq3CbA2Dmhaph/F6oOg30qTp28ytFhYrGw8uQ+gZqSBXmG9J4GIShCZubuH57FLGIf5g2ibKweGdAg=="
     }
   ]
 }

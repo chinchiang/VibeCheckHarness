@@ -11,7 +11,7 @@
 
 ## 0. v0.5 的實作前置項目
 
-v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支的設計契約併入 v0.4。下列項目只有規格（或只有靜態檢查），執行期尚未實作；交付時點見 [07 §1.4](07-roadmap.md#14-v05-的前置工作與驗收順序-h)。「設計已補齊」不等於功能完成。另有提升優先順序的既有項目：BL-04、BL-13、BL-21、BL-22、BL-23（見下方各表的狀態欄）。
+v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支的設計契約併入 v0.4。下列項目只有規格（或只有靜態檢查），執行期尚未實作；交付時點見 [07 §1.4](07-roadmap.md#14-v05-的前置工作與驗收順序-h)。「設計已補齊」不等於功能完成。v0.5 提升為高優先的既有項目 BL-04、BL-13、BL-21、BL-22、BL-23 已完成（§5）。
 
 | 編號 | 工作 | 規格 | 時點 | 狀態 |
 |---|---|---|---|---|
@@ -31,12 +31,8 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-01 | L-14 | `tools/vchlib/checks.py`、`docs/05` §4.2 | `rule_trace` 每一項的說明文字（`R2:S=0.73` 冒號後的部分）不會被檢查；說明與裁決矛盾時 validator 不報錯 | 為每條規則定義說明格式（例如 R2 必須是 `S=<分數>`），由 `adjudicate.py` 產生後比對整個字串 | 待辦 |
 | BL-02 | L-19 | `docs/examples/serving/README.md`、`docs/examples/models.yaml` | gpt-oss 段落沒有 `vllm serve` 啟動指令；`usable_ctx: 128000` 仍是假設 | 依模型卡查證 context 長度並補上啟動範例；查證前維持「假設值」標記 | 待辦 |
 | BL-03 | L-20 | `docs/evidence/link-check-2026-09-23.md` | 外部連結檢查只做到 2026-09-23；v0.2／v0.3 新增的 URL 尚未重查；403 的來源未逐一人工確認 | 用本輪加入的 `tools/check_external_links.py` 重跑，並把結果存成新的日期檔；403 以瀏覽器人工抽查 | 待辦 |
-| BL-04 | H-D1 延伸 | `tools/vchlib/checks.py`、`gate-record.schema.json` | G4／G5 的職責分離只在同一個 run 內檢查；跟進 run 沿用前一個 run 的 G4 時，沒有 `g4_gate_record_id` 的跨 run 連結 | G5 紀錄加上 `g4_gate_record_id`，validator 跨 run 解析 | 待辦；v0.5 提升為**高、S2 之前**：取消「跟進 run 沿用 G4」的前提（G4／G5 每個 run 重新核准），改為 G5 明確連到本 run 目前有效的 G4 並驗證實際核准者的職責分離 |
 | BL-05 | M-G7 延伸 | docs 02／03／04／06／07／08 | 保留期限（03、06 §2.2、08 §7.5）、簽章（03 §6.1、06 §1.6）、稽核 tail（03 §13、06 §1.7、08 §7.4）、OWASP LLM Top 10 版本（02 B2 與 04 §2.3）、promptfoo 的用法與限制（03 §7.5、04、06 §2.3、07 §3）仍在多處描述 | 各主題指定一個主頁，其他地方改為一句話加連結 | 待辦 |
 | BL-06 | H-E9 限制 | `docs/03` §6.1、`docs/06` §3 | 簽署時間由簽署者自填，沒有可信的時間來源 | 評估 RFC 3161 時間戳記服務或以 WORM 稽核錨點的時間為準；需要先決定 U-04 | 延後（依 U-04） |
-| BL-21 | H-B5 延伸 | `gate-record.schema.json`、`tools/vchlib/checks.py` | 跨 run 沿用 G1／G3 核准（未變更的項目）只是設計規則：`decisions[]` 沒有欄位標示「沿用自哪一份紀錄」，validator 也不檢查跨 run 的沿用 | `decisions[]` 加上 `carried_from`（前一個 run 的 gate record ID 與項目 hash），validator 核對 hash 相同、ROE 相同且在效期內；G4／G5 永遠不沿用 | 待辦；v0.5 起跨 run G1／G3 沿用**停用**（[02 §1.6](02-methodology.md#16-執行種類與後續執行)、[03 §6.3](03-system-architecture.md#63-核准者來源與逐項核准)），完成本項才重新啟用 |
-| BL-22 | N-5 延伸 | `run.schema.json` | run manifest 的 `config_refs` 六個鍵都必填；G1 之前（還沒有 `invariants`）或 G0b 之前（還沒有 `seed_manifest`）的 run 紀錄無法表示「尚未產生」 | 允許 `null` 並記錄產生的節點；validator 依 run 已到達的節點檢查 | 待辦；v0.5 提升為**高、MVP-0 之前**；規格見 [08 §11.13](08-implementation-spec.md#1113-run-manifest-與-prompt-範本登錄) 的產物生命週期 |
-| BL-23 | N-5 延伸 | `tools/vchlib/checks.py` | 只做白箱的 Lane B run 也必須有 `seed_manifest` 參照（目前只有 Lane A 可為 `null`） | 沒有 B 階段的 run 允許 `seed_manifest: null` | 待辦；v0.5 提升為**高、MVP-0 之前**（同 BL-22） |
 
 ## 2. 延後的設計項目
 
@@ -52,7 +48,6 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 
 | 編號 | 用在 | 缺少的欄位或檔案 | 暫行做法 | 狀態 |
 |---|---|---|---|---|
-| BL-13 | [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 純工具叢集 | `cluster.schema` 沒有表示「只有工具結果、沒有 LLM 成員」的方式（例如新的 `origin` 值）；`run.schema` 也沒有 ToolResult 清單的參照（`tool_results_ref`） | 純工具叢集只在設計中描述；範例不含 | 待辦；v0.5 提升為**高、MVP-0 之前**；規格見 [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 的「沒有 LLM 發現項的路徑」 |
 | BL-14 | [08 §11.12](08-implementation-spec.md#1112-成本模型與價格) 各家族上限 | engagement 的每家族 USD 上限欄位 | 只用現有的每 run／階段上限 | 待辦 |
 | BL-16 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) B1 爬行預設 | `toolkit.yaml` 的 B1 爬行預設區塊（方法、排除樣式、請求上限） | 規則寫在程式碼常數，並記入 run manifest | 待辦 |
 | BL-17 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 回貼 PR／issue | engagement 啟用發佈的欄位與權杖範圍宣告 | 預設不發佈；報告只輸出檔案 | 待辦 |
@@ -84,6 +79,11 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 
 | 編號 | 原本的問題 | 處理 |
 |---|---|---|
+| BL-04 | G4／G5 的職責分離只在同一個 run 內檢查；G5 沒有指回核准它的 G4 | v0.5 已處理：G5 的 `g4_gate_record_id` 指向本 run 中該測試案例最新且 accept 的 G4，G4 與 G5 的實際核准者不能重疊（`E-G5-G4`；[03 §6.3](03-system-architecture.md#63-核准者來源與逐項核准)）；G4／G5 每個 run 重新核准 |
+| BL-13 | `cluster.schema` 無法表示純工具叢集；`run.schema` 沒有 ToolResult 清單的參照 | v0.5 已處理：叢集 `origin: tool_only` 與 `tool_report_refs`（回報不算佐證，`E-CLUSTER-ORIGIN`、`E-SARIF-REF`）；run 的 `tool_results_ref` 由 W1 稽核事件導出（`E-DERIVED`；[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)） |
+| BL-21 | 跨 run 沿用 G1／G3 核准沒有記錄來源，validator 不檢查 | v0.5 已處理並重新啟用：`decisions[].carried_from`；validator 核對祖先 run、同項目同 hash、來源簽章與角色、G3 的 ROE（`E-GATE-CARRY`；[02 §1.6](02-methodology.md#16-執行種類與後續執行)） |
+| BL-22 | `config_refs` 無法表示「尚未產生」 | v0.5 已處理：`{state: pending, expected_node}` 與 `{state: not_applicable, reason}`，validator 依 run 已到達的節點檢查（`E-RUN-CONFIG`；[08 §11.13](08-implementation-spec.md#1113-run-manifest-與-prompt-範本登錄)） |
+| BL-23 | 只做白箱的 Lane B run 也必須參照 `seed_manifest` | v0.5 已處理：沒有 B 階段內容的 run 可以把 `seed_manifest` 標為 not_applicable（同 BL-22） |
 | BL-15 | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | v0.4 已處理：ROE `targets[].edge_ip_ranges`（`E-ROE-EDGE-RANGE`）、`safety.ip_in_ranges`（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
 | BL-24 | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（`object_refs`＋Scope Proxy 的 body ID 綁定）；v0.5 補強 query 字串、ID 鍵下的陣列與物件、整表寫入與 Server Action（審查 2026-10-25 H-6；執行期見 BL-38） |
 | BL-25 | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（seed manifest `read_only_endpoints`） |

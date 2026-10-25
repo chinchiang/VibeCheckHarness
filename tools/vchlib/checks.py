@@ -1315,6 +1315,83 @@ def gate_sod(R: Report, c: Ctx, rec: dict, w: str):
                     f"{p} approves {rec.get('gate')} in several roles {sorted(roles)} (only an acknowledged lite role_consolidation allows this)")
 
 
+def g5_g4_link(R: Report, c: Ctx, rec: dict, w: str, job: dict | None, opened: dt.datetime):
+    """v0.5 (BL-04, E-G5-G4): a G5 names the G4 that approved its job's testcase in this run: a G4 record of the same
+    run, decided before the G5 opened, whose decision on that testcase is the latest one when the G5 opened and is accept; no person approves both
+    (the separation of duties is checked against the actual G4 approvers, not only against run.initiators)."""
+    ref = rec.get("g4_gate_record_id")
+    g4 = c.record(ref) if ref else None
+    if not R.check(g4 is not None and g4.get("gate") == "G4" and g4.get("run_id") == rec.get("run_id"), "E-G5-G4", w,
+                   f"g4_gate_record_id {ref!r} must be a G4 record of run {rec.get('run_id')}"):
+        return
+    tcid = (job or {}).get("testcase_id")
+    at = decision_time(c, g4) or ts(R, g4.get("timestamp"), w)
+    R.check(at is not None and at <= opened, "E-G5-G4", w, f"{ref} was decided after this G5 opened")
+    # the latest G4 decision on the testcase when this G5 opened: a later G4 round does not undo a G5 already decided
+    latest = None
+    for d in c.ix.gate_records(rec.get("run_id"), "G4"):
+        t = decision_time(c, d.data) or ts(R, d.data.get("timestamp"), d.path)
+        if t is None or t > opened:
+            continue
+        for x in d.data.get("decisions") or []:
+            if x.get("item_id") == tcid:
+                latest = (d.data.get("gate_record_id"), x.get("decision"))
+    R.check(latest == (ref, "accept"), "E-G5-G4", w,
+            f"{ref} is not the latest G4 decision on {tcid} when this G5 opened, or does not accept it (latest: {latest})")
+    both = {a.get("person_id") for a in rec.get("approvers", [])} & {a.get("person_id") for a in g4.get("approvers", [])}
+    R.check(not both, "E-G5-G4", w, f"{sorted(both)} approved both the G4 {ref} and this G5")
+
+
+CARRY_GATES = ("G1", "G3")
+
+
+def carried_decisions(R: Report, c: Ctx, rec: dict, w: str):
+    """v0.5 (BL-21, E-GATE-CARRY): an unchanged G1 / G3 item may carry an ancestor run's approval (decisions[].carried_from).
+    Re-enabled with these checks, so "the hash is the same" is verified instead of assumed:
+    - only G1 / G3, only an accept, only from an ancestor of this run (parent_run_id chain), same engagement;
+    - the source record is a gate record of that run and gate, its decision on the same item is accept with the same
+      item_sha256, which equals this decision's item_sha256;
+    - the source record's signatures still verify with the loaded registry (no key revoked as compromised, still
+      within validity at its decision time) and its approvers still hold the gate's roles;
+    - G3: the source run's G0b verified the same ROE (document_ref) as this run's G0b.
+    The carrying record itself is still signed by this run's approvers."""
+    ancestors, cur = [], (c.runs.get(rec.get("run_id")) or {}).get("parent_run_id")
+    while cur and cur not in ancestors:
+        ancestors.append(cur)
+        cur = (c.runs.get(cur) or {}).get("parent_run_id")
+    for i, x in enumerate(rec.get("decisions") or []):
+        cf = x.get("carried_from")
+        if cf is None:
+            continue
+        where = f"{w} decisions[{i}] {x.get('item_id')}"
+        if not R.check(rec.get("gate") in CARRY_GATES and x.get("decision") == "accept", "E-GATE-CARRY", where,
+                       f"only G1 / G3 accept decisions carry an earlier approval (gate {rec.get('gate')}, decision {x.get('decision')})"):
+            continue
+        src = c.record(cf.get("gate_record_id"))
+        ok = (src is not None and src.get("gate") == rec.get("gate") and src.get("run_id") == cf.get("run_id")
+              and cf.get("run_id") in ancestors and src.get("engagement_id") == rec.get("engagement_id"))
+        if not R.check(ok, "E-GATE-CARRY", where, f"carried_from {cf} must be a {rec.get('gate')} record of an ancestor run "
+                       f"{ancestors} of the same engagement"):
+            continue
+        sx = next((y for y in src.get("decisions") or [] if y.get("item_id") == x.get("item_id")), None)
+        R.check(sx is not None and sx.get("decision") == "accept" and sx.get("item_sha256") == cf.get("item_sha256") == x.get("item_sha256"),
+                "E-GATE-CARRY", where, "the source decision must accept the same item with the same item_sha256 (the item changed: review it again)")
+        at = decision_time(c, src) or ts(R, src.get("timestamp"), where)
+        payload = signing_payload(src)
+        approvers = {(a.get("person_id"), a.get("key_fingerprint")): a for a in src.get("approvers", [])}
+        good = bool(src.get("signatures")) and all(
+            (s.get("signer"), s.get("key_fingerprint")) in approvers and verify_signature(
+                Report(), c, where, payload, s, at, approvers[(s.get("signer"), s.get("key_fingerprint"))].get("role")) is not None
+            for s in src.get("signatures") or [])
+        R.check(good, "E-GATE-CARRY", where, f"the source record {cf.get('gate_record_id')} no longer verifies (revoked or invalid signature, role lost)")
+        if rec.get("gate") == "G3":
+            def roe_ref(rid):
+                g0b = [g.data for g in c.ix.gate_records(rid, "G0b")]
+                return (g0b[-1].get("verification") or {}).get("document_ref") if g0b else None
+            R.check(roe_ref(cf.get("run_id")) is not None and roe_ref(cf.get("run_id")) == roe_ref(rec.get("run_id")), "E-GATE-CARRY", where,
+                    "a G3 approval carries only under the same ROE (the source run's G0b verified another document)")
+
+
 def opened_time(R: Report, c: Ctx, rec: dict, w: str, declared: dt.datetime) -> dt.datetime:
     """v0.5 (review 2026-10-25 T-2): the receive time of the gate_opened event that opened `rec`: the last
     gate_opened of the same gate (and, for G5, the same job) before its gate_decision. The record's own opened_at
@@ -1454,8 +1531,11 @@ def g_gates(R: Report, c: Ctx):
                     R.check(at < lim, "E-G5-WINDOW", w, f"G5 decided at/after the window end {win_end.isoformat()}")
                 job = (run.get("jobs") or {}).get(rec.get("job_id"))
                 R.check(job is not None and job.get("safety_class") == "S2", "E-G5-JOB", w, "G5 must reference an S2 job of the run")
+                g5_g4_link(R, c, rec, w, job, opened)
             else:
                 R.check(rec.get("job_id") is None, "E-GATE-JOB", w, "job_id is only used by G5")
+                R.check(rec.get("g4_gate_record_id") is None, "E-G5-G4", w, "g4_gate_record_id is only used by G5")
+            carried_decisions(R, c, rec, w)
             # threats vs G3 decisions
             if gate == "G3":
                 for x in rec.get("decisions", []):
@@ -1723,6 +1803,50 @@ def result_controls(R: Report, c: Ctx, x: Doc, tc: dict):
 MAX_EXTRA_DISPATCH_ROUNDS = 2
 
 
+RUN_INIT_CONFIGS = ("models", "agents", "tools", "calibration")
+COMPLETED_RUN_STATES = ("COMPLETED", "COMPLETED_WITH_GAPS")
+PRODUCING_NODE = {"invariants": "G1", "seed_manifest": "G0b"}   # invariants are approved at G1; G0b needs the seed manifest
+
+
+def _run_reached(c: Ctx, run: dict) -> dict:
+    """What the run's own records show it reached: G1 approved, G0b passed, any B-phase content, W2 started.
+    An aborted or failed run is judged by the nodes it reached, like a running one."""
+    rid = run.get("run_id")
+    g1 = any(g.data.get("outcome") == "APPROVED" for g in c.ix.gate_records(rid, "G1"))
+    g0b = bool(c.ix.gate_records(rid, "G0b"))
+    black = g0b or bool(run.get("jobs")) or any(c.ix.gate_records(rid, g) for g in ("G3", "G4", "G5"))
+    w2 = any(f.data.get("run_id") == rid for f in c.docs("finding")) or any(s.data.get("run_id") == rid for s in c.docs("slice"))
+    return {"g1": g1, "g0b": g0b, "black": black, "w2": w2}
+
+
+def artefact_state(R: Report, c: Ctx, run: dict, w: str, key: str, ref: dict):
+    """v0.5 (BL-22 / BL-23, docs/08 §11.13): a run artefact that is not produced is pending (its producing node has not
+    finished) or not_applicable (outside the run's phase plan); never a bare null. A pending artefact whose producing
+    node has finished, or that a consumer already used, is "should exist but missing" (E-RUN-CONFIG)."""
+    where = f"{w} config_refs.{key}"
+    reached = _run_reached(c, run)
+    if key in RUN_INIT_CONFIGS:
+        R.check(False, "E-RUN-CONFIG", where, f"{key} is needed at run_init; it cannot be {ref.get('state')}")
+        return
+    if ref.get("state") == "pending":
+        R.check(ref.get("expected_node") == PRODUCING_NODE[key], "E-RUN-CONFIG", where,
+                f"pending {key} names expected_node {ref.get('expected_node')!r}; it is produced by {PRODUCING_NODE[key]}")
+        done = (reached["g1"] or reached["w2"]) if key == "invariants" else (reached["g0b"] or reached["black"])
+        # a run that stopped early (ABORTED, FAILED) before the producing node never had the artefact, so it stays
+        # pending (docs/08 §11.13: missing = the producing node finished); a completed run has nothing left pending:
+        # it produced the artefact or its plan did not need it (not_applicable)
+        completed = run.get("status") in COMPLETED_RUN_STATES
+        R.check(not done and not completed, "E-RUN-CONFIG", where,
+                f"{key} is pending but its producing node already finished, a consumer used it or the run is "
+                f"{run.get('status')}: should exist but missing")
+    else:                                                   # not_applicable
+        if key == "invariants":
+            R.check(run.get("run_kind") == "lane_a", "E-RUN-CONFIG", where, "invariants are not_applicable only in a Lane A run (every other run has G1)")
+        else:
+            R.check(not reached["black"], "E-RUN-CONFIG", where,
+                    "seed_manifest is not_applicable but the run has black-box content (G0b or later gate records, jobs)")
+
+
 def run_manifest(R: Report, c: Ctx, d: Doc):
     """B11 (N-5, H-E13): config refs name the right files, tool versions are registered and agree with the audit
     log, the rule version is the adjudicator's; B10 CMD-2 round bound; B9 baseline run."""
@@ -1730,9 +1854,11 @@ def run_manifest(R: Report, c: Ctx, d: Doc):
     rid = run.get("run_id")
     for key, kind in derive.CONFIG_KINDS.items():
         ref = (run.get("config_refs") or {}).get(key)
+        if isinstance(ref, dict) and ref.get("state") is not None:
+            artefact_state(R, c, run, w, key, ref)
+            continue
         if ref is None:
-            R.check(key == "seed_manifest" and run.get("run_kind") == "lane_a", "E-RUN-CONFIG", w,
-                    f"config_refs.{key} may only be null for seed_manifest in a Lane A run")
+            R.check(False, "E-RUN-CONFIG", w, f"config_refs.{key} is null; v0.5 writes {{state: pending | not_applicable}} instead")
             continue
         cd = next((x for x in c.b.docs if x.path == ref.get("path") and x.data is not None), None)
         R.check(cd is not None and cd.kind == kind, "E-RUN-CONFIG", w, f"config_refs.{key}.path {ref.get('path')!r} is not a {kind} file")
@@ -2110,6 +2236,9 @@ def _resolving_event(c: Ctx, cluster: dict, ref) -> tuple[dict | None, str | Non
                            f"status {status!r}; only {'/'.join(LICENSE_CLEARED)} may run)")
         elif e.get("zone") != "Z2":
             reasons.append(f"seq {e.get('seq')}: event zone {e.get('zone')!r} is not Z2")
+        elif e.get("node") != "W1":
+            # v0.5 (BL-13, docs/08 §11.2): ToolResults are W1 output and run.tool_results_ref lists only W1 events
+            reasons.append(f"seq {e.get('seq')}: the invocation is a {e.get('node')!r} event, not W1")
         elif p.get("ok") is not True:
             reasons.append(f"seq {e.get('seq')}: invocation of {adapter} failed (payload.ok is not true)")
         elif (why := sarif_location_problem(cluster, ref, p)) is not None:
@@ -2151,6 +2280,13 @@ def sarif_ref_problem(c: Ctx, cluster: dict, ref) -> str | None:
     sarif_location_problem; black_box clusters take no SARIF).
     """
     return _resolving_event(c, cluster, ref)[1]
+
+
+def _tool_of(c: Ctx, cluster: dict, ref) -> str | None:
+    """The tools.yaml tool (not the mode) whose W1 invocation produced a SARIF ref."""
+    e, _ = _resolving_event(c, cluster, ref)
+    entry = safety.registry_entry(c.tools, (e.get("payload") or {}).get("adapter")) if e else None
+    return entry["tool"] if entry else None
 
 
 def resolved_sarif_refs(c: Ctx, cluster: dict) -> list[str]:
@@ -2272,9 +2408,10 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
 
 def g_verdicts(R: Report, c: Ctx):
     for d in c.docs("cluster"):
-        for ref in d.data.get("sarif_refs") or []:
-            prob = sarif_ref_problem(c, d.data, ref)
-            R.check(prob is None, "E-SARIF-REF", d.path, f"{d.data.get('cluster_id')}: {prob}")
+        for field in ("sarif_refs", "tool_report_refs"):
+            for ref in d.data.get(field) or []:
+                prob = sarif_ref_problem(c, d.data, ref)
+                R.check(prob is None, "E-SARIF-REF", d.path, f"{d.data.get('cluster_id')} {field}: {prob}")
     for d in c.docs("verdict"):
         with doc_guard(R, d.path):
             v, w = d.data, d.path
@@ -2426,6 +2563,8 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
     black_box clusters come from a threat without source cluster and use the endpoint as location."""
     k, w = d.data, d.path
     loc = k.get("canonical_location") or {}
+    R.check(k.get("origin") == "tool_only" or not k.get("tool_report_refs"), "E-CLUSTER-ORIGIN", w,
+            "tool_report_refs is only set on tool_only clusters")
     if k.get("origin") == "black_box":
         t = c.ix.first("threat", threat_id=k.get("threat_id")) if k.get("threat_id") else None
         R.check(t is not None and t.data.get("source_cluster_id") is None, "E-CLUSTER-ORIGIN", w,
@@ -2436,6 +2575,23 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
             r.get("target_id") == ep.get("target_id") and r.get("method") == ep.get("method") and r.get("path") == ep.get("path_template")
             for r in t2.data.get("request_allowlist") or []) for t2 in c.docs("testcase"))
         R.check(tc_ok, "E-CLUSTER-ORIGIN", w, "canonical_location.endpoint must be a request of a testcase of the cluster's threat")
+    elif k.get("origin") == "tool_only":
+        # v0.5 (BL-13): W3 clustered W1 tool results only. No LLM member may be listed (none may be invented to pass the
+        # flow), and the location comes from the SARIF results, which sarif_location_problem binds to the cluster key
+        R.check(not any(k.get(x) for x in ("member_finding_ids", "families", "lineages", "independent_families")),
+                "E-CLUSTER-ORIGIN", w, "tool_only cluster has no member findings, families, lineages or independent families")
+        R.check(k.get("threat_id") is None, "E-CLUSTER-ORIGIN", w, "threat_id is only set on black_box clusters")
+        R.check(all(isinstance(loc.get(x), str) for x in ("file", "symbol")), "E-CLUSTER-ORIGIN", w,
+                "tool_only cluster needs canonical_location file and symbol (from its tool results)")
+        reports = [r for r in k.get("tool_report_refs") or [] if sarif_ref_problem(c, k, r) is None]
+        R.check(bool(reports), "E-CLUSTER-ORIGIN", w,
+                "tool_only cluster needs at least one tool_report_refs entry that resolves to a W1 tool result (E-SARIF-REF)")
+        # the reporting result is the report, not corroboration (docs/08 §11.2): only another tool's result at the same
+        # location may sit in sarif_refs and count as a signal
+        reporters = {_tool_of(c, k, r) for r in reports}
+        same = [r for r in k.get("sarif_refs") or [] if r in (k.get("tool_report_refs") or []) or _tool_of(c, k, r) in reporters]
+        R.check(not same, "E-CLUSTER-ORIGIN", w,
+                f"sarif_refs {same} come from the tool that reported the cluster ({sorted(map(str, reporters))}); a report is not its own corroboration")
     else:
         R.check(bool(k.get("member_finding_ids")) and bool(k.get("families")) and bool(k.get("lineages")), "E-CLUSTER-ORIGIN", w,
                 "white_box cluster needs member findings, families and lineages")
@@ -2477,12 +2633,13 @@ def cluster_binding(R: Report, c: Ctx, d: Doc):
     - canonical_location.file is a member evidence file; the sink lies in a member evidence range (same file);
       a symbol written file::name starts with that file;
     - cwe_bucket is the bucket (facets.CWE_BUCKETS) of a member CWE, when any member CWE is listed there;
-    - no two clusters of a run share a fingerprint."""
+    - no two clusters of a run share a fingerprint.
+    tool_only clusters (BL-13) have no member evidence; their key is bound to the SARIF results instead."""
     k, w = d.data, d.path
     same = [x.path for x in c.docs("cluster") if x is not d and x.data.get("run_id") == k.get("run_id")
             and k.get("fingerprint") and x.data.get("fingerprint") == k.get("fingerprint")]
     R.check(not same, "E-CLUSTER-BINDING", w, f"{k.get('cluster_id')}: fingerprint shared with {same} in the same run")
-    if k.get("origin") == "black_box":
+    if k.get("origin") in ("black_box", "tool_only"):         # tool_only: bound to its SARIF results (sarif_location_problem)
         return
     loc = k.get("canonical_location") or {}
     sites, cwes = _evidence_sites(c, k)
@@ -2901,7 +3058,7 @@ def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
     seed_clusters = {sd.get("source_cluster_id") for sd in seeds}
     for cid in rm.get("report_only_clusters") or []:
         cl = c.ix.first("cluster", cluster_id=cid)
-        white = cl is not None and cl.data.get("origin") != "black_box"
+        white = cl is not None and cl.data.get("origin") != "black_box"         # white_box or tool_only
         R.check(white and status.get(cid) == "UNCORROBORATED" and cid not in seed_clusters, "E-REPORT-QUEUE", w,
                 f"report_only_clusters: {cid} must be a white-box cluster of the run whose latest verdict is UNCORROBORATED "
                 f"(got {status.get(cid)}) and that is not a seed threat")

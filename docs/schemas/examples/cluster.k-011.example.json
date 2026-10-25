@@ -33,6 +33,7 @@
     "anthropic"
   ],
   "sarif_refs": [],
+  "tool_report_refs": [],
   "linked_cluster_ids": [],
   "fingerprint": "sha256:0bd6068f10671fba2a118f9ae11f7653af9d8a0adb7b9c6cd2ff9aa59612e60a",
   "baseline_state": null,

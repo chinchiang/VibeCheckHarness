@@ -9,6 +9,7 @@
     "sha256": "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441"
   },
   "job_id": null,
+  "g4_gate_record_id": null,
   "initiator": "alice",
   "approvers": [
     {
@@ -29,35 +30,40 @@
       "item_sha256": "sha256:79cf9db22cad2d79238fa46833c9076d0770f16fe48cd546d72810e5fc76ef4d",
       "decision": "accept",
       "risk_override": null,
-      "note": null
+      "note": null,
+      "carried_from": null
     },
     {
       "item_id": "T-019",
       "item_sha256": "sha256:2bc54fbfc608d4aa7a1460e419ed65db3f27cb6fb6fd6585d9081b2704c60cdc",
       "decision": "reject",
       "risk_override": null,
-      "note": "與 T-012 重複"
+      "note": "與 T-012 重複",
+      "carried_from": null
     },
     {
       "item_id": "T-027",
       "item_sha256": "sha256:0010b46f3b36bf8123de18fda95a6a1e8355e455229b69efd17a2e875927b9a7",
       "decision": "accept",
       "risk_override": null,
-      "note": null
+      "note": null,
+      "carried_from": null
     },
     {
       "item_id": "T-031",
       "item_sha256": "sha256:0df8dbe1b8f43ce0a4fcf7d0b9d848e409e7e21f1a938ac332520e657cb81e23",
       "decision": "accept",
       "risk_override": null,
-      "note": null
+      "note": null,
+      "carried_from": null
     },
     {
       "item_id": "T-033",
       "item_sha256": "sha256:9d04292da18281744b1a8b10af72d681987c3a340bd5fa741f5a05dd6afbb128",
       "decision": "accept",
       "risk_override": null,
-      "note": "外部視角提出；白箱沒有對應叢集"
+      "note": "外部視角提出；白箱沒有對應叢集",
+      "carried_from": null
     }
   ],
   "gb": null,
@@ -69,13 +75,13 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "Bs0p3BOIgtIt2oCT5bbyjniIiKExGwiC8c98xu+Y5Q9RTmOGletOBJG7YTXi+HhCdLmXsSProY76db+WdbikBg=="
+      "value": "3bMBUnpFkRSoyViX4ijcS+bWbdEJwbE/edpkGSNf4+J2ynUzUa0DDaL1LJ2rkpKC33j4B19kpyLkP8teMzEcDw=="
     },
     {
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "EhfShbmI4ttHwbP2HOfMao4LE8WT+HdatrS/dxadtUwYAuXcVXVCZVkWB4QEbwz9nU9UMeE7EXK8VNnOecibCw=="
+      "value": "OqHomFbkxZep9Ubgaa0zrEHmhYju4etFVh/Civ9sOaPTR93P6hJEX3b7V3iAVI5Nd+Sv02oiJT5VtSH697JKDg=="
     }
   ]
 }

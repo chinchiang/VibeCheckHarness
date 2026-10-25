@@ -40,7 +40,10 @@
       "path": "docs/examples/invariants.yaml",
       "sha256": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff"
     },
-    "seed_manifest": null
+    "seed_manifest": {
+      "state": "not_applicable",
+      "reason": "Lane A 只有白箱的提醒式檢查，沒有 B 階段"
+    }
   },
   "prompt_templates": [
     {
@@ -57,6 +60,7 @@
   "calibration_version": 3,
   "inventory_ref": null,
   "sbom_ref": null,
+  "tool_results_ref": null,
   "redaction_map_ref": null,
   "invariants_ref": null,
   "invariants_changed": false,

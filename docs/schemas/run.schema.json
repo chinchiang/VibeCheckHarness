@@ -128,7 +128,7 @@
     "config_refs": {
       "type": "object",
       "additionalProperties": false,
-      "description": "B11：本 run 使用的設定檔路徑與 content hash（validator 由檔案重算；E-DERIVED／E-RUN-CONFIG）",
+      "description": "B11：本 run 使用的設定檔路徑與 content hash（validator 由檔案重算；E-DERIVED／E-RUN-CONFIG）。v0.5：models、agents、tools、calibration 在 run_init 就必須已產生；invariants、seed_manifest 依 run 已到達的節點可以是 pending 或 not_applicable",
       "properties": {
         "models": {
           "type": "object",
@@ -195,20 +195,61 @@
           ]
         },
         "invariants": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "path": {
-              "type": "string"
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "$ref": "common.schema.json#/$defs/sha256"
+                }
+              },
+              "required": [
+                "path",
+                "sha256"
+              ]
             },
-            "sha256": {
-              "$ref": "common.schema.json#/$defs/sha256"
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "pending"
+                },
+                "expected_node": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "expected_node"
+              ],
+              "description": "尚未產生：產生節點還沒完成（例如 G1 前的 invariants、G0b 前的 seed_manifest）"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "not_applicable"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "description": "不適用：本 run 的階段計畫用不到（例如純白箱 run 或 Lane A 的 seed_manifest）"
             }
-          },
-          "required": [
-            "path",
-            "sha256"
-          ]
+          ],
+          "description": "v0.5（BL-22／BL-23）：已產生＝{path, sha256}；尚未產生＝{state: pending, expected_node}；不適用＝{state: not_applicable, reason}。「應存在但遺失」由 validator 判定（產生節點已完成卻仍是 pending，E-RUN-CONFIG）"
         },
         "seed_manifest": {
           "anyOf": [
@@ -229,9 +270,43 @@
               ]
             },
             {
-              "type": "null"
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "pending"
+                },
+                "expected_node": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "expected_node"
+              ],
+              "description": "尚未產生：產生節點還沒完成（例如 G1 前的 invariants、G0b 前的 seed_manifest）"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "not_applicable"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "description": "不適用：本 run 的階段計畫用不到（例如純白箱 run 或 Lane A 的 seed_manifest）"
             }
-          ]
+          ],
+          "description": "v0.5（BL-22／BL-23）：已產生＝{path, sha256}；尚未產生＝{state: pending, expected_node}；不適用＝{state: not_applicable, reason}。「應存在但遺失」由 validator 判定（產生節點已完成卻仍是 pending，E-RUN-CONFIG）"
         }
       },
       "required": [
@@ -348,6 +423,10 @@
     },
     "sbom_ref": {
       "$ref": "common.schema.json#/$defs/sha256_or_null"
+    },
+    "tool_results_ref": {
+      "$ref": "common.schema.json#/$defs/sha256_or_null",
+      "description": "v0.5（BL-13）：W1 正規化後的 ToolResult 清單參照＝sha256(JCS(本 run 稽核紀錄中 W1、Z2 的 tool_invocation_end 事件之 payload_refs，去重排序))；沒有這類事件時為 null（writer 導出，E-DERIVED）"
     },
     "redaction_map_ref": {
       "$ref": "common.schema.json#/$defs/sha256_or_null",
@@ -878,6 +957,7 @@
     "calibration_version",
     "inventory_ref",
     "sbom_ref",
+    "tool_results_ref",
     "redaction_map_ref",
     "invariants_ref",
     "invariants_changed",

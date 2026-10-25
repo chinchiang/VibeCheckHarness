@@ -9,6 +9,7 @@
     "sha256": "sha256:55c49459bc24b489353ff8627c5cbd6244e75cfb66d1180337a581a27a342b9f"
   },
   "job_id": null,
+  "g4_gate_record_id": null,
   "initiator": "alice",
   "approvers": [
     {
@@ -29,7 +30,8 @@
       "item_sha256": "sha256:55c49459bc24b489353ff8627c5cbd6244e75cfb66d1180337a581a27a342b9f",
       "decision": "accept",
       "risk_override": null,
-      "note": null
+      "note": null,
+      "carried_from": null
     }
   ],
   "gb": null,

@@ -34,6 +34,7 @@
   "sarif_refs": [
     "sha256:67761fe063ffed49823942a63650ffa51c73f4610c0597169f0e5428ea3bb97e"
   ],
+  "tool_report_refs": [],
   "linked_cluster_ids": [],
   "fingerprint": "sha256:2bd0df29c8fe9777035f82193191595f4d256e18329f229db7dad1cf0231f366",
   "baseline_state": null,

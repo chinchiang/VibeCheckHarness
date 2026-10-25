@@ -29,6 +29,7 @@
     "nvidia"
   ],
   "sarif_refs": [],
+  "tool_report_refs": [],
   "linked_cluster_ids": [
     "K-005"
   ],
