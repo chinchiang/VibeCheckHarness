@@ -27,6 +27,7 @@
   ],
   "independent_families": [],
   "sarif_refs": [],
+  "tool_report_refs": [],
   "linked_cluster_ids": [],
   "fingerprint": "sha256:a0b151f61b92ca0cf999a367df5c287c623b59afb2aa537cb8e6d5826f25fa33",
   "baseline_state": null,

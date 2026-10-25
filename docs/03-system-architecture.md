@@ -23,7 +23,7 @@
 - **Result Analyst 池**（§5.5、§9、§14.3）：`result_analyst_a`（`claude_sonnet`）、`result_analyst_b`（`gpt_flagship`）、`result_analyst`（`nemotron_self`）；有 PII 時只用自架模型；事先登記解讀的確定性 FAIL 不需要 LLM；B5 為黑箱起源的問題建立 `origin: black_box` 叢集（H-A3）。
 - **遮罩是通往 LLM 的唯一路徑**（§1、§8.4、§9）：Inventory 不用 LLM；Invariant Drafter 的工具改為 `read_inventory`、`write_blackboard`（H-C1）。
 - **run manifest**（§5.1）：RunState 與 run 紀錄加入 `config_refs`、`prompt_templates`、`tool_versions`、`rule_version`、`baseline_run_id`（N-5、H-E13）。
-- **核准者來源、逐項核准與保證等級**（§6、新增 §6.3、§6.4）：G0a／G1／G2 看委任設定的 `gate_approvers`，G0b／G3／G4／G5 看 ROE；G3／G4／G5 須在 ROE 有效期內決定（v0.3 起 G3 也檢查，`E-GATE-ROE-VALIDITY`；G0b 是發現 ROE 尚未生效的系統驗證，不受此限）；核准綁逐項 approval hash（validator 重算 `item_sha256`），未變項目依規則沿用（沿用本身尚未由 validator 檢查，§6.3）、G5 永不沿用，取代「產物有任何變動，核准就失效」；叢集以 `fingerprint` 與 `baseline_state` 跨 run 對應；Lite 兼任需明示聲明、Team 的 ROE 角色須不同人（`E-ROE-SOD`）、Full 的 G5 需兩位資安審查者（`E-G5-TWO-PERSON`）（H-D2、H-B5、M-G3、N-11）。
+- **核准者來源、逐項核准與保證等級**（§6、新增 §6.3、§6.4）：G0a／G1／G2 看委任設定的 `gate_approvers`，G0b／G3／G4／G5 看 ROE；G3／G4／G5 須在 ROE 有效期內決定（v0.3 起 G3 也檢查，`E-GATE-ROE-VALIDITY`；G0b 是發現 ROE 尚未生效的系統驗證，不受此限）；核准綁逐項 approval hash（validator 重算 `item_sha256`），G1／G3 未變項目以 `carried_from` 逐項沿用（v0.5 由 validator 檢查，`E-GATE-CARRY`，§6.3）、G5 永不沿用，取代「產物有任何變動，核准就失效」；叢集以 `fingerprint` 與 `baseline_state` 跨 run 對應；Lite 兼任需明示聲明、Team 的 ROE 角色須不同人（`E-ROE-SOD`）、Full 的 G5 需兩位資安審查者（`E-G5-TWO-PERSON`）（H-D2、H-B5、M-G3、N-11）。
 - **寫入範圍與排除清單**（§2、§7.1）：所有寫入都要綁種子或 create-only 端點（`E-TC-MUTATION-SCOPE`）；路徑先正規化再不分大小寫比對；主機排除支援 `*.` 萬用字元；目標 URL 只接受 `https://`（localhost 例外）（H-B3、C-1、C-2、C-3）。
 - **build 識別**（§5.5、§7、§15）：`B4_preflight` 依 ROE `build_identity.method`（`header`／`endpoint`／`none`）確認受測版本；`none` 的目標列入 `build_unverified_targets`（H-B4）。
 - **Scope Proxy、Session、種子、共享平台網域**（§2、§7.4、§7.6）：TLS 以 Z3 本地 CA 終結、HTTP/2／WebSocket／SSE、DNS 固定與 CDN（08 §11.7）；MFA、CAPTCHA staging 略過、第三方 IdP、每批 whoami、加密 storageState（08 §11.8）；種子命名空間、建立與 teardown（08 §11.6）；共享平台網域改用 `platform_project` 證明（08 §11.9）（H-E7、H-E8、H-E6、H-D3）。
@@ -917,12 +917,12 @@ stateDiagram-v2
 - **跨 run**（`followup`、`regression`）：
   - 叢集有穩定的 `fingerprint`＝sha256(JCS({cwe_bucket, file, symbol}))，不含行號；黑箱起源的叢集改用目標、方法與路徑樣板。
   - 對 run 的 `baseline_run_id` 計算每個叢集的 `baseline_state`：`new`、`unchanged`、`updated` 或 `absent`，四個值對應 SARIF 2.1.0 的 `baselineState` [V][E:whitebox-56]。`absent` 只出現在報告的 `absent_fingerprints[]`；之前 `absent`、這次又出現的叢集加註 `reopened`（只是資訊）。
-  - **v0.5 起所有關卡都由本 run 重新決定**：內容可以重用，授權不能重用。v0.4 以前「G1 不變量沒變就整份沿用、G3 的 `unchanged` 威脅沿用前一個 run 的決定」已停用，因為 validator 無法驗證來源（見下方「實作現況」）。
-  - 重新啟用 G1／G3 沿用的條件（[09 BL-21](09-backlog.md)）：逐項記錄來源 run、GateRecord、項目與 hash；重新驗證來源簽章、現行撤銷狀態、核准者資格、委任範圍與效期；G3 另要求同一份仍有效的 ROE（G1 不要求尚未進入的黑箱 ROE）。任一項缺漏或改變都要重新核准，不能只憑 `unchanged` 判斷。
+  - **v0.5：每個關卡都由本 run 簽署**；內容可以重用，授權只能逐項沿用。v0.4 以前「G1 不變量沒變就整份沿用、G3 的 `unchanged` 威脅沿用前一個 run 的決定」改為下面可驗證的規則（[09 BL-21](09-backlog.md)）。
+  - G1／G3 的逐項決定可以填 `carried_from`＝{來源 `run_id`、`gate_record_id`、`item_sha256`}。validator（`E-GATE-CARRY`）檢查：只有 `accept` 能沿用；來源 run 是本 run 的祖先（`parent_run_id` 鏈）且同一個委任；來源紀錄是同一關卡，對同一項目的決定是 `accept`，三處 `item_sha256` 相同；來源簽章以現行金鑰登錄重新驗證（撤銷狀態、效期、核准者的關卡角色）；G3 另要求兩個 run 的 G0b 驗證同一份 ROE（G1 不要求尚未進入的黑箱 ROE）。任一項不符就要重新核准，不能只憑 `unchanged` 判斷。
   - G0a、G0b、G2、G4、GB 永遠每個 run 重新決定。
 - **G5 永不沿用**：每個 S2 job 的每次執行都要新的 G5 核准；resume、重試與跨 run 都一樣（§5.6）。
-- 未來重新啟用後，沿用也只省下「重審內容」，不省下簽章：沿用的項目仍逐項列在新的 GateRecord 中並指出來源紀錄，由該關卡的合格核准者簽署整份紀錄。
-- **實作現況**：跨 run 的 G1／G3 沿用在 v0.5 停用，原因就是下面這點：沿用目前是**設計規則，validator 尚未檢查**。`gate-record.schema.json` 的逐項決定只有 `item_id`、`item_sha256`、`decision`、`risk_override`、`note`，沒有記錄沿用來源的欄位；validator 只重算每一項的 `item_sha256`，不比對前一輪或前一個 run 的紀錄（見 [09 待辦清單](09-backlog.md)）。
+- 沿用只省下「重審內容」，不省下簽章：沿用的項目仍逐項列在新的 GateRecord 中並指出來源紀錄，由該關卡的合格核准者簽署整份紀錄。
+- **G5 連到本 run 的 G4**（v0.5，[09 BL-04](09-backlog.md)）：G5 紀錄的 `g4_gate_record_id` 指向本 run 中核准該 job 測試案例的 G4。validator（`E-G5-G4`）檢查：它是同一 run 的 G4、在 G5 開啟前已決定、是該測試案例最新的 G4 決定而且是 `accept`；G4 與 G5 的實際核准者不能重疊（不只比對 `initiators`）。其他關卡的 `g4_gate_record_id` 一律為 null。
 
 ### 6.4 保證等級對簽署的影響
 
@@ -1226,13 +1226,13 @@ erDiagram
 |---|---|
 | `inventory.schema.json` | W0 盤點。v0.3：`frameworks[]`（含支援程度）、endpoint 的 `kind`／`auth_required`／`middleware_refs`、`db`（表、RLS、policy、函式、storage）、`auth`、`env_vars[]`（只有名稱與公開前綴旗標）、`blind_spots[]`、`features[]` |
 | `finding.schema.json` | reviewer 發現項（含 Evidence）。v0.3：evidence 分三種 `kind`（`code_snippet`、`inventory_fact`、`config_fact`），各用 `file`／`line_start`／`line_end`／`snippet`、`fact_ref`（W0 inventory 的 JSON Pointer）或 `file`＋`key_path`，後兩種以 `asserted` 寫主張的值，用不到的欄位為 null；`match` 為 `MATCHED`／`MATCHED_SHIFTED`／`NOT_FOUND`／`NOT_CHECKED`（對遮罩後文字做容錯比對）；13 個面向（v0.4 新增 `cicd_iac`） |
-| `cluster.schema.json` | 叢集鍵、成員、家族。v0.3：`origin`（`white_box`／`black_box`）與 `threat_id`（只有黑箱起源叢集有值）、`canonical_location.endpoint`（`{target_id, method, path_template}`，黑箱起源叢集的位置）、`fingerprint`、`baseline_state`（`new`／`unchanged`／`updated`／`absent`／null）、`reopened` |
+| `cluster.schema.json` | 叢集鍵、成員、家族。v0.3：`origin`（`white_box`／`black_box`；v0.5 加 `tool_only` 與 `tool_report_refs`，BL-13）與 `threat_id`（只有黑箱起源叢集有值）、`canonical_location.endpoint`（`{target_id, method, path_template}`，黑箱起源叢集的位置）、`fingerprint`、`baseline_state`（`new`／`unchanged`／`updated`／`absent`／null）、`reopened` |
 | `verdict.schema.json` | 驗證票與裁決狀態。v0.3：`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為 `05-v0.3`（v0.4 起 `05-v0.4`，v0.5 起 `05-v0.5`） |
 | `threat.schema.json` | 威脅（含分類版本、證據、簽核狀態、種子來源、attack tree 參照） |
 | `requirement.schema.json` | 需求（ASVS／AISVS／G1 不變量）與 crosswalk 連結來源 |
 | `testcase.schema.json` | 測試案例（tool_binding、oracle、安全等級、機率規則）。v0.3：`oracle.types`（陣列，含 `LLM_GRADER`）、`controls[]`（至少一個 `reachability`）、`script_turns[]` |
 | `testresult.schema.json` | 測試結果（ERROR／SKIPPED／STOPPED 屬執行失敗，列入未能測試清單）。v0.3：`controls[]` 結果、outcome `INVALID`、`fail_oracles`、`observed_build_id`、`request_log_sha256`、`interpretation`（Result Analyst 的 `{agrees, rationale}`，沒有分析者時為 null）；`precondition_reached` 與 `positive_control` 改為由 `controls[]` 推導的值 |
-| `gate-record.schema.json` | 人工關卡的簽章紀錄（G0a、G0b、G1–G5、GB）；逐項決定帶 `item_sha256`（§6.3）。沒有記錄沿用來源的欄位（§6.3 的沿用規則尚未由 validator 檢查） |
+| `gate-record.schema.json` | 人工關卡的簽章紀錄（G0a、G0b、G1–G5、GB）；逐項決定帶 `item_sha256` 與 `carried_from`（§6.3，`E-GATE-CARRY`）；G5 帶 `g4_gate_record_id`（`E-G5-G4`） |
 | `roe.schema.json` | 交戰規則。v0.3：`targets[].build_identity`、`ownership_proof.method: platform_project`、`platform_policies[]`、登入的 `mfa`／`captcha_bypass`／`idp`／`whoami`、`storage_state_encrypted`、`relay.mode` |
 | `commander-plan.schema.json` | 指揮官計畫。v0.3：`extra_dispatch[].target` 為 `{kind, id}`、`round` |
 | `engagement.schema.json` | 委任設定（G0a）：程式碼所有權、資料等級、每個等級允許的模型。v0.3：`assurance_profile`、`role_consolidation`、`gate_approvers`、`providers[]` |
@@ -1253,7 +1253,7 @@ erDiagram
 | `toolkit-config.schema.json`（v0.2） | `toolkit.yaml`：根金鑰指紋、預設門檻、逾時、預算 |
 
 - 另有 `redaction-map.schema.json`（W0 的遮罩對照表，只有位置、偵測器與 HMAC）、`checkpoint-metadata.schema.json`（LangGraph checkpoint 的中繼資料）、`licenses.schema.json`（`licenses.yaml`，[06 §2.3](06-security-legal-limitations.md#23-授權登錄表)）、`selftest-report.schema.json`（工具包自測結果）與共用定義 `common.schema.json`。
-- `ToolResult` 是 Z1 內部的正規化結構，沒有獨立的交換 schema（[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）；run 紀錄也沒有 `tool_results_ref`，它只存在於 RunState。
+- `ToolResult` 是 Z1 內部的正規化結構，沒有獨立的交換 schema（[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）；run 紀錄的 `tool_results_ref`（v0.5，BL-13）是這份清單的參照，由 writer 從 W1 的 `tool_invocation_end` 稽核事件導出。
 - 上表的 v0.3 欄位已與 [docs/schemas/](schemas/) 逐一核對；兩者不同時以 schema 為準。
 
 ## 11. 成本與延遲模型

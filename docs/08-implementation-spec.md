@@ -92,7 +92,7 @@
 | `adapters` | `ToolAdapter` 基底類別（擴充），加上每個 `tool:mode` 一個實作（D13）；W0 抽取器 `inventory:*`（§11.1） | Z2、Z3 | M1（W0／W1 工具）、M2（W4）、M4（黑箱工具）、M5（LLM 測試工具） |
 | `slicer` | `Slicer`（擴充）：切片與 `slice_id`；同等性單位（所有家族收到完全相同的切片，上限是參與模型中最小的可用 context）；多樣性降低標記（§11.3） | Z1 | M2 |
 | `toolresult`（擴充） | W1 輸出 → `ToolResult`：區段對應到函式、合併、去重（§11.2） | Z1 | M2 |
-| `cluster` | `Clusterer`（擴充）：確定性叢集鍵（[05 §4.1](05-bias-calibration.md#41-叢集鍵clusterer確定性)）、tool-only 叢集（§11.2；schema 尚未涵蓋，見 [09 BL-13](09-backlog.md)）、`fingerprint`（§11.16）；B2 的確定性 merger 鍵（§11.17） | Z1 | M2；M3 加 merger 鍵 |
+| `cluster` | `Clusterer`（擴充）：確定性叢集鍵（[05 §4.1](05-bias-calibration.md#41-叢集鍵clusterer確定性)）、tool-only 叢集（§11.2；`origin: tool_only`，v0.5，[09 BL-13](09-backlog.md)）、`fingerprint`（§11.16）；B2 的確定性 merger 鍵（§11.17） | Z1 | M2；M3 加 merger 鍵 |
 | `aggregator` | `Aggregator`（擴充）：R0–R13 有序規則（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）；嚴重度 rubric（§11.17） | Z1 | M2 |
 | `apispec`（擴充） | 沒有 OpenAPI 時，由 inventory 與 G1 起草 OpenAPI（§11.10） | Z1 | M4 |
 | `agents` | 每個 agent 的 prompt 範本、輸出 schema 與角色（`agents.yaml`）；Commander（CMD-1–CMD-5） | Z1 | M2（W）、M3–M4（B） |
@@ -356,8 +356,8 @@ class Clusterer(Protocol):
     def cluster(self, findings: list[BaseModel], tool_results: list["ToolResult"]) -> list[BaseModel]: ...
     # 回傳 cluster.schema.json 的物件；使用 05 §4.1 的叢集鍵並計算 fingerprint（§11.16）。
     # 只有 kind == "sast" 的 ToolResult（§11.2）進叢集：同叢集鍵 → 附到 sarif_refs；
-    # 對不到任何發現項 → tool-only 叢集（引發它的結果是回報，不算佐證）。cluster.schema 尚無
-    # tool-only 叢集的表示法（09 BL-13）
+    # 對不到任何發現項 → tool-only 叢集（origin: tool_only；引發它的結果記在 tool_report_refs，
+    # 是回報，不算佐證；09 BL-13）
 
 class AdjudicationInputs(BaseModel):   # 欄位與 tools/vchlib/adjudicate.py 的 Inputs 一一相同（§2.4）
     lane_a: bool
@@ -667,7 +667,7 @@ class ToolAdapter(ABC):
 | `inventory.json` | `frameworks[]`；`endpoints[]` 的 `kind`、`auth_required`、`middleware_refs`；`db`、`auth`、`env_vars[]`、`blind_spots[]`、`features[]` | W0 的產出 | `E-INVENTORY`、`E-INVENTORY-REF`、`E-PLAN-FACETS` | §11.1 |
 | 發現項（finding） | 證據的 `kind`（`code_snippet`、`inventory_fact`、`config_fact`）、`fact_ref`、`key_path`、`asserted`；`match` 新增 `MATCHED_SHIFTED`；`facet`（13 個面向） | 不是程式片段的證據；審查面向 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-INVENTORY-REF`；所屬叢集的桶必須在 `FACET_BUCKETS[facet]` 中（`E-FINDING-FACET`） | §11.1、[05 §3](05-bias-calibration.md#3-設計規則) |
 | 切片（slice） | `redaction_map_sha256`、`prompt_template_sha256` | 新的 `slice_id` | `slice_id` 重算（`E-DERIVED`）；範本不是 run 的 `prompt_templates` 之一，或遮罩表不是 run 的 `redaction_map_ref` → `E-SLICE-IDENTITY` | §11.3 |
-| 叢集（cluster） | `origin`（`white_box`、`black_box`）、`threat_id`、`canonical_location.endpoint`、`fingerprint`、`baseline_state`、`reopened` | 黑箱起源的叢集；跨 run 的指紋 | `E-CLUSTER-ORIGIN`、`E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | §11.16 |
+| 叢集（cluster） | `origin`（`white_box`、`black_box`；v0.5 加 `tool_only` 與 `tool_report_refs`）、`threat_id`、`canonical_location.endpoint`、`fingerprint`、`baseline_state`、`reopened` | 黑箱起源的叢集；跨 run 的指紋 | `E-CLUSTER-ORIGIN`、`E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | §11.16 |
 | 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為目前的 `RULE_VERSION`（v0.5 起 `05-v0.5`） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
 | 測試案例（testcase） | `oracle.types[]`、`controls[]`、`script_turns`、`request_allowlist[].step_id`、`request_allowlist[].graphql_operation` | 對照組、多輪腳本、寫入範圍 | `E-TC-CONTROLS`、`E-TC-SCRIPT`、`E-TC-MUTATION-SCOPE`、`E-TC-REQ-UNAPPROVED` | §11.6、§11.15 |
 | 測試結果（testresult） | `controls[]`、`fail_oracles[]`、`outcome: INVALID`、`observed_build_id`、`request_log_sha256`、`interpretation` | 對照結果、build 識別、解讀 | `E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-ORACLE`、`E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG`、`E-RESULT-ANALYST`、`E-RESULT-ANALYST-ROLE` | §11.7、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) |
@@ -1055,7 +1055,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 §1–§9 定了模組、介面與測試。2026-09-26 的[深度審查](evidence/review-2026-09-26.md)找出一批「元件存在，但沒寫怎麼做」的缺口。本節逐一補上，寫法與前面各節相同：輸入、輸出、規則、失敗時怎麼辦、設定欄位、由哪個 validator 錯誤碼強制、屬於哪個里程碑與 MVP 階段。
 
 - 除非另外標示，本節全部是設計選擇 [H]。
-- 欄位名稱與錯誤碼以 v0.3 的 schema 與 `tools/vchlib` 為準，本節已逐一對照。設計中提到、但 schema 還沒有涵蓋的欄位（BL-13–BL-20）在文中註明「schema 尚未涵蓋」，並列在 [09 待辦清單](09-backlog.md) 第 3 節。
+- 欄位名稱與錯誤碼以 v0.3 的 schema 與 `tools/vchlib` 為準，本節已逐一對照。設計中提到、但 schema 還沒有涵蓋的欄位（BL-14–BL-20）在文中註明「schema 尚未涵蓋」，並列在 [09 待辦清單](09-backlog.md) 第 3 節。
 - 分段 MVP 的定義見 [07](07-roadmap.md)。下表的「MVP」欄是該元件第一次被需要的階段。
 
 | 小節 | 審查 ID | 主要介面或設定 | validator 錯誤碼 | 里程碑 | MVP |
@@ -1195,7 +1195,7 @@ class InventoryExtractor(ABC):
 **最重要的一條**：W2 reviewer（含 CMD-2 加派的輪次）與 W3 verifier **都不會收到** `ToolResult`、SARIF 或它們的摘要。工具結果只經由確定性的 Clusterer 與 Aggregator 進入裁決（[05 §3](05-bias-calibration.md#3-設計規則) 規則 5）[H]。
 
 **輸入**：W1 各 adapter 的輸出（CAS ref）、對應的 `tool_invocation_end` 稽核事件、W0 的符號索引（§11.3）、CWE → 桶的對照表。
-**輸出**：ToolResult 清單，RunState 以 `tool_results_ref` 參照（[03 §5.1](03-system-architecture.md#51-statepydantic示意)；保存用的 `run.schema.json` 尚未有此欄位，見 [09 BL-13](09-backlog.md)）；只交給 `W3_cluster` 與 `W3_adjudicate`。
+**輸出**：ToolResult 清單，RunState 以 `tool_results_ref` 參照（[03 §5.1](03-system-architecture.md#51-statepydantic示意)）；保存用的 run 紀錄也有 `tool_results_ref`（v0.5，BL-13）＝sha256(JCS(本 run 中 W1、Z2 的 `tool_invocation_end` 事件之 `payload_refs`，去重排序))，沒有工具結果時為 null，由 writer 導出（`E-DERIVED`）；只交給 `W3_cluster` 與 `W3_adjudicate`。
 
 ```python
 class ToolLocation(BaseModel):
@@ -1247,13 +1247,14 @@ class ToolResult(BaseModel):
 
 **合併規則**（只有 `sast`）[H]：
 - **叢集鍵相同**：ToolResult 的 (正規位置, 桶) 與某個發現項叢集相同，或同一函式內行範圍重疊且同桶（05 §4.1）→ 附到該叢集的 `sarif_refs`。多個工具命中同一叢集時全部附上，強或弱逐項判定（見下）。
-- **沒有對應的叢集** → 成為 **tool-only 叢集**（schema 尚未涵蓋，見 [09 BL-13](09-backlog.md)）：
+- **沒有對應的叢集** → 成為 **tool-only 叢集**（`origin: tool_only`，v0.5，[09 BL-13](09-backlog.md)）：
   - Clusterer 以同一組叢集鍵建立叢集，成員是空的。
   - 它和其他叢集一樣送 W3 驗證。驗證者收到的是正規位置、桶，以及工具包規則目錄中這條規則的**固定說明句**（以 (adapter, rule_id) 查表，不是工具的原始訊息；目錄中沒有這條規則時，用該桶的通用說明句）。驗證者不知道候選來自工具，看不到工具名稱、規則 ID 或訊息 [H]。
   - 驗證用的切片：沿用涵蓋該位置的既有切片；沒有的話，由 Slicer 以該位置為錨建立一個（§11.3）。切片只含程式碼。
   - **引發這個叢集的工具結果是「回報」，不是佐證**：它不計入 `tool_corroboration`、`tool_signal` 或 `independent_sources`。否則同一次命中會同時算成「回報」與「佐證」。同一位置上**其他**工具的結果照常算佐證或訊號。
   - 結果：校準前，tool-only 叢集最多是 `UNCORROBORATED`（R7），照一般的 CMD-2 與 G2 路由；有了校準權重之後，可以經投票確認。
-  - **schema 的現況**：v0.3 的 `cluster.schema.json` 沒有表示 tool-only 叢集的方式。`origin` 只有 `white_box`（至少一個成員）與 `black_box`（成員可為空，但必須有 `threat_id` 與端點位置；`E-CLUSTER-ORIGIN`），也沒有「引發這個叢集的工具結果」欄位。在補上之前，tool-only 叢集只是設計，範例中沒有。
+  - **schema**（v0.5）：`origin: tool_only`；`member_finding_ids`、`families`、`lineages`、`independent_families` 都是空的，`threat_id` 為 null，`canonical_location` 有 `file` 與 `symbol`。引發叢集的工具結果記在 `tool_report_refs`（至少一筆，解析規則同 `sarif_refs`，所以位置與桶必須等於這些結果，`E-SARIF-REF`）；`sarif_refs` 只能放**其他工具**在同一位置的結果。validator（`E-CLUSTER-ORIGIN`）檢查以上各點，並拒絕把回報再放進 `sarif_refs`、或在其他 origin 的叢集填 `tool_report_refs`。成員證據的位置綁定（`E-CLUSTER-BINDING`）不適用，因為沒有成員；同一 run 指紋不得重複仍然適用。
+  - 範例沒有 tool-only 叢集；測試（`tests/test_v05_backlog_high.py`）把 K-014 改成 tool-only，驗證它可以通過、而且只有一筆工具回報時裁決是 `UNCORROBORATED`（R7，獨立來源 0），沒有捏造的成員或投票。
 - **強與弱**：`sarif_refs` 的每一項，以稽核事件的 (adapter, rule_id, tool_version) 加上叢集的桶，查 `calibration.yaml` 的 `result.high_precision_rules`：
   - 有相同的一列，而且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90）→ **強**，進 `tool_corroboration`。掃描器或規則包的版本與校準時不同 → 弱；
   - 其他 → **弱**，進 `tool_signal`，算 1 個獨立來源。
@@ -1266,7 +1267,7 @@ class ToolResult(BaseModel):
 - `E-VERDICT-TOOLSIGNAL`：`tool_signal` 必須等於「弱 SARIF ∪ `E_fail_u` 測試結果的 `result_ref`」。
 - `E-VERDICT-SOURCES`：`independent_sources` 必須等於推導值。
 
-**沒有 LLM 發現項的路徑**（v0.5，[09 BL-13](09-backlog.md)，MVP-0 前）[H]：MVP-0 必須有 `W1 → ToolResult 正規化 → 純工具叢集 → 裁決 → W5 報告／SARIF` 的完整路徑。run 要能參照 ToolResult 清單，叢集要能表示零個 LLM 成員，並追溯工具版本、規則、位置與證據（現有 schema 不支援，見 BL-13）。沿用本節的去重與裁決規則：工具自己的回報不能再算成自己的獨立佐證；校準前不能因為沒有 LLM 成員就套用「所有成員都沒有證據」的 R0，也不能憑空產生合格票；強弱證據、暫定標示與報告覆蓋限制都保留。驗收要包含「只有工具發現」「工具與 LLM 合併」「沒有任何發現」三種輸入，不能靠捏造 LLM 發現項讓流程通過。
+**沒有 LLM 發現項的路徑**（v0.5，[09 BL-13](09-backlog.md)，MVP-0 前）[H]：MVP-0 必須有 `W1 → ToolResult 正規化 → 純工具叢集 → 裁決 → W5 報告／SARIF` 的完整路徑。run 要能參照 ToolResult 清單，叢集要能表示零個 LLM 成員，並追溯工具版本、規則、位置與證據（v0.5 的 schema 以 run 的 `tool_results_ref` 與 `origin: tool_only` 叢集的 `tool_report_refs` 表示，見上）。沿用本節的去重與裁決規則：工具自己的回報不能再算成自己的獨立佐證；校準前不能因為沒有 LLM 成員就套用「所有成員都沒有證據」的 R0，也不能憑空產生合格票；強弱證據、暫定標示與報告覆蓋限制都保留。驗收要包含「只有工具發現」「工具與 LLM 合併」「沒有任何發現」三種輸入，不能靠捏造 LLM 發現項讓流程通過。
 
 **失敗**：單一工具失敗 → 列為缺口，其他工具繼續；全部 W1 工具失敗 → `FAILED`（[02 W1](02-methodology.md#w1-確定性掃描建立基準不用-llm)）。正規化本身失敗（例如 SARIF 不合 schema）→ 該工具視同失敗。
 
@@ -1771,16 +1772,17 @@ class SessionProvider(Protocol):
 
 | 欄位 | 內容 | 何時寫入 |
 |---|---|---|
-| `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`，每一項是 `{path, sha256}`；只有 Lane A run 的 `seed_manifest` 可以是 null | `run_init`（設計上 `invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之後才有內容；schema 的限制見表下） |
+| `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`；已產生的是 `{path, sha256}`，`invariants` 與 `seed_manifest` 另可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}`（v0.5，見表下） | `run_init`（`invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之前才有內容） |
 | `prompt_templates[]` | `{template_id, version, sha256}` | `run_init`：列出本 run 的 agent 會用到的全部範本 |
 | `tool_versions[]` | `{adapter, version, image_digest}`；工具包自有程式碼的 adapter 填 Z2 映像的 digest | 每個工具第一次執行時 |
 | `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.5`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
 | `baseline_run_id` | 計算 `baseline_state` 用的基準 run（§11.16）；null＝沒有基準 | `run start` 的選項；`followup`、`regression` 預設為 `parent_run_id`（範例跟進 run 的基準是 `run-2026-09-23-001`） |
 
-**schema 的限制**：`run.schema.json` 要求 `config_refs` 的六個鍵都存在，每一項都是 `{path, sha256}`；只有 `seed_manifest` 可以是 null，而且 validator 只在 Lane A run 接受 null（`E-RUN-CONFIG`）。因此：
-- 沒有黑箱階段的非 Lane A run，也要參照一份 seed manifest（範例的 initial 與 followup run 都參照 `docs/examples/seed-manifest.yaml`）。
-- `calibration` 也必填：校準前仍要有一份 `calibration.yaml`，`calibration.schema.json` 允許它的 `result` 是 null（Calibration Lab 還沒有結果）。
-- schema 還沒有「執行中暫缺」的表示法：G1 核准前的 `invariants`、G0b 之前的 `seed_manifest` 在 run 紀錄中怎麼填，目前沒有規定。v0.5 的規格如下，schema 與 validator 待實作（[09 BL-22／BL-23](09-backlog.md)，MVP-0 前）。
+**schema 與 validator**（v0.5，[09 BL-22／BL-23](09-backlog.md)）：`config_refs` 的六個鍵都必填，不能是沒有說明的 null（`E-RUN-CONFIG`）。
+- `models`、`agents`、`tools`、`calibration` 在 `run_init` 就必須是 `{path, sha256}`。`calibration` 也一樣：校準前仍要有一份 `calibration.yaml`，`calibration.schema.json` 允許它的 `result` 是 null（Calibration Lab 還沒有結果）。
+- 尚未產生＝`{state: pending, expected_node}`：`expected_node` 必須是產生節點（`invariants` → `G1`，`seed_manifest` → `G0b`）。run 已經到達該節點或下游（`invariants`：G1 已核准或已有 W2 的切片／發現項；`seed_manifest`：已有 G0b、job 或 G3–G5 紀錄），或 run 已結束，卻仍是 pending → 「應存在但遺失」（`E-RUN-CONFIG`）。
+- 不適用＝`{state: not_applicable, reason}`：`invariants` 只有 Lane A run 可以不適用；`seed_manifest` 只要 run 沒有任何 B 階段內容（G0b、job、G3–G5）就可以不適用，Lane A 與純白箱的 Lane B run 都一樣（範例的 Lane A run 就是這樣填）。
+- 已產生的項目照舊重算 hash（`E-DERIVED`）並檢查檔案種類（`E-RUN-CONFIG`）。
 
 **run 產物的生命週期**（v0.5）[H]：每個預期產物都要能區分四種狀態，不能用一個沒有說明的 null 混合表示：
 

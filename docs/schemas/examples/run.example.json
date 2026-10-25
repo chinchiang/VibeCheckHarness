@@ -114,6 +114,7 @@
   "calibration_version": 3,
   "inventory_ref": "sha256:b282c525fc15d27e3e7582528b3ced52c2db3a445a9838e7e7c4234656f052aa",
   "sbom_ref": "sha256:b1b1caff50c0ad70a03edc872ac5cfec6de6830beefd2efa49e60393188fd59f",
+  "tool_results_ref": "sha256:1547ede71f3103aabb08190fe916eba5f1d5a5f8351cfe73c3636f6abe75ced2",
   "redaction_map_ref": "sha256:f1513e18bd39bade630c8a0c2defd46194d3d21ed8c828b7a4a47139f24b236f",
   "invariants_ref": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff",
   "invariants_changed": false,
@@ -303,7 +304,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:0bc93ef621ac9c4bb3d12371d2e2ff18c70abcc339cfdf51811bed320f6e2e6e",
+  "report_manifest_ref": "sha256:83fca3c2c85850817277cb94931a7376c0e55e8d6f2f824f935481054411aaba",
   "gate_records": [
     {
       "gate": "G0a",
@@ -330,7 +331,7 @@
       "gate_record_id": "GR-G2-0001",
       "outcome": "APPROVED",
       "round": 1,
-      "subject_hash": "sha256:15e21c6d9f1e9363c6b66f882896033e313f6577bc993f450b4429c328407459",
+      "subject_hash": "sha256:b0f7f5f5f53f0cc270b1a04f189576b2a2830b5674249935939bda801095ed8e",
       "job_id": null,
       "opened_at": "2026-09-25T12:00:00+08:00",
       "decided_at": "2026-09-28T10:00:00+08:00"

@@ -69,6 +69,7 @@
   "calibration_version": 3,
   "inventory_ref": null,
   "sbom_ref": null,
+  "tool_results_ref": null,
   "redaction_map_ref": null,
   "invariants_ref": null,
   "invariants_changed": false,

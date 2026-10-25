@@ -15,9 +15,10 @@
       "type": "string",
       "enum": [
         "white_box",
-        "black_box"
+        "black_box",
+        "tool_only"
       ],
-      "description": "white_box＝由 W2 發現項叢集化；black_box＝B5 由沒有 source_cluster_id 的威脅之測試結果建立（成員可為空，E-CLUSTER-ORIGIN）"
+      "description": "white_box＝由 W2 發現項叢集化；black_box＝B5 由沒有 source_cluster_id 的威脅之測試結果建立（成員可為空，E-CLUSTER-ORIGIN）；tool_only＝v0.5（BL-13）W3 只由 W1 工具結果建立（沒有 LLM 成員；tool_report_refs 至少一筆且能解析，位置取自這些工具結果）"
     },
     "threat_id": {
       "anyOf": [
@@ -211,6 +212,14 @@
       },
       "description": "同位置、同 bucket 的 SARIF 結果 CAS 參照；每個都必須出現在同一 run 稽核日誌中成功（payload.ok true）的白箱工具（tools.yaml zone Z2、b4_executable false）tool_invocation_end 事件的 payload_refs（E-SARIF-REF）"
     },
+    "tool_report_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "uniqueItems": true,
+      "description": "v0.5（BL-13）：引發 tool_only 叢集的 W1 工具結果（SARIF ref，解析規則同 sarif_refs，E-SARIF-REF）。它們是「回報」不是佐證：不計入 tool_corroboration、tool_signal、independent_sources；sarif_refs 只能放其他工具在同一位置的結果。非 tool_only 叢集為空陣列"
+    },
     "linked_cluster_ids": {
       "type": "array",
       "items": {
@@ -257,6 +266,7 @@
     "lineages",
     "independent_families",
     "sarif_refs",
+    "tool_report_refs",
     "linked_cluster_ids",
     "fingerprint",
     "baseline_state",

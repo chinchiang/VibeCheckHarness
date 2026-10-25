@@ -81,6 +81,13 @@
 ### 待辦清單整理
 - `docs/09-backlog.md` 新增 §4：第六輪只寫成規格或參考實作的部分，以及處理時記下的限制（BL-36～BL-47）；已處理的 BL-15、BL-24、BL-25、BL-26 移到 §5，編號保留。
 
+### 提升為高優先的待辦（BL-04、BL-13、BL-21、BL-22、BL-23；schema 與 validator）
+- G5 紀錄新增 `g4_gate_record_id`：指向本 run 中該測試案例最新且 accept 的 G4，在 G5 開啟前決定，G4 與 G5 的核准者不重疊（`E-G5-G4`，BL-04）。
+- 逐項決定新增必填的 `carried_from`，重新啟用跨 run 的 G1／G3 沿用：只限 accept、來源是祖先 run 的同一關卡、同項目同 hash，來源簽章以現行金鑰登錄重新驗證，G3 另要求同一份 ROE；G4／G5 不沿用（`E-GATE-CARRY`，BL-21）。
+- run 的 `config_refs.invariants`／`seed_manifest` 可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}`；validator 依 run 已到達的節點判斷「應存在但遺失」，沒有說明的 null 一律是錯誤（`E-RUN-CONFIG`，BL-22）。沒有 B 階段內容的 run 可以把 `seed_manifest` 標為不適用（BL-23）；範例的 Lane A run 改用這個寫法。
+- 叢集新增 `origin: tool_only` 與必填的 `tool_report_refs`：沒有 LLM 成員，引發叢集的工具結果是回報、不算佐證（`E-CLUSTER-ORIGIN`、`E-SARIF-REF`）；run 新增 writer 導出的 `tool_results_ref`（BL-13）。
+- 新增 `tests/test_v05_backlog_high.py`；09 待辦清單把這五項移到 §5。
+
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
 - 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。
