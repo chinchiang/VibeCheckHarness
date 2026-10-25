@@ -532,7 +532,7 @@ flowchart TD
     - rubric 嚴重度是 `medium` 以下；
     - 不符合 [B2 高風險威脅](#b2-威脅建模g3-強制簽核) 的任何一條（跨租戶或認證邊界且涉及機密或個資、涉及需人確認的 LLM 工具）；
     - 不是 W4 後才轉為爭議的叢集。
-    - G3 審查者可以把清單中的任何一項拉回種子威脅。清單的 10% 列入 ASI09 抽查，以量測剪枝造成的漏報（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
+    - G3 審查者可以把清單中的任何一項拉回種子威脅：Gate Service 為它產生一筆種子威脅（`seed-threats` 新增一項）並從 `report_only_clusters` 移除，G3 的產物 digest 因此包含它（v0.5 說明；validator 已確保同一個叢集不會同時是種子威脅與只列報告，`E-REPORT-QUEUE`）。清單的 10% 列入 ASI09 抽查，以量測剪枝造成的漏報（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
   - **G3 佇列**（v0.4）[H]：種子威脅依「高風險 → rubric 嚴重度 → 裁決狀態」排序呈現；高風險威脅與 `critical`／`high` 不受任何上限限制，其他項目每個 run 預設最多 50 項需要逐項決定（`gate_queues.g3_max_items`），超出的照 G3 `NEEDS_INFO` 逾時規則處理（視同駁回，理由自動填「超出 G3 上限」，列入 B6 與 report-manifest `over_cap_items`）。v0.5（審查 2026-10-25 M-4）：v0.4 的「超出上限」定義成「沒有決定」，D5 與 R13 卻要 G3 的 reject 決定才成立，結果 `B3_validate_artifacts` 會擋住 G4，或要核准者替自動決定背書。現在 Gate Service 在呈現前把超出的項目寫成 G3 紀錄中的 `decision: over_cap`（只限 G3；高風險與 impact high 的威脅不能是 over_cap，`E-GATE-OVER-CAP`）；核准者的簽章證明的是「這些項目沒有被審查」。`over_cap` 依規則視同駁回：不產生測試案例、威脅 `review.status: REJECTED`、R13 加註 `g3_rejected`（理由「超出 G3 上限」），report-manifest 的 G3 `over_cap_items` 必須正好是這些項目（`E-REPORT-QUEUE`）。
   - `W4_readjudicate` 時才轉為 `DISPUTED` 的叢集（前一版裁決不是 `DISPUTED`，例如 `LIKELY` 經 R11 → `DISPUTED`；與 G2 是否已決定無關）在裁決上加註 `w4_became_disputed`；種子威脅與 run 的 `disputed_after_g2` 由這些註記推導，G3 呈現時標為「W4 後轉為爭議」[H]（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
   - 這樣動態測試可以把確認升級為 `CONFIRMED_EXECUTABLE`、化解跨家族爭議，並替已確認的問題留下回歸測試。

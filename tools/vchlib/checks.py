@@ -40,7 +40,7 @@ GATE_ROLES = {
 }
 DETERMINISTIC_ROLES = {"aggregator", "scope_proxy", "executor"}
 NON_ADJUDICATING_ROLES = {"reporter"}
-SIGNED_EVENTS = {"initiator_claim", "run_resume"}
+SIGNED_EVENTS = {"initiator_claim", "run_resume", "spot_check_result"}   # v0.5: ASI09 spot checks are a person's act
 REQUIRED_AUTOMATION = {"run-controller", "scheduler", "ci-bot"}
 LEGAL_GATE = "法務閘門"
 M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
@@ -209,7 +209,10 @@ class Ctx:
         self.services = {e.get("person_id") for e in self.entries if "z3_executor" in (e.get("roles") or [])}
         self.persons = {e.get("person_id") for e in self.entries} - self.services
         self.automation = set(self.toolkit.get("automation_accounts", [])) | REQUIRED_AUTOMATION
-        self.runs = {d.data.get("run_id"): d.data for d in self.ix.docs("run")}
+        # v0.5 (review 2026-10-25 V-5): the first document wins, like Index.first; duplicates are E-ID-DUP
+        self.runs = {}
+        for d in self.ix.docs("run"):
+            self.runs.setdefault(d.data.get("run_id"), d.data)
         # run_id -> audit Doc whose text the strict loader rejected (data None)
         self.broken_audit = {}
         for d in b.docs:
@@ -561,11 +564,21 @@ def g_signatures(R: Report, c: Ctx):
                 if not R.check(isinstance(sig, dict), "E-AUDIT-SIG", where, f"{ev.get('event_type')} by a human must be signed"):
                     continue
                 R.check(sig.get("signer") == actor.get("id"), "E-SIG-SIGNER", where, "signature signer != actor.id")
-                # v0.4: only a test_lead may resume a run (docs/03 §5.6)
-                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where),
-                                 "test_lead" if ev.get("event_type") == "run_resume" else None)
+                # docs/03 §5.6: resuming a STOPPED run needs the ROE test_lead; v0.5 (review 2026-10-25 §4.3): a SUSPENDED
+                # run is resumed by its run_owner or an initiator (v0.4 demanded a test_lead for every resume, against
+                # the docs). payload.from_status names which; a resume without it is judged as STOPPED (the stricter)
+                need = None
+                if ev.get("event_type") == "run_resume":
+                    p = ev.get("payload") or {}
+                    run = c.runs.get(ev.get("run_id")) or {}
+                    if p.get("from_status") == "SUSPENDED":
+                        R.check(actor.get("id") == run.get("run_owner") or actor.get("id") in (run.get("initiators") or []),
+                                "E-AUDIT-ACTOR", where, f"a SUSPENDED run is resumed by its run_owner or an initiator, not {actor.get('id')}")
+                    else:
+                        need = "test_lead"
+                verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where), need)
             else:
-                R.check(ev.get("signature") is None, "E-AUDIT-SIG", where, "only human initiator_claim / run_resume events are signed")
+                R.check(ev.get("signature") is None, "E-AUDIT-SIG", where, "only human initiator_claim / run_resume / spot_check_result events are signed")
 
 
 # ============================================================== 6 person references
@@ -797,10 +810,18 @@ def decision_time(c: Ctx, rec: dict) -> dt.datetime | None:
     return c.ix.decision_time(rec)
 
 
+BLACK_BOX_KINDS = ("testcase", "testresult", "threat")          # B2-B4 artefacts (seed threats are W5 output)
+
+
 def g_roe(R: Report, c: Ctx):
     r, e, tk, w = c.roe, c.engagement, c.toolkit, "roe.yaml"
     if not r:
-        R.error("E-ROE-MISSING", w, "no ROE")
+        # v0.5 (review 2026-10-25 §4.3): the ROE is read from G0b on, so a white-box-only bundle (no black-box artefact,
+        # no G0b-or-later gate record) is valid without one; anything of the B phase still needs it
+        black = [k for k in BLACK_BOX_KINDS if c.docs(k)] + sorted(
+            {g.data.get("gate") for g in c.docs("gate-record") if g.data.get("gate") in ROE_GATES})
+        if black or any((run.get("jobs") or {}) for run in c.runs.values()):
+            R.error("E-ROE-MISSING", w, f"no ROE, but the bundle has black-box content {black or ['run.jobs']}")
         return
     eng = r.get("engagement") or {}
     R.check(eng.get("id") == e.get("engagement_id") and eng.get("version") == e.get("version"), "E-ROE-ENGAGEMENT", w,
@@ -1018,6 +1039,11 @@ def legal(R: Report, c: Ctx):
                 f"enabled tools {gated} are 法務閘門 in licenses.yaml: legal_review.scope.component_licenses must be true")
 
 
+def path_shape(path) -> str | None:
+    """A path template with every {variable} segment reduced to {} (placeholder names do not matter)."""
+    return re.sub(r"\{[^/}]*\}", "{}", path) if isinstance(path, str) else None
+
+
 def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
     """v0.4 (write scope):
     - E-ROE-SEED-MANIFEST: ROE db_access.seed_manifest_sha256 is the content hash of the loaded seed manifest, so
@@ -1030,7 +1056,9 @@ def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
         R.check(db.get("seed_manifest_sha256") == content_hash(c.manifest), "E-ROE-SEED-MANIFEST", w,
                 f"db_access.seed_manifest_sha256 {db.get('seed_manifest_sha256')} != content hash of the seed manifest "
                 f"{content_hash(c.manifest)}: the infrastructure owner must sign the manifest the run uses")
-    declared = {(e.get("method"), e.get("path_template")) for e in c.manifest.get("state_changing_reads") or [] if isinstance(e, dict)}
+    # v0.5 (review 2026-10-25 §4.3): compare path shapes, not literal text: /api/x/{id} (W0) and /api/x/{invoice}
+    # (manifest) are the same endpoint
+    declared = {(e.get("method"), path_shape(e.get("path_template"))) for e in c.manifest.get("state_changing_reads") or [] if isinstance(e, dict)}
     for key in ("state_changing_reads", "read_only_endpoints"):
         for e in c.manifest.get(key) or []:
             if isinstance(e, dict):
@@ -1039,7 +1067,7 @@ def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
     for d in c.docs("inventory"):
         for ep in d.data.get("endpoints") or []:
             if isinstance(ep, dict) and ep.get("method") in ("GET", "HEAD") and ep.get("writes") is True:
-                R.check((ep.get("method"), ep.get("path")) in declared, "E-SEED-SIDE-EFFECT", d.path,
+                R.check((ep.get("method"), path_shape(ep.get("path"))) in declared, "E-SEED-SIDE-EFFECT", d.path,
                         f"{ep.get('method')} {ep.get('path')} writes (W0) but is not in the seed manifest's state_changing_reads: "
                         "requests to it would be classified as reads (S0)")
 
@@ -1609,6 +1637,9 @@ def g_runs(R: Report, c: Ctx):
                     R.check(0 <= t.get("k", 0) <= t.get("n", 0), "E-RESULT-TRIALS", x.path, "k must be between 0 and n")
                     if tr.get("outcome") == "FAIL":
                         R.check(t.get("k", 0) >= 1, "E-RESULT-TRIALS", x.path, "FAIL needs k >= 1")
+                        # v0.5 (review 2026-10-25 §4.3): the pre-registered threshold, not just k >= 1
+                        kmin = ((tc.data if tc else {}).get("trials") or {}).get("fail_k_min", 1)
+                        R.check(t.get("k", 0) >= kmin, "E-RESULT-TRIALS", x.path, f"FAIL needs k >= the testcase fail_k_min {kmin}")
                     R.check(0 <= tr.get("replay_k", 0) <= tr.get("replays", 0), "E-RESULT-TRIALS", x.path,
                             "replay_k (k_r) must be between 0 and replays (n_r)")
             rm = c.ix.first("report-manifest", run_id=rid)
@@ -1810,6 +1841,21 @@ def plan_checks(R: Report, c: Ctx, d: Doc):
 
 
 # ============================================================== 12 testcases vs ROE
+def tool_binding_rules(R: Report, tc: dict, w: str):
+    """v0.5 (review 2026-10-25 §4.3, E-TC-TOOL): limits of a mode that the safety class cannot see.
+    - schemathesis:* run only GET / HEAD operations (tools.yaml): a write would hit non-seed objects;
+    - zap:baseline runs zap-api-scan.py, which scans actively unless -S is given: params.safe_mode must be true
+      (the adapter renders -S; B3_validate_artifacts rejects an artefact without it)."""
+    tb = tc.get("tool_binding") or {}
+    adapter = tb.get("adapter") or ""
+    if adapter.startswith("schemathesis:"):
+        bad = sorted({r.get("method") for r in tc.get("request_allowlist") or [] if r.get("method") not in ("GET", "HEAD")})
+        R.check(not bad, "E-TC-TOOL", w, f"{adapter} only runs GET / HEAD operations; request_allowlist has {bad}")
+    if adapter == "zap:baseline":
+        R.check((tb.get("params") or {}).get("safe_mode") is True, "E-TC-TOOL", w,
+                "zap:baseline needs params.safe_mode true (zap-api-scan.py -S); without it the scan is active (zap:active, S2)")
+
+
 def g_testcases(R: Report, c: Ctx):
     r = c.roe
     if not r:
@@ -1822,6 +1868,7 @@ def g_testcases(R: Report, c: Ctx):
     for d in c.docs("testcase"):
         with doc_guard(R, d.path):
             tc, w = d.data, d.path
+            tool_binding_rules(R, tc, w)
             ref = tc.get("seed_manifest_ref")
             mk = c.manifest if ref and ref == c.manifest.get("manifest_ref") else None
             # v0.5 (review 2026-10-25 H-5): required. Without the manifest the safety class cannot see the seeds,
@@ -1958,9 +2005,15 @@ def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
     """model key -> models.yaml entry of every agents.yaml `verifier` whose registry family is not in
     cluster.families and whose registry lineage is not in cluster.lineages (never self-declared)."""
     fams, lins = set(cluster.get("families") or []), set(cluster.get("lineages") or [])
+    # v0.5 (review 2026-10-25 §4.3): a verifier that may not receive the run's data class (engagement allowed_models)
+    # can never vote on it; counting it inflated |E| and left C-class clusters diversity_degraded for good
+    dc = (c.runs.get(cluster.get("run_id")) or {}).get("data_class")
+    allowed = set(((c.engagement.get("allowed_models") or {}).get(dc)) or []) if dc else set()
     out = {}
     for a in (c.agents or {}).values():
         if not isinstance(a, dict) or a.get("role") != "verifier":
+            continue
+        if allowed and a.get("model") not in allowed:
             continue
         m = c.model(a.get("model"))
         if m and m.get("family") not in fams and m.get("lineage") not in lins and isinstance(m.get("family"), str):
@@ -2287,6 +2340,84 @@ def g_verdicts(R: Report, c: Ctx):
                 old = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"])
                 R.check(old is not None and old.data.get("cluster_id") == v.get("cluster_id"), "E-TRACE", w, "supersedes a verdict of another cluster")
             R.check(v.get("calibration_version") == c.calibration.get("calibration_version"), "E-VERDICT-CALIBRATION", w, "calibration_version differs")
+    verdict_chains(R, c)
+
+
+PHASE_ORDER = {"W3_adjudicate": 0, "G2_apply": 1, "W4_readjudicate": 2, "B5_readjudicate": 3}
+
+
+def verdict_heads(c: Ctx, verdict_ids) -> list[dict]:
+    """The latest version of each cluster among `verdict_ids` (a run's verdicts): not superseded by another of them."""
+    vs = [x.data for x in (c.ix.first("verdict", verdict_id=i) for i in verdict_ids) if x is not None]
+    superseded = {v.get("supersedes_verdict_id") for v in vs if v.get("supersedes_verdict_id") != v.get("verdict_id")}
+    return [v for v in vs if v.get("verdict_id") not in superseded]
+
+
+def verdict_chains(R: Report, c: Ctx):
+    """v0.5 (review 2026-10-25 V-4, V-12): the versions of a cluster form one linear chain in phase order.
+
+    V-4 (E-VERDICT-CHAIN): no self-reference, no cycle, no fork (a version superseded twice), exactly one latest
+    version, and a superseded version of the same run. A cycle used to drop the cluster from verdict_counts and the
+    report queues without an error.
+    V-12 (E-VERDICT-PHASE): readjudicated_by cannot be back-dated to switch off the test-evidence links:
+    black-box clusters only have B5 versions; a W3 version supersedes nothing; phases never go backwards along the
+    chain; and a version received (verdict_changed ts) after a W4 / B4 result of its cluster was executed is at
+    least W4_readjudicate / B5_readjudicate."""
+    by_cluster: dict = {}
+    for d in c.docs("verdict"):
+        by_cluster.setdefault(d.data.get("cluster_id"), []).append(d)
+    for cid, docs in by_cluster.items():
+        ids = {d.data.get("verdict_id"): d for d in docs}
+        cl = c.ix.first("cluster", cluster_id=cid)
+        cluster = cl.data if cl else {}
+        superseded_by: dict = {}
+        for d in docs:
+            v, w = d.data, d.path
+            s = v.get("supersedes_verdict_id")
+            if s is None:
+                continue
+            R.check(s != v.get("verdict_id"), "E-VERDICT-CHAIN", w, f"{v.get('verdict_id')} supersedes itself")
+            R.check(s not in superseded_by, "E-VERDICT-CHAIN", w,
+                    f"{s} is superseded by both {superseded_by.get(s)} and {v.get('verdict_id')} (the chain forks)")
+            superseded_by.setdefault(s, v.get("verdict_id"))
+            old = ids.get(s)                                         # same cluster_id, so the same run (E-TRACE otherwise)
+            if old is not None and s != v.get("verdict_id"):
+                R.check(PHASE_ORDER.get(old.data.get("readjudicated_by"), -1) <= PHASE_ORDER.get(v.get("readjudicated_by"), -1),
+                        "E-VERDICT-PHASE", w, f"{v.get('verdict_id')} ({v.get('readjudicated_by')}) supersedes the later-phase "
+                        f"{s} ({old.data.get('readjudicated_by')}): phases go W3 -> G2_apply -> W4 -> B5")
+        for d in docs:                                               # cycles of two or more versions
+            seen, cur = [], d.data.get("verdict_id")
+            while cur in ids and cur not in seen:
+                seen.append(cur)
+                cur = ids[cur].data.get("supersedes_verdict_id")
+            if cur == d.data.get("verdict_id") and len(seen) > 1:
+                R.error("E-VERDICT-CHAIN", d.path, f"{d.data.get('verdict_id')} is on a supersedes cycle {' -> '.join(seen + [cur])}")
+        heads = [i for i in ids if i not in superseded_by]
+        R.check(len(heads) == 1, "E-VERDICT-CHAIN", docs[0].path,
+                f"cluster {cid} must have exactly one latest verdict version, got {sorted(map(str, heads))}")
+        audit = c.ix.audit_for(cluster.get("run_id"))
+        received = {(e.get("payload") or {}).get("verdict_id"): e.get("ts") for e in (audit.data if audit else [])
+                    if isinstance(e, dict) and e.get("event_type") == "verdict_changed"}
+        results = [r.data for r in c.docs("testresult") if r.data.get("run_id") == cluster.get("run_id")
+                   and cid in (r.data.get("cluster_ids") or [])]
+        for d in docs:
+            v, w = d.data, d.path
+            phase = v.get("readjudicated_by")
+            if cluster.get("origin") == "black_box":
+                R.check(phase == "B5_readjudicate", "E-VERDICT-PHASE", w,
+                        f"{v.get('verdict_id')}: a black-box cluster only exists after B4, so its versions are B5_readjudicate, not {phase}")
+            if phase == "W3_adjudicate":
+                R.check(v.get("supersedes_verdict_id") is None, "E-VERDICT-PHASE", w,
+                        f"{v.get('verdict_id')}: a W3_adjudicate version is the first version; it supersedes nothing")
+            at = received.get(v.get("verdict_id"))
+            if at is None:
+                continue
+            for r in results:
+                need = {"W4": "W4_readjudicate", "B4": "B5_readjudicate"}.get(r.get("phase"))
+                if need and timeutil.sort_key(r.get("executed_at")) < timeutil.sort_key(at):
+                    R.check(PHASE_ORDER.get(phase, -1) >= PHASE_ORDER[need], "E-VERDICT-PHASE", w,
+                            f"{v.get('verdict_id')} was received at {at}, after {r.get('result_id')} ({r.get('phase')}) ran at "
+                            f"{r.get('executed_at')}: it must be at least {need}, not {phase}")
 
 
 # ============================================================== 14 traceability
@@ -2313,9 +2444,93 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
                 "white_box cluster needs canonical_location file, symbol and sink")
 
 
+def _evidence_sites(c: Ctx, cluster: dict) -> tuple[list[tuple[str, int, int]], list[str]]:
+    """(file, first line, last line) of every member's evidence, and the members' CWEs. code_snippet: its own range;
+    inventory_fact: the source {file, line} of the nearest inventory object above fact_ref (e.g. /db/tables/0)."""
+    inv = inventory_of_run(c, cluster.get("run_id")) or {}
+    sites, cwes = [], []
+    for fid in cluster.get("member_finding_ids") or []:
+        f = c.ix.finding(fid) or {}
+        cwes += [x for x in f.get("cwe") or [] if isinstance(x, str)]
+        for e in f.get("evidence") or []:
+            if not isinstance(e, dict):
+                continue
+            if e.get("kind") == "code_snippet" and isinstance(e.get("line_start"), int):
+                end = e.get("line_end") if isinstance(e.get("line_end"), int) else e["line_start"]
+                sites.append((e.get("file"), e["line_start"], end))
+            elif e.get("kind") == "inventory_fact" and isinstance(e.get("fact_ref"), str):
+                parts = e["fact_ref"].split("/")[1:]
+                while parts:
+                    node = evidence.resolve_pointer(inv, "/" + "/".join(parts))
+                    src = node.get("source") if isinstance(node, dict) else None
+                    if isinstance(src, dict) and isinstance(src.get("file"), str):
+                        line = src.get("line") if isinstance(src.get("line"), int) else 0
+                        sites.append((src["file"], line, line))
+                        break
+                    parts.pop()
+    return sites, cwes
+
+
+def cluster_binding(R: Report, c: Ctx, d: Doc):
+    """v0.5 (review 2026-10-25 V-8): a white-box cluster's key is bound to its members' evidence, so a cluster cannot
+    take another cluster's location (and with it the other cluster's SARIF refs, D1) or a bucket of its choosing.
+    - canonical_location.file is a member evidence file; the sink lies in a member evidence range (same file);
+      a symbol written file::name starts with that file;
+    - cwe_bucket is the bucket (facets.CWE_BUCKETS) of a member CWE, when any member CWE is listed there;
+    - no two clusters of a run share a fingerprint."""
+    k, w = d.data, d.path
+    same = [x.path for x in c.docs("cluster") if x is not d and x.data.get("run_id") == k.get("run_id")
+            and k.get("fingerprint") and x.data.get("fingerprint") == k.get("fingerprint")]
+    R.check(not same, "E-CLUSTER-BINDING", w, f"{k.get('cluster_id')}: fingerprint shared with {same} in the same run")
+    if k.get("origin") == "black_box":
+        return
+    loc = k.get("canonical_location") or {}
+    sites, cwes = _evidence_sites(c, k)
+    files = {s[0] for s in sites}
+    R.check(loc.get("file") in files, "E-CLUSTER-BINDING", w,
+            f"{k.get('cluster_id')}: canonical_location.file {loc.get('file')!r} is not a member evidence file {sorted(files)}")
+    sink = loc.get("sink")
+    if isinstance(sink, dict):
+        R.check(any(f == sink.get("file") and a <= (sink.get("line") or -1) <= b for f, a, b in sites), "E-CLUSTER-BINDING", w,
+                f"{k.get('cluster_id')}: sink {sink.get('file')}:{sink.get('line')} is outside every member evidence range {sites}")
+    sym = loc.get("symbol")
+    if isinstance(sym, str) and "::" in sym:
+        R.check(sym.split("::", 1)[0] == loc.get("file"), "E-CLUSTER-BINDING", w,
+                f"{k.get('cluster_id')}: symbol {sym!r} does not belong to canonical_location.file {loc.get('file')!r}")
+    buckets = {facets.CWE_BUCKETS[x] for x in cwes if x in facets.CWE_BUCKETS}
+    if buckets:
+        R.check(k.get("cwe_bucket") in buckets, "E-CLUSTER-BINDING", w,
+                f"{k.get('cluster_id')}: cwe_bucket {k.get('cwe_bucket')!r} is not the bucket of any member CWE {sorted(set(cwes))} -> {sorted(buckets)}")
+    else:
+        R.warn("W-CLUSTER-BUCKET", w, f"{k.get('cluster_id')}: no member CWE {sorted(set(cwes))} is in facets.CWE_BUCKETS; cwe_bucket not checked")
+
+
 def inventory_of_run(c: Ctx, run_id) -> dict | None:
     d = c.ix.first("inventory", run_id=run_id)
     return d.data if d else None
+
+
+def finding_round(R: Report, c: Ctx, d: Doc):
+    """v0.5 (review 2026-10-25 §4.3, E-FINDING-ROUND): reporter.round decides independence (only round-1 members count,
+    derive.independent_families), so it is derived from the run's commander plans instead of trusted: round 1 = the
+    CMD-1 plan dispatched this agent on this slice; round n > 1 = a CMD-2 plan of round n - 1 dispatched this agent
+    (extra_dispatch). Lane A runs have no commander and are not checked."""
+    f, w = d.data, d.path
+    run = c.runs.get(f.get("run_id")) or {}
+    if run.get("run_kind") == "lane_a":
+        return
+    rep = f.get("reporter") or {}
+    agent, rnd = rep.get("agent_id"), rep.get("round")
+    plans = [p.data for p in c.docs("commander-plan") if p.data.get("plan_id") in (run.get("plan_ids") or [])]
+    if rnd == 1:
+        ok = any(p.get("decision_node") == "CMD-1" and any(s.get("slice_id") == f.get("slice_id") and agent in (s.get("agents") or [])
+                                                          for s in p.get("slices") or []) for p in plans)
+        why = f"no CMD-1 plan of run {f.get('run_id')} dispatched {agent} on slice {f.get('slice_id')}"
+    else:
+        ok = isinstance(rnd, int) and any(p.get("decision_node") == "CMD-2" and p.get("round") == rnd - 1 and any(
+            agent in (x.get("agents") or []) for x in p.get("extra_dispatch") or []) for p in plans)
+        why = f"no CMD-2 plan of round {rnd - 1 if isinstance(rnd, int) else '?'} dispatched {agent}"
+    R.check(ok, "E-FINDING-ROUND", w, f"{f.get('finding_id')}: reporter.round {rnd!r} is not derivable: {why}")
 
 
 def finding_evidence(R: Report, c: Ctx, d: Doc):
@@ -2512,12 +2727,14 @@ def g_trace(R: Report, c: Ctx):
             if run.get("run_kind") != "lane_a":
                 R.check(set(f.get("invariant_refs", [])) <= inv_ids, "E-TRACE", w, "invariant_refs not in invariants.yaml")
             finding_evidence(R, c, d)
+            finding_round(R, c, d)
     for d in c.docs("cluster"):
         with doc_guard(R, d.path):
             k, w = d.data, d.path
             run = c.runs.get(k.get("run_id")) or {}
             R.check(k.get("cluster_id") in run.get("cluster_ids", []), "E-TRACE", w, "cluster not listed by its run")
             cluster_origin(R, c, d)
+            cluster_binding(R, c, d)
             members = [ix.first("finding", finding_id=f) for f in k.get("member_finding_ids", [])]
             if R.check(all(members), "E-TRACE", w, "member finding not found"):
                 fams = {(m.data.get("reporter") or {}).get("family") for m in members}
@@ -2791,6 +3008,7 @@ def g_audit(R: Report, c: Ctx):
             logged = {(e.get("payload") or {}).get("gate_record_id") for e in evs if e.get("event_type") == "gate_decision"}
             for g in c.ix.gate_records(rid):
                 R.check(g.data.get("gate_record_id") in logged, "E-AUDIT-GATE", w, f"{g.data.get('gate_record_id')} has no gate_decision event")
+            job_audit(R, c, w, rid, run, evs)
 
 
     # v0.5 (review 2026-10-25, group 3): every verdict version has a verdict_changed event in its cluster's run log
@@ -2824,6 +3042,37 @@ def g_audit(R: Report, c: Ctx):
             R.check(False, "E-AUDIT-GATE", where,
                     f"{g.data.get('gate_record_id')} ({g.data.get('gate')}) has no gate_decision event: the run has no audit "
                     "log, so its receive time cannot be established")
+
+
+JOB_RAN_STATES = ("EXECUTED", "RESTORED", "RESTORE_FAILED")       # finished with a result (INTERRUPTED has none)
+
+
+def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
+    """v0.5 (review 2026-10-25 V-9, E-JOB-AUDIT): the B4 jobs of run.jobs agree with the sandbox_job_* events of the log
+    and with the testresults. v0.4 never reconciled them, so deleting a FAIL result and marking its job SKIPPED passed.
+    W0 / W1 / W4 sandbox jobs are not in run.jobs and are not reconciled here."""
+    jobs = run.get("jobs") or {}
+    started = {(e.get("payload") or {}).get("job_id") for e in evs if isinstance(e, dict) and e.get("event_type") == "sandbox_job_start"}
+    ended = {(e.get("payload") or {}).get("job_id"): (e.get("payload") or {}).get("outcome")
+             for e in evs if isinstance(e, dict) and e.get("event_type") == "sandbox_job_end"}
+    results = {r.data.get("job_id"): r.data for r in c.docs("testresult") if r.data.get("run_id") == rid}
+    for jid, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        where = f"{w} (run.jobs {jid})"
+        if job.get("status") == "SKIPPED":
+            R.check(jid not in started and jid not in ended, "E-JOB-AUDIT", where,
+                    f"job {jid} is SKIPPED but the audit log has sandbox_job events for it (it ran)")
+        elif job.get("status") in JOB_RAN_STATES:
+            R.check(jid in ended, "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but the audit log has no sandbox_job_end for it")
+            tr = results.get(jid)
+            R.check(tr is not None, "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but no testresult names it")
+            if tr is not None and jid in ended:
+                R.check(tr.get("outcome") == ended[jid], "E-JOB-AUDIT", where,
+                        f"testresult {tr.get('result_id')} outcome {tr.get('outcome')} != sandbox_job_end outcome {ended[jid]}")
+    for jid in ended:
+        if jid in jobs:
+            R.check(jid in results, "E-JOB-AUDIT", w, f"sandbox_job_end for job {jid} has no testresult")
 
 
 def audit_anchor_tail(R: Report, w: str, run: dict, d: Doc) -> tuple[int, int]:
@@ -3035,7 +3284,53 @@ def report_metrics(c: Ctx, run_id) -> dict:
             "control_pass_rate": round(sum(1 for o in outs if o == "PASS") / len(outs), 4) if outs else None}
 
 
+ID_KEYS = {"run": "run_id", "verdict": "verdict_id", "cluster": "cluster_id", "finding": "finding_id", "testcase": "testcase_id",
+           "testresult": "result_id", "threat": "threat_id", "gate-record": "gate_record_id", "report-manifest": "report_id",
+           "slice": "slice_id"}
+
+
+def id_uniqueness(R: Report, c: Ctx):
+    """v0.5 (review 2026-10-25 V-5): an ID names one document. With two documents of the same kind and ID, lookups
+    disagreed (Ctx.runs took the last, Index.first the first), so a second copy could shadow the checked one."""
+    for kind, key in ID_KEYS.items():
+        seen: dict = {}
+        for d in c.docs(kind):
+            if isinstance(d.data, dict) and d.data.get(key) is not None:
+                seen.setdefault(d.data.get(key), []).append(d.path)
+        for i, paths in seen.items():
+            R.check(len(paths) == 1, "E-ID-DUP", paths[-1], f"{kind} {key} {i!r} is used by {len(paths)} documents: {paths}")
+
+
+def threat_coverage(R: Report, c: Ctx):
+    """v0.5 (review 2026-10-25 §4.3), docs/04 §1.3 (D5) and docs/02 B2, enforced instead of only described:
+    - E-THREAT-ATTACK-TREE: a threat rated likelihood high and impact high is high-risk and needs attack_tree_ref; a
+      set attack_tree_ref names this threat's tree (…/<threat_id>.json);
+    - E-COVERAGE-D5: once a run has a G4 record (B3 finished), every threat whose latest G3 decision is accept has at
+      least one testcase (a MANUAL one counts); reject and over_cap need none."""
+    for d in c.docs("threat"):
+        t, w = d.data, d.path
+        ref, risk = t.get("attack_tree_ref"), t.get("risk") or {}
+        if risk.get("likelihood") == "high" and risk.get("impact") == "high":
+            R.check(bool(ref), "E-THREAT-ATTACK-TREE", w, f"{t.get('threat_id')} is rated high/high (high-risk) and needs attack_tree_ref")
+        if ref:
+            R.check(isinstance(ref, str) and ref.rsplit("/", 1)[-1] == f"{t.get('threat_id')}.json", "E-THREAT-ATTACK-TREE", w,
+                    f"attack_tree_ref {ref!r} must name this threat's tree (…/{t.get('threat_id')}.json)")
+    tested = {x.data.get("threat_id") for x in c.docs("testcase")}
+    for rid in c.runs:
+        if not c.ix.gate_records(rid, "G4"):
+            continue
+        latest = {}
+        for rec in c.ix.gate_records(rid, "G3"):
+            for x in rec.data.get("decisions") or []:
+                latest[x.get("item_id")] = x.get("decision")
+        for tid, dec in latest.items():
+            if dec == "accept":
+                R.check(tid in tested, "E-COVERAGE-D5", f"run {rid}", f"threat {tid} was accepted at G3 but has no testcase (not even MANUAL)")
+
+
 def g_misc(R: Report, c: Ctx):
+    id_uniqueness(R, c)
+    threat_coverage(R, c)
     for d in c.docs("dfd"):
         with doc_guard(R, d.path):
             els = d.data.get("elements", [])
@@ -3067,8 +3362,7 @@ def g_misc(R: Report, c: Ctx):
             if not R.check(run is not None, "E-REPORT", w, "run not found"):
                 continue
             R.check(rm.get("advisory") is (run.get("run_kind") == "lane_a"), "E-REPORT", w, "advisory iff Lane A")
-            superseded = {c.ix.first("verdict", verdict_id=v).data.get("supersedes_verdict_id") for v in run.get("verdicts", []) if c.ix.first("verdict", verdict_id=v)}
-            final = [c.ix.first("verdict", verdict_id=v).data for v in run.get("verdicts", []) if v not in superseded and c.ix.first("verdict", verdict_id=v)]
+            final = verdict_heads(c, run.get("verdicts", []))       # v0.5 (V-4): a broken chain is E-VERDICT-CHAIN
             counts = {s: sum(1 for v in final if v.get("status") == s) for s in FINAL_STATUSES}
             R.check(rm.get("verdict_counts") == counts, "E-REPORT", w, f"verdict_counts must be {counts} (latest verdict per cluster)")
             want_m = report_metrics(c, rm.get("run_id"))

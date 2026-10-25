@@ -61,6 +61,23 @@
 - 其他：MVP0-X7 補 psycopg 與 G-11、promptfoo 的條件、00 的三個範例、共享平台清單（21 個）、範例 B 的請求數、08 的測試清單。
 - 新增 `tests/test_v05_round6_group5.py`。
 
+### 其餘的 validator 繞過（追加組）
+- 裁決版本必須形成單一線性鏈（`E-VERDICT-CHAIN`），`verdict_counts` 取每條鏈的最新版。
+- 同一種文件的 ID 不能重複（`E-ID-DUP`）；`Ctx.runs` 與 `Index.first` 都取第一個文件。
+- 白箱叢集的位置、sink、symbol 與 CWE 桶綁定成員證據，指紋不重複（`E-CLUSTER-BINDING`；新增 `facets.CWE_BUCKETS`）。
+- B4 job、`sandbox_job_*` 事件與測試結果對帳（`E-JOB-AUDIT`）。
+- `readjudicated_by` 不能倒填（`E-VERDICT-PHASE`）。
+- 新增 `tests/test_v05_round6_group6.py`。
+
+### 低優先項目（審查 §4.3）
+- 嚴格載入器拒絕巢狀超過 64 層與孤立 surrogate（原本是 `RecursionError`／整組 `E-INTERNAL`）；`Bundle.doc("")` 不再對到第一個文件。
+- `reporter.round` 由指揮官計畫推導（`E-FINDING-ROUND`）。
+- E(cluster) 只算可以收該資料等級的驗證者；`g4_approved` 看最後一份對該測試案例做決定的 G4；高風險威脅的機率型 PASS 需要 n′ ≥ 60。
+- Scope Proxy 白名單比對的參考實作 `safety.allowlist_match`；SUSPENDED 的 resume 由 run_owner 或發起者簽；ASI09 抽查改用簽章事件 `spot_check_result`。
+- 安全等級的 S1 下限改看 `is_mutation`；純白箱 bundle 可以沒有 ROE；FAIL 必須 k ≥ `fail_k_min`；`E-TC-TOOL`（Schemathesis 只讀、zap baseline 要 `-S`）、`E-THREAT-ATTACK-TREE`、`E-COVERAGE-D5`；`E-SEED-SIDE-EFFECT` 以路徑形狀比對。
+- 文件：quorum 的檢查範圍、`min_version` 的限制、`report_only` 拉回 G3 的方式、範例 B′ 需要的 G1 列。
+- 新增 `tests/test_v05_round6_lowprio.py`。
+
 ### 執行期契約（只有規格）
 - job 的原子領取、租約與 fencing token（在出口強制），結果不明時不自動重送（03 §5.8，BL-31）。
 - 整庫還原前取得資料庫層級的排他租約；外部寫入停不下來就不還原（03 §5.8、§7.6，BL-28）。

@@ -25,6 +25,22 @@ FACET_BUCKETS: dict[str, frozenset[str]] = {
     "cicd_iac": frozenset({"injection", "secrets", "config", "authz"}),
 }
 
+# v0.5 (review 2026-10-25 V-8): the bucket of common CWEs. A white-box cluster's cwe_bucket must be the bucket of one of
+# its members' CWEs whenever any of them is listed here (E-CLUSTER-BINDING); clusters whose members carry only unlisted
+# CWEs get W-CLUSTER-BUCKET. Curated [H]; extend it with the calibration buckets.
+CWE_BUCKETS: dict[str, str] = {
+    **{c: "authz" for c in ("CWE-284", "CWE-285", "CWE-639", "CWE-862", "CWE-863", "CWE-915", "CWE-269")},
+    **{c: "authn" for c in ("CWE-287", "CWE-288", "CWE-306", "CWE-307", "CWE-384", "CWE-613", "CWE-640")},
+    **{c: "injection" for c in ("CWE-74", "CWE-77", "CWE-78", "CWE-79", "CWE-89", "CWE-90", "CWE-94", "CWE-917", "CWE-943")},
+    **{c: "path_traversal" for c in ("CWE-22", "CWE-23", "CWE-73")},
+    **{c: "deserialization" for c in ("CWE-502",)},
+    **{c: "ssrf" for c in ("CWE-918",)},
+    **{c: "secrets" for c in ("CWE-798", "CWE-312", "CWE-200", "CWE-522")},
+    **{c: "crypto" for c in ("CWE-327", "CWE-328", "CWE-330", "CWE-347")},
+    **{c: "config" for c in ("CWE-16", "CWE-942", "CWE-1021", "CWE-693")},
+    **{c: "llm_specific" for c in ("CWE-1427", "CWE-1426")},
+}
+
 BASE_FACETS = frozenset({"authz", "authn_session", "injection", "data_access", "secrets_config", "business_logic"})
 FEATURE_FACETS = {                     # inventory.features value -> facet it makes mandatory
     "file_upload": "file_handling",
@@ -55,4 +71,4 @@ def mandatory_facets(inventory: dict | None) -> set[str]:
 
 MANDATORY_FACETS = mandatory_facets      # the rule, under the name used in the docs
 
-__all__ = ["FACETS", "FACET_BUCKETS", "BASE_FACETS", "FEATURE_FACETS", "mandatory_facets", "MANDATORY_FACETS"]
+__all__ = ["FACETS", "FACET_BUCKETS", "CWE_BUCKETS", "BASE_FACETS", "FEATURE_FACETS", "mandatory_facets", "MANDATORY_FACETS"]

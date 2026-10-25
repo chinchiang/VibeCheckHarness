@@ -70,8 +70,12 @@ class Bundle:
         return None if d is None else d.data
 
     def doc(self, path_suffix: str) -> Doc | None:
+        """The document whose path is `path_suffix` or ends with "/" + it. v0.5 (review 2026-10-25 §4.3): an empty
+        or non-string reference (e.g. seed_manifest_ref "") matches nothing; v0.4 matched the first document."""
+        if not isinstance(path_suffix, str) or not path_suffix.strip("/"):
+            return None
         for d in self.docs:
-            if d.path.endswith(path_suffix):
+            if d.path == path_suffix or d.path.endswith("/" + path_suffix.lstrip("/")):
                 return d
         return None
 

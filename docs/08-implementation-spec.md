@@ -1477,6 +1477,8 @@ class SeedService(Protocol):
 
 **目的**：Scope Proxy 是 Z3 唯一的出口，也是請求白名單真正的強制點（[03 §2](03-system-architecture.md#2-部署與信任區)）。v0.2 只寫了 DNS 固定與擋 redirect。要逐一檢查 HTTPS 請求的方法與路徑，需要 TLS 終結；長連線協定、CDN、B1 爬行也都還沒有規則。
 
+**白名單比對的參考實作**（v0.5，審查 2026-10-25 §4.3）：`safety.allowlist_match(target_id, method, path, allowlist, resolve)` 回傳具體請求對應的白名單項目，對不到就擋。路徑必須已是正規形式（含 `%` 編碼或 `.`／`..` 段的請求一律擋，不做解碼後再比對）；逐段比對同一目標、同一方法的項目：字面段要相等；`{seed:k}`／`{created:s}` 段要等於代換後的值（`resolve` 來自 seed manifest 與本 run 的建立回應）；一般 `{name}` 段只在讀取請求上可對到任一非空段，寫入請求一律不行。body 與 query 的物件綁定見下方 `request_binding_problem`。parity 測試以這個函式為準。
+
 **per-job 身分** [H]：
 - `open_job` 為每個 job 產生一個隨機的 proxy 認證權杖（256 位元），只在該 job 期間有效；回傳的 proxy 端點只接受帶這個權杖的連線。
 - 工具程序只拿到自己 job 的權杖。所以每個請求都能歸屬到一個 job，一個 job 也無法借用另一個 job 的白名單。
