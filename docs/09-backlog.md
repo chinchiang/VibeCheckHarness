@@ -4,6 +4,8 @@
 >
 > 本清單收錄 [2026-09-26 深度審查](evidence/review-2026-09-26.md) 中**本輪沒有修正**的項目：低優先（L）項目，以及刻意延後、需要更多資訊才能處理的部分。高、中優先項目本輪都已處理，或在此寫明延後的理由。
 >
+> [2026-10-25 設計審查](evidence/review-2026-10-25.md)（第六輪）的發現已全部處理（該審查紀錄 §7～§14）。其中只寫成規格、或 validator 只做靜態檢查的部分，連同處理時記下的限制，列在下方 §4（BL-36 起）。已處理的舊項目移到 §5，編號保留供追溯。
+>
 > - **需要使用者決定的事項**（金鑰、GPU、法務關卡、保留期限等）不在這裡，見 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定)。
 > - **狀態**：`待辦`＝尚未處理；`延後`＝有意留到之後的里程碑。
 
@@ -52,13 +54,37 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 |---|---|---|---|---|
 | BL-13 | [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 純工具叢集 | `cluster.schema` 沒有表示「只有工具結果、沒有 LLM 成員」的方式（例如新的 `origin` 值）；`run.schema` 也沒有 ToolResult 清單的參照（`tool_results_ref`） | 純工具叢集只在設計中描述；範例不含 | 待辦；v0.5 提升為**高、MVP-0 之前**；規格見 [08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併) 的「沒有 LLM 發現項的路徑」 |
 | BL-14 | [08 §11.12](08-implementation-spec.md#1112-成本模型與價格) 各家族上限 | engagement 的每家族 USD 上限欄位 | 只用現有的每 run／階段上限 | 待辦 |
-| BL-15 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) CDN | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | 目標若經 CDN，DNS 固定到第一次解析的位址；解析結果改變就停止該 job | v0.4 已處理：ROE `targets[].edge_ip_ranges`（`E-ROE-EDGE-RANGE`）、`safety.ip_in_ranges`（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
 | BL-16 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) B1 爬行預設 | `toolkit.yaml` 的 B1 爬行預設區塊（方法、排除樣式、請求上限） | 規則寫在程式碼常數，並記入 run manifest | 待辦 |
 | BL-17 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 回貼 PR／issue | engagement 啟用發佈的欄位與權杖範圍宣告 | 預設不發佈；報告只輸出檔案 | 待辦 |
 | BL-18 | [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋) 誤報回饋 | 回饋紀錄的 schema | 回饋先以人工整理進校準語料 | 待辦 |
 | BL-19 | [08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣) 排程工作 | inventory `endpoints[].kind` 沒有排程工作（cron／job）的值 | 排程工作記為 `blind_spots`（`other`） | 待辦 |
 | BL-20 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 覆蓋指標 | report-manifest `metrics` 只有結果數、INVALID 數與對照通過率；沒有存取矩陣格與 entry point 的覆蓋率 | 覆蓋率先寫在報告正文 | 待辦 |
-| BL-24 | [04 §5](04-threat-to-testcase.md#5-安全等級計算規則) GraphQL mutation | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | 送到固定 `/graphql` 端點的 mutation 一律 S3，除非該端點列為 create-only（保守，會漏測） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（`object_refs`＋Scope Proxy 的 body ID 綁定） |
-| BL-25 | [04 §4.3](04-threat-to-testcase.md#43-binding-表) BaaS RPC | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | 非 GraphQL 的 POST 一律視為寫入：未列為 create-only 就是 S3（保守，會漏測） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（seed manifest `read_only_endpoints`） |
-| BL-26 | [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) 人工關卡負擔（v0.4） | `toolkit.yaml` 沒有 G2／G3 佇列上限與逾時比例告警門檻的欄位；run／report-manifest 沒有「超出上限」「只列報告」清單的欄位 | 預設值寫在程式碼常數（G2 30 項、G3 50 項、逾時比例 50%），並記入 run manifest；清單先寫在報告正文 | v0.4 已處理：`toolkit.yaml` `gate_queues`；report-manifest `over_cap_items`、`report_only_clusters`（`E-REPORT-QUEUE`） |
 | BL-27 | [02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格) 白箱測試案例（v0.4） | `testcase.schema.json` 只描述黑箱測試：`target_ids` 必須是 ROE 目標，且需要 `threat_id`、`request_allowlist`；W4 在 Z2 對單元測試與拋棄式本地 Postgres 執行，兩者都沒有 | testresult（`phase: W4`）與 verdict（`W4_readjudicate`）已支援；W4 測試案例只記在 run manifest 與 CAS。K-015 的 W4 確認範例（本地 RLS 測試 → R1 `CONFIRMED_EXECUTABLE`）等這個 schema | 待辦 |
+
+## 4. 第六輪（2026-10-25 審查）留下的實作項目
+
+第 0～5 組、追加組與 §4.3 處理時，validator 能檢查的部分都已實作；下列是只有規格、參考實作或文件說明的部分，以及處理時記下的限制。
+
+| 編號 | 來源 | 工作 | 規格 | 時點 | 狀態 |
+|---|---|---|---|---|---|
+| BL-36 | T-9 | Z3 副簽前重算上一個錨點後的鏈，並核對 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權結果）與 job 帳本；三種 z3 簽章各自的 domain tag（錨點已定為 `vibecheck/audit_anchor/v2`，所有權結果與 job 帳本另訂） | [03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh) | Z3 Executor 實作時（MVP-0 派送之前） | validator 已驗 v2 副簽；Z3 端未實作 |
+| BL-37 | T-8 | Audit Writer 寫入端去重：重複的 `idempotency_key` 不寫新行，回傳原本那一行的 `seq` | [03 §5.8](03-system-architecture.md#58-節點邊界規則)、[08 §6.3](08-implementation-spec.md#63-冪等鍵) | Audit Writer 實作時 | validator 已把重複當錯誤；寫入端未實作 |
+| BL-38 | H-6、§4.3 | Scope Proxy 實作物件綁定與白名單比對，並與參考實作做 parity 測試：`safety.request_binding_problem`、`server_action_problem`、`allowlist_match` | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) | MVP-1 黑箱執行之前（與 BL-32 同時） | 參考實作與單元測試已有；Proxy 未實作 |
+| BL-39 | M-1 | DB 目標的 `db_comment` 所有權驗證：Z3 以唯讀 oracle 憑證讀出 `COMMENT ON DATABASE` 中的 token，結果由 z3_executor 簽署 | [02 B0](02-methodology.md#b0-roe-與範圍g0b機器可驗證)、[06 §3 #18](06-security-legal-limitations.md#3-做不到不承諾的事) | MVP-1 之前 | validator 已檢查方法；Z3 端未實作 |
+| BL-40 | M-5 | 外洩類 oracle 的結構化欄位比對（NFKC、大小寫摺疊、去分隔符號、數字序列）；seed manifest 需要能登記每個種子的敏感欄位 | [04 §4.3](04-threat-to-testcase.md#43-binding-表) | M5 的 LLM 測試之前 | 規格已寫；seed manifest schema 尚無欄位 |
+| BL-41 | M-6 | G4 佇列上限的排序與「超出 G4 上限 → `MANUAL`」：B3 依序裁切，報告列出被裁掉的測試案例 | [02 B3](02-methodology.md#b3-威脅--需求--測試案例) | M4 之前 | `gate_queues.g4_max_items` 已加；裁切與報告欄位未實作，validator 未檢查 |
+| BL-42 | V-8 | `facets.CWE_BUCKETS`（CWE→桶的 curated 對照）與校準的桶定義對齊；對不到時目前只發 `W-CLUSTER-BUCKET` | [05 §3](05-bias-calibration.md#3-設計規則)、`tools/vchlib/facets.py` | 校準語料建立時（依 BL-11） | 最小對照表已有 |
+| BL-43 | §4.3 | 撤銷金鑰時自動調高 `key_registry.min_version`（`vibecheck keys rotate`），避免撤銷前的舊登錄仍被接受 | [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) | M1 | 限制已寫入文件；未實作 |
+| BL-44 | §4.3 | W2 quorum 的執行期紀錄：目前沒有欄位，只能由 `missing_vote` 事件推得哪些切片 quorum 不足 | [05 §3](05-bias-calibration.md#3-設計規則) | M2 | 文件已寫明；未實作 |
+| BL-45 | §4.3 | `report_only` 叢集拉回 G3 的紀錄方式：拉回時新增的種子威脅沒有欄位標示「由 G3 審查者拉回」 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) | M3 | 機制已寫入文件；schema 未加欄位 |
+| BL-46 | 第 5 組 | 以網路執行 `tools/check_platform_suffixes.py`（比對 Public Suffix List），與 BL-03 的外部連結檢查一起定期重跑 | [08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明) | 每個版本發佈前 | 未執行（需要網路） |
+| BL-47 | §4.3 | 範例 `invariants.yaml` 補上範例 B′ 需要的存取矩陣列（工作區文件：同工作區成員可讀、只有上傳者可改），並重新簽核 G1 範例 | [04 §6.3](04-threat-to-testcase.md#63-範例-b第三方文件的間接注入v04-第五輪) | 下次調整範例時 | 範例已註明缺這一列 |
+
+## 5. 已完成（保留編號供追溯）
+
+| 編號 | 原本的問題 | 處理 |
+|---|---|---|
+| BL-15 | ROE `targets[]` 的 CDN 邊緣 IP 範圍欄位 | v0.4 已處理：ROE `targets[].edge_ip_ranges`（`E-ROE-EDGE-RANGE`）、`safety.ip_in_ranges`（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
+| BL-24 | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（`object_refs`＋Scope Proxy 的 body ID 綁定）；v0.5 補強 query 字串、ID 鍵下的陣列與物件、整表寫入與 Server Action（審查 2026-10-25 H-6；執行期見 BL-38） |
+| BL-25 | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（seed manifest `read_only_endpoints`） |
+| BL-26 | `toolkit.yaml` 沒有 G2／G3 佇列上限與逾時比例告警門檻的欄位；run／report-manifest 沒有「超出上限」「只列報告」清單的欄位 | v0.4 已處理：`toolkit.yaml` `gate_queues`；report-manifest `over_cap_items`、`report_only_clusters`（`E-REPORT-QUEUE`）；v0.5 另加 G4 上限（`g4_max_items`，見 BL-41）與 G3 的 `over_cap` 決定 |
