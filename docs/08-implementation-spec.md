@@ -338,7 +338,8 @@ class GateService(Protocol):
     # 以 PolicyEngine.verify_gate_record 驗章 → 存 GateRecord → 回傳 gate_record_id
     # → graph.resume(run_id, Command(resume=gate_record_id))
     def expire_due(self, now: str) -> list[str]: ...
-    # 寫一份由系統產生的 EXPIRED 紀錄（沒有人員簽章；Policy 只接受 EXPIRED 這一種無簽章紀錄）
+    # 寫一份由系統產生的 EXPIRED 紀錄（signatures: []；Policy 只接受 EXPIRED 這一種無簽章紀錄，
+    # 證明是 gate_opened 與 gate_decision 兩個收件時間之間已經逾時，03 §6.2）
     def spot_check_sample(self, run_id: str) -> list[str]: ...  # ASI09 抽查（07 M2）
 
 # --- Slicer / Clusterer / Aggregator（純函式；M2）---
@@ -755,7 +756,7 @@ class ToolAdapter(ABC):
 | B4 job | Z3 的 job 帳本（權威，v0.4）；`executed_jobs` 與 `JobStatus` 只是快取 | 帳本已有紀錄 → Executor 拒絕執行並回傳原結果，即使 checkpoint 回溯過；`EXECUTING` 但沒有結果 → `INTERRUPTED`（[03 §5.6](03-system-architecture.md#56-中止補償與-resume)） |
 | 開關卡 | `(run_id, gate, round)` | 不重複開啟、不重複通知 |
 | GateRecord | `approval_hash` | 同一份 → 成功；不同 → 7 |
-| 稽核事件 | `idempotency_key` ＝ `run_id:node:<上列鍵>` | 仍然寫入（append-only）；讀取與驗證時去重 |
+| 稽核事件 | `idempotency_key` ＝ `run_id:node:<上列鍵>` | v0.5：Audit Writer 寫入端去重，不寫新行，回傳原本那一行的 `seq`；稽核檔中同一 run 的鍵唯一（`E-AUDIT-IDEMPOTENCY`，[03 §5.8](03-system-architecture.md#58-節點邊界規則)） |
 
 ## 7. 持久化
 

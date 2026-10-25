@@ -204,7 +204,10 @@ class Ctx:
         self.crosswalk = b.data("crosswalk") or {}
         self.entries = [e for e in self.registry.get("entries", []) if isinstance(e, dict)]
         self.by_fp = {e.get("fingerprint"): e for e in self.entries}
-        self.persons = {e.get("person_id") for e in self.entries}
+        # v0.5 (review 2026-10-25 T-4): a z3_executor key is a service identity, not a person: it can countersign
+        # anchors but can never be an initiator, approver, human audit actor or any other person reference
+        self.services = {e.get("person_id") for e in self.entries if "z3_executor" in (e.get("roles") or [])}
+        self.persons = {e.get("person_id") for e in self.entries} - self.services
         self.automation = set(self.toolkit.get("automation_accounts", [])) | REQUIRED_AUTOMATION
         self.runs = {d.data.get("run_id"): d.data for d in self.ix.docs("run")}
         # run_id -> audit Doc whose text the strict loader rejected (data None)
@@ -298,14 +301,32 @@ def check_backdating(R: Report, c: Ctx, where: str, doc: dict, first_seen: dt.da
     """v0.4 (06 §3 #25): issued_at is self-declared. A signature by a key later revoked for a reason
     other than compromise only counts if the document was first verified before revoked_at; otherwise
     the signer could have back-dated issued_at after losing the key (E-SIG-BACKDATED)."""
+    issued = ts(R, doc.get("issued_at"), where, "issued_at")
+    # v0.5 (review 2026-10-25 T-5): the signed bytes cannot be older than the first moment they were seen, so issued_at
+    # may not lie after the first verification either (that would forward-date a signature into a key's validity)
+    if first_seen is not None and issued is not None:
+        R.check(issued <= first_seen + MAX_CLOCK_SKEW, "E-SIG-ISSUED-AT", where,
+                f"issued_at {doc.get('issued_at')} is after the first verification at {first_seen.isoformat()}")
+    known = ts(R, c.registry.get("issued_at"), "key-registry.yaml", "issued_at")
     for sig in doc.get("signatures") or []:
         e = c.by_fp.get(sig.get("key_fingerprint")) or {}
         rv = ts(R, e.get("revoked_at"), "key-registry.yaml", "revoked_at")
-        if rv is None or e.get("revocation_reason") == "compromised":
+        if e.get("revocation_reason") == "compromised":
             continue
-        R.check(first_seen is not None and first_seen < rv, "E-SIG-BACKDATED", where,
-                f"{sig.get('signer')}: key {sig.get('key_fingerprint')} was revoked at {e.get('revoked_at')}, but the document "
-                f"was first verified {'never' if first_seen is None else 'at ' + first_seen.isoformat()}; issued_at alone cannot prove it was signed before")
+        if rv is not None:
+            R.check(first_seen is not None and first_seen < rv, "E-SIG-BACKDATED", where,
+                    f"{sig.get('signer')}: key {sig.get('key_fingerprint')} was revoked at {e.get('revoked_at')}, but the document "
+                    f"was first verified {'never' if first_seen is None else 'at ' + first_seen.isoformat()}; issued_at alone cannot prove it was signed before")
+        # v0.5 (review 2026-10-25 T-5): expiry is the same as a revocation: an expired key may not sign a document first
+        # seen after its not_after (or never seen, once the registry knows the key has expired)
+        na = ts(R, e.get("not_after"), "key-registry.yaml", "not_after")
+        seen = first_seen if first_seen is not None else known
+        if na is not None and seen is not None and (first_seen is not None or rv is None):
+            R.check(seen <= na, "E-SIG-BACKDATED", where,
+                    f"{sig.get('signer')}: key {sig.get('key_fingerprint')} expired at {e.get('not_after')}, but the document was "
+                    + (f"first verified at {first_seen.isoformat()}" if first_seen is not None else
+                       f"never verified (registry issued {c.registry.get('issued_at')})")
+                    + "; issued_at alone cannot prove it was signed before")
 
 
 def check_signed_doc(R: Report, c: Ctx, where: str, doc: dict, signers: list[dict]):
@@ -457,6 +478,10 @@ def g_key_registry(R: Report, c: Ctx):
         issued = ts(R, kr.get("issued_at"), w)
         R.check(rv is None or issued is None or rv <= issued, "E-KR-REVOCATION", where, "revoked_at is after the registry issued_at")
         R.check(e.get("person_id") not in c.automation, "E-KR-AUTOMATION", where, "automation accounts cannot hold person keys")
+        if e.get("person_id") in c.services:
+            R.check(e.get("roles") == ["z3_executor"] and e.get("person_id") == crypto.ANCHOR_SIGNER, "E-KR-SERVICE", where,
+                    f"the z3_executor role is held only by the service identity {crypto.ANCHOR_SIGNER}, with no other role "
+                    f"(got {e.get('person_id')} with roles {e.get('roles')})")
 
 
 # ============================================================== 5 signatures
@@ -469,7 +494,12 @@ def g_signatures(R: Report, c: Ctx):
         signers = list(c.roe.get("signatories") or [])
         att = lr.get("attested_by")
         if att:
-            e = next((x for x in c.entries if x.get("person_id") == att and not x.get("revoked_at")), None)
+            # v0.5 (review 2026-10-25 T-7): expect the key the attester actually signed with when it is theirs, so a
+            # routine rotation (old key retired after signing) does not break the ROE; verify_signature then judges
+            # that key at the first-verification time like every other signature
+            used = next((s.get("key_fingerprint") for s in c.roe.get("signatures") or [] if s.get("signer") == att
+                         and (c.by_fp.get(s.get("key_fingerprint")) or {}).get("person_id") == att), None)
+            e = c.by_fp.get(used) if used else next((x for x in c.entries if x.get("person_id") == att and not x.get("revoked_at")), None)
             fp = e.get("fingerprint") if e else None
             role = "legal_reviewer" if "legal_reviewer" in c.roles_of(att) else ("management" if "management" in c.roles_of(att) else "legal_reviewer")
             if not any(s.get("person_id") == att for s in signers):
@@ -490,10 +520,21 @@ def g_signatures(R: Report, c: Ctx):
                          "ok": silent_verify(c, signing_payload(doc), s, doc_at)} for s in doc.get("signatures") or []]
                 got = [{k: r.get(k) for k in ("person_id", "key_fingerprint", "ok")} for r in ver.get("signer_results") or []]
                 R.check(got == real, "E-GATE-G0-VERIFY", d.path, f"signer_results {got} do not match the real verification {real}")
-                R.check(ver.get("key_registry_version") == c.registry.get("version"), "E-GATE-G0-VERIFY", d.path,
-                        "verification.key_registry_version != registry version")
+                # v0.5 (review 2026-10-25 T-6): the registry moves on (every revocation bumps its version), so a verification
+                # names the version it used, which may be older but never newer than the loaded registry. Re-verifying with
+                # the loaded registry (signer_results above) still catches a later compromise
+                kv = ver.get("key_registry_version")
+                R.check(type(kv) is int and 1 <= kv <= (c.registry.get("version") or 0), "E-GATE-G0-VERIFY", d.path,
+                        f"verification.key_registry_version {kv!r} must be 1..{c.registry.get('version')} (the loaded registry version)")
                 if rec.get("outcome") == "VERIFIED":
                     R.check(all(r["ok"] for r in real) and real, "E-GATE-G0-VERIFY", d.path, "VERIFIED although a signature failed")
+                continue
+            if rec.get("outcome") == "EXPIRED":
+                # v0.5 (review 2026-10-25 T-3): nobody decided an expired gate, so nobody signs it. The record is the
+                # Gate Service's; its proof is the two receive times (gate_opened, gate_decision) and the timeout
+                # between them (E-GATE-EXPIRED-EARLY), not an approver signature
+                R.check(rec.get("signatures") == [], "E-GATE-EXPIRED-SIG", d.path,
+                        "an EXPIRED record is written by the Gate Service: signatures must be [] (no approver decided)")
                 continue
             payload = signing_payload(rec)
             approvers = {(a.get("person_id"), a.get("key_fingerprint")): a for a in rec.get("approvers", [])}
@@ -569,6 +610,8 @@ def person_refs(c: Ctx):
 
 def g_persons(R: Report, c: Ctx):
     for where, pid, fp, role in person_refs(c):
+        if not R.check(pid not in c.services, "E-PERSON-AUTOMATION", where, f"{pid} is a service identity (z3_executor), not a person"):
+            continue
         if not R.check(pid in c.persons, "E-PERSON-UNKNOWN", where, f"{pid!r} is not in the key registry"):
             continue
         R.check(pid not in c.automation, "E-PERSON-AUTOMATION", where, f"{pid} is an automation account")
@@ -1237,6 +1280,31 @@ def gate_sod(R: Report, c: Ctx, rec: dict, w: str):
                     f"{p} approves {rec.get('gate')} in several roles {sorted(roles)} (only an acknowledged lite role_consolidation allows this)")
 
 
+def opened_time(R: Report, c: Ctx, rec: dict, w: str, declared: dt.datetime) -> dt.datetime:
+    """v0.5 (review 2026-10-25 T-2): the receive time of the gate_opened event that opened `rec`: the last
+    gate_opened of the same gate (and, for G5, the same job) before its gate_decision. The record's own opened_at
+    must agree with it within MAX_CLOCK_SKEW (E-GATE-OPENED). G0a / G0b are system verifications with no opening
+    event; a record without a gate_decision event is already E-AUDIT-GATE and keeps its declared time."""
+    if rec.get("gate") in ("G0a", "G0b"):
+        return declared
+    audit = c.ix.audit_for(rec.get("run_id"))
+    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict)]
+    pos = next((i for i, e in enumerate(evs) if e.get("event_type") == "gate_decision"
+                and (e.get("payload") or {}).get("gate_record_id") == rec.get("gate_record_id")), None)
+    if pos is None:
+        return declared
+    opens = [e for e in evs[:pos] if e.get("event_type") == "gate_opened" and (e.get("payload") or {}).get("gate") == rec.get("gate")
+             and (rec.get("gate") != "G5" or (e.get("payload") or {}).get("job_id") == rec.get("job_id"))]
+    got = ts(R, opens[-1].get("ts"), w, "gate_opened ts") if opens else None
+    if not R.check(got is not None, "E-GATE-OPENED", w,
+                   f"{rec.get('gate_record_id')}: no gate_opened event for {rec.get('gate')} before its gate_decision; "
+                   "opened_at cannot be established by the Audit Writer"):
+        return declared
+    R.check(abs(declared - got) <= MAX_CLOCK_SKEW, "E-GATE-OPENED", w,
+            f"opened_at {rec.get('opened_at')} differs from the gate_opened receive time {got.isoformat()} by more than {MAX_CLOCK_SKEW}")
+    return got
+
+
 def g_gates(R: Report, c: Ctx):
     e, r = c.engagement, c.roe
     tmo = e.get("gate_timeouts_hours") or {}
@@ -1258,6 +1326,9 @@ def g_gates(R: Report, c: Ctx):
             opened, at = ts(R, rec.get("opened_at"), w), ts(R, rec.get("timestamp"), w)
             if not (opened and at):
                 continue
+            # v0.5 (review 2026-10-25 T-2): opened_at sits inside the approver-signed record; the authority is the
+            # Audit Writer's gate_opened event (timeouts, EXPIRED-EARLY and the G5 window are measured from it)
+            opened = opened_time(R, c, rec, w, opened)
             # v0.4 (E4): the Audit Writer's receive time is the authority for every time rule of a decision;
             # the signer's own timestamp only has to agree with it within MAX_CLOCK_SKEW (E-AUDIT-GATE)
             at = decision_time(c, rec) or at
@@ -1297,11 +1368,13 @@ def g_gates(R: Report, c: Ctx):
                     R.check(rnb and rna and rnb <= at <= rna, "E-GATE-ROE-VALIDITY", w, f"{gate} decided outside the ROE validity")
             gate_sod(R, c, rec, w)
             # timeouts
-            limit = tmo.get(gate)
+            # v0.5 (review 2026-10-25 V-10): a key the engagement leaves out falls back to the toolkit maximum
+            limit = tmo.get(gate) if tmo.get(gate) is not None else (c.toolkit.get("gate_timeouts_hours") or {}).get(gate)
             if limit is not None and gate != "G5":
                 R.check(at - opened <= dt.timedelta(hours=limit), "E-GATE-TIMEOUT", w, f"decided {at - opened} after opening; timeout {limit} h")
                 # v0.4: EXPIRED is the one unsigned outcome; it is only valid once the timeout has really elapsed by the
                 # Audit Writer's clock. Otherwise a forged EXPIRED could skip G2 (the run continues past a timed-out G2).
+                # v0.5: both ends of that interval are receive times (gate_opened and gate_decision events)
                 if rec.get("outcome") == "EXPIRED":
                     R.check(at - opened >= dt.timedelta(hours=limit), "E-GATE-EXPIRED-EARLY", w,
                             f"EXPIRED {at - opened} after opening, before the {limit} h timeout elapsed")
@@ -1339,7 +1412,7 @@ def g_gates(R: Report, c: Ctx):
                 R.check(win_end is not None, "E-G5-WINDOW", w, "G5 opened outside every ROE time window")
                 R.check(timeutil.in_any_window(at, roe_windows(c)), "E-G5-WINDOW", w, "G5 decided outside every ROE time window")
                 if win_end is not None:
-                    lim = min(win_end, opened + dt.timedelta(hours=tmo.get("G5", 24)))
+                    lim = min(win_end, opened + dt.timedelta(hours=limit if limit is not None else 24))
                     R.check(at < lim, "E-G5-WINDOW", w, f"G5 decided at/after the window end {win_end.isoformat()}")
                 job = (run.get("jobs") or {}).get(rec.get("job_id"))
                 R.check(job is not None and job.get("safety_class") == "S2", "E-G5-JOB", w, "G5 must reference an S2 job of the run")
@@ -1943,8 +2016,15 @@ def _resolving_event(c: Ctx, cluster: dict, ref) -> tuple[dict | None, str | Non
             and ref in (e.get("payload_refs") or [])]
     if not ends:
         return None, f"SARIF ref {ref} is not in payload_refs of any tool_invocation_end event of run {rid}"
+    # v0.5 (review 2026-10-25 V-7): only anchored lines are evidence. A tool_invocation_end after the last audit_anchor
+    # is not yet covered by a Z3 countersignature, so anyone with write access to Z1 could have appended it
+    anchored = max((i + 1 for i, e in enumerate(audit.data) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"), default=0)
     reasons = []
     for e in ends:
+        if not (type(e.get("seq")) is int and e.get("seq") < anchored):
+            reasons.append(f"seq {e.get('seq')}: the event is in the unanchored tail of the audit log (last audit_anchor at "
+                           f"line {anchored}); unanchored lines cannot back a verdict")
+            continue
         p = e.get("payload") or {}
         adapter = p.get("adapter")
         entry = safety.registry_entry(c.tools, adapter)
@@ -2637,13 +2717,14 @@ def g_audit(R: Report, c: Ctx):
                 R.check(since <= interval, "E-AUDIT-ANCHOR", where, f"more than {interval} events without an anchor")
                 if et == "audit_anchor":
                     # v0.4: the Z3 executor countersigns {run_id, seq, prev_hash}; whoever controls both the
-                    # audit log and the run record still cannot rewrite the chain without the Z3 key
+                    # audit log and the run record still cannot rewrite the chain without the Z3 key.
+                    # v0.5 (T-9): plus a domain tag and the hash of the anchor event itself (crypto.anchor_payload)
                     cs = (ev.get("payload") or {}).get("z3_countersignature")
                     scratch = Report()
                     ok = isinstance(cs, dict) and cs.get("signer") == crypto.ANCHOR_SIGNER and verify_signature(
                         scratch, c, where, crypto.anchor_payload(ev), cs, t, need_role="z3_executor") is not None
                     R.check(ok, "E-AUDIT-ANCHOR-SIG", where, "audit_anchor needs a valid z3_countersignature by "
-                            f"{crypto.ANCHOR_SIGNER} (role z3_executor) over {{run_id, seq, prev_hash}}"
+                            f"{crypto.ANCHOR_SIGNER} (role z3_executor) over {{domain, run_id, seq, prev_hash, event_sha256}}"
                             + (": " + "; ".join(f"{x.code} {x.msg}" for x in scratch.issues) if scratch.issues else ""))
                 if et == "gate_decision":
                     nxt = evs[i + 1] if i + 1 < len(evs) else {}
@@ -2690,6 +2771,18 @@ def g_audit(R: Report, c: Ctx):
             for g in c.ix.gate_records(rid):
                 R.check(g.data.get("gate_record_id") in logged, "E-AUDIT-GATE", w, f"{g.data.get('gate_record_id')} has no gate_decision event")
 
+
+    # v0.5 (review 2026-10-25, group 3): every verdict version has a verdict_changed event in its cluster's run log
+    # (E-AUDIT-VERDICT above checks the events that exist; this makes the event itself required)
+    for v in c.docs("verdict"):
+        cl = c.ix.first("cluster", cluster_id=v.data.get("cluster_id"))
+        rid = (cl.data if cl else {}).get("run_id")
+        if rid in c.broken_audit_runs:
+            continue
+        audit = c.ix.audit_for(rid)
+        R.check(audit is not None and any(isinstance(e, dict) and e.get("event_type") == "verdict_changed"
+                                          and (e.get("payload") or {}).get("verdict_id") == v.data.get("verdict_id") for e in audit.data),
+                "E-AUDIT-VERDICT", v.path, f"verdict {v.data.get('verdict_id')} has no verdict_changed event in the audit log of run {rid}")
 
     audited = {d.data[0].get("run_id") for d in c.ix.audit_docs() if d.data}
     for rid, run in c.runs.items():

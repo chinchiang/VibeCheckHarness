@@ -64,7 +64,7 @@ def rederive(bundle, keys, rounds=20):
         for d in bundle.docs:
             if d.kind == "gate-record" and isinstance(d.data, dict):
                 rec = d.data
-                sigs = [] if rec.get("gate") in ("G0a", "G0b") else \
+                sigs = [] if rec.get("gate") in ("G0a", "G0b") or rec.get("outcome") == "EXPIRED" else \
                     [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in rec["approvers"]]
                 if sigs != rec.get("signatures"):
                     rec["signatures"] = sigs
@@ -91,6 +91,6 @@ def resign_gate(bundle, suffix, keys, key_for=None):
     """Re-sign a gate record after mutating it (key_for: person_id -> TEST ONLY key name)."""
     rec = doc(bundle, suffix).data
     key_for = key_for or {}
-    rec["signatures"] = [crypto.sign_document(rec, a["person_id"], keys[key_for.get(a["person_id"], a["person_id"])])
-                         for a in rec["approvers"]]
+    rec["signatures"] = [] if rec.get("outcome") == "EXPIRED" else \
+        [crypto.sign_document(rec, a["person_id"], keys[key_for.get(a["person_id"], a["person_id"])]) for a in rec["approvers"]]
     return rec

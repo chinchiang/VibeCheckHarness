@@ -799,7 +799,7 @@ stateDiagram-v2
 - **還原範圍的排他權**（v0.5）[H]：命名空間只區分資料，整庫快照還原會一起還原同一資料庫上的所有寫入。凡是 `snapshot_restore`（S2 還原、`reset.method: snapshot_restore`、還原演練）都要先取得**該資料庫（或叢集）層級**的排他租約：以實際被快照的資源為鍵（不同 ROE 目標別名指向同一資源時共用一把鎖），從快照前持有到還原與驗證完成，跨 job、跨 run 都互斥；只鎖 job ID 或 run ID 不夠。排他範圍包含測試寫入、種子重置、背景工作與外部使用者的寫入；任何一個停不下來或隔離不了，就**禁止整庫還原**，改用獨立的拋棄式目標或不跑該工作流。失去租約時停止新副作用與還原，先核對資料狀態，再由重新取得排他權的復原流程處理；舊 worker 不能執行遲到的還原。優先做法是每個 run 一個獨立資料庫。
 - `B4_s2_restore` 是**補償步驟**：中止、失敗、kill switch 觸發時由 `abort_handler` 也會執行，由 checkpoint 中的 `jobs` 狀態驅動。
 - 每個 `CMD*` 節點的輸出都要先經 Policy Engine 驗證，才寫入 state。
-- **稽核事件**在節點重新執行時可能重複寫入；每個事件帶 `idempotency_key`（run_id＋節點＋冪等鍵），讀取時去重 [H]。
+- **稽核事件**在節點重新執行時可能重複送出；每個事件帶 `idempotency_key`（run_id＋節點＋冪等鍵）。v0.5（審查 2026-10-25 T-8）起去重在**寫入端**：Audit Writer 收到已寫過的 `idempotency_key` 時不寫新行，回傳原本那一行的 `seq`；所以稽核檔中同一 run 的冪等鍵永遠唯一，validator 把重複當錯誤（`E-AUDIT-IDEMPOTENCY`）。v0.4 寫的「仍然寫入、讀取時去重」與 validator 矛盾（resume 或重試過的 run 會驗不過），已移除 [H]。
 
 ### 5.9 fan-out／fan-in、重試、缺票
 - 每個節點設重試上限（例如 schema 驗證失敗最多修復 2 次、429 依 Retry-After 最多 3 次）。
@@ -873,7 +873,9 @@ stateDiagram-v2
 7. 結果寫入稽核（`key_registry_loaded`、`signature_verified`／`signature_invalid`），`key_registry_ref` 寫入 run；G0a／G0b 的結果寫成 GateRecord 的 `verification` 區塊。
 
 - 工具包**不持有任何核准者私鑰**；簽章在核准者自己的裝置或硬體金鑰上產生（`vibecheck sign` 只呼叫外部簽章程式）[H]。
-- Z3 Executor 的服務金鑰（簽署所有權驗證結果）也登錄在金鑰登錄中，角色為 `z3_executor` [H]。
+- Z3 Executor 的服務金鑰（簽署所有權驗證結果、job 帳本項目與稽核錨點的副簽）也登錄在金鑰登錄中，角色為 `z3_executor` [H]。v0.5（審查 2026-10-25 T-4）：它是**服務身分**，不是人：`z3_executor` 只能由 `z3-executor` 單獨持有、不得兼任其他角色（`E-KR-SERVICE`）；它不能當發起者、核准者、`initiator_claim` 的行為者或任何人員欄位（`E-GATE-INITIATOR`、`E-AUDIT-ACTOR`、`E-PERSON-AUTOMATION`）。三種用途的簽章各帶自己的 domain tag（錨點為 `vibecheck/audit_anchor/v2`，所有權結果與 job 帳本另訂），一種用途的簽章不能被拿去當另一種。
+- **委任設定與 ROE 的金鑰時間**（v0.5，T-5）：文件上的 `issued_at` 是自填的。金鑰的撤銷與到期都以**首次驗章**（第一筆驗過目前位元組的 G0a／G0b 的收件時間）判斷：首次驗章時金鑰已撤銷（非 compromised）或已過 `not_after` → `E-SIG-BACKDATED`；`issued_at` 晚於首次驗章（超過時鐘容差）→ `E-SIG-ISSUED-AT`。從來沒有驗過的文件，用已撤銷或（依登錄 `issued_at`）已到期金鑰簽的都不接受。
+- **金鑰輪替**（v0.5，T-6、T-7）：G0a／G0b 的 `verification.key_registry_version` 記錄驗章當時的登錄版本，可以比目前載入的版本舊、不能比它新；validator 仍以目前的登錄重算 `signer_results`，所以事後發現的 compromised 仍會讓紀錄驗不過。`legal_review.attested_by` 預期的是聲明者**實際簽 ROE 用的那把金鑰**（只要屬於他）；簽完後例行輪替（舊金鑰以 `retired` 撤銷）不會讓 ROE 失效。
 
 ### 6.2 關卡逾時預設值
 
@@ -888,6 +890,10 @@ stateDiagram-v2
 | G4 | 3 天 | `SUSPENDED` |
 | G5 | 該 job 所在時間窗的結束時間（最長 24 小時） | 該 job 略過 |
 | GB | 24 小時 | `SUSPENDED` |
+
+- **開啟時間以收件時間為準**（v0.5，審查 2026-10-25 T-2）[H]：GateRecord 的 `opened_at` 在核准者簽的紀錄裡，v0.4 從不與稽核比對，偽造它可以躲過逾時、讓偽造的 EXPIRED 看起來已經逾時，或移動 G5 的時間窗。v0.5 起關卡的開啟時間是該關卡（G5 另加同一個 `job_id`）在其 `gate_decision` 之前最後一筆 `gate_opened` 事件的收件時間；`opened_at` 必須與它相差不超過時鐘容差，沒有對應事件也是錯誤（`E-GATE-OPENED`）。逾時、`E-GATE-EXPIRED-EARLY` 與 G5 時間窗都以這兩個收件時間計算。G0a／G0b 是系統驗章，沒有開啟事件。
+- **委任設定省略的關卡**（v0.5，V-10）：`engagement.gate_timeouts_hours` 沒有列某個關卡時，該關卡沿用 `toolkit.yaml` 的上限，不是不檢查。
+- **EXPIRED 沒有簽章**（v0.5，T-3）：逾時沒有人做決定，EXPIRED 紀錄由 Gate Service 寫入，`signatures` 必須是 `[]`（有簽章 → `E-GATE-EXPIRED-SIG`），也不要求核准者簽章；它的證明是上面的兩個收件時間與兩者之間的逾時。v0.4 文件說「EXPIRED 是唯一沒有簽章的結果」，validator 卻對每位未簽的核准者報 `E-SIG-MISSING`，已修正。
 
 ### 6.3 核准者來源與逐項核准
 
@@ -1325,7 +1331,10 @@ erDiagram
 - **`ts`**（v0.4）：Audit Writer 寫入該行時的時鐘（收件時間），不是事件來源自填的時間；關卡決定的所有時間規則以它為準（§6.1 步驟 4）。
 - **hash chain**：`prev_hash` ＝ 前一行原始位元組（不含換行）的 sha256；第一行的 `prev_hash` ＝ sha256(`run_id`)。只有 Audit Writer 一個寫入者，以檔案鎖序列化。
 - **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件以 `{seq, line_sha256}` 寫入 run 紀錄的 `audit_anchors`（Postgres）：`seq` 是該錨點事件的序號，`line_sha256` 是該錨點事件**自己那一行**原始位元組（不含換行）的 sha256；因為這一行含 `prev_hash`，錨點同時承諾它之前的整條鏈；可選擇另外寫到 WORM 儲存或外部系統 [H]。
-- **Z3 副簽**（v0.4）：每個 `audit_anchor` 的 `payload.z3_countersignature` 是 Z3 Executor 服務金鑰（金鑰登錄中角色 `z3_executor` 的 `z3-executor`）對 JCS(`{run_id, seq, prev_hash}`) 的 Ed25519 簽章。Run Controller 寫錨點前把這三個值送到 Z3 取得簽章；Z3 只簽 `seq` 遞增、`prev_hash` 與它上次看到的鏈一致的請求 [H]。validator 以金鑰登錄驗證，缺少或無效 → `E-AUDIT-ANCHOR-SIG`。
+- **Z3 副簽**（v0.4；v0.5 擴充）：每個 `audit_anchor` 的 `payload.z3_countersignature` 是 Z3 Executor 服務金鑰（金鑰登錄中角色 `z3_executor` 的 `z3-executor`）對 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`) 的 Ed25519 簽章；`domain` 固定為 `vibecheck/audit_anchor/v2`，`event_sha256` 是錨點事件本身（去掉 `payload.z3_countersignature`）的 JCS 的 sha256。v0.4 只簽 `{run_id, seq, prev_hash}`，最後一個錨點自己的 `ts`、`payload` 可以改而不被發現（後面沒有行用 `prev_hash` 釘住它）；v0.5 起錨點本身也被簽章蓋住（審查 2026-10-25 T-9）。validator 以金鑰登錄驗證，缺少或無效 → `E-AUDIT-ANCHOR-SIG`。
+- **Z3 簽之前先核對**（v0.5，T-9）[H]：v0.4 的 Z3 只看 `seq` 是否遞增、`prev_hash` 是否接得上，看不到鏈的內容，所以 run 進行中控制 Z1 的人可以先偽造幾行再請 Z3 簽。v0.5 起 Run Controller 送的是**上一個錨點之後的原始行**：Z3 自己保存上一個錨點的 hash，重算這一段的 `prev_hash` 鏈，並核對其中 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權驗證結果）與它的 job 帳本和輸出紀錄逐筆一致，才簽。限制：Z1 自己產生的事件（例如 `gate_decision`、`verdict_changed`）Z3 無法判斷真假，副簽只證明「這些行在簽章時已經存在，之後沒有被改」。
+- **未錨定的行不是證據**（v0.5，V-7）[H]：最後一個 `audit_anchor` 之後的行還沒有 Z3 副簽，任何能寫 Z1 的人都能附加。裁決用到的工具輸出（`sarif_refs` 解析到的 `tool_invocation_end`）必須在最後一個錨點之前，否則該參照不成立（`E-VERDICT-SARIF`／不計入佐證）。
+- **每個裁決版本都要有事件**（v0.5）：每一版裁決在其叢集所屬 run 的稽核檔中都要有一筆 `verdict_changed`（`payload.verdict_id` 與 `status` 相符）；沒有 → `E-AUDIT-VERDICT`。v0.4 只檢查已存在的事件，所以刪掉事件就能讓不一致的裁決躲過比對。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。
 - **驗證**：`vibecheck audit verify <run-id>` 重算整條鏈並與錨點比對。
 - **尾端保護**（validator 強制）[H]：
