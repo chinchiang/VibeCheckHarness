@@ -205,6 +205,11 @@ def test_tool_signal_from_e_fail_u(b, keys):
     from vchlib.bundle import Doc
     # v0.5 (BL-27): the W4 test is a w4-testcase (a scripted fake model), without an oracle_can_pass control,
     # so the FAIL is not pre-registered; its analyst shares K-011's family (not eligible)
+    # v0.7 (r8, 05-v0.7): an E_fail_u is a source only when the test's authors are outside the cluster, so the W4
+    # test generator / critic (anthropic in agents.yaml, K-011's family) are moved to nvidia for this test
+    for a in doc(b, "agents.yaml").data.values():
+        if isinstance(a, dict) and a.get("role") in ("test_generator", "test_critic"):
+            a["model"] = "nemotron_self"
     wtc = copy.deepcopy(doc(b, "w4-testcase.k-015.example.json").data)
     wtc.update(testcase_id="WTC-011-01", cluster_ids=["K-011"], requirement_ids=["INV-LLM-003"], kind="fake_model",
                oracle={"types": ["TOOL_CALL_LOG"], "conditions": ["refund called without confirmation"], "requirement_refs": ["INV-LLM-003"]})

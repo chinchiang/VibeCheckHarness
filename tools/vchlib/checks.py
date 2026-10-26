@@ -2845,9 +2845,24 @@ def derived_tool_signal(c: Ctx, v: dict, cluster: dict) -> list[str]:
     return sorted(set(weak_sarif_refs(c, cluster)) | e_fail_u_refs(v))
 
 
+def fail_u_independent(c: Ctx, v: dict, cluster: dict) -> bool:
+    """v0.7 (review r8, rule_version 05-v0.7): an E_fail_u result counts as an independent source (R6) only when the
+    agents that wrote or shaped its test (derive.test_author_families) are outside the cluster's families and base
+    lineages. v0.6 counted every E_fail_u, so a single-family report plus a W4 FAIL the same family wrote and read (no
+    pre-registration, no eligible analyst) reached LIKELY. It stays a signal for R4 row 7 (a dispute is safer)."""
+    fams, roots = set(cluster.get("families") or []), c.ix.lineage_roots(cluster.get("lineages"))
+    for tr in derive.linked_results(c.ix, cluster, v.get("readjudicated_by")):
+        if derive.classify_result(c.ix, tr, cluster)[0] != "E_fail_u":
+            continue
+        afams, alins = derive.test_author_families(c.ix, tr)
+        if not (afams & fams) and not (c.ix.lineage_roots(alins) & roots):
+            return True
+    return False
+
+
 def derived_independent_sources(c: Ctx, v: dict, cluster: dict) -> int:
     return (len(derive.independent_families(c.ix, cluster)) + (1 if weak_sarif_refs(c, cluster) else 0)
-            + (1 if e_fail_u_refs(v) else 0))
+            + (1 if fail_u_independent(c, v, cluster) else 0))
 
 
 def all_evidence_not_found(c: Ctx, cluster: dict) -> bool:
@@ -2897,6 +2912,7 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         proof_overrides_g2=proof_overrides_g2(c, v),
         all_snippets_fail=all_fail,
         evidence={x.get("class") for x in (v.get("test_evidence") or {}).get("results", [])},
+        fail_u_independent=fail_u_independent(c, v, cluster),     # v0.7 (review r8): R6 counts an independently authored FAIL
         # R11 (v0.4): only a qualified PASS with a PASSed oracle_can_fail control may downgrade; the per-result
         # positive_control is recomputed from the testresult (E-RESULT-CONTROLS), not taken from the verdict
         pass_positive=any(x.get("class") == "E_pass" and x.get("positive_control") is True
@@ -2945,7 +2961,7 @@ def g_verdicts(R: Report, c: Ctx):
                     f"tool_signal {v.get('tool_signal')} != derived {tsx} (other audit-backed SARIF refs + E_fail_u results)")
             srcx = derived_independent_sources(c, v, cl.data)
             R.check(v.get("independent_sources") == srcx, "E-VERDICT-SOURCES", w,
-                    f"independent_sources {v.get('independent_sources')} != derived {srcx} (independent families + weak SARIF + E_fail_u)")
+                    f"independent_sources {v.get('independent_sources')} != derived {srcx} (independent families + weak SARIF + independently authored E_fail_u)")
             pv = derived_provisional(c, v, cl.data)
             R.check(v.get("provisional") is pv, "E-VERDICT-PROVISIONAL", w,
                     f"provisional {v.get('provisional')} != derived {pv} (no calibration version, theta_confirm null, or every eligible "
@@ -4063,12 +4079,18 @@ def wilson_lower(correct, n, z=1.959964):
     return (centre - margin) / den
 
 
+def smoothed_rate(correct, n, k, abar) -> float:
+    """docs/05 §4.3 (v0.7): the smoothed rate of one side, (C + k*abar + 1) / (n + k + 2); strictly inside (0, 1)."""
+    return (correct + k * abar + 1) / (n + k + 2)
+
+
 def lr_weights(tpr: float, tnr: float) -> dict:
     """v0.6 (review r7 3.2, docs/05 §4.3): vote weights as log likelihood ratios of the two calibrated rates.
     SUPPORT: ln(TPR / FPR) = ln(a_support / (1 - a_refute)); REFUTE: ln(TNR / FNR) = ln(a_refute / (1 - a_support)).
     v0.4-v0.5 weighted each side by its own accuracy (2a - 1), so a verifier that always supports scored a high
-    support weight although its support carries no information (FPR = 1 - TNR is as high as its TPR). Floored at 0;
-    a rate of 1 is impossible after smoothing (k > 0) and is treated as no information."""
+    support weight although its support carries no information (FPR = 1 - TNR is as high as its TPR). Floored at 0.
+    v0.7 (review r8): the rates come from smoothed_rate, strictly inside (0, 1), so no ratio degenerates; a rate of 0
+    or 1 handed in directly is still treated as no information."""
     def ln_ratio(p, q):
         return max(0.0, math.log(p / q)) if 0 < p and 0 < q else 0.0
     return {"support": ln_ratio(tpr, 1 - tnr), "refute": ln_ratio(tnr, 1 - tpr)}
@@ -4101,7 +4123,10 @@ def g_calibration(R: Report, c: Ctx):
         if not all(count_problems(R, f"{w} weights {mk}/{row.get('cwe_bucket')} {sk}", x.get("correct"), x.get("n"), "correct")
                    for sk, x in sides.items()):
             continue
-        a = {sk: ((x.get("correct", 0) + k * abar[(mk, sk)]) / (x.get("n", 0) + k) if x.get("n", 0) + k else 0) for sk, x in sides.items()}
+        # v0.7 (review r8): a = (C + k*abar + 1) / (n + k + 2), a non-degenerate prior. v0.6 smoothed toward the model's own
+        # cross-bucket rate, so a model perfect on one side in every bucket had a = 1, ln(a / (1 - a)) divided by zero and
+        # lr_weights floored its weight to 0: the most accurate verifier got no say
+        a = {sk: smoothed_rate(x.get("correct", 0), x.get("n", 0), k, abar[(mk, sk)]) for sk, x in sides.items()}
         lr = lr_weights(a["support"], a["refute"])
         reasons = {}
         for sk, x in sides.items():

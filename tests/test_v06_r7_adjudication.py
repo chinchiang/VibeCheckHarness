@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""v0.6 review r7, group 3a (rule_version 05-v0.6): adjudication edges.
+"""v0.6 review r7, group 3a (rule_version 05-v0.7): adjudication edges.
 
 3.1 / 3.4 R10: only a G4-approved B4 proof that the replay reproduced (k_r >= 1) overrides a G2 rejection; a W4 proof
     only adds post_g2_conflict. The Result Analyst may not come from the families that wrote the test.
@@ -26,8 +26,8 @@ def result(b, rid):
 
 
 def test_rule_version():
-    assert adj.RULE_VERSION == "05-v0.6"
-    assert all(d.data.get("rule_version") == "05-v0.6" for d in b_docs("verdict"))
+    assert adj.RULE_VERSION == "05-v0.7"
+    assert all(d.data.get("rule_version") == "05-v0.7" for d in b_docs("verdict"))
 
 
 def b_docs(kind):

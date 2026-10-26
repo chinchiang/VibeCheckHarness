@@ -18,7 +18,7 @@
       "anonymized": true,
       "order_randomized": true,
       "valid": true,
-      "weight": 1.5808,
+      "weight": 1.4425,
       "weighted_valid": true
     }
   ],
@@ -49,14 +49,14 @@
   "theta_confirm": 2.5,
   "theta_reject": null,
   "provisional": false,
-  "score": 1.5808,
+  "score": 1.4425,
   "g2_decision_ref": "GR-G2-0001",
   "status": "CONFIRMED_EXECUTABLE",
   "status_cap": null,
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.6",
+  "rule_version": "05-v0.7",
   "rule_trace": [
     "R1:E_proof (WTC-015-01 local RLS FAIL, deterministic STATE_DIFF oracle, pre-registered by G1 INV-AC-007 and a PASSed oracle_can_pass control)->CONFIRMED_EXECUTABLE"
   ]

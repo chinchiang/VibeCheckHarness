@@ -38,7 +38,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.6",
+  "rule_version": "05-v0.7",
   "rule_trace": [
     "R1:E_proof(R-TC-033-01-1),deterministic oracle,pre-registered at G4,no LLM analyst->CONFIRMED_EXECUTABLE"
   ]

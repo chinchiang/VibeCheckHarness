@@ -27,7 +27,7 @@ def errs(bundle, code):
 
 # ================================================================ A1 tool tiers (pure rules)
 def test_rule_version_is_bumped():
-    assert adj.RULE_VERSION == "05-v0.6"           # bumped again by review r7 group 3
+    assert adj.RULE_VERSION == "05-v0.7"           # bumped again by review r7 group 3
 
 
 def test_weak_sarif_alone_never_confirms():
@@ -43,9 +43,12 @@ def test_strong_tool_confirms_and_is_not_capped():
 
 
 def test_e_fail_u_is_a_signal_not_corroboration():
-    out = adjudicate(Inputs(evidence={"E_fail_u"}, independent_families=1))
+    # v0.7 (r8): only an independently authored E_fail_u is a source (fail_u_independent, derived by the validator)
+    out = adjudicate(Inputs(evidence={"E_fail_u"}, fail_u_independent=True, independent_families=1))
     assert (out.status, out.row, out.sources) == ("LIKELY", 12, 2)
-    out = adjudicate(Inputs(evidence={"E_fail_u"}, independent_families=0))
+    out = adjudicate(Inputs(evidence={"E_fail_u"}, independent_families=1))
+    assert (out.status, out.row, out.sources) == ("UNCORROBORATED", 13, 1)
+    out = adjudicate(Inputs(evidence={"E_fail_u"}, fail_u_independent=True, independent_families=0))
     assert out.status == "UNCORROBORATED"
 
 
@@ -345,7 +348,7 @@ def test_fallback_vote_uses_the_fallback_models_weight(b, keys):
     assert "E-VERDICT-VOTE" not in codes(b)                  # a same-family fallback resolves through models.yaml
     vt.update(voter_model_key="claude_sonnet", fallback_used=None)
     rederive(b, keys)
-    assert vt["weight"] == 1.5808 and vt["weighted_valid"] is True              # v0.6: likelihood-ratio weight
+    assert vt["weight"] == 1.4425 and vt["weighted_valid"] is True              # v0.7: likelihood-ratio weight, r8 prior
 
 
 # ================================================================ E5 provisional

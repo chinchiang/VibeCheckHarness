@@ -18,7 +18,7 @@
       "anonymized": true,
       "order_randomized": true,
       "valid": true,
-      "weight": 1.5775,
+      "weight": 1.4633,
       "weighted_valid": true
     },
     {
@@ -56,16 +56,16 @@
   "theta_confirm": 2.5,
   "theta_reject": null,
   "provisional": false,
-  "score": 1.5775,
+  "score": 1.4633,
   "g2_decision_ref": null,
   "status": "LIKELY",
   "status_cap": null,
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.6",
+  "rule_version": "05-v0.7",
   "rule_trace": [
-    "R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=2",
+    "R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.4633<theta_confirm=2.5,independent_sources=2",
     "R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY"
   ]
 }

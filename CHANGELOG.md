@@ -6,6 +6,15 @@
 
 依 [2026-10-26 設計審查（第八輪）](docs/evidence/review-2026-10-26-r8.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（6 項，全部重現）。設計文件仍為 v0.5 的版本號；程式與 schema 的註解以 v0.7 標示本輪變更。
 
+### 裁決與校準設計（第 3 組；`rule_version` 改為 `05-v0.7`）
+- **平滑的先驗**：a ＝ (C ＋ k·ā ＋ 1) ／ (n ＋ k ＋ 2)（`checks.smoothed_rate`）。v0.6 只往模型自己的跨桶正確率收縮，單邊全對的模型 a＝1、權重被 `lr_weights` 歸零——最準的驗證者沒有發言權。範例的 a、w 與裁決分數重算（K-014 的 S 由 1.5775 變為 1.4633），θ_confirm 2.5 與所有裁決狀態不變；engagement 的 `config_pins.calibration` 重算。
+- **R6 的來源**：`E_fail_u` 只有在測試的作者（`derive.test_author_families`）都在叢集的家族與基底血統之外時才算獨立來源（`Inputs.fail_u_independent`，`checks.fail_u_independent` 推導）；v0.6 讓單一家族回報、自己寫 W4 測試、自己解讀 FAIL 就到 `LIKELY`。它仍是第 7 列的訊號（反駁票遇上它 → `DISPUTED`）。
+- **決定表**：第 3、5 列與「G2 駁回後才出現 FAIL 證明」改寫，與 v0.6 的 R10 一致（審查 r8 第 3 項：文件與程式在 2,304 個輸入組合上不符）。
+- `provisional` 的例外補上第 10 列（05 §4.2、07 MVP0-X4、08 §11.x）；05 的 K-014 範例數字與 R0 說明更新。
+- 04 §4.4：預算不足不再降低 n——測試案例標 `MANUAL`（`budget`）並列入 gaps；v0.6 的文字與 `E-TC-TRIALS` 矛盾。
+- 文件：00、02、03、05、07、08 的 `rule_version` 與說明。
+- 新增 `tests/test_v07_r8_calibration.py`；既有測試依新數值與語意更新（`test_v03_adjudication`、`test_v04_round5_adjudication`、`test_v06_r7_calibration`、`test_v02_hardening`）。
+
 ### validator 繞過與 run 的結構（第 1、2 組，含外部審查 1～4）
 - **不需要金鑰的繞過**：
   - 每個 B4 結果的 job 必須在已執行的狀態，每個 job 恰有一份結果，每份結果都要有恰一筆已錨定、outcome 與三個 hash 相符的 `sandbox_job_end`；`classify_result` 對沒有已錨定執行事件的結果一律 `E_inc`（`E-JOB-AUDIT`；審查 r8 F2a／F2b：v0.6 只核對 SKIPPED 與已執行狀態的 job，而且同一 job 只看最後一份結果，所以掛在 PENDING job 上的結果能把 K-011 從 UNCORROBORATED 變成 CONFIRMED_EXECUTABLE）。

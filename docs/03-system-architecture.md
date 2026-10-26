@@ -457,7 +457,7 @@ class RunState(BaseModel):
     config_refs: ConfigRefs
     prompt_templates: list[PromptTemplateRef] = []
     tool_versions: list[ToolVersion] = []
-    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.6"
+    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.7"
     baseline_run_id: str | None = None  # 比對叢集 fingerprint 的基準 run（baseline_state，§6.3）
     # --- W 階段 ---
     inventory_ref: ArtifactRef | None = None
@@ -522,7 +522,7 @@ class RunState(BaseModel):
 平行節點的更新以 reducer 合併：`new = reducer(current, update)`；列表用 `operator.add` 串接，不會覆蓋 [V][S-03]。
 
 - run manifest 的欄位（`config_refs`、`prompt_templates`、`tool_versions`、`rule_version`、`baseline_run_id`）在 `run_init` 寫入後不再改變；同一 run 中途換設定檔或 prompt 範本必須開新的 run [H]。
-- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.6`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
+- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.7`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
 
 ### 5.2 主狀態圖
 
