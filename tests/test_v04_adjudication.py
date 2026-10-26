@@ -54,7 +54,7 @@ def test_g2_rejection_is_final_against_votes_sarif_and_e_fail_u():
 
 
 def test_executable_proof_overrides_g2_rejection_with_annotation():
-    out = adjudicate(Inputs(g2_rejected=True, evidence={"E_proof"}))
+    out = adjudicate(Inputs(g2_rejected=True, evidence={"E_proof"}, proof_overrides_g2=True))   # v0.6: a G4-approved, replayed B4 proof
     assert (out.status, out.row, out.rules) == ("CONFIRMED_EXECUTABLE", 5, ["R10", "R1"])
     assert "post_g2_conflict" in out.annotations
 

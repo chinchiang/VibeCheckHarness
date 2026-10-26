@@ -510,7 +510,7 @@ flowchart TD
       - 理由：這個 FAIL 代表什麼，在結果出來之前已經由人簽核；對照證明 oracle 不是永遠失敗。
     - **解讀未事先登記時**：由 **Result Analyst 池**中的一位確認 → `E_proof`。池中每個家族一位；選家族與血統都不在叢集中的那一位；有個資時只用自架模型。沒有合格的分析者 → `E_fail_u`（弱工具訊號）。
     - 只有 `LLM_GRADER` 或 `HUMAN` 判定違反 → `E_inc`。
-    - G2 已 `REJECTED` 的叢集：之後出現的 `E_fail_u` 只註記 `post_g2_conflict`，維持 `REJECTED`；之後出現的可執行證明（`E_proof`）→ `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict`（05 R10，v0.4）。兩者都列入 W5 報告與 B6 的人工複核清單。
+    - G2 已 `REJECTED` 的叢集：之後出現的 `E_fail_u` 只註記 `post_g2_conflict`，維持 `REJECTED`；之後出現的可執行證明（`E_proof`）→ `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict`（05 R10，v0.4）；v0.6 起只限 G4 核准、重播命中的 B4 證明，W4 證明不推翻人工駁回，只加註。兩者都列入 W5 報告與 B6 的人工複核清單。
     - 重新裁決後才轉為 `DISPUTED` 的叢集**不重開 G2**；它們照常成為種子威脅，並在種子清單中標為「W4 後轉為爭議」，由人在 G3 處理 [H]。
     - 合格的測試 PASS 不會自動使叢集變成 `REJECTED`（05 R11）。
 - **輸出**：測試案例（`w4-testcase.schema.json`，v0.5，[09 BL-27](09-backlog.md)：種類、Z2 環境、對照、oracle 與它引用的 G1 條目）、測試檔、執行結果（`testresult.schema.json`，`phase: W4`，`testcase_id` 指向 W4 測試案例、`target_ids` 為空，含 `controls[]` 的結果與 `fail_oracles`）、覆蓋率、mutation score、新版裁決。

@@ -102,6 +102,15 @@
 - 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
 - 新增 `tests/test_v05_r7_bypasses.py`。
 
+### 第七輪審查：裁決規則（第 3 組之一；`rule_version` 改為 `05-v0.6`）
+- R10：只有 G4 核准、重播至少命中一次的 B4 證明能推翻 G2 駁回；W4 證明只加註 `post_g2_conflict`（`checks.proof_overrides_g2`）。
+- Result Analyst 排除寫測試的家族（W4 的 test_generator／test_critic；黑箱的 test_designer、test_implementer、test_critic 與威脅的 threat_modeler）。
+- 機率型測試依 adapter、`multi_turn` 與 `trials.record` 判定，n 必須達到 PASS 所需的有效次數（`E-TC-TRIALS`）。
+- R0：沒有任何接地證據、至少一項 NOT_FOUND（NOT_CHECKED 不再能逃過）。
+- 05 寫明反駁票的一致決設計。
+- 不採納：審查 3.7（CMD-2 加入的家族不併入 `cluster.families`）。那會讓加派回報的家族也能驗證自己的回報，重新引入自我偏好；保留排除只會讓驗證者池變小，這已由 `no_eligible_verifier` 顯示出來。
+- 新增 `tests/test_v06_r7_adjudication.py`。
+
 ### 第七輪審查：流程完整性與有效覆蓋率（第 2 組，含外部審查 5）
 - 新增 `E-PIPELINE`：叢集都有裁決、已驗證的發現項都在叢集中；DISPUTED／高嚴重度 UNCORROBORATED 叢集經過 G2 或列為 over_cap；沒有被駁回的白箱叢集是種子或 report_only；G2 駁回的不是種子；G3 後種子都有威脅；`manual_review_clusters` 由裁決推導；報告的 gaps 與 artifacts 完整。
 - 範例修正：K-014（LIKELY）原本既不是種子也不是 report_only，補上種子 ST-004（T-012）；報告 artifacts 補上 V-014-1、V-015-2、V-016-1 與 W4 結果 R-WTC-015-01-1。

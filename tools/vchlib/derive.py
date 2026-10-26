@@ -265,6 +265,19 @@ def positive_control_value(tc: dict, tr: dict) -> bool | None:
     return controls_of_kind_pass(tc, tr, "oracle_can_fail")
 
 
+PROBABILISTIC_TOOLS = ("promptfoo", "pyrit")                  # LLM test harnesses: a sampled target, not a fixed function
+
+
+def is_probabilistic(tc: dict) -> bool:
+    """v0.6 (review r7 3.3): a test is probabilistic because of what it runs against, not because of the n it declares.
+    An LLM harness adapter, a multi-turn LLM test, or a testcase that records the target model is probabilistic. v0.5
+    read `trials.n > 1`, so an LLM test declaring n = 1 was treated as deterministic and one clean trial was a qualified
+    PASS. Such a test must also declare n >= pass_min_effective (E-TC-TRIALS)."""
+    adapter = str((tc.get("tool_binding") or {}).get("adapter") or "")
+    return (adapter.split(":")[0] in PROBABILISTIC_TOOLS or tc.get("multi_turn") is True
+            or "target_model" in ((tc.get("trials") or {}).get("record") or []))
+
+
 def pass_min_effective(ix: "Index", tc: dict) -> int:
     """docs/04 §4.4: the effective trials a probabilistic PASS needs. 30 (one-sided 95% bound about 10%); v0.5 (review
     2026-10-25 §4.3): 60 (bound about 5%) for a high-risk threat, recognised by its attack tree (docs/02 B2: every
@@ -279,7 +292,7 @@ def fail_reproduced(tc: dict, tr: dict) -> tuple[bool, str]:
     record, not a second verdict: one confirmed violation already breaks the requirement, and a real 5% rate stays
     silent in all 20 replays about 36% of the time, so k_r is reported but does not demote the FAIL."""
     trials = tc.get("trials") or {}
-    probabilistic = (trials.get("n") or 1) > 1
+    probabilistic = is_probabilistic(tc)
     k = (tr.get("trials") or {}).get("k", 0)
     fail_k_min = trials.get("fail_k_min", 1)
     n_r, k_r = tr.get("replays", 0), tr.get("replay_k", 0)
@@ -319,9 +332,35 @@ def preregistered(ix: "Index", tc: dict, tr: dict, control_kind: str) -> bool:
     return False
 
 
+TEST_AUTHOR_ROLES = {"W4": ("test_generator", "test_critic"), "B4": ("test_designer", "test_implementer", "test_critic")}
+
+
+def test_author_families(ix: "Index", tr: dict) -> tuple[set, set]:
+    """v0.6 (review r7 3.1): (families, lineages) of the agents that wrote or shaped the test the result came from: the
+    W4 test generator, or the B3 test designer and implementer and the threat modelers of the testcase's threat. A
+    Result Analyst from one of them would grade its own test."""
+    fams, lins = set(), set()
+    for a in (ix.agents or {}).values():
+        if isinstance(a, dict) and a.get("role") in TEST_AUTHOR_ROLES.get(tr.get("phase"), ()):
+            m = ix.models.get(a.get("model")) if isinstance(a.get("model"), str) else None
+            if isinstance(m, dict):
+                fams.add(m.get("family"))
+                lins.add(m.get("lineage"))
+    if tr.get("phase") == "B4":
+        tc = ix.testcase_for(tr)
+        th = ix.first("threat", threat_id=tc.data.get("threat_id")) if tc and tc.data.get("threat_id") else None
+        for mb in (th.data.get("modeled_by") or []) if th else []:
+            m = ix.model_of_agent(mb.get("agent_id")) if isinstance(mb, dict) else None
+            if isinstance(m, dict):
+                fams.add(m.get("family"))
+                lins.add(m.get("lineage"))
+    return fams - {None}, lins - {None}
+
+
 def analyst_check(ix: "Index", tr: dict, cluster: dict) -> tuple[bool, str | None]:
     """(eligible, disagreement): the Result Analyst is an agents.yaml result_analyst whose registry
-    family and lineage are not in the cluster; eligible only when its interpretation agrees."""
+    family and lineage are not in the cluster; eligible only when its interpretation agrees.
+    v0.6 (review r7 3.1): nor those of the test's authors (test_author_families)."""
     ib = tr.get("interpreted_by")
     if not isinstance(ib, dict):
         return False, None
@@ -330,6 +369,9 @@ def analyst_check(ix: "Index", tr: dict, cluster: dict) -> tuple[bool, str | Non
     if not isinstance(a, dict) or a.get("role") != "result_analyst" or m is None:
         return False, None
     if m.get("family") in set(cluster.get("families") or []) or m.get("lineage") in set(cluster.get("lineages") or []):
+        return False, None
+    author_fams, author_lins = test_author_families(ix, tr)
+    if m.get("family") in author_fams or m.get("lineage") in author_lins:
         return False, None
     agrees = (tr.get("interpretation") or {}).get("agrees")
     if agrees is True:
@@ -351,8 +393,7 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     """
     tc_doc = ix.testcase_for(tr)
     tc = tc_doc.data if tc_doc else {}
-    trials = tc.get("trials") or {}
-    probabilistic = (trials.get("n") or 1) > 1
+    probabilistic = is_probabilistic(tc)
     got = tr.get("trials") or {}
     n, k = got.get("n", 0), got.get("k", 0)
     outcome = tr.get("outcome")
