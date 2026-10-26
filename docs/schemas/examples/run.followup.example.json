@@ -21,7 +21,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:035665b0b19e92b4c27c24fd38cf7881fbc6e59e692e67f3df61354688521ecf",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:a4b3f1c80322b4a34e52e801b841d0d64aab340b899b82c04d5fbe2b81a54313",
+  "engagement_ref": "sha256:973891fdad85e131d34a8a4835a2d6bfb5674cd6213ce936c7627397431c529c",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -83,7 +83,7 @@
   ],
   "findings": [],
   "cluster_ids": [
-    "K-005"
+    "K-301"
   ],
   "verdicts": [],
   "missing_votes": [],
@@ -131,7 +131,7 @@
       "gate_record_id": "GR-G0a-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:a4b3f1c80322b4a34e52e801b841d0d64aab340b899b82c04d5fbe2b81a54313",
+      "subject_hash": "sha256:973891fdad85e131d34a8a4835a2d6bfb5674cd6213ce936c7627397431c529c",
       "job_id": null,
       "opened_at": "2026-10-07T10:00:00+08:00",
       "decided_at": "2026-10-07T10:01:00+08:00"
@@ -214,11 +214,11 @@
     },
     {
       "seq": 14,
-      "line_sha256": "sha256:c2b7db78bdbe9ec5a3c3debb40ebb3d1d5cbd15c18800547487cd49ade228c37"
+      "line_sha256": "sha256:5374f4c166e7b5b44d0781ef3351dca3b76d4d63af5cf0da467d49de5e8214fb"
     },
     {
       "seq": 17,
-      "line_sha256": "sha256:ae9010a833dd730a98564cff574adf4122f020ea68ddb760bdd178684906ba66"
+      "line_sha256": "sha256:7cf4f96a6ba6f0405ab72f70314e07d67e08c99f2be984d2a2051d1fa72e69d5"
     }
   ],
   "errors": [],

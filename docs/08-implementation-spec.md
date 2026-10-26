@@ -1939,6 +1939,7 @@ class SessionProvider(Protocol):
 - 去向：
   - 下一個 run 的 SARIF `suppressions`：`false_positive` → `accepted`；`needs_info` → `underReview`；
   - Calibration Lab 的**候選**語料，來源標為 `developer_feedback`。它不是真值，要照 [05 §5.1](05-bias-calibration.md#51-語料) 的雙標註流程確認後才能使用；確認為誤報的，也用來重新檢查 `high_precision_rules`（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)）。
+- v0.7（審查 r8 M4）：`app_owner` 是利益衝突方，所以它單獨簽署的 `false_positive` 的 `sarif_suppression` 是 `underReview`，直到一位 `security_reviewer` 以 `co_signed_by` 副簽才是 `accepted`；叢集在採用回饋的 run 中 `baseline_state: updated`（程式碼改了）時抑制失效，回到 `underReview`；被抑制的項目列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。範例 FB-001 因此是 `underReview`。
 - 回饋紀錄是 `feedback.schema.json`（v0.5，[09 BL-18](09-backlog.md)；`E-FEEDBACK`）：指紋必須是所指叢集的指紋，該叢集要屬於同一委任的 run；`duplicate` 必須指向同一委任另一個叢集的指紋；`sarif_suppression` 依標籤決定（`false_positive` → `accepted`、`needs_info` → `underReview`、其他 null）；紀錄恰好有一個簽章，由 `signed_by` 的人以登錄金鑰簽署，而且這個人要有 `security_reviewer` 或 `app_owner` 角色。範例 FB-001：app_owner 把純工具叢集 K-016 標為誤報。v0.5（審查 r7 1.11）：採用回饋的 run 以一筆已錨定的 `feedback_recorded` 稽核事件記錄它（payload 釘住 `feedback_id` 與 `feedback_sha256`），簽章以該事件的收件時間驗證；範例 FB-001 由跟進 run `run-2026-10-07-001` 記錄。
 
 **給開發者 AI 助手的修正說明**（fix brief）[H]：每個發布的問題附一份，以確定性範本產生。
@@ -2024,6 +2025,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 - **測試與受測程式隔離**（v0.6，審查 r7 4.4）[H]：受測 repo 可以帶自己的 `conftest.py`、pytest 外掛、`vitest.config`／`setupFiles` 或 `sitecustomize`，在測試行程內改寫 assertion 或結果。所以：
   - 以乾淨的設定執行：pytest 用 `-p no:cacheprovider --noconftest`、`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` 與 harness 自己的 `-c` 設定檔；vitest／jest 以 harness 的設定檔執行，忽略 repo 的 setup 檔；`PYTHONNOUSERSITE=1`，不載入 repo 的 `sitecustomize`。
   - outcome 與對照的結果**不在**受測程式的行程中判定：測試只輸出結構化的觀察結果（例如本地 Postgres 的資料列 hash、假模型的工具呼叫紀錄），由 Z2 的另一個行程依 w4-testcase 的 oracle 計算 PASS／FAIL，再寫入 `sandbox_job_end`（連同 PR1 的三個 hash）。
+  - **觀察資料的可信來源**（v0.7，審查 r8 外部 6）[H]：受測行程輸出的觀察資料仍可能被受測程式偽造，所以 oracle 只能用 harness 行程**自己取得**的觀察：本地 Postgres 由 harness 以唯讀連線直接讀（不是測試回傳的列）；假模型的工具呼叫紀錄由 harness 端的假模型伺服器寫入（受測行程只持有用戶端）；檔案系統觀察在受測行程**結束後**由 harness 讀取；受測行程對觀察資料目錄沒有寫入權限（只讀掛載）。測試結果以 `observations_source: harness | sut` 宣告來源；`sut` 的觀察只能支持 `E_inc`，不能成為 `E_proof`／`E_pass`（`derive.classify_result`），W4 結果必填（`E-W4-OBSERVATION`）。執行器的實作列在 [09 BL-50](09-backlog.md)。
   - 受測程式寫入結果目錄以外的檔案一律丟棄。
 
 #### 前端 bundle 中的公開前綴 secret

@@ -119,7 +119,7 @@ def test_tool_signal_from_sarif_refs(b):
     assert codes(b) == set()
     v["tool_signal"] = []                              # omitting the derived SARIF ref
     # review r7 group 2: the report now lists V-014-1, so its pinned hash no longer matches either
-    assert codes(b) == {"E-VERDICT-TOOLSIGNAL", "E-DERIVED"}
+    assert codes(b) == {"E-VERDICT-TOOLSIGNAL", "E-DERIVED", "E-AUDIT-VERDICT"}   # r8 H4: verdict_changed pins the verdict
 
 
 def _repin_calibration(b, keys):

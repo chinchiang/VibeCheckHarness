@@ -68,10 +68,14 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 
 | ID | 來源 | 內容 | 文件 | 時程 | 現況 |
 |---|---|---|---|---|---|
-| BL-48 | r7 4.5 | 「從上一個 run 的 W5 開始 B 階段」的專用 run kind（目前以 `followup`＋`reuse[]` 表達）；ROE 在 B 階段入口失效時 run 轉為 `SUSPENDED` 的狀態轉移 | [02 §1.6](02-methodology.md#16-執行種類與後續執行) | M3 | 規格已寫；run schema 與 Run Controller 未實作 |
+| BL-48 | r7 4.5 | 「從上一個 run 的 W5 開始 B 階段」的專用 run kind（目前以 `followup`＋`reuse[]` 表達）；ROE 在 B 階段入口**到期**時 run 轉為 `SUSPENDED` 的狀態轉移（撤銷或驗章失效 → `ABORTED`，v0.7 依 02 §1.4 統一） | [02 §1.6](02-methodology.md#16-執行種類與後續執行) | M3 | 規格已寫；run schema 與 Run Controller 未實作 |
 | BL-49 | r7 4.5 | `regression` run 的 `W4_regression` 節點：對帶入的叢集跑回歸測試並標示「已修正／未驗證修正」 | [02 §1.6](02-methodology.md#16-執行種類與後續執行) | M3 | 規格已寫；節點與報告欄位未實作 |
 | BL-50 | r7 4.2–4.4 | 執行期強制：PII 停止條件排除登記值與 canary（`safety.pii_stop_hits`）、預期錯誤不計入 run 停止條件（`safety.counts_for_run_stop`）、W4 以乾淨設定執行並在行程外判定結果 | [03 §7.3](03-system-architecture.md)、[08 W4](08-implementation-spec.md) | MVP-1 黑箱執行之前（W4 部分：M2） | 參考函式與測試已有；執行器未實作 |
 | BL-52 | r7 1.3 | W4 測試案例的叢集桶與 oracle 引用的需求對應：需求（不變量、ASVS 條目）目前沒有 CWE 桶欄位，無法比對 | [02 W4](02-methodology.md) | 校準語料建立時（與 BL-42 一起） | `target_files` 的檔案綁定已實作；桶對應未實作 |
+| BL-53 | r8 M5 | 人員金鑰外洩的影響清單（`vibecheck keys impact --fingerprint`）與重簽流程 | [06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回v07審查-r8-m5h) | MVP-0 交付之前 | 契約已寫；未實作 |
+| BL-54 | r8 M5 | 報告撤回：新版報告的 `supersedes`、舊報告 `withdrawn` 標示、撤回事件與客戶通知 | [06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回v07審查-r8-m5h) | MVP-0 報告交付之前 | 契約已寫；schema 欄位與事件未加 |
+| BL-55 | r8 M5 | Z1 Postgres、CAS、稽核檔的備份與每季還原演練（`restore_drill` 事件） | [06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回v07審查-r8-m5h) | MVP-1 | 契約已寫；未實作 |
+| BL-56 | r8 M5 | 外洩通報流程與聯絡人 | [06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回v07審查-r8-m5h)、§2.2 | MVP-0 | 契約已寫；未實作 |
 | BL-51 | r7 4.1 | 共享平台的技術所有權證明（`technical_proof`）的執行期驗證：Z3 取回部署提供的 token 或回應標頭，結果由 z3_executor 簽署 | [06 §2.1](06-security-legal-limitations.md#21-授權範圍) | MVP-1 | validator 規則已有（沒有技術證明只允許 S0）；取回與簽署未實作 |
 
 ## 5. 已完成（保留編號供追溯）

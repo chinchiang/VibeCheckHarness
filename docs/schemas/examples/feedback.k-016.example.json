@@ -7,7 +7,7 @@
   "label": "false_positive",
   "reason": "deleteInvoice 由 routes/middleware/auth.ts 的 MW-001 先以 tenant_id 載入發票，查不到就回 404；opengrep 規則看不到 middleware 的檢查",
   "duplicate_of": null,
-  "sarif_suppression": "accepted",
+  "sarif_suppression": "underReview",
   "signed_by": {
     "person_id": "frank",
     "role": "app_owner",
@@ -19,7 +19,8 @@
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "ikBtCbDc2/P9jTE0D4iRvNEYt8CbAFYhn1RI8uaR0OzvwDyNq6Ss4dahBTHmj+fedYAA79FmJ4Sw38e/wR/7AA=="
+      "value": "UveeMhwDiZ+c6au9R1JdIm9lrUT711EN4QRDM7utq3UiWxcv1Si3iNCLJJmN3hJMo2+C+AC9/BOUCFEOv2dODA=="
     }
-  ]
+  ],
+  "co_signed_by": null
 }

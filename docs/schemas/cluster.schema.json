@@ -261,6 +261,34 @@
         "info"
       ],
       "description": "v0.7（審查 r8 F5）：rubric 嚴重度（docs/08 §11.17），由 validator 依 inventory、合併 DFD 與 G1 資料分級推導（E-CLUSTER-SEVERITY）；G2 路由與 report_only 用它，成員自報的 finding.severity 只供參考"
+    },
+    "carried_from": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "run_id": {
+              "$ref": "common.schema.json#/$defs/run_id"
+            },
+            "cluster_id": {
+              "type": "string"
+            },
+            "fingerprint": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "run_id",
+            "cluster_id",
+            "fingerprint"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "v0.7（審查 r8 外部 5）：regression／followup run 帶入的叢集是本 run 的新實例（自己的 cluster_id、run_id 是本 run），以 carried_from 指回來源：parent run 的叢集，fingerprint 必須相同（E-CLUSTER-CARRY）。跨 run 的問題識別用 fingerprint，不共用 ID"
     }
   },
   "required": [
@@ -281,7 +309,8 @@
     "fingerprint",
     "baseline_state",
     "reopened",
-    "severity"
+    "severity",
+    "carried_from"
   ],
   "title": "Cluster（叢集）"
 }

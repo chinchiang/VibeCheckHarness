@@ -96,6 +96,37 @@
       "items": {
         "$ref": "common.schema.json#/$defs/signature"
       }
+    },
+    "co_signed_by": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "person_id": {
+              "type": "string"
+            },
+            "role": {
+              "enum": [
+                "security_reviewer",
+                "app_owner"
+              ]
+            },
+            "key_fingerprint": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "person_id",
+            "role",
+            "key_fingerprint"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "v0.7（審查 r8 M4）：app_owner 的 false_positive 需要一位 security_reviewer 副簽，sarif_suppression 才是 accepted；否則維持 underReview。副簽者不能是簽署者本人；紀錄的 signatures 依序為 signed_by、co_signed_by 的簽章（E-FEEDBACK）"
     }
   },
   "required": [
@@ -110,6 +141,7 @@
     "sarif_suppression",
     "signed_by",
     "signed_at",
-    "signatures"
+    "signatures",
+    "co_signed_by"
   ]
 }

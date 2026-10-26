@@ -89,7 +89,7 @@
 | MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator（`E-ENG-PROFILE`、`E-GATE-SOD`）＋報告測試 | 缺少聲明卻通過（一人在同一份關卡紀錄中兼任兩個角色而沒有 `E-GATE-SOD`），或報告沒有標示 |
 | MVP0-X6 | **前導實驗**（§1.2）已依預先登記執行，決定已寫入 `calibration.yaml` 的 `recommended_defaults`（MVP-1 起的 `w2_review.strategy`）與報告 | 前導實驗報告：預先登記的 hash、每個應用的原始結果、決定 | 沒有預先登記就解盲；應用中有工具包團隊撰寫的；報告缺少決定，或 MVP-1 的預設值與決定不符 |
 | MVP0-X7 | MVP-0 會用到的元件，其 §3 入口閘門都已結案：「M1 前」的 Anthropic API 條款、Semgrep／CodeQL（不啟用則免）、psycopg 的散布形式（v0.5：MVP-0 就用 Z1 的 Postgres checkpointer）、G-11 的 runsc／Firecracker 版本固定與 CVE 訂閱（v0.5：MVP-0 的 W0、W1、W4 都在 Z2）；「M2 前」的 OpenAI API 條款（G-13）、GPT-6 的 ZDR 書面確認（G-06）、NIM 用途（使用 `nemotron_self` 時）。v0.3 的 MVP-0 只沿用 M1-X4～X7，雲端模型的條款還沒確認就能出貨 | 驗收包中的法務紀錄，或證明該元件已停用的設定檔（engagement 的 `allowed_models`、`config_pins`） | 有未結案的項目，而對應的模型或工具仍然啟用 |
-| MVP0-X8 | **Lite 使用者 pilot**（§1.3）：≥3 位不屬於工具包團隊的單人開發者，各自以自己的應用跑 Lite 的 MVP-0。門檻 [H]：從開始安裝到拿到第一份白箱報告的中位數 ≤ 1 個工作天；每個 run 的人工關卡總耗時（G0a 簽署、G1 問卷與簽核、GB）中位數 ≤ 2 小時；沒有人因為金鑰與簽章設定而放棄 | pilot 紀錄（各步驟時間戳記、放棄原因） | 任一門檻沒有達到，且沒有啟用 §1.3 的降階路徑 |
+| MVP0-X8 | **Lite 使用者 pilot**（§1.3）：≥8 位不屬於工具包團隊的單人開發者（v0.7，審查 r8 M3：3 位的中位數沒有意義），各自以自己的應用跑 Lite 的 MVP-0。門檻 [H]：從開始安裝到拿到第一份白箱報告的中位數 ≤ 1 個工作天；每個 run 的人工關卡總耗時（`claim_run`、G0a 簽署、G1 問卷與簽核、**G2 逐項決定**、GB）中位數 ≤ 2 小時，G2 另記每項的耗時與 `needs_info` 的比例；沒有人因為金鑰與簽章設定而放棄 | pilot 紀錄（各步驟時間戳記、放棄原因） | 任一門檻沒有達到，且沒有啟用 §1.3 的降階路徑 |
 | MVP1-X1 | 範例 A 在本地目標上：<br>• 植入版的 TC-012-01 FAIL，並且**不經 LLM 分析者**就裁決為 `CONFIRMED_EXECUTABLE`（G4 已事先登記解讀）<br>• 修正版 PASS，且所有 control 都通過 | 整合測試 | 任一步不符 |
 | MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點（沒有綁定的測試案例算出 S3，`E-TC-MUTATION-SCOPE`） | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
 | MVP1-X3 | 故障注入（session 過期、路徑錯誤、種子遺失）時，結果是 `INVALID`，不是 PASS；報告列出 control 通過率 | 整合測試 | 有任何一例被當成 PASS |

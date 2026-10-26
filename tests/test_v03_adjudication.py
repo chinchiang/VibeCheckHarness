@@ -71,7 +71,7 @@ def test_vote_branch_still_capped_by_r8():
 # ================================================================ A1 / B12 validator
 def test_independent_sources_mismatch(b):
     doc(b, V014).data["independent_sources"] = 1
-    assert codes(b) == {"E-VERDICT-SOURCES", "E-DERIVED"}      # review r7: the report pins V-014-1's hash
+    assert codes(b) == {"E-VERDICT-SOURCES", "E-DERIVED", "E-AUDIT-VERDICT"}   # r7: the report pins V-014-1; r8 H4: so does its event
 
 
 def test_sarif_from_legally_gated_adapter_is_rejected(b):

@@ -593,6 +593,8 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
         return "E_inc", f"outcome {outcome}"
     if not execution_anchored(ix, tr):                 # v0.7 (review r8 F2a): a result nothing executed is no evidence
         return "E_inc", "no anchored sandbox_job_end with this outcome names the result's job (it never ran)"
+    if tr.get("phase") == "W4" and tr.get("observations_source") != "harness":   # v0.7 (review r8, external review 6)
+        return "E_inc", "observations read from the SUT's own process can be forged; only harness-sourced observations are evidence"
     eligible, disagreement = analyst_check(ix, tr, cluster)
     if outcome == "FAIL":
         ok, why = fail_reproduced(tc, tr)
@@ -942,6 +944,21 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
                     if isinstance(e, dict) and e.get("event_type") == "feedback_recorded" and \
                             (e.get("payload") or {}).get("feedback_id") == f.data.get("feedback_id"):
                         exp(a, [i, "payload", "feedback_sha256"], content_hash(f.data), "content hash of the recorded feedback")
+        # v0.7 (review r8 H4): the deliverables are bound to the anchored chain: verdict_changed pins the verdict's content
+        # hash, report_published the report manifest's (whose artifacts pin the SARIF, HTML, verdicts and audit log)
+        for a in ix.audit_docs():
+            for i, e in enumerate(a.data):
+                if not isinstance(e, dict):
+                    continue
+                p = e.get("payload") or {}
+                if e.get("event_type") == "verdict_changed":
+                    v = ix.first("verdict", verdict_id=p.get("verdict_id"))
+                    if v is not None:
+                        exp(a, [i, "payload", "verdict_sha256"], content_hash(v.data), "content hash of the verdict version (E-AUDIT-VERDICT)")
+                if e.get("event_type") == "report_published":
+                    rm = ix.first("report-manifest", report_id=p.get("report_id"))
+                    if rm is not None:
+                        exp(a, [i, "payload", "report_manifest_sha256"], content_hash(rm.data), "content hash of the report manifest (E-AUDIT-REPORT)")
         # v0.5 (review r7 1.10, external review 2): the executor's sandbox_job_end pins what ran and what it produced; the
         # reader compares them with dedicated codes (E-W4-AUDIT / E-JOB-AUDIT)
         for d in ix.docs("testresult"):

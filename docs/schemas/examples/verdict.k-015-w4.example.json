@@ -28,7 +28,7 @@
   "independent_sources": 1,
   "executable_proof": {
     "testcase_id": "WTC-015-01",
-    "result_ref": "sha256:72e6b512da89e2c4faca7ae81c8ed09b44ed83d8fea3bbaba79b52aabb45afe1",
+    "result_ref": "sha256:759c3b7a1881b3afa6e5c0e1b98ad9f8080dc8ffd6539a3290aba69a7fcbdb38",
     "trials": null,
     "interpretation_confirmed_by": null
   },
@@ -36,7 +36,7 @@
     "class": "E_proof",
     "results": [
       {
-        "result_ref": "sha256:72e6b512da89e2c4faca7ae81c8ed09b44ed83d8fea3bbaba79b52aabb45afe1",
+        "result_ref": "sha256:759c3b7a1881b3afa6e5c0e1b98ad9f8080dc8ffd6539a3290aba69a7fcbdb38",
         "class": "E_proof",
         "positive_control": null,
         "reason": "reproduced FAIL, deterministic oracle, pre-registered interpretation"

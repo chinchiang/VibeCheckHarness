@@ -31,7 +31,7 @@
     "class": "E_pass",
     "results": [
       {
-        "result_ref": "sha256:f927583659d8703dee9d3a21becaa14e93e1c8b370870a4e7c6a1239e63d4135",
+        "result_ref": "sha256:dc7b079e86b798589d4973a2a6a7a5cc32acb82bbc738a45f8b3021c3af6646f",
         "class": "E_pass",
         "positive_control": null,
         "reason": "PASS，n′＝60、k＝0；reachability 對照 PASS；G4 預先登記解讀（沒有 oracle_can_fail 對照）"

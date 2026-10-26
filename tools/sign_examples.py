@@ -132,7 +132,8 @@ def sign_feedback(by_fp) -> int:
     n = 0
     for p in sorted(EXAMPLES.glob("feedback.*.example.json")):
         rec = jsonstrict.loads(p.read_text(encoding="utf-8"))
-        rec["signatures"] = [crypto.sign_document(rec, rec["signed_by"]["person_id"], by_fp[rec["signed_by"]["key_fingerprint"]])]
+        signers = [rec["signed_by"]] + ([rec["co_signed_by"]] if rec.get("co_signed_by") else [])   # v0.7 (r8 M4)
+        rec["signatures"] = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in signers]
         n += write(p, dump_json(rec))
     return n
 

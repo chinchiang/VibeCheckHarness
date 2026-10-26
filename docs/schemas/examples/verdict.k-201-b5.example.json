@@ -10,7 +10,7 @@
   "independent_sources": 0,
   "executable_proof": {
     "testcase_id": "TC-033-01",
-    "result_ref": "sha256:67a7d538823fc8e18a21d4da8dd5caa97593347f9ff82cb9bfa032fcdbb934b4",
+    "result_ref": "sha256:0b7d131baad7fa6e3eb9d1bf1b248e747fcbc508f1bae4d1f64b98cdc659ef67",
     "trials": null,
     "interpretation_confirmed_by": null
   },
@@ -18,7 +18,7 @@
     "class": "E_proof",
     "results": [
       {
-        "result_ref": "sha256:67a7d538823fc8e18a21d4da8dd5caa97593347f9ff82cb9bfa032fcdbb934b4",
+        "result_ref": "sha256:0b7d131baad7fa6e3eb9d1bf1b248e747fcbc508f1bae4d1f64b98cdc659ef67",
         "class": "E_proof",
         "positive_control": true,
         "reason": "FAIL，重播 2 次相同；確定性 oracle（STATUS_AND_BODY），G4 預先登記解讀，不需要 LLM 分析者"

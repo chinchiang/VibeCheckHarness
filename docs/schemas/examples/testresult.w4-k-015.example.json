@@ -49,5 +49,6 @@
   "observed_build_id": null,
   "request_log_sha256": null,
   "interpreted_by": null,
-  "interpretation": null
+  "interpretation": null,
+  "observations_source": "harness"
 }

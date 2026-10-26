@@ -79,7 +79,8 @@
 | G3 已核准的威脅、G4 已核准的測試案例 | 每個 run 各抽 10%，至少 2 筆 | 同上 | 發現超出 ROE 的測試案例 → 立即 `policy_violation`，停止該 engagement 的 B4 |
 | 自動駁回的叢集（v0.4）：R0 與 R4（θ_reject）產生的 `REJECTED`，沒有人看過 | 每個 run 抽 10%，至少 3 筆 | run 結束後 5 個工作天內 | 抽到任一筆真實缺陷 → 該 run 的自動駁回全數複審；R4 的推翻 → 回報校準（05 §5.7 的 θ_reject 檢查） |
 | 只列報告的低優先叢集、超出 G2 上限的項目、G2 逾時未決的項目（v0.4） | 每類每個 run 抽 10%，至少 2 筆 | 同上 | 抽到 high 以上的真實缺陷 → 調整剪枝條件或佇列上限，並記入報告 |
-| G5 已核准的 S2 job | 全數（S2 數量少） | 執行後 2 個工作天內 | 任一筆不符 → 該 engagement 從下一個 run 起改用 Full 模式：G5 需兩位不同的資安審查者核准（validator 強制，`E-G5-TWO-PERSON`；[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
+| 被回饋抑制的項目（v0.7，審查 r8 M4：`sarif_suppression` 為 `accepted` 或 `underReview` 的叢集） | 每個 run 抽 10%，至少 2 筆 | 同上 | 抽到真實缺陷 → 撤銷該回饋的抑制（新紀錄 `true_positive`），並複核同一簽署者的其他回饋 |
+| G5 已核准的 S2 job | 全數（S2 數量少） | 執行後 2 個工作天內 | 任一筆不符 → 該 engagement 從下一個 run 起 G5 需兩位不同的資安審查者核准（validator 強制，`E-G5-TWO-PERSON`；[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 
 - 抽查結果寫入稽核事件 `spot_check_result`（v0.5：`actor.kind = human`，由複核者簽章；`payload` 為 `{item_kind, item_id, outcome, note}`）。v0.4 寫成 `gate_decision`，但每個 `gate_decision` 都必須對應一份關卡紀錄（`E-AUDIT-GATE`），抽查沒有關卡紀錄，照 v0.4 寫入就會讓稽核驗不過（審查 2026-10-25 §4.3）。v0.7（審查 r8 M2）：validator 強制獨立性——`actor` 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5、`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者或發起者（`E-SPOT-CHECK`）；v0.6 只要求人簽章，G5 核准者可以「確認」自己的核准並觸發 `g5_escalation`。
 - 每季彙整推翻率，納入 [05](05-bias-calibration.md) 的校準資料。
@@ -230,6 +231,36 @@
     - 客戶方的 WORM 儲存
     - 以核准者金鑰簽署錨點並寄給客戶
   - 見 §3 #16。
+
+### 1.8 工件完整性矩陣（v0.7，審查 r8 M1、H4）
+
+每個工件由誰能改、由什麼機制發現竄改。「錨定」＝內容 hash 寫進已錨定的稽核事件；「簽章」＝人或服務金鑰的 Ed25519 簽章；「釘選」＝content hash 寫進已簽署的委任設定；「推導」＝validator 由其他工件重算。沒有任何機制的工件，改了就不會被發現——這張表的目的就是讓那一欄是空的 [H]。
+
+| 工件 | 能改它的人 | 簽章 | 錨定 | 釘選 | 推導 | 剩下的缺口 |
+|---|---|---|---|---|---|---|
+| 委任設定、ROE、金鑰登錄 | 管理層／基礎設施擁有者 | 是（多方） | G0a／G0b 的 `gate_decision` | — | — | 根金鑰外洩（§1.10 U-07） |
+| models／agents／tools／licenses／calibration／crosswalk／**toolkit** | 工具包維運者 | — | — | `config_pins`（v0.7 加 toolkit） | — | 釘選值與設定一起改、再重簽委任設定 |
+| 關卡紀錄 G1～G5、GB | 核准者 | 是 | `gate_decision` | — | 結果由決定推導 | 核准者自己改主意：新一輪紀錄，不改舊的 |
+| 稽核紀錄 | Z1 寫入者 | 錨點由 Z3 副簽；人的事件自簽 | hash chain | — | — | 同時握有 Z1 與 Z3 金鑰者（§3 #16） |
+| 測試案例、產物、測試結果 | B3／B4 的代理與執行器 | — | `sandbox_job_end` 的三個 hash | — | 控制結果與 class 推導 | 執行器本身被攻破（Z3） |
+| **裁決**（全部欄位） | Aggregator | — | `verdict_changed.verdict_sha256`（v0.7） | — | 狀態、分數、輸入全部重算 | — |
+| **報告 manifest、SARIF、HTML** | Reporter | — | `report_published.report_manifest_sha256`（v0.7）；manifest 的 artifacts 釘住 SARIF、HTML、裁決與稽核紀錄 | — | metrics、counts 推導 | 發布之後的撤回（§1.9） |
+| 回饋紀錄 | security_reviewer／app_owner | 是（v0.7 可副簽） | 採用 run 的 `feedback_recorded` | — | 抑制狀態推導 | — |
+| 叢集、發現項、DFD、inventory | W 階段代理 | — | `artifact_stored`（只有 ref） | — | 指紋、嚴重度、家族、基準狀態推導；裁決的 hash 綁住證據引用 | 發現項的文字本身可改，但改了會讓裁決的 `verdict_sha256` 與證據比對失效 |
+
+### 1.9 營運手冊：金鑰外洩、備份與報告撤回（v0.7，審查 r8 M5）[H]
+
+這一節是契約，不是實作；對應的工作列在 [09 BL-53～BL-56](09-backlog.md#41-第七輪2026-10-25-r7-審查留下的實作項目)。
+
+1. **人員金鑰外洩**（`revoked_at` 加 `reason: compromised`）：登錄更新後，該金鑰**所有**簽章立即不再驗證（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) 第 5 步）。後果與處理：
+   - 進行中的 run：驗章失效 → `ABORTED`（02 §1.4）；白箱產物保留，以新 run 重跑 B 階段。
+   - 已結束、報告已交付的 run：報告**不自動撤回**。維運者在 5 個工作天內出具「影響清單」：該金鑰簽過的關卡紀錄、回饋與 ROE，逐份由另一位具相同角色的人重新簽署（新一輪紀錄，`carried_from` 指向舊紀錄）；重簽不了的關卡，其下游結果在報告上標為「核准已失效」並通知客戶（§1.9 第 4 點）。
+   - 驗證器對含有已外洩金鑰簽章的 bundle 一律報錯；影響清單用 `vibecheck keys impact --fingerprint` 產生（BL-53）。
+2. **組織根金鑰輪替或外洩**：新根金鑰簽署新版金鑰登錄，舊根金鑰為它背書一次（交叉簽章）；外洩時沒有背書，所有委任設定重簽、所有 run 重跑 G0a。在 U-07 決定前，根金鑰只能離線持有。
+3. **Audit Writer 或 Z3 外洩**：稽核鏈只能偵測不能防止（§1.7）。Z3 金鑰外洩 → 撤銷並重發，之前的錨點副簽仍以舊金鑰（撤銷時間前）驗證；外洩時間之後的 run 一律視為不可信，重跑。Audit Writer 被攻破 → 同時握有 Z1 的人可以整條重寫（§3 #16），所以客戶方的 WORM 錨點是唯一的防線；沒有外部錨點的委任要在報告首頁寫明。
+4. **報告撤回**：發現已交付的報告有錯（例如被推翻的確認、失效的核准）時，發新版報告（新的 `report_id`，`supersedes` 指向舊的），舊報告在 CAS 保留但標示 `withdrawn`，並以委任設定的聯絡人通知客戶；撤回事件寫入稽核紀錄（BL-54）。
+5. **備份與還原**：Z1 Postgres、CAS 與稽核檔每日備份到客戶指定的儲存，保留期限依 §2.2；還原演練每季一次，演練結果寫入 `restore_drill` 事件（BL-55）。
+6. **外洩通報**：涉及客戶資料的事件依 §2.2 的通報時限，由管理層聯絡人負責（BL-56）。
 
 ## 2. 法遵與授權
 

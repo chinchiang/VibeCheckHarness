@@ -423,6 +423,10 @@
         "crosswalk": {
           "$ref": "common.schema.json#/$defs/sha256",
           "description": "v0.5：crosswalk.yaml（分類對照決定威脅與需求的連結）"
+        },
+        "toolkit": {
+          "$ref": "common.schema.json#/$defs/sha256",
+          "description": "v0.7（審查 r8 M1）：toolkit.yaml 的內容 hash——根金鑰指紋、自動化帳號、關卡逾時與佇列上限、停止條件預設值、保留上限都在裡面"
         }
       },
       "required": [
@@ -431,7 +435,8 @@
         "tools",
         "licenses",
         "calibration",
-        "crosswalk"
+        "crosswalk",
+        "toolkit"
       ]
     },
     "assurance_profile": {

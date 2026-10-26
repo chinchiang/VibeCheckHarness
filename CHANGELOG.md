@@ -6,6 +6,18 @@
 
 依 [2026-10-26 設計審查（第八輪）](docs/evidence/review-2026-10-26-r8.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（6 項，全部重現）。設計文件仍為 v0.5 的版本號；程式與 schema 的註解以 v0.7 標示本輪變更。
 
+### 完整性模型與方法論（第 4 組）
+- **交付物綁進錨定鏈**（H4）：`verdict_changed` 釘 `verdict_sha256`、`report_published` 釘 `report_manifest_sha256`（`E-AUDIT-VERDICT`／`E-AUDIT-REPORT`）；v0.6 只釘 id 與狀態，錨點之後改裁決的嚴重度、`rule_trace`、證據引用或報告都不會被發現。06 §1.8 新增工件完整性矩陣。
+- **`toolkit.yaml` 納入 `config_pins`**（M1）；`gate_queues.*_max_items` ≥ 1（`E-TOOLKIT`）。
+- **回饋的抑制要兩個人**（M4）：app_owner 單獨簽署的 `false_positive` 是 `underReview`，security_reviewer 以 `co_signed_by` 副簽才 `accepted`；叢集 `updated` 時抑制失效；被抑制項目列入 ASI09 抽查；只有已裁決的誤報才暫停 high-precision 規則（05 §5.10）。範例 FB-001 改為 `underReview`。
+- **ROE 失效的結果統一**（H1）：到期 → `SUSPENDED`，撤銷或驗章失效 → `ABORTED`，不論在 B 階段入口或進行中（02 §1.4 為唯一來源；§1.6、03 §5.6、BL-48 引用）。
+- **Lite 的 G2 只能 accept／needs_info**（M3；`E-GATE-OUTCOME`）；MVP0-X8 的 pilot 改為 ≥8 人並計入 `claim_run` 與 G2。
+- **人數需求改寫為資安審查者人數**（M7）；升級後只有 G5 規則改變，只有 2 位審查者的委任不能再執行 S2。
+- **帶入的叢集是新實例**（外部 5）：cluster 新增 `carried_from`（`E-CLUSTER-CARRY`）；範例跟進 run 以 `K-301` 帶入 `K-005`。
+- **W4 觀察資料的可信來源契約**（外部 6）：testresult 新增 `observations_source`（harness／sut），`sut` 只能 `E_inc`（`E-W4-OBSERVATION`）；08 W4 寫明可信觀察者、取得通道與寫入權限。
+- **營運手冊**（M5）：06 §1.9（金鑰外洩、根金鑰輪替、Audit Writer／Z3 外洩、報告撤回、備份、通報），待辦 BL-53～56。
+- 新增 `tests/test_v07_r8_integrity.py`。
+
 ### 裁決與校準設計（第 3 組；`rule_version` 改為 `05-v0.7`）
 - **平滑的先驗**：a ＝ (C ＋ k·ā ＋ 1) ／ (n ＋ k ＋ 2)（`checks.smoothed_rate`）。v0.6 只往模型自己的跨桶正確率收縮，單邊全對的模型 a＝1、權重被 `lr_weights` 歸零——最準的驗證者沒有發言權。範例的 a、w 與裁決分數重算（K-014 的 S 由 1.5775 變為 1.4633），θ_confirm 2.5 與所有裁決狀態不變；engagement 的 `config_pins.calibration` 重算。
 - **R6 的來源**：`E_fail_u` 只有在測試的作者（`derive.test_author_families`）都在叢集的家族與基底血統之外時才算獨立來源（`Inputs.fail_u_independent`，`checks.fail_u_independent` 推導）；v0.6 讓單一家族回報、自己寫 W4 測試、自己解讀 FAIL 就到 `LIKELY`。它仍是第 7 列的訊號（反駁票遇上它 → `DISPUTED`）。
