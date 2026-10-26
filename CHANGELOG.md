@@ -102,6 +102,14 @@
 - 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
 - 新增 `tests/test_v05_r7_bypasses.py`。
 
+### 第七輪審查：校準（第 3 組之二）
+- 權重改為兩邊比率的對數概似比（SUPPORT＝ln(TPR／(1−TNR))、REFUTE＝ln(TNR／(1−TPR))），任一邊 near_zero → 兩邊都是 0；範例的權重、θ_confirm（2.5，新尺度）與 K-011 的 provisional 隨之更新。
+- θ_confirm／θ_reject 依 CWE 桶分開（`by_bucket`）；沒有列出的桶、不可行或未能類推（`generalised: false`）的門檻都視為 +∞。
+- `high_precision_rules` 記錄 tp／fp 與保留切分計數，由 validator 重算 Clopper-Pearson 下界與列入條件（新錯誤碼 `E-CAL-HIGH-PRECISION`）。
+- 模型版本或驗證 prompt 與校準時不同 → 權重 0（`Index.calibrated_setup_problem`）；`valid_for_model_keys` 空清單代表沒有任何模型有效。
+- models.yaml 新增 `derived_from`；家族與血統的獨立性以血統的根判定。
+- 新增 `tests/test_v06_r7_calibration.py`。
+
 ### 第七輪審查：裁決規則（第 3 組之一；`rule_version` 改為 `05-v0.6`）
 - R10：只有 G4 核准、重播至少命中一次的 B4 證明能推翻 G2 駁回；W4 證明只加註 `post_g2_conflict`（`checks.proof_overrides_g2`）。
 - Result Analyst 排除寫測試的家族（W4 的 test_generator／test_critic；黑箱的 test_designer、test_implementer、test_critic 與威脅的 threat_modeler）。

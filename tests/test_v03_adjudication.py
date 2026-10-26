@@ -302,9 +302,15 @@ def test_two_family_cluster_with_third_family_vote_is_not_capped(b):
 
 def test_one_family_cluster_with_one_of_two_eligible_families_is_capped(b):
     """K-011 (anthropic): E = {nvidia, openai}; only nvidia voted with weight -> degraded, R8 caps row 11 at LIKELY."""
+    # v0.6 (review r7 3.2): nemotron's llm_specific refute side is near zero, which now zeroes both sides; make it
+    # reliable so nvidia's vote carries weight again
+    row = next(r for r in doc(b, "calibration.yaml").data["result"]["weights"]
+               if r["model_key"] == "nemotron_self" and r["cwe_bucket"] == "llm_specific")
+    row["support"]["w"], row["refute"]["near_zero"] = 1.2834, False
     c = Ctx(b)
     v = copy.deepcopy(doc(b, V011).data)
     v.update(theta_confirm=0.5)
+    v["votes"][0].update(weight=1.2834, weighted_valid=True)
     cl = c.ix.first("cluster", cluster_id="K-011").data
     assert derived_diversity_degraded(c, v, cl) is True
     out = adjudicate(verdict_inputs(c, v, cl))
@@ -336,7 +342,7 @@ def test_fallback_vote_uses_the_fallback_models_weight(b, keys):
     assert "E-VERDICT-VOTE" not in codes(b)                  # a same-family fallback resolves through models.yaml
     vt.update(voter_model_key="claude_sonnet", fallback_used=None)
     rederive(b, keys)
-    assert vt["weight"] == 0.5947 and vt["weighted_valid"] is True
+    assert vt["weight"] == 1.5808 and vt["weighted_valid"] is True              # v0.6: likelihood-ratio weight
 
 
 # ================================================================ E5 provisional

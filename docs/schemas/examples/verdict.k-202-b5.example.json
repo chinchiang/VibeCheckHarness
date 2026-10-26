@@ -23,7 +23,7 @@
   "diversity_degraded": true,
   "no_eligible_verifier": false,
   "calibration_version": 3,
-  "theta_confirm": 1.2,
+  "theta_confirm": null,
   "theta_reject": null,
   "provisional": false,
   "score": 0,

@@ -18,8 +18,8 @@
       "anonymized": true,
       "order_randomized": true,
       "valid": true,
-      "weight": 0.6222,
-      "weighted_valid": true
+      "weight": 0.0,
+      "weighted_valid": false
     }
   ],
   "missing_votes": [],
@@ -41,10 +41,10 @@
   "diversity_degraded": true,
   "no_eligible_verifier": false,
   "calibration_version": 3,
-  "theta_confirm": 1.2,
+  "theta_confirm": null,
   "theta_reject": null,
-  "provisional": false,
-  "score": 0.6222,
+  "provisional": true,
+  "score": 0.0,
   "g2_decision_ref": "GR-G2-0001",
   "status": "UNCORROBORATED",
   "status_cap": null,

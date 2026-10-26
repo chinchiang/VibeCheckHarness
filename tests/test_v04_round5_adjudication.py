@@ -28,8 +28,9 @@ def errors(b, code):
 def test_weight_sides(b):
     ix = Ctx(b).ix
     v = doc(b, "calibration.yaml").data["calibration_version"]
-    assert ix.weight("nemotron_self", "authz", v, "SUPPORT") == pytest.approx(0.6933)
-    assert ix.weight("nemotron_self", "authz", v, "REFUTE") == pytest.approx(0.6503)
+    # v0.6 (review r7 3.2): log likelihood ratios of both sides
+    assert ix.weight("nemotron_self", "authz", v, "SUPPORT") == pytest.approx(1.5775)
+    assert ix.weight("nemotron_self", "authz", v, "REFUTE") == pytest.approx(1.683)
     assert ix.weight("nemotron_self", "llm_specific", v, "REFUTE") == 0.0      # refute side near_zero
 
 
@@ -44,7 +45,7 @@ def test_refute_vote_uses_the_refute_weight(b):
     vote = doc(b, V014).data["votes"][0]
     vote["stance"] = "REFUTE"
     exp = [e for e in derive.expectations(b) if e.file.endswith(V014) and e.path == ("votes", 0, "weight")]
-    assert exp and exp[0].expected == pytest.approx(0.6503)
+    assert exp and exp[0].expected == pytest.approx(1.683)                     # v0.6: refute-side likelihood ratio
 
 
 # ================================================================ provisional
