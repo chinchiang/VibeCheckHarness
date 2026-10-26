@@ -1,0 +1,96 @@
+{
+  "tests": "tests/test_v07_r8_integrity.py",
+  "mutations": [
+    {
+      "name": "H4 verdict pin",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(v is not None and p.get(\"verdict_sha256\") == content_hash(v.data), \"E-AUDIT-VERDICT\", where,",
+      "new": "                    R.check(True, \"E-AUDIT-VERDICT\", where,",
+      "k": "verdict_edited_after"
+    },
+    {
+      "name": "H4 report pin",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(rm is not None and p.get(\"report_manifest_sha256\") == content_hash(rm.data), \"E-AUDIT-REPORT\", where,",
+      "new": "                    R.check(True, \"E-AUDIT-REPORT\", where,",
+      "k": "report_edited_after"
+    },
+    {
+      "name": "M1 toolkit pin",
+      "file": "tools/vchlib/checks.py",
+      "old": "\"licenses\": \"licenses\", \"toolkit\": \"toolkit-config\",",
+      "new": "\"licenses\": \"licenses\",",
+      "k": "toolkit_is_pinned"
+    },
+    {
+      "name": "M1 queue cap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(type(val) is int and val >= 1, \"E-TOOLKIT\", w,",
+      "new": "        R.check(True, \"E-TOOLKIT\", w,",
+      "k": "zero_queue_cap"
+    },
+    {
+      "name": "M4 owner needs cosign",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if \"security_reviewer\" not in roles:\n        return \"underReview\"",
+      "new": "    if False:\n        return \"underReview\"",
+      "k": "owners_false_positive_is_under_review"
+    },
+    {
+      "name": "M4 cosigner role",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(cs.get(\"role\") == \"security_reviewer\" and cs.get(\"person_id\") != sb.get(\"person_id\"), \"E-FEEDBACK\", w,",
+      "new": "                R.check(True, \"E-FEEDBACK\", w,",
+      "k": "cosigner_is_a_reviewer"
+    },
+    {
+      "name": "M4 lapse on updated",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if k.data.get(\"run_id\") == adopting and k.data.get(\"fingerprint\") == f.get(\"fingerprint\") and k.data.get(\"baseline_state\") == \"updated\":",
+      "new": "            if False:",
+      "k": "lapses_when_the_cluster"
+    },
+    {
+      "name": "M3 lite reject",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(\"reject\" not in decs, \"E-GATE-OUTCOME\", w,",
+      "new": "                    R.check(True, \"E-GATE-OUTCOME\", w,",
+      "k": "lite_g2_cannot_reject"
+    },
+    {
+      "name": "ext5 fingerprint",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(src is not None and src.data.get(\"fingerprint\") == cf.get(\"fingerprint\") == k.get(\"fingerprint\"), \"E-CLUSTER-CARRY\", w,",
+      "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
+      "k": "keeps_the_fingerprint"
+    },
+    {
+      "name": "ext5 twin",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(not twins, \"E-CLUSTER-CARRY\", w,",
+      "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
+      "k": "twin_without_carried_from"
+    },
+    {
+      "name": "ext5 parent",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(run.get(\"run_kind\") in (\"followup\", \"regression\") and cf.get(\"run_id\") == run.get(\"parent_run_id\"), \"E-CLUSTER-CARRY\", w,",
+      "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
+      "k": "initial_run_cannot_carry"
+    },
+    {
+      "name": "ext6 declared",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(tr.get(\"observations_source\") in (\"harness\", \"sut\"), \"E-W4-OBSERVATION\", w,",
+      "new": "            R.check(True, \"E-W4-OBSERVATION\", w,",
+      "k": "declares_its_observation_source"
+    },
+    {
+      "name": "ext6 sut is E_inc",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if tr.get(\"phase\") == \"W4\" and tr.get(\"observations_source\") != \"harness\":",
+      "new": "    if False:",
+      "k": "sut_sourced"
+    }
+  ]
+}

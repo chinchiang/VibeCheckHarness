@@ -1,0 +1,47 @@
+{
+  "tests": "tests/test_v07_r8_calibration.py",
+  "mutations": [
+    {
+      "name": "prior back to v0.6",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return (correct + k * abar + 1) / (n + k + 2)",
+      "new": "    return (correct + k * abar) / (n + k) if n + k else 0",
+      "k": "perfect_on_one_side or example_weights_are_recomputed"
+    },
+    {
+      "name": "fail_u always independent",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not (afams & fams) and not (c.ix.lineage_roots(alins) & roots):\n            return True",
+      "new": "        if True:\n            return True",
+      "k": "reporting_family_is_not_a_source"
+    },
+    {
+      "name": "fail_u never independent",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not (afams & fams) and not (c.ix.lineage_roots(alins) & roots):\n            return True",
+      "new": "        if False:\n            return True",
+      "k": "independently_written_fail_u"
+    },
+    {
+      "name": "sources count any E_fail_u",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "    return x.independent_families + int(bool(x.weak_sarif)) + int(x.fail_u_independent)",
+      "new": "    return x.independent_families + int(bool(x.weak_sarif)) + int(\"E_fail_u\" in x.evidence)",
+      "k": "reporting_family_is_not_a_source"
+    },
+    {
+      "name": "rule_version back",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "RULE_VERSION = \"05-v0.7\"",
+      "new": "RULE_VERSION = \"05-v0.6\"",
+      "k": "rule_version"
+    },
+    {
+      "name": "row 3 doc",
+      "file": "docs/05-bias-calibration.md",
+      "old": "| 3 | 否 | 是 | · | 非 proof，或 `E_proof` 但不是 G4 核准、重播命中的 B4 證明（`proof_overrides_g2` 為否）",
+      "new": "| 3 | 否 | 是 | · | 非 proof",
+      "k": "documented_rows_3_and_5"
+    }
+  ]
+}

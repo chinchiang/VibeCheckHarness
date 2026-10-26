@@ -94,7 +94,7 @@ config_pins:                  # v0.4：影響安全判斷的設定檔內容 hash
   calibration: "sha256:08b94d4652b8bbe3bc564bdef211671a6ac5b2342b14eae231457612474fbe16"   # v0.5
   crosswalk: "sha256:865d77a32541ebe394671103092781f2d672d8b1d74fd6bbe4d662fc91fc7b13"     # v0.5
   licenses: "sha256:dc6f7c0fb8f1e7e895610d28778e8e3d2da7d2abfbf9e238443f127fdb4f48dc"
-  toolkit: "sha256:035665b0b19e92b4c27c24fd38cf7881fbc6e59e692e67f3df61354688521ecf"      # v0.7（審查 r8 M1）
+  toolkit: "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327"      # v0.7（審查 r8 M1）
 
 assurance_profile: team       # lite／team／full（docs/03 §6）；team：ROE 每個簽署角色由不同人擔任
 role_consolidation: null      # 只在 lite 使用：同一人兼任多個角色時的聲明
@@ -103,8 +103,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "r02gQAc+JvTArgnpM/UhwM4pFAxAY0Q/AUWly9lNDX8hr9tG3b+TCn2/zjnYepeb25ShiKyGH3WNCCa+3o0kBg=="
+    value: "TKuB4cNJBF1t9pbhFdkAolFwoc5YS6zXty9n9nupCjZRL3WCVGHaCBS56mVtSSWlwnK156bOH6KEbqHoi2k7CA=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "UD9kvpCikU6hL3ALgLcYgksMCk8drDVut3yH+HtfLg1dWOWslWZJphsRK8eL81sPWLqqYAhSaYsO8zfsE3JmBQ=="
+    value: "bN/MbahDaM6mUclILVjgvUZaquCkP1f/7GjT7pXB6th6w9+DQw60hbnr0AZbELndFVE1PH18mOi3QCvzS9fzBQ=="

@@ -1,0 +1,26 @@
+{
+  "tests": "tests/test_v07_r8_process.py",
+  "mutations": [
+    {
+      "name": "audit node back to any string",
+      "file": "docs/schemas/audit-event.schema.json",
+      "old": "\"node\":{\"anyOf\":[{\"enum\":[\"START\",\"END\",\"claim_run\",\"feedback\",\"W0\",\"W0.5\",\"W1\",\"W2\",\"W3\",\"W4\",\"W5\",\"B0\",\"B1\",\"B2\",\"B3\",\"B4\",\"B5\",\"B6\",\"G0a\",\"G0b\",\"G1\",\"G2\",\"G3\",\"G4\",\"G5\",\"GB\",\"abort_handler\",\"resume\"]},{\"type\":\"string\",\"pattern\":\"^CMD-[1-9][0-9]*$\"},{\"type\":\"null\"}]",
+      "new": "\"node\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"null\"}]",
+      "k": "unknown_node_is_a_schema_error"
+    },
+    {
+      "name": "w4_results not derived",
+      "file": "tools/vchlib/derive.py",
+      "old": "    exp(d, [\"w4_results\"], [content_hash(t) for t in trs if t.get(\"phase\") == \"W4\"], \"content hash of each W4 testresult (execution order)\")",
+      "new": "    pass",
+      "k": "w4_results_are_derived"
+    },
+    {
+      "name": "repo_commit short SHA allowed",
+      "file": "docs/schemas/run.schema.json",
+      "old": "\"pattern\": \"^[0-9a-f]{40}$\"",
+      "new": "\"pattern\": \"^[0-9a-f]{7,64}$\"",
+      "k": "repo_commit_is_a_full_sha"
+    }
+  ]
+}

@@ -91,7 +91,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 10. **關卡**：每關必要角色、登錄一致、G0b 之後的核准者來自 ROE、發起者、逾時、有效期間、G4 核准者 ∈ run.initiators、G5 核准者 ∉ run.initiators 且在同一 ROE 時間窗內決定、GB 核准者、outcome 與 decisions 一致、G3 決定寫回威脅、G1 決定寫回不變量。
 11. **run**：狀態／current_node／resume_deadline、jobs、S2 需要 G5＋快照＋還原驗證＋7 天內的還原演練（稽核日誌無法載入時不重複回報 `E-RUN-RESTORE-DRILL`）、測試結果在時間窗內且在 G4／G5 之後、請求數 ≤ 上限、k ≤ n、GB 延長後的預算、Lane A 與後續 run 規則。
 12. **測試案例 vs ROE**：以 docs/04 §5 演算法（`vchlib.safety`）重算安全等級、可否進入 G4、db_tables ⊆ oracle_tables、種子都在 manifest、ZAP `delayInMs`／`maxScanDurationInMins` 限制、多輪對話需要 relay、角色。
-13. **裁決重算**（rule_version `05-v0.5`）：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；自我宣告的輸入一律由 validator 推導、重算時只用推導值：
+13. **裁決重算**（rule_version `05-v0.7`）：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；自我宣告的輸入一律由 validator 推導、重算時只用推導值：
     - `tool_corroboration`＝**強**工具佐證：已解析的 SARIF ref 中，(adapter, rule_id, tool_version) 列在 calibration.yaml `result.high_precision_rules`（同 CWE 桶、`precision_lower95` ≥ `result.thresholds.high_precision_min.value`，預設 0.90）者 → R5 row 10（不受 R8 限制）；`E-VERDICT-TOOLCORR`
     - `tool_signal`＝**弱**工具訊號：其他已解析的 SARIF ref ∪ E_fail_u 結果；不能單獨確認；`E-VERDICT-TOOLSIGNAL`
     - `independent_sources`＝len(叢集 independent_families) ＋（有弱 SARIF 訊號 ? 1 : 0）＋（有 E_fail_u ? 1 : 0）；R6 需 ≥ 2；`E-VERDICT-SOURCES`

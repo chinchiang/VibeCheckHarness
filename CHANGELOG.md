@@ -2,9 +2,19 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八輪審查這一批變更。目前：設計文件 v0.5，`rule_version 05-v0.7`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）。
+
 ## 第八輪審查（2026-10-26）
 
 依 [2026-10-26 設計審查（第八輪）](docs/evidence/review-2026-10-26-r8.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（6 項，全部重現）。設計文件仍為 v0.5 的版本號；程式與 schema 的註解以 v0.7 標示本輪變更。
+
+### 範例、流程與過時文字（第 5 組）與審查紀錄
+- 稽核事件的 `node` 改為列舉（W0～W5、B0～B6、關卡、`claim_run`、`feedback`、`abort_handler`、`resume`、START／END、`CMD-n`）；範例的 `W6` 改為 W5，`budget_exhausted` 移到 W3（它發生在 G2 之前）。
+- `run.w4_results` 由 validator 推導（W4 結果的內容 hash）；`repo_commit` 一律 40 字元；checkpoint 的 `schema_version` 對齊。
+- 流程證據進 repo（M8）：`.github/pull_request_template.md` 的檢查表；`tools/mutation_check.py` 與 `tests/mutations/*.json`（第八輪三份清單共 54 個突變）；`--anchors-only` 檢查清單是否過期，並有測試守住。
+- 相依套件（M9）：`requirements.lock` 釘精確版本，CI 改用它；hash 鎖定列為 BL-57。`pyproject` 與 `toolkit_version` 對齊為 0.5.0。
+- 過時文字：schemas README、verdict schema、08 的 `rule_version`；README 的狀態與 `config_pins` 清單；`validate_schemas.py` 的 docstring；09 的 BL-07～09 說明與 BL-51／52 順序、錨點；本 CHANGELOG 的第七輪小節與版本規則；r7 審查紀錄的「本 PR」改為 #19。
+- 審查紀錄 `docs/evidence/review-2026-10-26-r8.md`；新增 `tests/test_v07_r8_process.py`。
 
 ### 完整性模型與方法論（第 4 組）
 - **交付物綁進錨定鏈**（H4）：`verdict_changed` 釘 `verdict_sha256`、`report_published` 釘 `report_manifest_sha256`（`E-AUDIT-VERDICT`／`E-AUDIT-REPORT`）；v0.6 只釘 id 與狀態，錨點之後改裁決的嚴重度、`rule_trace`、證據引用或報告都不會被發現。06 §1.8 新增工件完整性矩陣。
@@ -46,6 +56,59 @@
 - schema：testcase `rate_limit.max_requests_per_trial`、`trials.sampling`；cluster `severity`；run `pr_origin`。
 - 文件：02 §1.5、§1.6、W3；03 §12；04 §5；05 §4；06 §1.1；08 §11.7、§11.17；schemas README 的錯誤碼表。
 - 新增 `tests/test_v07_r8_validator.py`（55 個測試，48 個在 `e5fa57d` 上失敗）。
+
+## 第七輪審查（2026-10-25）
+
+依 [2026-10-25 設計審查（第七輪）](docs/evidence/review-2026-10-25-r7.md)；v0.6 之前這些小節列在 v0.5 之下，設計文件版本沒有升（版本規則見開頭），`rule_version` 升為 `05-v0.6`。
+
+### 第七輪審查：validator 繞過（第 1 組，含外部審查 1～4）
+- EXPIRED（沒有簽章）的關卡紀錄只能帶 needs_info 決定（`E-GATE-OUTCOME`），不再算 G1 核准的需求、G2／G3 的決定或 G4 核准的測試案例。
+- B4／S2 的執行時間以 `sandbox_job_start`／`end` 的收件時間判斷：`executed_at` 在 job 之內（`E-JOB-AUDIT`）；job 開始晚於核准它的最新 G4 決定（`E-RESULT-G4`）與 G5 決定（`E-RESULT-G5`），並在 ROE 時段內（`E-RESULT-WINDOW`）；B5 裁決晚於 job 結束才收件（`E-VERDICT-PHASE`）；`approved_testcase_ids` 看每個測試案例最新的 G4 決定。
+- W4 測試案例新增必填的 `target_files`；每個叢集的位置必須在測試涵蓋的檔案內（`E-W4-TC`）。
+- `sandbox_job_end` 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（W4：`E-W4-AUDIT`；B4：`E-JOB-AUDIT`）。
+- 誤報回饋由採用它的 run 以已錨定的 `feedback_recorded` 事件記錄，以收件時間驗章（`E-FEEDBACK`）；`audit-event` 新增此事件種類。
+- Scope Proxy：沒有路徑變數的 PATCH／PUT／DELETE 只能以 query 選取已綁定的列（body ID 不算）；`object_refs` 的 `{created:x}` 綁定 x 的 path_templates；Server Action 拒絕解析不到的參照，並以區分 JSON 型別的方式比對。
+- `read_only_endpoints` 不能是 W0 標為會寫入的端點（`E-SEED-SIDE-EFFECT`）；一個發現項只屬於一個叢集（`E-CLUSTER-BINDING`）；裁決規則改用推導出的 score。
+- 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
+- 新增 `tests/test_v05_r7_bypasses.py`。
+
+### 第七輪審查：方法論與架構（第 4 組）與審查紀錄
+- 共享平台目標新增 `ownership_proof.technical_proof`；沒有技術證明只允許 S0（`E-ROE-PLATFORM`）。
+- PII 停止條件排除登記的合成值與 canary（`safety.pii_stop_hits`）；測試案例可宣告 `expected_error_statuses`（只限 429／5xx，`E-TC-EXPECTED-STATUS`），不計入 run 層級停止條件（`safety.counts_for_run_stop`）。
+- ASI09 抽查推翻 G5 後，同一委任之後的 run 一律需要兩位資安審查者（`checks.g5_escalation`，`E-G5-TWO-PERSON`）；over_cap 清單重算 G3 的完整性（`E-REPORT-QUEUE`）。
+- `g_roe` 分成 14 個區段各自保護（第 5 組）。
+- 文件：W4 以乾淨設定執行並在行程外判定結果、自動觸發只跑 W0／W0.5、各保證等級的最少人數、`regression` 帶入叢集、ROE 在 B 階段入口失效、fork PR、本機目標的 loopback 例外、07 的精簡 Lite 候選；修正多處過時文字；schemas README 補上 154 個錯誤碼。
+- 審查紀錄 [docs/evidence/review-2026-10-25-r7.md](docs/evidence/review-2026-10-25-r7.md)；09 新增 BL-48～BL-52。
+- 新增 `tests/test_v06_r7_methodology.py`。
+
+### 第七輪審查：安全等級（第 3 組之三）
+- 種子新增 `side_effects`／`contained`；寫入副作用沒有被圍住的種子 → 至少 S2，沒有宣告時依 ROE integrations 採 fail closed。範例的種子都宣告 `none`／`contained`，ROE 的 seed manifest hash 已更新。
+- 請求預算包含重播（`max_requests ＋ replay_n × ⌈max_requests／n⌉`）。計畫原本寫 `max_requests ×（1＋replay_n）`，但重播只重跑一個 trial，那樣會高估：LLM 範例會從 350 變成 5250。
+- GraphQL 只能 POST，並以 `graphql_document_sha256` 釘住 document（testcase `request_allowlist` 新欄位）；否則 S3。
+- 新增 `tests/test_v06_r7_safety.py`。
+
+### 第七輪審查：校準（第 3 組之二）
+- 權重改為兩邊比率的對數概似比（SUPPORT＝ln(TPR／(1−TNR))、REFUTE＝ln(TNR／(1−TPR))），任一邊 near_zero → 兩邊都是 0；範例的權重、θ_confirm（2.5，新尺度）與 K-011 的 provisional 隨之更新。
+- θ_confirm／θ_reject 依 CWE 桶分開（`by_bucket`）；沒有列出的桶、不可行或未能類推（`generalised: false`）的門檻都視為 +∞。
+- `high_precision_rules` 記錄 tp／fp 與保留切分計數，由 validator 重算 Clopper-Pearson 下界與列入條件（新錯誤碼 `E-CAL-HIGH-PRECISION`）。
+- 模型版本或驗證 prompt 與校準時不同 → 權重 0（`Index.calibrated_setup_problem`）；`valid_for_model_keys` 空清單代表沒有任何模型有效。
+- models.yaml 新增 `derived_from`；家族與血統的獨立性以血統的根判定。
+- 新增 `tests/test_v06_r7_calibration.py`。
+
+### 第七輪審查：裁決規則（第 3 組之一；`rule_version` 改為 `05-v0.6`）
+- R10：只有 G4 核准、重播至少命中一次的 B4 證明能推翻 G2 駁回；W4 證明只加註 `post_g2_conflict`（`checks.proof_overrides_g2`）。
+- Result Analyst 排除寫測試的家族（W4 的 test_generator／test_critic；黑箱的 test_designer、test_implementer、test_critic 與威脅的 threat_modeler）。
+- 機率型測試依 adapter、`multi_turn` 與 `trials.record` 判定，n 必須達到 PASS 所需的有效次數（`E-TC-TRIALS`）。
+- R0：沒有任何接地證據、至少一項 NOT_FOUND（NOT_CHECKED 不再能逃過）。
+- 05 寫明反駁票的一致決設計。
+- 不採納：審查 3.7（CMD-2 加入的家族不併入 `cluster.families`）。那會讓加派回報的家族也能驗證自己的回報，重新引入自我偏好；保留排除只會讓驗證者池變小，這已由 `no_eligible_verifier` 顯示出來。
+- 新增 `tests/test_v06_r7_adjudication.py`。
+
+### 第七輪審查：流程完整性與有效覆蓋率（第 2 組，含外部審查 5）
+- 新增 `E-PIPELINE`：叢集都有裁決、已驗證的發現項都在叢集中；DISPUTED／高嚴重度 UNCORROBORATED 叢集經過 G2 或列為 over_cap；沒有被駁回的白箱叢集是種子或 report_only；G2 駁回的不是種子；G3 後種子都有威脅；`manual_review_clusters` 由裁決推導；報告的 gaps 與 artifacts 完整。
+- 範例修正：K-014（LIKELY）原本既不是種子也不是 report_only，補上種子 ST-004（T-012）；報告 artifacts 補上 V-014-1、V-015-2、V-016-1 與 W4 結果 R-WTC-015-01-1。
+- report `metrics`：`access_matrix_coverage`／`endpoint_test_coverage` 改名為 `planned_*`，新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`（只算有有效執行結果的測試案例，`checks.execution_backed`）。
+- 新增 `tests/test_v05_r7_pipeline.py`。
 
 ## v0.5（2026-10-25）
 
@@ -135,55 +198,6 @@
 - 覆蓋指標：testcase 與 w4-testcase 新增 `access_cells`（`E-TC-ACCESS-CELL`）；report `metrics` 新增 `access_matrix_coverage`、`endpoint_slice_coverage`、`endpoint_test_coverage`，由 validator 重算（`E-REPORT-METRICS`）。
 - 外洩比對：seed `sensitive_fields` 與參考實作 `safety.sensitive_leaks`（`E-SEED-SENSITIVE`）。seed manifest 內容改變，ROE 的 `seed_manifest_sha256` 隨之更新並重簽。
 - 新增 `tests/test_v05_schema_backlog.py`。每個新檢查都做過驗證：單獨停用時，只有它自己的測試失敗。
-
-### 第七輪審查：validator 繞過（第 1 組，含外部審查 1～4）
-- EXPIRED（沒有簽章）的關卡紀錄只能帶 needs_info 決定（`E-GATE-OUTCOME`），不再算 G1 核准的需求、G2／G3 的決定或 G4 核准的測試案例。
-- B4／S2 的執行時間以 `sandbox_job_start`／`end` 的收件時間判斷：`executed_at` 在 job 之內（`E-JOB-AUDIT`）；job 開始晚於核准它的最新 G4 決定（`E-RESULT-G4`）與 G5 決定（`E-RESULT-G5`），並在 ROE 時段內（`E-RESULT-WINDOW`）；B5 裁決晚於 job 結束才收件（`E-VERDICT-PHASE`）；`approved_testcase_ids` 看每個測試案例最新的 G4 決定。
-- W4 測試案例新增必填的 `target_files`；每個叢集的位置必須在測試涵蓋的檔案內（`E-W4-TC`）。
-- `sandbox_job_end` 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（W4：`E-W4-AUDIT`；B4：`E-JOB-AUDIT`）。
-- 誤報回饋由採用它的 run 以已錨定的 `feedback_recorded` 事件記錄，以收件時間驗章（`E-FEEDBACK`）；`audit-event` 新增此事件種類。
-- Scope Proxy：沒有路徑變數的 PATCH／PUT／DELETE 只能以 query 選取已綁定的列（body ID 不算）；`object_refs` 的 `{created:x}` 綁定 x 的 path_templates；Server Action 拒絕解析不到的參照，並以區分 JSON 型別的方式比對。
-- `read_only_endpoints` 不能是 W0 標為會寫入的端點（`E-SEED-SIDE-EFFECT`）；一個發現項只屬於一個叢集（`E-CLUSTER-BINDING`）；裁決規則改用推導出的 score。
-- 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
-- 新增 `tests/test_v05_r7_bypasses.py`。
-
-### 第七輪審查：方法論與架構（第 4 組）與審查紀錄
-- 共享平台目標新增 `ownership_proof.technical_proof`；沒有技術證明只允許 S0（`E-ROE-PLATFORM`）。
-- PII 停止條件排除登記的合成值與 canary（`safety.pii_stop_hits`）；測試案例可宣告 `expected_error_statuses`（只限 429／5xx，`E-TC-EXPECTED-STATUS`），不計入 run 層級停止條件（`safety.counts_for_run_stop`）。
-- ASI09 抽查推翻 G5 後，同一委任之後的 run 一律需要兩位資安審查者（`checks.g5_escalation`，`E-G5-TWO-PERSON`）；over_cap 清單重算 G3 的完整性（`E-REPORT-QUEUE`）。
-- `g_roe` 分成 14 個區段各自保護（第 5 組）。
-- 文件：W4 以乾淨設定執行並在行程外判定結果、自動觸發只跑 W0／W0.5、各保證等級的最少人數、`regression` 帶入叢集、ROE 在 B 階段入口失效、fork PR、本機目標的 loopback 例外、07 的精簡 Lite 候選；修正多處過時文字；schemas README 補上 154 個錯誤碼。
-- 審查紀錄 [docs/evidence/review-2026-10-25-r7.md](docs/evidence/review-2026-10-25-r7.md)；09 新增 BL-48～BL-52。
-- 新增 `tests/test_v06_r7_methodology.py`。
-
-### 第七輪審查：安全等級（第 3 組之三）
-- 種子新增 `side_effects`／`contained`；寫入副作用沒有被圍住的種子 → 至少 S2，沒有宣告時依 ROE integrations 採 fail closed。範例的種子都宣告 `none`／`contained`，ROE 的 seed manifest hash 已更新。
-- 請求預算包含重播（`max_requests ＋ replay_n × ⌈max_requests／n⌉`）。計畫原本寫 `max_requests ×（1＋replay_n）`，但重播只重跑一個 trial，那樣會高估：LLM 範例會從 350 變成 5250。
-- GraphQL 只能 POST，並以 `graphql_document_sha256` 釘住 document（testcase `request_allowlist` 新欄位）；否則 S3。
-- 新增 `tests/test_v06_r7_safety.py`。
-
-### 第七輪審查：校準（第 3 組之二）
-- 權重改為兩邊比率的對數概似比（SUPPORT＝ln(TPR／(1−TNR))、REFUTE＝ln(TNR／(1−TPR))），任一邊 near_zero → 兩邊都是 0；範例的權重、θ_confirm（2.5，新尺度）與 K-011 的 provisional 隨之更新。
-- θ_confirm／θ_reject 依 CWE 桶分開（`by_bucket`）；沒有列出的桶、不可行或未能類推（`generalised: false`）的門檻都視為 +∞。
-- `high_precision_rules` 記錄 tp／fp 與保留切分計數，由 validator 重算 Clopper-Pearson 下界與列入條件（新錯誤碼 `E-CAL-HIGH-PRECISION`）。
-- 模型版本或驗證 prompt 與校準時不同 → 權重 0（`Index.calibrated_setup_problem`）；`valid_for_model_keys` 空清單代表沒有任何模型有效。
-- models.yaml 新增 `derived_from`；家族與血統的獨立性以血統的根判定。
-- 新增 `tests/test_v06_r7_calibration.py`。
-
-### 第七輪審查：裁決規則（第 3 組之一；`rule_version` 改為 `05-v0.6`）
-- R10：只有 G4 核准、重播至少命中一次的 B4 證明能推翻 G2 駁回；W4 證明只加註 `post_g2_conflict`（`checks.proof_overrides_g2`）。
-- Result Analyst 排除寫測試的家族（W4 的 test_generator／test_critic；黑箱的 test_designer、test_implementer、test_critic 與威脅的 threat_modeler）。
-- 機率型測試依 adapter、`multi_turn` 與 `trials.record` 判定，n 必須達到 PASS 所需的有效次數（`E-TC-TRIALS`）。
-- R0：沒有任何接地證據、至少一項 NOT_FOUND（NOT_CHECKED 不再能逃過）。
-- 05 寫明反駁票的一致決設計。
-- 不採納：審查 3.7（CMD-2 加入的家族不併入 `cluster.families`）。那會讓加派回報的家族也能驗證自己的回報，重新引入自我偏好；保留排除只會讓驗證者池變小，這已由 `no_eligible_verifier` 顯示出來。
-- 新增 `tests/test_v06_r7_adjudication.py`。
-
-### 第七輪審查：流程完整性與有效覆蓋率（第 2 組，含外部審查 5）
-- 新增 `E-PIPELINE`：叢集都有裁決、已驗證的發現項都在叢集中；DISPUTED／高嚴重度 UNCORROBORATED 叢集經過 G2 或列為 over_cap；沒有被駁回的白箱叢集是種子或 report_only；G2 駁回的不是種子；G3 後種子都有威脅；`manual_review_clusters` 由裁決推導；報告的 gaps 與 artifacts 完整。
-- 範例修正：K-014（LIKELY）原本既不是種子也不是 report_only，補上種子 ST-004（T-012）；報告 artifacts 補上 V-014-1、V-015-2、V-016-1 與 W4 結果 R-WTC-015-01-1。
-- report `metrics`：`access_matrix_coverage`／`endpoint_test_coverage` 改名為 `planned_*`，新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`（只算有有效執行結果的測試案例，`checks.execution_backed`）。
-- 新增 `tests/test_v05_r7_pipeline.py`。
 
 ### 白箱測試案例（BL-27）
 - 新增 `w4-testcase.schema.json`：W4 在 Z2 執行的單元、性質、本地 RLS 與假模型測試，與黑箱 testcase 分開。validator 檢查 run 與叢集、oracle 只引用 G1 已核准的 `requirement_ids`、reachability 對照、`local_rls` 的拋棄式 Postgres 與 migration（`E-W4-TC`、`E-TC-REQ-UNAPPROVED`、`E-TC-CONTROLS`）。
