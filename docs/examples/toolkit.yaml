@@ -2,7 +2,7 @@
 # 隨部署設定管理，不由 run 輸入（docs/03 §6.1）。所有預設值都是 [H]。
 # 範例中的金鑰都是 tests/fixtures/TEST_ONLY_private_keys/ 的測試金鑰，不得用於任何真實環境。
 
-toolkit_version: "0.2.0"
+toolkit_version: "0.5.0"
 
 org_root_key:                      # 釘選組織根金鑰；key-registry.yaml 的根簽章以此驗證
   fingerprint: "ed25519:SHA256:BapVgk4zzu3O27bFRo4KQPgpimca+HewBXfVD+sMLeQ"

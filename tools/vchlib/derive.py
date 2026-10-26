@@ -1156,6 +1156,8 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     trs = sorted((x.data for x in ix.docs("testresult") if x.data.get("run_id") == rid),
                  key=lambda t: (timeutil.sort_key(t.get("executed_at")), str(t.get("result_id"))))   # D4: by instant, not by text
     exp(d, ["testresults"], [content_hash(t) for t in trs], "content hash of each testresult (execution order)")
+    # v0.7 (review r8): the W4 subset is derived too; v0.6 left run.w4_results unchecked (the example had [] with a W4 result)
+    exp(d, ["w4_results"], [content_hash(t) for t in trs if t.get("phase") == "W4"], "content hash of each W4 testresult (execution order)")
     for jid in (r.get("jobs") or {}):
         tr = next((t for t in trs if t.get("job_id") == jid), None)
         exp(d, ["jobs", jid, "result_ref"], content_hash(tr) if tr else None, "testresult of this job")

@@ -1,6 +1,6 @@
 [project]
 name = "vibecheck-harness-design"
-version = "0.3.0"
+version = "0.5.0"
 description = "VibeCheck Harness design repo: schemas, examples and the example validator (tools/vchlib)"
 requires-python = ">=3.11"
 dependencies = [

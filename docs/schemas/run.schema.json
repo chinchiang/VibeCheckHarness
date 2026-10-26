@@ -390,7 +390,8 @@
     },
     "repo_commit": {
       "type": "string",
-      "pattern": "^[0-9a-f]{7,64}$"
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "v0.7（審查 r8）：完整 40 字元的 git commit SHA-1；短 SHA 會削弱建置識別（E-RESULT-BUILD）"
     },
     "owasp_llm_version": {
       "anyOf": [

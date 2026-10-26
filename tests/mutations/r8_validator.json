@@ -1,0 +1,250 @@
+{
+  "tests": "tests/test_v07_r8_validator.py",
+  "mutations": [
+    {
+      "name": "F2a job never finished",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(isinstance(job, dict) and job.get(\"status\") in JOB_RAN_STATES, \"E-JOB-AUDIT\", where,",
+      "new": "        R.check(True, \"E-JOB-AUDIT\", where,",
+      "k": "never_ran"
+    },
+    {
+      "name": "F2a classify needs execution",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if not execution_anchored(ix, tr):",
+      "new": "    if False and not execution_anchored(ix, tr):",
+      "k": "without_an_execution"
+    },
+    {
+      "name": "F2b one result per job",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(len(trs) == 1, \"E-JOB-AUDIT\", where,",
+      "new": "        R.check(True, \"E-JOB-AUDIT\", where,",
+      "k": "second_result"
+    },
+    {
+      "name": "F2b unanchored end",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(False, \"E-JOB-AUDIT\", where,\n                        f\"testresult {tr.get('result_id')}: its sandbox_job_end",
+      "new": "                R.check(True, \"E-JOB-AUDIT\", where,\n                        f\"testresult {tr.get('result_id')}: its sandbox_job_end",
+      "k": "unanchored_job_end"
+    },
+    {
+      "name": "F5 severity derived",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(k.get(\"severity\") == want, \"E-CLUSTER-SEVERITY\", w,",
+      "new": "    R.check(True, \"E-CLUSTER-SEVERITY\", w,",
+      "k": "cluster_severity_is_the_rubric"
+    },
+    {
+      "name": "F5 routing on W3 status",
+      "file": "tools/vchlib/checks.py",
+      "old": "                w3_status, sev = w3_status_of.get(k), derive.rubric_severity(c.ix, cl)",
+      "new": "                w3_status, sev = w_status_of.get(k), derive.rubric_severity(c.ix, cl)",
+      "k": "w4_readjudicated_still_needs"
+    },
+    {
+      "name": "F5 routing on rubric",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and sev in HIGH_SEVERITIES):",
+      "new": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and {f.data.get(\"severity\") for f in c.docs(\"finding\") if f.data.get(\"finding_id\") in (cl.get(\"member_finding_ids\") or [])} & set(HIGH_SEVERITIES)):",
+      "k": "self_reported_severity"
+    },
+    {
+      "name": "F7 proof trials",
+      "file": "tools/vchlib/derive.py",
+      "old": "                         \"trials\": {\"n\": got.get(\"n\"), \"k\": got.get(\"k\")} if probabilistic else None,",
+      "new": "                         \"trials\": dict(got) if probabilistic else None,",
+      "k": "n_and_k_only"
+    },
+    {
+      "name": "ext1 budget per trial",
+      "file": "tools/vchlib/safety.py",
+      "old": "    return mx + rn * (per if type(per) is int and 0 < per <= mx else mx)",
+      "new": "    n = max(1, trials.get('n') or 1); return mx + rn * -(-mx // n)",
+      "k": "replay_budget_uses"
+    },
+    {
+      "name": "ext1 cap required",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(not signals or per is not None, \"E-TC-RATE\", w,",
+      "new": "            R.check(True, \"E-TC-RATE\", w,",
+      "k": "declares_its_per_trial_cap"
+    },
+    {
+      "name": "ext1 cap within job",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(per is None or (type(per) is int and 1 <= per <= trl.get(\"max_requests\", 0)), \"E-TC-RATE\", w,",
+      "new": "            R.check(True, \"E-TC-RATE\", w,",
+      "k": "within_the_job_cap"
+    },
+    {
+      "name": "ext2 llm threat signal",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if llm_threat(ix, tc):\n        out.append(",
+      "new": "    if False and llm_threat(ix, tc):\n        out.append(",
+      "k": "whatever_the_adapter or disguised_llm_pass"
+    },
+    {
+      "name": "ext2 sampling signal",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if trials.get(\"sampling\") == \"sampled\":",
+      "new": "    if False:",
+      "k": "sampling_sampled"
+    },
+    {
+      "name": "ext2 deterministic contradiction",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(tr.get(\"sampling\") != \"deterministic\", \"E-TC-TRIALS\", w,",
+      "new": "                R.check(True, \"E-TC-TRIALS\", w,",
+      "k": "deterministic_cannot_be_declared"
+    },
+    {
+      "name": "ext3 independent families by root",
+      "file": "tools/vchlib/derive.py",
+      "old": "            root = ix.root_of_agent(rep.get(\"agent_id\")) or ix.lineage_root(rep.get(\"lineage\"))",
+      "new": "            root = rep.get(\"family\")",
+      "k": "count_base_lineages"
+    },
+    {
+      "name": "ext3 diversity by root",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return len(roots) < min(2, len(c.ix.lineage_roots(m.get(\"lineage\") for m in eligible_verifier_models(c, cluster).values())))",
+      "new": "    return len(roots) < min(2, len(eligible_verifier_families(c, cluster)))",
+      "k": "base_lineages_of_the_pool"
+    },
+    {
+      "name": "ext3 cycle",
+      "file": "tools/vchlib/checks.py",
+      "old": "    for cyc in c.ix.lineage_cycles():",
+      "new": "    for cyc in []:",
+      "k": "lineage_cycle"
+    },
+    {
+      "name": "ext3 derived_from exists",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(m[\"derived_from\"] in lineages and m[\"derived_from\"] != m.get(\"lineage\"), \"E-MODEL-LINEAGE\"",
+      "new": "            R.check(True, \"E-MODEL-LINEAGE\"",
+      "k": "names_a_registry_lineage"
+    },
+    {
+      "name": "ext4 holdout counts",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if not (count_problems(R, hw, h.get(\"holdout_tp\"), h.get(\"holdout_n\"), \"holdout_tp\")",
+      "new": "            if not (True",
+      "k": "holdout_tp_cannot"
+    },
+    {
+      "name": "ext4 correct <= n",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not all(count_problems(R, f\"{w} weights {mk}/{row.get('cwe_bucket')} {sk}\", x.get(\"correct\"), x.get(\"n\"), \"correct\")",
+      "new": "        if not all(True",
+      "k": "correct_cannot_exceed"
+    },
+    {
+      "name": "ext4 theta range",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(val is None or (isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val) and val >= THETA_MIN),",
+      "new": "            R.check(True,",
+      "k": "positive_finite_score"
+    },
+    {
+      "name": "ext4 weighted_valid recomputed",
+      "file": "tools/vchlib/checks.py",
+      "old": "    votes = [x for x in v.get(\"votes\", []) if derive.vote_terms(c.ix, x, cluster, v.get(\"calibration_version\"))[2]]",
+      "new": "    votes = [x for x in v.get(\"votes\", []) if x.get(\"weighted_valid\") and derive.is_verifier_vote(c.ix, x)]",
+      "k": "weighted_valid_is_recomputed"
+    },
+    {
+      "name": "F1 B needs VERIFIED G0b",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(last_before(\"G0b\", t) == \"VERIFIED\", \"E-GATE-ORDER\", where,",
+      "new": "            R.check(True, \"E-GATE-ORDER\", where,",
+      "k": "failed_g0b_stops or verified_g0b or later_failed_g0b"
+    },
+    {
+      "name": "F3 first-decision order",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(prev is None or first[g] > first[prev], \"E-GATE-ORDER\", w,",
+      "new": "            R.check(True, \"E-GATE-ORDER\", w,",
+      "k": "g4_cannot_precede_g3"
+    },
+    {
+      "name": "F3 W4 after G2",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(\"G2\" not in first or min(w4_events) > first[\"G2\"], \"E-GATE-ORDER\", w,",
+      "new": "        R.check(True, \"E-GATE-ORDER\", w,",
+      "k": "w4_runs_after_g2"
+    },
+    {
+      "name": "F4 claim",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(bool(claims) and min(claims) < min(gated), \"E-RUN-CLAIM\", w,",
+      "new": "            R.check(True, \"E-RUN-CLAIM\", w,",
+      "k": "claimed_by_a_human or claim_precedes"
+    },
+    {
+      "name": "H3 same-run G3",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(th in accepted, \"E-RUN-G3\", w,",
+      "new": "                    R.check(True, \"E-RUN-G3\", w,",
+      "k": "needs_this_runs_g3"
+    },
+    {
+      "name": "H3 review owner",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        owner = (x.get(\"carried_from\") or {}).get(\"gate_record_id\") or rec.get(\"gate_record_id\")",
+      "new": "                        owner = rec.get(\"gate_record_id\")",
+      "k": "carried_g3_keeps or examples_are_clean"
+    },
+    {
+      "name": "H2 regression",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if kind in (\"followup\", \"regression\"):",
+      "new": "            if kind == \"followup\":",
+      "k": "regression_run_carries"
+    },
+    {
+      "name": "M2 spot check independence",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(who not in approvers and who not in initiators, \"E-SPOT-CHECK\", where,",
+      "new": "    R.check(True, \"E-SPOT-CHECK\", where,",
+      "k": "approver_cannot_spot_check"
+    },
+    {
+      "name": "M2 spot check role",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(actor.get(\"kind\") == \"human\" and \"security_reviewer\" in c.roles_of(who), \"E-SPOT-CHECK\", where,",
+      "new": "    R.check(True, \"E-SPOT-CHECK\", where,",
+      "k": "only_a_security_reviewer"
+    },
+    {
+      "name": "M2 spot check item",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if not R.check(rec is not None and rec.get(\"gate\", \"\").lower() == p.get(\"item_kind\")",
+      "new": "    if not R.check(True",
+      "k": "names_a_gate_record"
+    },
+    {
+      "name": "M6 fork",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(not run.get(\"verdicts\") and not run.get(\"cluster_ids\") and not run.get(\"lane_a_advisories\"), \"E-RUN-LANE-A\", w,",
+      "new": "                    R.check(True, \"E-RUN-LANE-A\", w,",
+      "k": "fork_pr_gets_no_llm_review"
+    },
+    {
+      "name": "M6 origin required",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(run.get(\"pr_origin\") in (\"same_repo\", \"fork\"), \"E-RUN-LANE-A\", w,",
+      "new": "                R.check(True, \"E-RUN-LANE-A\", w,",
+      "k": "declares_its_origin"
+    },
+    {
+      "name": "M6 advisories source",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(not bad, \"E-RUN-LANE-A\", w, f\"lane_a_advisories {bad} are not clusters of a same-repo Lane A run\")",
+      "new": "                R.check(True, \"E-RUN-LANE-A\", w, f\"lane_a_advisories {bad} are not clusters of a same-repo Lane A run\")",
+      "k": "advisories_come_from"
+    }
+  ]
+}
