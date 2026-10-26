@@ -273,6 +273,15 @@
         ]
       },
       "description": "v0.5（09 BL-20）：本測試涵蓋的 G1 存取矩陣格子（role × resource × action）；每格必須在 invariants.yaml 的 access_matrix 中（E-TC-ACCESS-CELL）。不針對存取控制的測試為空陣列"
+    },
+    "target_files": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "v0.5（審查 r7 1.3）：測試實際執行與斷言的受測檔案（W0 inventory 的檔案）。cluster_ids 中每個叢集的 canonical_location.file 必須是這些檔案之一；local_rls 另把 environment.database.migrations 算在內。local_rls 以外的種類不能是空的（E-W4-TC）"
     }
   },
   "required": [
@@ -284,6 +293,7 @@
     "language",
     "framework",
     "test_file",
+    "target_files",
     "environment",
     "steps",
     "controls",

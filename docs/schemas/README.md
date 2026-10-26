@@ -117,7 +117,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-RULE-VERSION` | 裁決的推導欄位（第 13 組） |
 | `E-RESULT-ORACLE` | `fail_oracles` 非空 ⇔ outcome FAIL，且 ⊆ testcase `oracle.types` |
 | `E-GATE-EXPIRED-EARLY` | v0.4：EXPIRED 關卡紀錄的收件時間必須在開啟時間加上該關卡逾時之後（v0.5：開啟時間是 `gate_opened` 事件的收件時間） |
-| `E-GATE-EXPIRED-SIG` | v0.5：EXPIRED 是唯一沒有簽章的結果，`signatures` 必須是 `[]`；不要求核准者簽章 |
+| `E-GATE-EXPIRED-SIG` | v0.5：EXPIRED 是唯一沒有簽章的結果，`signatures` 必須是 `[]`；不要求核准者簽章；審查 r7 1.1：EXPIRED 紀錄只能帶 needs_info 決定（`E-GATE-OUTCOME`），也不計入 G1 核准的需求、G2／G3 的決定與 G4 核准的測試案例 |
 | `E-GATE-OPENED` | v0.5：G0a／G0b 以外的關卡紀錄，其 `gate_decision` 之前必須有同一關卡（G5 另加同一個 `job_id`）的 `gate_opened` 事件，`opened_at` 與它的收件時間相差不超過時鐘容差 |
 | `E-KR-SERVICE` | v0.5：`z3_executor` 角色只能由服務身分 `z3-executor` 單獨持有；服務身分不是人員，不能出現在任何人員欄位 |
 | `E-SIG-ISSUED-AT` | v0.5：委任設定／ROE 的 `issued_at` 不能晚於首次驗章（G0a／G0b 收件時間）超過時鐘容差 |
@@ -128,11 +128,12 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-SIG-BACKDATED` | v0.4：委任設定或 ROE 的簽章金鑰後來以非 `compromised` 原因撤銷時，該文件第一次被驗章（G0a／G0b 紀錄的收件時間）必須早於 `revoked_at`；v0.5 對 `not_after` 也一樣（首次驗章時金鑰已到期，或從未驗章而登錄顯示已到期） |
 | `E-AUDIT-VERDICT` | `verdict_changed` 必須與裁決相符；v0.5：每一版裁決在其叢集所屬 run 的稽核檔中都必須有一筆 `verdict_changed` |
 | `E-VERDICT-CHAIN` | v0.5：同一叢集的裁決版本以 `supersedes_verdict_id` 形成單一線性鏈（不自我取代、不循環、不分岔、恰好一個最新版） |
-| `E-VERDICT-PHASE` | v0.5：`readjudicated_by` 不能倒填：黑箱叢集只有 B5 版本；W3 版本不取代任何版本；階段只能往後；收件時間晚於 W4／B4 測試結果的版本至少是 W4／B5 |
+| `E-VERDICT-PHASE` | v0.5：`readjudicated_by` 不能倒填：黑箱叢集只有 B5 版本；W3 版本不取代任何版本；階段只能往後；收件時間晚於 W4／B4 測試結果的版本至少是 W4／B5；審查 r7 1.2：B5 版本的收件時間晚於所連 B4 job 的 `sandbox_job_end` |
 | `E-ID-DUP` | v0.5：同一種文件（run、verdict、cluster、finding、testcase、testresult、threat、gate-record、report-manifest、slice）的 ID 不能重複 |
-| `E-CLUSTER-BINDING` | v0.5：白箱叢集的 `canonical_location.file` 是成員證據的檔案、sink 落在成員證據的行範圍內、`file::name` 形式的 symbol 屬於該檔案、`cwe_bucket` 是某個成員 CWE 的桶（`facets.CWE_BUCKETS`）；同一 run 的叢集指紋不重複 |
+| `E-CLUSTER-BINDING` | v0.5：白箱叢集的 `canonical_location.file` 是成員證據的檔案、sink 落在成員證據的行範圍內、`file::name` 形式的 symbol 屬於該檔案、`cwe_bucket` 是某個成員 CWE 的桶（`facets.CWE_BUCKETS`）；同一 run 的叢集指紋不重複；審查 r7 1.6：同一個 run 內，一個發現項只能是一個叢集的成員 |
 | `W-CLUSTER-BUCKET` | v0.5（警告）：成員的 CWE 都不在 `facets.CWE_BUCKETS`，`cwe_bucket` 無法檢查 |
-| `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果） |
+| `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10） |
+| `E-RESULT-G4`、`E-RESULT-G5`、`E-RESULT-WINDOW`、`E-RUN-G4` | 審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 |
 | `E-REPORT-QUEUE` | v0.4（BL-26）：`report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id） |
 | `E-ROE-EDGE-RANGE` | v0.4（BL-15）：`targets[].edge_ip_ranges` 只用於 http 目標，每項是主機位元為 0 的 CIDR，且不與任何非公開網段重疊 |
 | `E-RESULT-TRIALS` | v0.4：`trials` 滿足 k ≤ `n_effective` ≤ n；機率型 PASS 以 `n_effective`（n′）≥ 30 判定 `E_pass` |
@@ -142,8 +143,8 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-COVERAGE-D5` | v0.5：run 有 G4 紀錄後，每個最新 G3 決定為 accept 的威脅都有測試案例（含 MANUAL） |
 | `E-ROE-MISSING` | 沒有 ROE；v0.5 起只在 bundle 含黑箱內容（測試案例、測試結果、威脅、G0b 以後的關卡紀錄或 `run.jobs`）時才是錯誤，純白箱 bundle 可以沒有 ROE |
 | `E-TC-CONTROLS`、`E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-PRECONDITION` | testcase 至少一個 reachability 對照；結果恰好涵蓋所有對照；任何對照沒有 PASS → outcome 必須是 INVALID；`precondition_reached`＝所有 reachability 對照 PASS；`positive_control`＝oracle_can_fail 對照 PASS（沒有時為 null） |
-| `E-W4-TC` | v0.5（BL-27）：W4 測試案例的 run 存在、叢集是同 run 的 white_box／tool_only 叢集、oracle 只引用 requirement_ids、local_rls 有拋棄式 Postgres 與 inventory 中的 migration；W4 結果不借用黑箱測試案例、只掛在測試案例的叢集上 |
-| `E-W4-AUDIT` | v0.5（BL-27）：W4 結果恰好對應一筆已錨定的 W4／Z2 `sandbox_job_end`（同 result_id、testcase_id、outcome），`executed_at` 在該 job 的開始與結束之間 |
+| `E-W4-TC` | v0.5（BL-27）：W4 測試案例的 run 存在、叢集是同 run 的 white_box／tool_only 叢集、oracle 只引用 requirement_ids、local_rls 有拋棄式 Postgres 與 inventory 中的 migration；W4 結果不借用黑箱測試案例、只掛在測試案例的叢集上；審查 r7 1.3：local_rls 以外的種類要宣告 `target_files`（inventory 中的檔案），每個叢集的 `canonical_location.file` 必須在 target_files（local_rls 另加 migration）之內 |
+| `E-W4-AUDIT` | v0.5（BL-27）：W4 結果恰好對應一筆已錨定的 W4／Z2 `sandbox_job_end`（同 result_id、testcase_id、outcome），`executed_at` 在該 job 的開始與結束之間；審查 r7 1.10：該事件另釘住 testcase、artifact 與結果的 hash |
 | `E-W4-COVERAGE` | v0.5（BL-27）：run 有 W4 產物或種子威脅後，每條 G1 核准的不變量有 W4 測試案例或列在 `w4_manual_requirements`（不能兩者都有）；MANUAL 只能列 G1 核准的不變量 |
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate；v0.5 BL-20：access_matrix_coverage、endpoint_slice_coverage、endpoint_test_coverage）由 run 的測試結果、testcase 的 access_cells、切片與 request_allowlist 重算 |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；tool_only 叢集（v0.5，BL-13）沒有成員、`tool_report_refs` 至少一筆能解析，`sarif_refs` 不能含回報或同一工具的結果，其他 origin 的 `tool_report_refs` 為空；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |
@@ -153,16 +154,16 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ENG-BUDGET` | 每一層 `max_cost_usd` 等上限必填、階段上限不超過 run_total；v0.5（BL-14）：`budgets.families` 的家族是 models.yaml 的家族、上限不超過 run_total |
 | `E-ENG-PUBLISH` | v0.5（BL-17）：`publishing` 關閉時 platform 為 null、token_scopes 為空；開啟時平台為 github、權杖範圍只能是 metadata:read／issues:write／pull_requests:write |
 | `E-TOOLKIT-B1` | v0.5（BL-16）：toolkit `b1_crawl.skip_keywords` 包含 08 §11.7 的基本清單（方法、表單、origin、上限由 schema 限制） |
-| `E-FEEDBACK` | v0.5（BL-18）：回饋的 run 屬於同一委任、指紋是所指叢集的指紋、duplicate 指向另一個叢集、sarif_suppression 依標籤、恰好一個 signed_by 的簽章（簽章與角色另由 E-SIG-* 檢查） |
+| `E-FEEDBACK` | v0.5（BL-18）：回饋的 run 屬於同一委任、指紋是所指叢集的指紋、duplicate 指向另一個叢集、sarif_suppression 依標籤、恰好一個 signed_by 的簽章（簽章與角色另由 E-SIG-* 檢查）；審查 r7 1.11：採用回饋的 run（同委任的另一個 run）在稽核紀錄中恰好有一筆已錨定的 `feedback_recorded`，payload 的 `feedback_sha256` 等於回饋的內容 hash；簽章以該事件的收件時間驗證，`signed_at` 與收件時間相差不超過時鐘容差，收件時間不早於所指 run 的開始 |
 | `E-TC-ACCESS-CELL` | v0.5（BL-20）：testcase／w4-testcase 的 `access_cells` 每格都在 G1 存取矩陣中 |
 | `E-SEED-SENSITIVE` | v0.5（BL-40）：seed `sensitive_fields` 的 phone／account 至少 6 位數字；同一正規化值不登記在兩個種子 |
 | `E-INVARIANT-LEVEL`、`E-INVARIANT-REF` | L2 以上的 ASVS／AISVS 需求由 baseline_levels 或 level_triggers 涵蓋；llm_tools 的資料分級、access_matrix.ownership |
 | `E-PLAN-COVERAGE`、`E-PLAN-FAMILIES` | v0.4：CMD-1 計畫涵蓋 run 的每個切片；每個切片的 reviewer 至少 min(2, 合格 reviewer 家族數) 個家族（合格＝reviewer 角色、模型在 engagement 該資料等級的 `allowed_models`、不在切片 `excluded_models`） |
 | `E-PLAN-FACETS`、`E-PLAN-TARGET`、`E-PLAN-ROUNDS`、`E-PLAN-AGENTS`、`E-PLAN-BUDGET` | 計畫每個切片涵蓋 `MANDATORY_FACETS`；型別化目標；輪次 ≤ 2；代理角色；token 預算 ≤ run 階段預算 |
 | `E-AGENT-TOOLS` | reviewer／verifier 只能 read_slice；commander 沒有工具；invariant_drafter 不能 read_slice |
-| `E-TC-MUTATION-SCOPE` | 變更請求只能經 `{seed:key}`（種子的 path_templates）或 create_only_endpoints＋`{created:step_id}`（同時 S3）；帶 `graphql_operation` 的請求必須送到 ROE `targets[].graphql_paths` 宣告的路徑、方法為 GET／POST（v0.4，同時 S3）；`object_refs` 的每一項是為這條路徑宣告的種子或較早的建立請求，路徑沒有變數段的寫入有有效的 `object_refs` 才在範圍內；`state_changing_reads` 的 GET 算寫入、`read_only_endpoints` 的 POST 算讀取（v0.4）；v0.5：`{created:}` 只能用在建立端點 `created_resource.path_templates` 宣告的路徑（其他變數段等於建立請求的值）、建立的 `step_id` 不重複、GraphQL mutation 只用 POST |
+| `E-TC-MUTATION-SCOPE` | 變更請求只能經 `{seed:key}`（種子的 path_templates）或 create_only_endpoints＋`{created:step_id}`（同時 S3）；帶 `graphql_operation` 的請求必須送到 ROE `targets[].graphql_paths` 宣告的路徑、方法為 GET／POST（v0.4，同時 S3）；`object_refs` 的每一項是為這條路徑宣告的種子或較早的建立請求，路徑沒有變數段的寫入有有效的 `object_refs` 才在範圍內；`state_changing_reads` 的 GET 算寫入、`read_only_endpoints` 的 POST 算讀取（v0.4）；v0.5：`{created:}` 只能用在建立端點 `created_resource.path_templates` 宣告的路徑（其他變數段等於建立請求的值）、建立的 `step_id` 不重複、GraphQL mutation 只用 POST；審查 r7：`object_refs` 中的 `{created:x}` 只用於 x 的 `created_resource.path_templates`（1.4）；沒有路徑變數的 PATCH／PUT／DELETE 必須以 query 的 `<id>=eq.<已綁定值>` 選取列，body 中的 ID 不算選取條件，只有 POST 可以由 body 綁定（1.8）；Server Action 的參照全部要能解析，引數以區分 JSON 型別的方式比對（`true` ≠ `1`，1.9） |
 | `E-SEED-MANIFEST` | create_only_endpoints、state_changing_reads、read_only_endpoints 的目標必須是 ROE 的 http 目標；v0.5：create_only_endpoints 的 `created_resource` 必填且合法（`id_pointer` 是 token 非空的 JSON Pointer；每條 `path_templates` 恰有一段 `{created_id}`，其他變數段來自建立路徑） |
-| `E-ROE-SEED-MANIFEST`、`E-SEED-SIDE-EFFECT` | v0.4：ROE `db_access.seed_manifest_sha256` 等於 seed manifest 的內容 hash；W0 inventory 中 `writes: true` 的 GET／HEAD 端點都列在 `state_changing_reads` |
+| `E-ROE-SEED-MANIFEST`、`E-SEED-SIDE-EFFECT` | v0.4：ROE `db_access.seed_manifest_sha256` 等於 seed manifest 的內容 hash；W0 inventory 中 `writes: true` 的 GET／HEAD 端點都列在 `state_changing_reads`；審查 r7 1.5：W0 標為 `writes: true` 的端點不能列在 `read_only_endpoints` |
 | `E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG` | observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash |
 | `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
 | `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
@@ -175,7 +176,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-G5-G4` | v0.5（BL-04）：G5 的 `g4_gate_record_id` 是同一 run 的 G4、在 G5 開啟前決定、是該測試案例最新且 accept 的 G4 決定，G4 與 G5 的核准者不重疊；其他關卡為 null |
 | `E-GATE-CARRY` | v0.5（BL-21）：`decisions[].carried_from` 只限 G1／G3 的 accept；來源是祖先 run（同一委任）的同一關卡紀錄、同項目 accept 且 `item_sha256` 相同；來源簽章以現行金鑰登錄重新驗證；G3 另要求兩個 run 的 G0b 驗證同一份 ROE |
 | `E-PROVENANCE`、`E-MODEL-FALLBACK-CLASS`、`E-MODEL-RETIREMENT-DATE`、`E-RESULT-ANALYST-ROLE` | threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 |
-| `E-SCHEMA-FORMAT`、`E-INPUT-SHAPE` | 見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查 |
+| `E-SCHEMA-FORMAT`、`E-INPUT-SHAPE` | 見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 |
 
 目前範例的預期警告只有一個：`nemotron_cloud` 的 litellm 是佔位模型 ID（`W-MODEL-PLACEHOLDER`；沒有 agent 會用到，`--real-run` 也不報錯）。U-11 已把 `claude_haiku` 換成 `claude_opus_48`（最早 2027-05-28 退役，不在委任期間內 [V][E:providers-52]）；U-12 已把 `gpt_flagship` 換成 `gpt-6-sol` [V][E:providers-46]。
 

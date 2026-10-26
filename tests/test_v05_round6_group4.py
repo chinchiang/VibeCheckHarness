@@ -36,7 +36,9 @@ def errors(b, code, where=None):
     (None, {"status": "paid"}, False),                     # a path-bound write needs no body id
 ])
 def test_bound_requests_pass(query, body, need):
-    assert safety.request_binding_problem(query, body, OK, need) is None
+    # v0.5 (review r7 1.8): body binding is accepted only for a POST (RPC / action call); PATCH / PUT / DELETE and a
+    # missing method select rows by the query (tests/test_v05_r7_bypasses.py)
+    assert safety.request_binding_problem(query, body, OK, need, method="POST") is None
 
 
 @pytest.mark.parametrize("query, body, need, why", [

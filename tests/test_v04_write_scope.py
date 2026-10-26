@@ -65,7 +65,8 @@ def test_unknown_or_malformed_refs_are_s3(b):
 
 def test_created_ref_must_be_an_earlier_create(b):
     reqs = copy.deepcopy(doc(b, TC_LLM).data["request_allowlist"])
-    reqs.append(req("POST", "/api/chat/actions", ["{created:open_session}"], target="tgt-staging-app"))
+    # review r7 1.4: a {created:} object ref is bound to its create's path_templates, so the write stays on that resource
+    reqs.append(req("POST", "/api/chat/sessions/{created:open_session}/messages", ["{created:open_session}"], target="tgt-staging-app"))
     tc = copy.deepcopy(doc(b, TC_LLM).data)
     tc["request_allowlist"] = reqs
     roe, tools = doc(b, "roe.yaml").data, doc(b, "tools.yaml").data

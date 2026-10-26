@@ -13,13 +13,13 @@
     "role": "app_owner",
     "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
   },
-  "signed_at": "2026-10-07T09:30:00+08:00",
+  "signed_at": "2026-10-07T10:05:00+08:00",
   "signatures": [
     {
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "yebqWsoYqq/0TJ6Odg5B7clFRFjNkmxlu6c4rvK8787KPogVTeyI9O8PUo5aRbDG8XMss0Vz6BYb7Ka/0gX4CQ=="
+      "value": "ikBtCbDc2/P9jTE0D4iRvNEYt8CbAFYhn1RI8uaR0OzvwDyNq6Ss4dahBTHmj+fedYAA79FmJ4Sw38e/wR/7AA=="
     }
   ]
 }

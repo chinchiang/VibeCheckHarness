@@ -9,6 +9,8 @@ they need keys or raw lines.
 """
 from __future__ import annotations
 
+import contextlib
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -154,7 +156,8 @@ class Index:
         inv = self.b.data("invariants") or {}
         so = inv.get("signoff") or {}
         rec = self.first("gate-record", gate_record_id=so.get("gate_record_id")) if so.get("gate_record_id") else None
-        if rec is None or rec.data.get("gate") != "G1":
+        # v0.5 (review r7 1.1): an EXPIRED G1 is unsigned and approves nothing
+        if rec is None or rec.data.get("gate") != "G1" or rec.data.get("outcome") == "EXPIRED":
             return set()
         accepted = {x.get("item_id") for x in rec.data.get("decisions") or [] if isinstance(x, dict) and x.get("decision") == "accept"}
         out = {i.get("requirement_id") for i in inv.get("invariants") or [] if isinstance(i, dict)
@@ -384,6 +387,43 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     return "E_inc", disagreement or "no pre-registered interpretation or eligible analyst"
 
 
+def job_end_of(e, tr: dict) -> bool:
+    """The sandbox_job_end event of a result: by job_id for B4, by result_id for W4 (W4 jobs are not run.jobs)."""
+    if not isinstance(e, dict) or e.get("event_type") != "sandbox_job_end":
+        return False
+    p = e.get("payload") or {}
+    if tr.get("phase") == "W4":
+        return p.get("result_id") == tr.get("result_id")
+    return tr.get("job_id") is not None and p.get("job_id") == tr.get("job_id")
+
+
+def execution_pins(tc: dict, tr: dict) -> dict:
+    """v0.5 (review r7 1.10): hashes the executor records in sandbox_job_end: the testcase it ran, the artifact, and the
+    result it returned."""
+    return {"testcase_sha256": content_hash(tc), "artifact_sha256": tr.get("artifact_sha256"), "result_sha256": content_hash(tr)}
+
+
+def vote_terms(ix: "Index", vote: dict, cluster: dict, version) -> tuple[bool, float, bool]:
+    """(valid, weight, weighted_valid) of one vote. A vote by an agent without the verifier role is ignored
+    (E-VERDICT-VOTER-ROLE in checks); v0.5 (review 2026-10-25 A-3): an abstention takes a side neither way, so it is never
+    weighted-valid (v0.4 counted it, and one abstaining family could lift the R8 cap through diversity)."""
+    valid = vote_valid(vote, cluster, ix)
+    wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version, vote.get("stance"))
+    counts = valid and wgt > 0 and is_verifier_vote(ix, vote) and vote.get("stance") in ("SUPPORT", "REFUTE")
+    return valid, wgt, counts
+
+
+def derived_score(ix: "Index", v: dict, cluster: dict) -> float:
+    """S = sum(w * stance) over weighted-valid votes, recomputed (v0.5, review r7 1.7: the rules use this value, not the
+    verdict's own score, which E-DERIVED compares only within rounding)."""
+    score = 0.0
+    for vote in v.get("votes", []):
+        _, wgt, counts = vote_terms(ix, vote, cluster, v.get("calibration_version"))
+        if counts:
+            score += wgt * STANCE.get(vote.get("stance"), 0)
+    return round(score, 4)
+
+
 def strongest(classes) -> str | None:
     for c in ("E_proof", "E_fail_u", "E_pass", "E_inc"):
         if c in classes:
@@ -564,11 +604,22 @@ def item_hash(ix: Index, rec: dict, item_id: str):
 
 
 # ---------------------------------------------------------------- expectations
-def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
+def expectations(b: Bundle, for_writer: bool = False, problems: list | None = None) -> list[Expectation]:
     """Derived values. for_writer=True adds values that only the writer (sign_examples) fills in
-    and that the reader checks with dedicated rules instead (run.audit_anchors)."""
+    and that the reader checks with dedicated rules instead (run.audit_anchors).
+    v0.5 (review r7, group 5): each document is derived on its own; a document whose values break a derivation is
+    appended to `problems` as (path, exception) and the other documents are still derived."""
     ix = Index(b)
     out: list[Expectation] = []
+
+    @contextlib.contextmanager
+    def guard(d):
+        try:
+            yield
+        except Exception as exc:  # noqa: BLE001 - reported as E-INTERNAL for this document by checks.g_derived
+            if problems is None:
+                raise
+            problems.append((d.path, exc))
 
     def exp(doc: Doc, path, value, why):
         if value is MISSING:
@@ -578,140 +629,165 @@ def expectations(b: Bundle, for_writer: bool = False) -> list[Expectation]:
     # slices (E6: the identity covers the files, the redaction map and the prompt template)
     slice_by_run: dict[str, list[str]] = {}
     for d in ix.docs("slice"):
-        rm = ix.first("redaction-map", run_id=d.data.get("run_id"))
-        if rm:
-            exp(d, ["redaction_map_sha256"], content_hash(rm.data), "content hash of the run's redaction map")
-        rm_sha = content_hash(rm.data) if rm else d.data.get("redaction_map_sha256")
-        sid = slice_identity(d.data.get("files", []), rm_sha, d.data.get("prompt_template_sha256"))
-        exp(d, ["slice_id"], sid, "sha256(JCS({files, redaction_map_sha256, prompt_template_sha256}))")
-        slice_by_run.setdefault(d.data.get("run_id"), []).append(sid)
+        with guard(d):
+            rm = ix.first("redaction-map", run_id=d.data.get("run_id"))
+            if rm:
+                exp(d, ["redaction_map_sha256"], content_hash(rm.data), "content hash of the run's redaction map")
+            rm_sha = content_hash(rm.data) if rm else d.data.get("redaction_map_sha256")
+            sid = slice_identity(d.data.get("files", []), rm_sha, d.data.get("prompt_template_sha256"))
+            exp(d, ["slice_id"], sid, "sha256(JCS({files, redaction_map_sha256, prompt_template_sha256}))")
+            slice_by_run.setdefault(d.data.get("run_id"), []).append(sid)
 
     # findings
     for d in ix.docs("finding"):
-        for i, e in enumerate(d.data.get("evidence", [])):
-            if isinstance(e.get("snippet"), str):
-                exp(d, ["evidence", i, "snippet_sha256"], text_hash(e["snippet"]), "sha256(snippet UTF-8)")
-        sl = slice_by_run.get(d.data.get("run_id"), [])
-        if len(sl) == 1:
-            exp(d, ["slice_id"], sl[0], "the slice of the same run")
+        with guard(d):
+            for i, e in enumerate(d.data.get("evidence", [])):
+                if isinstance(e.get("snippet"), str):
+                    exp(d, ["evidence", i, "snippet_sha256"], text_hash(e["snippet"]), "sha256(snippet UTF-8)")
+            sl = slice_by_run.get(d.data.get("run_id"), [])
+            if len(sl) == 1:
+                exp(d, ["slice_id"], sl[0], "the slice of the same run")
 
     if for_writer:
         # writer-only: the reader checks these with dedicated codes (E-CLUSTER-FINGERPRINT,
         # E-RESULT-PRECONDITION, E-RESULT-CONTROLS) so a tampered value is reported by its rule
         for d in ix.docs("cluster"):
-            exp(d, ["fingerprint"], cluster_fingerprint(d.data), "sha256(JCS(fingerprint key))")
+            with guard(d):
+                exp(d, ["fingerprint"], cluster_fingerprint(d.data), "sha256(JCS(fingerprint key))")
         for d in ix.docs("testresult"):
-            tc = ix.testcase_for(d.data)
-            if tc:
-                exp(d, ["precondition_reached", "value"], reachability_reached(tc.data, d.data), "all reachability controls PASS")
-                exp(d, ["positive_control", "value"], positive_control_value(tc.data, d.data), "oracle_can_fail control PASSed")
+            with guard(d):
+                tc = ix.testcase_for(d.data)
+                if tc:
+                    exp(d, ["precondition_reached", "value"], reachability_reached(tc.data, d.data), "all reachability controls PASS")
+                    exp(d, ["positive_control", "value"], positive_control_value(tc.data, d.data), "oracle_can_fail control PASSed")
+        # v0.5 (review r7 1.11): the adopting run's feedback_recorded event pins the feedback record (E-FEEDBACK reads it)
+        for f in ix.docs("feedback"):
+            for a in ix.audit_docs():
+                for i, e in enumerate(a.data):
+                    if isinstance(e, dict) and e.get("event_type") == "feedback_recorded" and \
+                            (e.get("payload") or {}).get("feedback_id") == f.data.get("feedback_id"):
+                        exp(a, [i, "payload", "feedback_sha256"], content_hash(f.data), "content hash of the recorded feedback")
+        # v0.5 (review r7 1.10, external review 2): the executor's sandbox_job_end pins what ran and what it produced; the
+        # reader compares them with dedicated codes (E-W4-AUDIT / E-JOB-AUDIT)
+        for d in ix.docs("testresult"):
+            with guard(d):
+                tc = ix.testcase_for(d.data)
+                audit = ix.audit_for(d.data.get("run_id"))
+                if tc is None or audit is None:
+                    continue
+                for i, e in enumerate(audit.data):
+                    if job_end_of(e, d.data):
+                        for key, val in execution_pins(tc.data, d.data).items():
+                            exp(audit, [i, "payload", key], val, f"{key} of what the job ran")
 
     # inventory -> redaction map
     for d in ix.docs("inventory"):
-        rm = ix.first("redaction-map", run_id=d.data.get("run_id"))
-        if rm:
-            exp(d, ["redaction_map_ref"], content_hash(rm.data), "content hash of the run's redaction map")
+        with guard(d):
+            rm = ix.first("redaction-map", run_id=d.data.get("run_id"))
+            if rm:
+                exp(d, ["redaction_map_ref"], content_hash(rm.data), "content hash of the run's redaction map")
 
     # testcases -> seed manifest oracle queries
     oq = ix.manifest.get("oracle_queries") or {}
     for d in ix.docs("testcase"):
-        qid = (d.data.get("oracle") or {}).get("oracle_query_id")
-        if qid and qid in oq:
-            exp(d, ["oracle", "oracle_query_sha256"], oq[qid].get("sql_sha256"), f"seed-manifest oracle_queries.{qid}.sql_sha256")
+        with guard(d):
+            qid = (d.data.get("oracle") or {}).get("oracle_query_id")
+            if qid and qid in oq:
+                exp(d, ["oracle", "oracle_query_sha256"], oq[qid].get("sql_sha256"), f"seed-manifest oracle_queries.{qid}.sql_sha256")
 
     # testresults -> testcase artifact
     for d in ix.docs("testresult"):
-        tc = ix.testcase_for(d.data)
-        if tc:
-            exp(d, ["artifact_sha256"], tc.data.get("artifact_sha256"), "testcase.artifact_sha256")
+        with guard(d):
+            tc = ix.testcase_for(d.data)
+            if tc:
+                exp(d, ["artifact_sha256"], tc.data.get("artifact_sha256"), "testcase.artifact_sha256")
 
     # verdicts
     t_conf, t_rej = ix.thresholds()
     for d in ix.docs("verdict"):
-        v = d.data
-        cl = ix.first("cluster", cluster_id=v.get("cluster_id"))
-        if not cl:
-            continue
-        cluster = cl.data
-        version = v.get("calibration_version")
-        score = 0.0
-        for i, vote in enumerate(v.get("votes", [])):
-            valid = vote_valid(vote, cluster, ix)
-            wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version, vote.get("stance"))
-            exp(d, ["votes", i, "valid"], valid, "family/lineage not in cluster, anonymized, order randomized")
-            exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket, side of the stance)")
-            # a vote by an agent without the verifier role is ignored (E-VERDICT-VOTER-ROLE in checks)
-            # v0.5 (review 2026-10-25 A-3): an abstention takes a side neither way, so it is never weighted-valid
-            # (v0.4 counted it, and one abstaining family could lift the R8 cap through diversity)
-            counts = valid and wgt > 0 and is_verifier_vote(ix, vote) and vote.get("stance") in ("SUPPORT", "REFUTE")
-            exp(d, ["votes", i, "weighted_valid"], counts, "valid, w > 0, a verifier-role voter, stance SUPPORT or REFUTE")
-            if counts:
-                score += wgt * STANCE.get(vote.get("stance"), 0)
-        exp(d, ["score"], round(score, 4), "sum(w * stance) over weighted-valid votes")
-        if version is not None and ix.calibration.get("calibration_version") == version:
-            exp(d, ["theta_confirm"], t_conf, "calibration theta_confirm")
-            exp(d, ["theta_reject"], t_rej, "calibration theta_reject")
-        results = linked_results(ix, cluster, v.get("readjudicated_by"))
-        classes = []
-        exp(d, ["test_evidence", "results"], _merge_results(v, ix, results, cluster, classes), "linked testresults (docs/05 §4.2)")
-        cls = strongest(classes)
-        exp(d, ["test_evidence", "class"], cls, "strongest linked class")
-        proof = None
-        if cls == "E_proof":
-            tr = next(r for r, c in zip(results, classes) if c == "E_proof")
-            tc = ix.testcase_for(tr)
-            probabilistic = tc is not None and (tc.data.get("trials") or {}).get("n", 1) > 1
-            proof = {"testcase_id": tr.get("testcase_id"), "result_ref": content_hash(tr),
-                     "trials": dict(tr.get("trials")) if probabilistic else None,
-                     "interpretation_confirmed_by": tr.get("interpreted_by")}
-        exp(d, ["executable_proof"], proof, "from the E_proof testresult")
+        with guard(d):
+            v = d.data
+            cl = ix.first("cluster", cluster_id=v.get("cluster_id"))
+            if not cl:
+                continue
+            cluster = cl.data
+            version = v.get("calibration_version")
+            for i, vote in enumerate(v.get("votes", [])):
+                valid, wgt, counts = vote_terms(ix, vote, cluster, version)
+                exp(d, ["votes", i, "valid"], valid, "family/lineage not in cluster, anonymized, order randomized")
+                exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket, side of the stance)")
+                exp(d, ["votes", i, "weighted_valid"], counts, "valid, w > 0, a verifier-role voter, stance SUPPORT or REFUTE")
+            exp(d, ["score"], derived_score(ix, v, cluster), "sum(w * stance) over weighted-valid votes")
+            if version is not None and ix.calibration.get("calibration_version") == version:
+                exp(d, ["theta_confirm"], t_conf, "calibration theta_confirm")
+                exp(d, ["theta_reject"], t_rej, "calibration theta_reject")
+            results = linked_results(ix, cluster, v.get("readjudicated_by"))
+            classes = []
+            exp(d, ["test_evidence", "results"], _merge_results(v, ix, results, cluster, classes), "linked testresults (docs/05 §4.2)")
+            cls = strongest(classes)
+            exp(d, ["test_evidence", "class"], cls, "strongest linked class")
+            proof = None
+            if cls == "E_proof":
+                tr = next(r for r, c in zip(results, classes) if c == "E_proof")
+                tc = ix.testcase_for(tr)
+                probabilistic = tc is not None and (tc.data.get("trials") or {}).get("n", 1) > 1
+                proof = {"testcase_id": tr.get("testcase_id"), "result_ref": content_hash(tr),
+                         "trials": dict(tr.get("trials")) if probabilistic else None,
+                         "interpretation_confirmed_by": tr.get("interpreted_by")}
+            exp(d, ["executable_proof"], proof, "from the E_proof testresult")
 
     # disputed_after_g2: derived from verdicts carrying the w4_became_disputed annotation (docs/05 §4.2)
     became = w4_became_disputed_clusters(ix)
     for d in ix.docs("seed-threats"):
-        for i, sd in enumerate(d.data.get("seeds", [])):
-            exp(d, ["seeds", i, "disputed_after_g2"], sd.get("source_cluster_id") in became,
-                "a verdict of the source cluster carries w4_became_disputed")
+        with guard(d):
+            for i, sd in enumerate(d.data.get("seeds", [])):
+                exp(d, ["seeds", i, "disputed_after_g2"], sd.get("source_cluster_id") in became,
+                    "a verdict of the source cluster carries w4_became_disputed")
 
     # gate records
     for d in ix.docs("gate-record"):
-        rec = d.data
-        art = gate_artifact(ix, rec)
-        if art is not None:
-            exp(d, ["artifact", "sha256"], art, f"{rec.get('gate')} artifact hash")
-        for i, dec in enumerate(rec.get("decisions", [])):
-            exp(d, ["decisions", i, "item_sha256"], item_hash(ix, rec, dec.get("item_id")), "approval hash of the item")
-        if rec.get("gate") in ("G0a", "G0b") and art is not None and rec.get("verification"):
-            exp(d, ["verification", "document_ref"], art, "hash of the verified document")
+        with guard(d):
+            rec = d.data
+            art = gate_artifact(ix, rec)
+            if art is not None:
+                exp(d, ["artifact", "sha256"], art, f"{rec.get('gate')} artifact hash")
+            for i, dec in enumerate(rec.get("decisions", [])):
+                exp(d, ["decisions", i, "item_sha256"], item_hash(ix, rec, dec.get("item_id")), "approval hash of the item")
+            if rec.get("gate") in ("G0a", "G0b") and art is not None and rec.get("verification"):
+                exp(d, ["verification", "document_ref"], art, "hash of the verified document")
 
     # runs
     for d in ix.docs("run"):
-        _run_expectations(ix, d, exp, slice_by_run, for_writer)
+        with guard(d):
+            _run_expectations(ix, d, exp, slice_by_run, for_writer)
 
     # report manifest
     for d in ix.docs("report-manifest"):
-        _report_expectations(ix, d, exp)
+        with guard(d):
+            _report_expectations(ix, d, exp)
 
     # checkpoint
     for d in ix.docs("checkpoint-metadata"):
-        run = ix.first("run", run_id=d.data.get("run_id"))
-        if run:
-            exp(d, ["state_sha256"], content_hash(run.data), "content hash of the run state")
-            pi = d.data.get("pending_interrupt")
-            pend = [g for g in run.data.get("gate_records", []) if g.get("gate_record_id") is None]
-            if pi and pend:
-                exp(d, ["pending_interrupt", "gate"], pend[-1].get("gate"), "the run's pending gate")
-                exp(d, ["pending_interrupt", "subject_hash"], pend[-1].get("subject_hash"), "the run's pending gate subject")
-                exp(d, ["pending_interrupt", "deadline"], run.data.get("resume_deadline"), "run.resume_deadline")
+        with guard(d):
+            run = ix.first("run", run_id=d.data.get("run_id"))
+            if run:
+                exp(d, ["state_sha256"], content_hash(run.data), "content hash of the run state")
+                pi = d.data.get("pending_interrupt")
+                pend = [g for g in run.data.get("gate_records", []) if g.get("gate_record_id") is None]
+                if pi and pend:
+                    exp(d, ["pending_interrupt", "gate"], pend[-1].get("gate"), "the run's pending gate")
+                    exp(d, ["pending_interrupt", "subject_hash"], pend[-1].get("subject_hash"), "the run's pending gate subject")
+                    exp(d, ["pending_interrupt", "deadline"], run.data.get("resume_deadline"), "run.resume_deadline")
 
     # commander plans: slice ids of the run that lists the plan
     for d in ix.docs("commander-plan"):
-        runs = [r.data for r in ix.docs("run") if d.data.get("plan_id") in r.data.get("plan_ids", [])]
-        if len(runs) == 1:
-            sl = slice_by_run.get(runs[0].get("run_id"), [])
-            if len(sl) == 1:
-                for i, _ in enumerate(d.data.get("slices", [])):
-                    exp(d, ["slices", i, "slice_id"], sl[0], "the slice of the run that lists this plan")
+        with guard(d):
+            runs = [r.data for r in ix.docs("run") if d.data.get("plan_id") in r.data.get("plan_ids", [])]
+            if len(runs) == 1:
+                sl = slice_by_run.get(runs[0].get("run_id"), [])
+                if len(sl) == 1:
+                    for i, _ in enumerate(d.data.get("slices", [])):
+                        exp(d, ["slices", i, "slice_id"], sl[0], "the slice of the run that lists this plan")
 
     # (the audit hash chain is checked from raw lines in checks.py, E-AUDIT-CHAIN)
     return out
@@ -842,11 +918,11 @@ def _report_expectations(ix: Index, d: Doc, exp):
         exp(d, ["artifacts", i, "sha256"], val, f"{kind} {ref}")
 
 
-def compare(b: Bundle) -> list[tuple[Expectation, Any]]:
+def compare(b: Bundle, problems: list | None = None) -> list[tuple[Expectation, Any]]:
     """Mismatches: [(expectation, actual)]."""
     docs = {d.path: d for d in b.docs}
     bad = []
-    for e in expectations(b):
+    for e in expectations(b, problems=problems):
         doc = docs.get(e.file)
         actual = get_path(doc.data, e.path) if doc and doc.data is not None else MISSING
         if not _equal(actual, e.expected):

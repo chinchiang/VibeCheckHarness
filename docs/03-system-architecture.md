@@ -869,6 +869,7 @@ stateDiagram-v2
 4. 檢查每位簽署人：`key_fingerprint` 在登錄中、角色符合該文件或關卡的要求、簽署時間在 `not_before`–`not_after` 之間。**簽署時間**：
    - GateRecord（v0.4）：以 Audit Writer 寫入 `gate_decision` 事件時的 `ts`（收件時間）為準；v0.5 起有關卡紀錄的 run 一定要有稽核紀錄，找不到收件時間就是錯誤（`E-AUDIT-GATE`），不退回自填時間；核准者自填的 `timestamp` 必須與它相差不超過 5 分鐘（`E-AUDIT-GATE`）。金鑰效期、撤銷、ROE 有效期、關卡逾時與 G5 時間窗都以收件時間判定，所以核准者無法把決定倒填到撤銷之前或 ROE 效期之內。
    - 委任設定與 ROE 的 `issued_at`、人為稽核事件：仍是自行宣告的時間；G0a／G0b 驗章本身發生在收件時間，過期與撤銷照該時間判定。
+   - 誤報回饋（`feedback.schema.json`，v0.5 審查 r7 1.11）：`signed_at` 是自填的，所以回饋由**採用它的 run**（同委任的下一個 run）寫一筆 `feedback_recorded` 稽核事件，payload 釘住 `feedback_id` 與回饋的內容 hash；簽章以這筆事件的收件時間驗證（不用 `signed_at`），事件必須已錨定，`signed_at` 與收件時間相差不超過 5 分鐘，收件時間不早於所指 run 的開始（`E-FEEDBACK`）。所以已撤銷的金鑰不能倒填出回饋。
    - 收件時間來自 Audit Writer 所在主機的時鐘，不是可信時間戳記服務；同時控制 Audit Writer 與其時鐘的人仍能偽造（限制，見 06 §3 #25）。
 5. **撤銷**：`revocation_reason = compromised` → 該金鑰的**所有**簽章都無效（不論簽署時間）；其他原因 → `revoked_at` 之前的簽章仍有效，之後的無效。
 6. 核准者來源依關卡而定（§6.3）：G0a／G1／G2 的核准者必須列在委任設定的 `gate_approvers`（`E-GATE-APPROVER-ENG`）；G0b 以後的核准者必須列在 ROE 的 `signatories` 或 `gate_approvers` 中（`E-GATE-ROE-APPROVER`）；G3／G4／G5 的決定時間還必須在 ROE 有效期內（`E-GATE-ROE-VALIDITY`）。`legal_review` 由 `management` 聲明時產生警告 `W-L2-MANAGEMENT`（不是錯誤）。
