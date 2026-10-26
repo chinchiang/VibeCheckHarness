@@ -27,7 +27,7 @@ def errs(bundle, code):
 
 # ================================================================ A1 tool tiers (pure rules)
 def test_rule_version_is_bumped():
-    assert adj.RULE_VERSION == "05-v0.5"
+    assert adj.RULE_VERSION == "05-v0.6"           # bumped again by review r7 group 3
 
 
 def test_weak_sarif_alone_never_confirms():
@@ -115,7 +115,8 @@ def test_fail_without_g4_approval_needs_an_analyst(b, keys):
     ix, cl = _ix_cluster(b, "K-201")
     assert classify_result(ix, doc(b, TR_LIST).data, cl)[0] == "E_fail_u"
     tr = doc(b, TR_LIST).data
-    tr["interpreted_by"] = {"agent_id": "result_analyst", "family": "nvidia"}
+    # v0.6 (review r7 3.1): nvidia modelled T-033, so the nvidia analyst would grade its own test; openai did not
+    tr["interpreted_by"] = {"agent_id": "result_analyst_b", "family": "openai"}
     tr["interpretation"] = {"agrees": True, "rationale": "x"}
     assert classify_result(ix, tr, cl)[0] == "E_proof"                  # eligible analyst (cluster has no families)
     tr["interpretation"]["agrees"] = False

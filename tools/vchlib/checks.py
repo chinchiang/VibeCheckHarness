@@ -2159,6 +2159,11 @@ def g_testcases(R: Report, c: Ctx):
             R.check(refs <= approved, "E-TC-REQ-UNAPPROVED", w,
                     f"requirements {sorted(refs - approved)} are not approved at G1 (REJECTED / NEEDS_INFO requirements are not testable)")
             R.check(1 <= tr.get("fail_k_min", 1) <= tr.get("n", 1), "E-TC-TRIALS", w, "fail_k_min must be 1..n")
+            if derive.is_probabilistic(tc):                     # v0.6 (review r7 3.3)
+                need = derive.pass_min_effective(c.ix, tc)
+                R.check(isinstance(tr.get("n"), int) and tr.get("n") >= need, "E-TC-TRIALS", w,
+                        f"a probabilistic test ({(tc.get('tool_binding') or {}).get('adapter')}) declares n {tr.get('n')}: it needs "
+                        f"n >= {need}, the effective trials a PASS requires")
             ctls = [x for x in tc.get("controls") or [] if isinstance(x, dict)]
             R.check(any(x.get("kind") == "reachability" for x in ctls), "E-TC-CONTROLS", w,
                     "a testcase needs at least one reachability control (B5)")
@@ -2685,13 +2690,34 @@ def derived_independent_sources(c: Ctx, v: dict, cluster: dict) -> int:
 
 
 def all_evidence_not_found(c: Ctx, cluster: dict) -> bool:
-    """R0 input: every evidence item of every member finding is NOT_FOUND; False when there are no members.
+    """R0 input: no evidence item of any member finding is grounded (MATCHED / MATCHED_SHIFTED) and at least one is
+    NOT_FOUND; False when there are no members. v0.6 (review r7): v0.5 needed every item NOT_FOUND, so one NOT_CHECKED
+    item kept an otherwise ungrounded cluster out of R0.
     (v0.4: R0 itself also needs no resolved SARIF and no FAIL-class test evidence, adjudicate.r0_applies.)"""
     members = [c.ix.finding(f) for f in cluster.get("member_finding_ids") or []]
     if not members or any(m is None for m in members):
         return False
     items = [e for m in members for e in m.get("evidence") or [] if isinstance(e, dict)]
-    return bool(items) and all(e.get("match") == "NOT_FOUND" for e in items)
+    return (any(e.get("match") == "NOT_FOUND" for e in items)
+            and not any(e.get("match") in ("MATCHED", "MATCHED_SHIFTED") for e in items))
+
+
+def proof_overrides_g2(c: Ctx, v: dict) -> bool:
+    """R10 (v0.6, review r7 3.1 / 3.4): an E_proof result of the verdict that is a G4-approved B4 result whose replay
+    job reproduced the violation at least once (k_r >= 1). Only such a proof was fixed by a human before it ran and
+    replayed outside the white-box pipeline that G2 overruled."""
+    for x in (v.get("test_evidence") or {}).get("results") or []:
+        if not isinstance(x, dict) or x.get("class") != "E_proof":
+            continue
+        tr = next((d.data for d in c.docs("testresult") if content_hash(d.data) == x.get("result_ref")), None)
+        if tr and proof_can_override(c, tr):
+            return True
+    return False
+
+
+def proof_can_override(c: Ctx, tr: dict) -> bool:
+    """The result is a G4-approved B4 result with at least one replay hit (R10, v0.6)."""
+    return tr.get("phase") == "B4" and derive.g4_approved(c.ix, tr) and (tr.get("replay_k") or 0) >= 1
 
 
 def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
@@ -2699,13 +2725,14 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
     # v0.5 (review 2026-10-25 H-3): R10 applies only to versions produced after G2. The W3 version is decided before
     # G2 exists, so a later G2 reject must not make it invalid; G2_apply writes the post-G2 version (R10 -> REJECTED)
     g2_rej = v.get("readjudicated_by") != "W3_adjudicate" and g2_latest(c, cluster)[1] == "reject"
-    all_fail = all_evidence_not_found(c, cluster)      # R0 (v0.3): every evidence item NOT_FOUND; False without members
+    all_fail = all_evidence_not_found(c, cluster)      # R0 (v0.6): nothing grounded, one NOT_FOUND; False without members
     votes = [x for x in v.get("votes", []) if x.get("weighted_valid") and derive.is_verifier_vote(c.ix, x)]
     g3_rej = g3_rejected(c, v, cluster)
     prev = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"]) if v.get("supersedes_verdict_id") else None
     return adj.Inputs(
         lane_a=run.get("run_kind") == "lane_a",
         g2_rejected=g2_rej,
+        proof_overrides_g2=proof_overrides_g2(c, v),
         all_snippets_fail=all_fail,
         evidence={x.get("class") for x in (v.get("test_evidence") or {}).get("results", [])},
         # R11 (v0.4): only a qualified PASS with a PASSed oracle_can_fail control may downgrade; the per-result

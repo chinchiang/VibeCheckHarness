@@ -53,7 +53,7 @@
     }
   ],
   "tool_versions": [],
-  "rule_version": "05-v0.5",
+  "rule_version": "05-v0.6",
   "roe_ref": null,
   "repo_commit": "9b7e3d2",
   "owasp_llm_version": "2026",

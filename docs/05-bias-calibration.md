@@ -2,6 +2,15 @@
 
 > 你的需求：白箱每個 agent 可以接不同 LLM，以減少模型差異造成的偏誤。本文件說明：證據支持到什麼程度、工具包怎麼設計、以及**必須自己量測**的部分。標記說明見 [README](../README.md#標記說明)。
 
+## v0.6 變更摘要（第七輪審查 第 3 組）
+
+`rule_version` 改為 `05-v0.6`：
+- **R10**：只有 G4 核准、重播至少命中一次（k_r ≥ 1）的 B4 證明能推翻 G2 駁回。W4 證明由白箱流程自己產生與解讀，而人剛剛否決的就是這個流程；它仍能讓沒有被駁回的叢集經 R1 升為 `CONFIRMED_EXECUTABLE`，但對已駁回的叢集只加註 `post_g2_conflict`，送 B6 人工複核。
+- **Result Analyst**：除了叢集的家族與血統，也排除寫測試的家族——W4 的 test_generator／test_critic，黑箱的 test_designer、test_implementer、test_critic 與該威脅的 threat_modeler。否則分析者是在評自己的測試。
+- **機率型測試**：依測試的對象判定（LLM 測試 adapter `promptfoo`／`pyrit`、`multi_turn`，或 `trials.record` 記錄目標模型），不看宣告的 n；這類測試的 n 必須 ≥ PASS 所需的有效次數（`E-TC-TRIALS`）。v0.5 以 n ＞ 1 判定，宣告 n＝1 的 LLM 測試只跑一次乾淨的 trial 就算合格 PASS。
+- **R0**：成員證據沒有任何一項接地（MATCHED／MATCHED_SHIFTED），而且至少一項 NOT_FOUND。v0.5 要求全部 NOT_FOUND，所以一項 NOT_CHECKED 就能讓沒有任何接地證據的叢集逃過 R0。
+- **一致決**：R3／R4 的「任一計權合格反駁票 → 不能確認」是刻意的一致決設計：單一家族的反駁就足以把叢集送 G2 由人判斷（R4 第 9 列），只有單一家族回報的叢集才可能被反駁自動駁回（第 8 列）。
+
 ## v0.4 變更摘要
 
 依 2026-10-24 設計審查（[review-2026-10-24](evidence/review-2026-10-24.md)）修正會讓真漏洞在沒有人看到時被駁回或降級的規則邊界；`rule_version` 改為 `05-v0.4`。
@@ -231,7 +240,7 @@
   - (a) 經 G4 核准的黑箱測試案例（B4 結果；該 run 最新的 G4 紀錄為 `APPROVED`／`PARTIALLY_APPROVED`，且對這個測試案例的決定是 `accept`）：G4 核准的就是測試步驟與 oracle；
   - (b) W4 測試：它的 `requirement_ids` 不是空的、全部經 G1 核准，而且有 `oracle_can_pass` 對照、全部 PASS（判定 PASS 時改為 `oracle_can_fail` 對照）。
   - Result Analyst 原本只負責確認「這個 FAIL 真的代表所述問題」。意思已事先固定、又由確定性 oracle 判定時，這一步沒有增加資訊，只會讓證明依賴 LLM，而且在分析者都與叢集同家族時根本無法成立。
-- **Result Analyst 分析者池**：`agents.yaml` 中每個家族一位，角色都是 `result_analyst`（`result_analyst_a`＝`claude_sonnet`、`result_analyst_b`＝`gpt_flagship`、`result_analyst`＝`nemotron_self`）。harness 挑一位家族與血統都不在叢集 `families`／`lineages` 中的分析者（家族與血統由 `agents.yaml` → `models.yaml` 解析）。黑箱回應中偵測到 PII 時，只能用自架模型（`result_analyst`）。沒有符合條件的分析者，就是「沒有合格的 Result Analyst」。
+- **Result Analyst 分析者池**：`agents.yaml` 中每個家族一位，角色都是 `result_analyst`（`result_analyst_a`＝`claude_sonnet`、`result_analyst_b`＝`gpt_flagship`、`result_analyst`＝`nemotron_self`）。harness 挑一位家族與血統都不在叢集 `families`／`lineages` 中、也不是寫這個測試的家族的分析者（家族與血統由 `agents.yaml` → `models.yaml` 解析；v0.6：寫測試的家族＝W4 的 test_generator／test_critic，黑箱的 test_designer、test_implementer、test_critic 與該威脅的 threat_modeler，`derive.test_author_families`）。黑箱回應中偵測到 PII 時，只能用自架模型（`result_analyst`）。沒有符合條件的分析者，就是「沒有合格的 Result Analyst」。
   - 分析者記在測試結果的 `interpreted_by`，它的 LLM 輸出記在 `interpretation`（`{agrees, rationale}`；兩者同時有或同時為 null，`E-RESULT-ANALYST`）。`interpreted_by` 不是 `result_analyst` 角色的 agent → `E-RESULT-ANALYST-ROLE`。
   - 合格分析者只有在 `agrees` 為 true 時才算「確認」；`agrees` 為 false → `E_inc`。
 
@@ -253,8 +262,8 @@
 | 段 | 規則 | 種類 | 條件 | 結果 |
 |---|---|---|---|---|
 | A 前置 | R9 | 決定 | `run_kind: lane_a`（D8） | 若 R0 條件成立 → `REJECTED`；否則 → `UNCORROBORATED`。兩種情況都設 `advisory: true`、`status_cap: UNCORROBORATED`。**結束**（不再評估 B–D 段；Lane A 不跑測試） |
-| A 前置 | R10 | 決定 | 此叢集最新的 G2 決定為 `REJECTED` | 測試證據有 `E_proof` → `CONFIRMED_EXECUTABLE`（`rule_trace` 為 R10、R1），加註 `post_g2_conflict`，列入 B6 人工複核清單（v0.4）。否則 → `REJECTED`（原因：人工駁回，附理由）；有 `E_fail_u` 時加註 `post_g2_conflict`。**結束** |
-| B 證據 | R0 | 決定 | 叢集有成員，所有成員的所有證據都是 `NOT_FOUND`（§3 規則 5），**而且**沒有已解析的 SARIF（強或弱）、測試證據沒有 `E_proof`／`E_fail_u`（v0.4）。黑箱起源叢集沒有成員，R0 不適用 | `REJECTED`（原因：無證據）。**結束** |
+| A 前置 | R10 | 決定 | 此叢集最新的 G2 決定為 `REJECTED` | 測試證據有 `E_proof`，**而且**它來自 G4 核准、重播至少命中一次（k_r ≥ 1）的 B4 結果（v0.6）→ `CONFIRMED_EXECUTABLE`（`rule_trace` 為 R10、R1），加註 `post_g2_conflict`，列入 B6 人工複核清單（v0.4）。否則 → `REJECTED`（原因：人工駁回，附理由）；有 `E_fail_u` 時加註 `post_g2_conflict`。**結束** |
+| B 證據 | R0 | 決定 | 叢集有成員，成員的證據沒有任何一項接地（`MATCHED`／`MATCHED_SHIFTED`），而且至少一項 `NOT_FOUND`（§3 規則 5；v0.6，v0.5 要求全部 `NOT_FOUND`），**而且**沒有已解析的 SARIF（強或弱）、測試證據沒有 `E_proof`／`E_fail_u`（v0.4）。黑箱起源叢集沒有成員，R0 不適用 | `REJECTED`（原因：無證據）。**結束** |
 | B 證據 | R1 | 決定 | 測試證據為 `E_proof` | `CONFIRMED_EXECUTABLE`。**結束**（若同時有 `E_pass`，R12 加註 `conflicting_test_results`） |
 | C 投票 | R2 | 計算 | ① 計權合格票，以及 S＝Σ w × 立場（支持＋1、反駁−1、棄權 0；w 見 §4.3）；② **強工具佐證**：叢集有強的 SARIF 結果（§3 規則 5）；③ **弱 SARIF**：叢集有其他已解析的 SARIF 結果；④ **獨立來源數**＝第一輪獨立回報的家族數＋（有弱 SARIF 時 1）＋（測試證據含 `E_fail_u` 時 1） | — |
 | C 投票 | R3 | 決定 | 同時有計權合格支持與計權合格反駁 | `DISPUTED` |
@@ -280,7 +289,7 @@
   - **例外**（v0.4）：決定規則是 R9、R10、R0 或 R1（決定表第 1–5 列），或叢集是 `black_box`，一律不是暫定。這些狀態不取決於投票，標暫定沒有意義；v0.3 會讓同為黑箱、同樣沒有票的 K-201 與 K-202 只因桶不同而一個暫定、一個不是。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
   - v0.3 的例子（已由上面的例外取代）：黑箱叢集 K-201 的 V-201-1 沒有票，因為合格的 `nemotron_self` 在 `authz` 桶有權重而不是暫定；K-202 在 `injection` 桶，沒有任何模型有權重，V-202-1 曾是 true。v0.4 起兩者都是 false。
   - 它不改規則的計算（w＝0 時投票分支本來就不會成立，θ＝null 視為 +∞），只表示這個狀態沒有經過校準的投票支撐。報告（W5、B6）把暫定裁決標為「暫定（校準前）」，並在摘要列出暫定裁決的比例。校準前的其他預設見 [08 §11.11](08-implementation-spec.md#1111-校準前的預設)。
-- **規則版本**：v0.5 改變了 R4（多家族回報不自動駁回）、計權合格票（不含棄權）與引用相關性，裁決的 `rule_version` 為 **`05-v0.5`**（v0.4 改變了 R0、R10、R11 與獨立家族的語意，為 `05-v0.4`；v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
+- **規則版本**：v0.6 改變了 R10（只有 G4 核准、重播命中的 B4 證明能推翻 G2）、R0 與機率型測試的判定，裁決的 `rule_version` 為 **`05-v0.6`**。v0.5 改變了 R4（多家族回報不自動駁回）、計權合格票（不含棄權）與引用相關性，`rule_version` 為 `05-v0.5`（v0.4 改變了 R0、R10、R11 與獨立家族的語意，為 `05-v0.4`；v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
 - 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`；v0.2 另有每票的 `votes[].weight`、`votes[].weighted_valid`（＝計權合格票），以及 `status_cap`、`advisory`、`test_evidence{class, results[]}`、`annotations[]{kind, reason}`（kind：`test_not_reproduced`、`test_inconclusive`、`conflicting_test_results`、`g3_rejected`、`post_g2_conflict`、`w4_became_disputed`）、`g2_decision_ref`、`calibration_version`（整數）、`theta_confirm`、`theta_reject`、`readjudicated_by`（產生該版裁決的節點：`W3_adjudicate`、`G2_apply`（v0.5，G2 逐項套用駁回時寫的新版）、`W4_readjudicate` 或 `B5_readjudicate`；R10 只看 G2 之後產生的版本）、`supersedes_verdict_id`。
   - **版本鏈**（v0.5，審查 2026-10-25 V-4）：同一叢集的版本以 `supersedes_verdict_id` 形成單一線性鏈：不能指向自己、不能循環、不能分岔，恰好有一個最新版（`E-VERDICT-CHAIN`）；報告的 `verdict_counts` 取每條鏈的最新版。
   - **階段不能倒填**（v0.5，V-12）：黑箱叢集只有 `B5_readjudicate` 版本；`W3_adjudicate` 版本不取代任何版本；鏈上的階段只能 W3 → G2_apply → W4 → B5；某一版的 `verdict_changed` 收件時間晚於該叢集某筆 W4／B4 測試結果的執行時間時，這一版至少是 `W4_readjudicate`／`B5_readjudicate`（`E-VERDICT-PHASE`）。否則把 `readjudicated_by` 改成 `W3_adjudicate` 就能關掉測試證據的連結。v0.3 的 `tool_corroboration` 只含**強**工具佐證，另新增 `tool_signal`（弱工具訊號）、`independent_sources`（整數）、`provisional`，以及每票必填的 `votes[].cited_evidence`。

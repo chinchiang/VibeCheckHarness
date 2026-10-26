@@ -23,12 +23,19 @@ v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a rea
   - R11 downgrades CONFIRMED_CORROBORATED / LIKELY to DISPUTED only when a qualified PASS has a
     positive control (an oracle_can_fail control that PASSed). A PASS without one only adds
     test_not_reproduced: a test that was never shown able to fail cannot refute.
+
+v0.6 (rule_version 05-v0.6, review r7 group 3):
+  - R10: only a G4-approved black-box proof that the replay job reproduced (k_r >= 1) overrides a G2 rejection.
+    A W4 proof is written and interpreted inside the white-box pipeline the human just overruled; it still confirms
+    a cluster that G2 did not reject (R1), but against a rejection it only adds post_g2_conflict (B6 human review).
+  - R0: no member evidence item is grounded (MATCHED / MATCHED_SHIFTED) and at least one is NOT_FOUND; v0.5 needed
+    every item NOT_FOUND, so one NOT_CHECKED item kept an otherwise ungrounded cluster alive.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.5"
+RULE_VERSION = "05-v0.6"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -36,7 +43,8 @@ EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 class Inputs:
     lane_a: bool = False
     g2_rejected: bool = False
-    all_snippets_fail: bool = False                       # every evidence item of every member is NOT_FOUND (False without members)
+    proof_overrides_g2: bool = False                      # an E_proof from a G4-approved B4 result with k_r >= 1 (R10, v0.6)
+    all_snippets_fail: bool = False                       # no member evidence item grounded, one NOT_FOUND (v0.6; False without members)
     pass_positive: bool = False                           # some E_pass result has a PASSed oracle_can_fail control (R11, v0.4)
     evidence: set[str] = field(default_factory=set)       # classes present among linked results
     weighted_support: bool = False
@@ -124,7 +132,7 @@ def _decide(x: Inputs) -> Outcome:
     if x.g2_rejected:
         if fail_class(x):
             notes.add("post_g2_conflict")
-        if ev == "E_proof":                                   # v0.4: an executable proof is not overridden
+        if ev == "E_proof" and x.proof_overrides_g2:          # v0.6: only a G4-approved, replayed B4 proof
             return Outcome("CONFIRMED_EXECUTABLE", 5, ["R10", "R1"], None, False, notes)
         return Outcome("REJECTED", 3, ["R10"], None, False, notes)
     if r0_applies(x):

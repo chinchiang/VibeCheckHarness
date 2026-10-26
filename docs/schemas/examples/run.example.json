@@ -107,7 +107,7 @@
       "image_digest": "sha256:e2d8cec51f6bf7afe4163fff09ad5e4834df51b225b4018efd4d9fe69cd93878"
     }
   ],
-  "rule_version": "05-v0.5",
+  "rule_version": "05-v0.6",
   "roe_ref": "sha256:ba429b0893ee7e1a3735f543742a939b71c052ebdbc1ec3976762c3daf637ca4",
   "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "owasp_llm_version": "2026",
@@ -314,7 +314,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:ac797b8d61da88935f2393489cbc5b5a3dbe4e107ff312caa5a81fb9fb54a5a8",
+  "report_manifest_ref": "sha256:7d3103ffdf57637ec9ea4c832d55c4f345c6db57bb6d4e5c297db74539ca79c6",
   "gate_records": [
     {
       "gate": "G0a",

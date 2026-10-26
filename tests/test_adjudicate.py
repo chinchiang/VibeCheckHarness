@@ -128,6 +128,7 @@ def test_probabilistic_fail_is_not_demoted_by_the_replay(b):
     a FAIL that reached fail_k_min (a true 5% rate is silent in all 20 replays about 36% of the time)."""
     tc = doc(b, "testcase.idor.example.json").data
     tc["trials"]["n"], tc["trials"]["fail_k_min"], tc["trials"]["replay_n"] = 5, 2, 5
+    tc["trials"]["record"] = ["target_model"]                      # v0.6 (review r7 3.3): probabilistic by its target, not n
     tr = doc(b, "testresult.example.json").data
     tr["trials"] = {"n": 5, "k": 2}
     for k_r in (0, 1, 2):
