@@ -270,6 +270,11 @@ def object_ref_problems(r: dict, manifest, creates: dict[str, dict]) -> list[str
             src = creates.get(m.group(1))
             if src is None or src.get("target_id") != r.get("target_id"):
                 out.append(f"object_refs {ref} is not an earlier create request of this allow-list on the same target")
+            # v0.5 (review r7 1.4): the created object may be written only where its creating endpoint's created_resource
+            # declares it; v0.5 bound {created:} in the path but not in object_refs, so a pathless write could carry it anywhere
+            elif not created_path_allowed(r.get("path", ""), m.group(1), src, _create_endpoint(manifest, src) or {}):
+                out.append(f"object_refs {ref}: {r.get('path')} is not one of the created_resource.path_templates of the "
+                           f"endpoint that created it")
         else:
             out.append(f"object_refs {ref!r} is neither {{seed:key}} nor {{created:step_id}}")
     return out
@@ -288,7 +293,10 @@ def _scalar(v) -> bool:
     return isinstance(v, (str, int, float)) and not isinstance(v, bool)
 
 
-def request_binding_problem(query, body, allowed: set[str], require_binding: bool = False) -> str | None:
+BODY_BOUND_METHODS = ("POST",)     # an RPC / action call may name its object in the body; any other write selects by query
+
+
+def request_binding_problem(query, body, allowed: set[str], require_binding: bool = False, method: str | None = None) -> str | None:
     """v0.5 (review 2026-10-25 H-6) reference rule for the Scope Proxy (docs/08 §11.7): the object IDs a request
     carries outside its path are exactly resolved seed / created values `allowed`. None = in scope.
 
@@ -301,8 +309,14 @@ def request_binding_problem(query, body, allowed: set[str], require_binding: boo
       here: Server Actions are bound by `server_action_problem`;
     - require_binding: a mutation whose path has no variable segment must carry at least one bound ID in the
       query or body, so an unfiltered PATCH / DELETE of a whole PostgREST table is rejected.
-    v0.4's body_id_problem checked only scalars under id-like keys and ignored the query string."""
+    v0.4's body_id_problem checked only scalars under id-like keys and ignored the query string.
+    v0.5 (review r7 1.8, external review 1): for a PATCH / PUT / DELETE the body is the new content, not a row selector:
+    PostgREST updates every row the query selects, so a bound id in the body (`{"invoice_id": ...}`) does not narrow the
+    write. Such a method needs its bound object in the query; body ids must still be bound values (no writing a row into
+    another owner). Only a POST (an RPC / action call) may still be bound by its body; a missing method is treated as
+    a selecting write (fail closed), so the Scope Proxy must pass the request method."""
     bound = 0
+    selector = 0
     for k, v in (query or {}).items():
         if not isinstance(k, str):
             return f"query parameter {k!r} is not a string"
@@ -320,6 +334,7 @@ def request_binding_problem(query, body, allowed: set[str], require_binding: boo
                         return f"query {k}={x!r}: only the PostgREST eq. operator can bind an object"
                     return f"query {k}={x!r} is not a seed or created object of this request"
                 bound += 1
+                selector += 1
     if isinstance(body, list):
         return "a top-level array body (positional arguments) cannot be bound by key; declare the call as a server_action"
     stack = [body]
@@ -340,6 +355,9 @@ def request_binding_problem(query, body, allowed: set[str], require_binding: boo
                     stack.append(v)
         elif isinstance(cur, list):
             stack.extend(cur)
+    if require_binding and str(method or "").upper() not in BODY_BOUND_METHODS and selector == 0:
+        return (f"a {str(method or 'write').upper()} without path variables selects rows by its query only, and the query names "
+                "no bound object ID: an unfiltered write of the whole collection (body ids are new values, not a filter)")
     if require_binding and bound == 0:
         return "a mutation without path variables names no bound object ID (an unfiltered write of the whole collection)"
     return None
@@ -362,8 +380,14 @@ def server_action_problem(headers: dict, body, spec: dict, resolve: dict[str, st
     if not isinstance(spec, dict) or got != spec.get("action_id"):
         return f"Next-Action header {got!r} is not the declared server action {(spec or {}).get('action_id')!r}"
 
+    # v0.5 (review r7 1.9, external review 4): an unresolved ref is a refusal, not None (which matched a null argument),
+    # and the comparison keeps JSON types (Python's == treats true == 1 == 1.0)
+    unresolved = []
+
     def subst(x):
         if isinstance(x, str) and (SEED_REF_RE.match(x) or CREATED_REF_RE.match(x)):
+            if x not in resolve or resolve[x] is None:
+                unresolved.append(x)
             return resolve.get(x)
         if isinstance(x, list):
             return [subst(y) for y in x]
@@ -371,7 +395,20 @@ def server_action_problem(headers: dict, body, spec: dict, resolve: dict[str, st
             return {k: subst(v) for k, v in x.items()}
         return x
     want = subst(spec.get("args"))
-    return None if body == want else "Server Action arguments differ from the declared args (after resolving refs)"
+    if unresolved:
+        return f"Server Action args hold unresolved refs {unresolved}: the request cannot be bound"
+    return None if json_equal(body, want) else "Server Action arguments differ from the declared args (after resolving refs)"
+
+
+def json_equal(a, b) -> bool:
+    """Equality of JSON values that keeps their types: true != 1, 1 != 1.0, and objects / arrays compare recursively."""
+    if type(a) is not type(b):
+        return False
+    if isinstance(a, dict):
+        return a.keys() == b.keys() and all(json_equal(a[k], b[k]) for k in a)
+    if isinstance(a, list):
+        return len(a) == len(b) and all(json_equal(x, y) for x, y in zip(a, b))
+    return a == b
 
 
 def allowlist_match(target_id: str, method: str, path: str, allowlist: list, resolve: dict[str, str],

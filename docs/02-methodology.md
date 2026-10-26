@@ -518,6 +518,8 @@ flowchart TD
   - 執行證據（`E-W4-AUDIT`）：每個 W4 結果恰好對應一筆 W4、Z2 的 `sandbox_job_end` 稽核事件（同一個 `result_id`、`testcase_id` 與 `outcome`），該事件在已錨定的部分，結果的 `executed_at` 落在該 job 的 `sandbox_job_start` 與 `sandbox_job_end` 之間；黑箱結果的對應規則是 `E-JOB-AUDIT`。
   - 完成條件（`E-W4-COVERAGE`）：run 有 W4 產物或種子威脅之後，每條 G1 核准的不變量都要有 W4 測試案例，或列在 run 的 `w4_manual_requirements`（附原因，表示改以 MANUAL 處理），不能兩者都有。
   - `W4_testgen` 的輸出也走跨廠商的 LLM schema 子集（`tools/vchlib/llm_schema.py` 的 `w4-testcase`）；run、叢集、Z2 環境與 artifact hash 由 harness 填寫，模型不寫。
+  - 測試要綁定它化解的叢集（v0.5，審查 r7 1.3）：`target_files` 宣告測試實際執行與斷言的受測檔案（W0 inventory 的檔案），每個叢集的 `canonical_location.file` 必須是其中之一；`local_rls` 另把套用的 migration 算在內。這擋下「拿一個測別的檔案的 FAIL 來確認叢集」（`E-W4-TC`）。
+  - 執行內容要綁定 hash（v0.5，審查 r7 1.10）：Z2 的 `sandbox_job_end` 釘住 `testcase_sha256`、`artifact_sha256` 與 `result_sha256`；事後換掉測試案例、測試檔或結果都會與稽核紀錄不符（`E-W4-AUDIT`；B4 同理，`E-JOB-AUDIT`）。
   - 範例：K-015 的本地 RLS 測試 WTC-015-01 → 結果 R-WTC-015-01-1（確定性 `STATE_DIFF` FAIL，對照都 PASS）→ 裁決 V-015-2（`W4_readjudicate`，R1 `CONFIRMED_EXECUTABLE`），不需要 LLM 解讀。
 - **完成條件**：每條 G1 不變量都有至少一個測試，或被標記 `MANUAL`（附原因）；每個結果都有對照結果；所有結果已回寫並重新裁決。
 

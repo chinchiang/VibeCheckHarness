@@ -429,10 +429,14 @@ def g_jcs(R: Report, c: Ctx):
 
 # ============================================================== 3 derived values + audit chain
 def g_derived(R: Report, c: Ctx):
-    exps = derive.expectations(c.b)
+    problems: list = []
+    exps = derive.expectations(c.b, problems=[])
     R._checks += len(exps)
-    for e, actual in derive.compare(c.b):
+    for e, actual in derive.compare(c.b, problems=problems):
         R.error("E-DERIVED", e.file, f"{derive.fmt_path(e.path)} = {str(actual)[:90]}, expected {str(e.expected)[:90]} ({e.why})")
+    # v0.5 (review r7, group 5): a document that breaks a derivation is reported once; the others are still compared
+    for path, exc in problems:
+        R.error("E-INTERNAL", path, f"{type(exc).__name__}: {exc} (deriving this document's values; it was skipped)")
     for d in c.ix.audit_docs():
         # (the anchored line count / truncation is checked against run.audit_anchors in g_audit)
         lines = read_jsonl_lines(d.text or "")
@@ -837,6 +841,30 @@ def decision_time(c: Ctx, rec: dict) -> dt.datetime | None:
     return c.ix.decision_time(rec)
 
 
+def job_span(c: Ctx, run_id, job_id) -> tuple[dt.datetime | None, dt.datetime | None]:
+    """v0.5 (review r7 1.2): (receive time of the job's sandbox_job_start, of its sandbox_job_end) in the run's audit
+    log, the Audit Writer's clock. A result's self-declared executed_at must lie inside it."""
+    audit = c.ix.audit_for(run_id)
+    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict) and (e.get("payload") or {}).get("job_id") == job_id]
+    start = next((e.get("ts") for e in evs if e.get("event_type") == "sandbox_job_start"), None)
+    end = next((e.get("ts") for e in reversed(evs) if e.get("event_type") == "sandbox_job_end"), None)
+    return (timeutil.parse_dt(start) if isinstance(start, str) else None, timeutil.parse_dt(end) if isinstance(end, str) else None)
+
+
+def g4_latest_decisions(c: Ctx, run_id) -> dict:
+    """testcase_id -> (decision, receive time of its gate_decision) of the latest signed G4 decision on it (EXPIRED records
+    are unsigned and decide nothing). v0.4 read only the run's last G4 record."""
+    out = {}
+    for rec in c.ix.gate_records(run_id, "G4"):                 # receive-time order
+        if rec.data.get("outcome") == "EXPIRED":
+            continue
+        at = decision_time(c, rec.data)
+        for x in rec.data.get("decisions") or []:
+            if isinstance(x, dict):
+                out[x.get("item_id")] = (x.get("decision"), at)
+    return out
+
+
 BLACK_BOX_KINDS = ("testcase", "testresult", "threat")          # B2-B4 artefacts (seed threats are W5 output)
 
 
@@ -1103,6 +1131,13 @@ def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
             owners.setdefault(safety.normalize_sensitive(v), set()).add(name)
     for v, names in owners.items():
         R.check(len(names) == 1, "E-SEED-SENSITIVE", "seed-manifest.yaml", f"sensitive value {v!r} is registered on several seeds {sorted(names)}")
+    # v0.5 (review r7 1.5): a read_only_endpoints entry turns POST requests into reads (S0); W0's writes verdict wins
+    read_only = {(e.get("method"), path_shape(e.get("path_template"))) for e in c.manifest.get("read_only_endpoints") or [] if isinstance(e, dict)}
+    for d in c.docs("inventory"):
+        for ep in d.data.get("endpoints") or []:
+            if isinstance(ep, dict) and ep.get("writes") is True and (ep.get("method"), path_shape(ep.get("path"))) in read_only:
+                R.check(False, "E-SEED-SIDE-EFFECT", d.path, f"{ep.get('method')} {ep.get('path')} writes (W0) but the seed manifest "
+                        "lists it in read_only_endpoints: its requests would be classified as reads (S0)")
     for d in c.docs("inventory"):
         for ep in d.data.get("endpoints") or []:
             if isinstance(ep, dict) and ep.get("method") in ("GET", "HEAD") and ep.get("writes") is True:
@@ -1531,6 +1566,11 @@ def g_gates(R: Report, c: Ctx):
                             f"EXPIRED {at - opened} after opening, before the {limit} h timeout elapsed")
             # outcome vs decisions
             decs = [x.get("decision") for x in rec.get("decisions", [])]
+            # v0.5 (review r7 1.1): EXPIRED is the one unsigned outcome, so it may record only that nobody decided;
+            # an accept / reject / over_cap in it would approve or reject without any signature
+            if rec.get("outcome") == "EXPIRED":
+                R.check(all(x == "needs_info" for x in decs), "E-GATE-OUTCOME", w,
+                        f"an EXPIRED (unsigned) record may only carry needs_info decisions, not {sorted(set(decs) - {'needs_info'})}")
             if rec.get("outcome") == "PARTIALLY_APPROVED":
                 R.check(gate in ("G3", "G4"), "E-GATE-OUTCOME", w, "PARTIALLY_APPROVED is only allowed at G3 and G4 (D2)")
             # v0.5 (review 2026-10-25 M-4): over_cap is a G3-only, rule-based rejection written by the Gate Service
@@ -1656,13 +1696,15 @@ def g_runs(R: Report, c: Ctx):
                                 f"gate record {g['gate_record_id']} belongs to run {grec.get('run_id')}, not {rid}")
             # G4 approved ids
             g4 = [x.data for x in c.ix.gate_records(rid, "G4")]
+            g4_latest = g4_latest_decisions(c, rid)
             if g4:
-                acc = sorted(x.get("item_id") for x in g4[-1].get("decisions", []) if x.get("decision") == "accept")
-                R.check(sorted(run.get("approved_testcase_ids", [])) == acc, "E-RUN-G4", w, "approved_testcase_ids must be the G4 accepted items")
+                # v0.5 (review r7 1.2): the latest signed decision per testcase, over every G4 round
+                acc = sorted(k for k, (dec, _) in g4_latest.items() if dec == "accept")
+                R.check(sorted(run.get("approved_testcase_ids", [])) == acc, "E-RUN-G4", w,
+                        f"approved_testcase_ids must be the testcases whose latest G4 decision is accept ({acc})")
             else:
                 R.check(not run.get("approved_testcase_ids") and not run.get("jobs"), "E-RUN-G4", w, "no G4 record but approved tests / jobs exist")
             R.check(set(run.get("approved_testcase_ids", [])) <= set(run.get("testcase_ids", [])), "E-RUN-G4", w, "approved ids not in testcase_ids")
-            g4_at = ts(R, g4[-1].get("timestamp"), w) if g4 else None
             # budgets after GB
             for gbr in c.ix.gate_records(rid, "GB"):
                 gb = gbr.data.get("gb") or {}
@@ -1700,17 +1742,23 @@ def g_runs(R: Report, c: Ctx):
                                 "E-RUN-S2", jw, "S2 job needs an APPROVED G5 record for this job")
                         R.check(job.get("snapshot_ref") and job.get("restore_verified") is True and job.get("status") == "RESTORED",
                                 "E-RUN-S2", jw, "S2 job needs a snapshot, a verified restore and status RESTORED")
-                        start = ts(R, tr.get("executed_at"), jw) if tr else (ts(R, g5.get("timestamp"), jw) if g5 else None)
+                        span_start, span_end = job_span(c, rid, jid)
+                        start = span_start or (ts(R, tr.get("executed_at"), jw) if tr else (ts(R, g5.get("timestamp"), jw) if g5 else None))
                         ok = start is not None and any(dd and dd <= start and start - dd <= dt.timedelta(days=drill_days) for dd in drills)
                         # a log rejected by the strict loader is reported once (E-JSON-STRICT), not re-reported here
                         R.check(ok or rid in c.broken_audit_runs, "E-RUN-RESTORE-DRILL", jw,
                                 f"no successful restore drill within {drill_days} days before the S2 job")
                         R.check(run.get("restore_drill_ref") is not None, "E-RUN-RESTORE-DRILL", jw, "restore_drill_ref missing")
                         if tr and g5:
-                            g5_at = ts(R, g5.get("timestamp"), jw)
+                            # v0.5 (review r7 1.2): the G5 decision and the job are both judged by receive time
+                            g5_at = decision_time(c, g5) or ts(R, g5.get("timestamp"), jw)
                             end = timeutil.window_end(g5_at, roe_windows(c)) if g5_at else None
                             ex = ts(R, tr.get("executed_at"), jw)
                             R.check(g5_at and ex and end and g5_at <= ex < end, "E-RESULT-G5", jw, "S2 job must start after its G5 and inside the same window")
+                            if span_start is not None:
+                                R.check(g5_at is not None and end is not None and g5_at <= span_start and (span_end is None or span_end < end),
+                                        "E-RESULT-G5", jw, f"the sandbox_job_start ({span_start.isoformat()}) / end must lie between its G5 "
+                                        f"decision ({g5_at.isoformat() if g5_at else None}) and the end of that window")
                     else:
                         R.check(job.get("g5_record_id") is None, "E-RUN-JOB", jw, "only S2 jobs have a G5 record")
                     if job.get("status") in ("EXECUTED", "RESTORED"):
@@ -1734,9 +1782,19 @@ def g_runs(R: Report, c: Ctx):
                     else:                  # W4: Z2 sandbox test, no B4 job, no ROE window
                         R.check(tr.get("job_id") is None, "E-RESULT-JOB", x.path, "W4 results have no B4 job (job_id null)")
                     if ex and black_box:
+                        dec, g4_at = g4_latest.get(tr.get("testcase_id"), (None, None))
                         R.check(timeutil.in_any_window(ex, roe_windows(c)) and rnb and rna and rnb <= ex <= rna, "E-RESULT-WINDOW", x.path,
                                 "executed outside the ROE validity / time windows")
-                        R.check(g4_at is not None and ex > g4_at, "E-RESULT-G4", x.path, "executed before G4 approval")
+                        R.check(dec == "accept" and g4_at is not None and ex > g4_at, "E-RESULT-G4", x.path, "executed before G4 approval")
+                        # v0.5 (review r7 1.2): executed_at is self-declared; the job's sandbox_job_* receive times decide
+                        start, end = job_span(c, rid, tr.get("job_id"))
+                        if start is not None and end is not None:
+                            R.check(start <= ex <= end, "E-JOB-AUDIT", x.path,
+                                    f"executed_at {tr.get('executed_at')} is outside its job ({start.isoformat()} .. {end.isoformat()})")
+                            R.check(all(timeutil.in_any_window(t, roe_windows(c)) and rnb and rna and rnb <= t <= rna for t in (start, end)),
+                                    "E-RESULT-WINDOW", x.path, "the sandbox_job_start / end lie outside the ROE validity / time windows")
+                            R.check(g4_at is not None and start > g4_at, "E-RESULT-G4", x.path,
+                                    f"the sandbox_job_start ({start.isoformat()}) precedes the G4 decision that approved the testcase")
                     if tc:
                         result_controls(R, c, x, tc.data)
                         R.check(tr.get("request_count", 0) <= (tc.data.get("rate_limit") or {}).get("max_requests", 0), "E-RESULT-REQUESTS", x.path,
@@ -2148,10 +2206,54 @@ def g_feedback(R: Report, c: Ctx):
                     f"label {f.get('label')} gives SARIF suppression {want!r}, not {f.get('sarif_suppression')!r}")
             sb = f.get("signed_by") or {}
             sigs = f.get("signatures") or []
-            at = ts(R, f.get("signed_at"), w)
+            # v0.5 (review r7 1.11, external review 3): signed_at is the signer's own claim, so a retired key could sign
+            # with a back-dated time. The run that adopts the feedback records it (feedback_recorded, anchored, pinning
+            # the record's hash); the key is judged at that receive time, which signed_at must agree with
+            rec = feedback_record_event(c, f)
+            at = None
+            if isinstance(rec, str):
+                R.check(False, "E-FEEDBACK", w, rec)
+            else:
+                event, anchored = rec
+                at = ts(R, event.get("ts"), w)
+                R.check((event.get("payload") or {}).get("feedback_sha256") == content_hash(f), "E-FEEDBACK", w,
+                        f"the feedback_recorded event pins feedback_sha256 {(event.get('payload') or {}).get('feedback_sha256')!r}, "
+                        "not this record's content hash: the record changed after it was recorded")
+                R.check(anchored, "E-FEEDBACK", w, "the feedback_recorded event is in the unanchored tail of its audit log")
+                claimed = ts(R, f.get("signed_at"), w)
+                R.check(claimed is not None and at is not None and abs(claimed - at) <= MAX_CLOCK_SKEW, "E-FEEDBACK", w,
+                        f"signed_at {f.get('signed_at')} differs from the receive time {event.get('ts')} by more than {MAX_CLOCK_SKEW}")
+                start = run_start(c, f.get("run_id"))
+                R.check(start is None or (at is not None and at >= start), "E-FEEDBACK", w,
+                        f"recorded at {event.get('ts')}, before run {f.get('run_id')} started ({start})")
             ok = len(sigs) == 1 and sigs[0].get("signer") == sb.get("person_id") and sigs[0].get("key_fingerprint") == sb.get("key_fingerprint")
             if R.check(ok, "E-FEEDBACK", w, "a feedback record carries exactly one signature, by its signed_by person and key"):
                 verify_signature(R, c, w, crypto.signing_payload(f), sigs[0], at, sb.get("role"))
+
+
+def feedback_record_event(c: Ctx, f: dict):
+    """(the feedback_recorded event of this feedback, anchored?) or a problem string. It is in the audit log of a run of the
+    same engagement other than the one the feedback is about (the run that adopts it), exactly once."""
+    hits = []
+    for a in c.ix.audit_docs():
+        rid = a.data[0].get("run_id") if a.data and isinstance(a.data[0], dict) else None
+        if rid == f.get("run_id") or (c.runs.get(rid) or {}).get("engagement_id") != f.get("engagement_id"):
+            continue
+        last_anchor = max((i + 1 for i, e in enumerate(a.data) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"), default=0)
+        for e in a.data:
+            if isinstance(e, dict) and e.get("event_type") == "feedback_recorded" and (e.get("payload") or {}).get("feedback_id") == f.get("feedback_id"):
+                hits.append((e, type(e.get("seq")) is int and e.get("seq") < last_anchor))
+    if len(hits) != 1:
+        return (f"{f.get('feedback_id')} has {len(hits)} feedback_recorded events in the audit logs of the engagement's other runs; "
+                "the run that adopts it records it exactly once")
+    return hits[0]
+
+
+def run_start(c: Ctx, run_id) -> dt.datetime | None:
+    """The receive time of the first event of a run's audit log (run_created)."""
+    a = c.ix.audit_for(run_id)
+    first = a.data[0] if a and a.data and isinstance(a.data[0], dict) else None
+    return timeutil.parse_dt(first["ts"]) if first and isinstance(first.get("ts"), str) else None
 
 
 # ============================================================== 12b W4 testcases
@@ -2188,6 +2290,19 @@ def g_w4_testcases(R: Report, c: Ctx):
             R.check(1 <= tr.get("fail_k_min", 1) <= tr.get("n", 1), "E-TC-TRIALS", w, "fail_k_min must be 1..n")
             access_cells_check(R, c, tc, w)
             db = (tc.get("environment") or {}).get("database")
+            # v0.5 (review r7 1.3): a W4 test confirms only clusters in the files it exercises (as H-2 bound black-box
+            # results to their threat's clusters); v0.5 BL-27 let an RLS test on a migration confirm a route cluster
+            inv_files = {x.get("path") for x in (inventory_of_run(c, tc.get("run_id")) or {}).get("files") or [] if isinstance(x, dict)}
+            targets = set(tc.get("target_files") or [])
+            R.check(tc.get("kind") == "local_rls" or bool(targets), "E-W4-TC", w,
+                    f"a {tc.get('kind')} test declares the files it exercises (target_files)")
+            R.check(targets <= inv_files, "E-W4-TC", w, f"target_files {sorted(targets - inv_files)} are not files of the run's W0 inventory")
+            covered = targets | set((db or {}).get("migrations") or [] if isinstance(db, dict) else [])
+            for k in tc.get("cluster_ids") or []:
+                cl = c.ix.first("cluster", cluster_id=k)
+                f = ((cl.data.get("canonical_location") or {}) if cl else {}).get("file")
+                R.check(cl is None or f in covered, "E-W4-TC", w,
+                        f"{k} is in {f!r}, which this test does not exercise ({sorted(covered)})")
             if tc.get("kind") == "local_rls":
                 files = {x.get("path") for x in (inventory_of_run(c, tc.get("run_id")) or {}).get("files") or [] if isinstance(x, dict)}
                 if R.check(isinstance(db, dict), "E-W4-TC", w, "a local_rls test needs environment.database (a disposable local Postgres)"):
@@ -2257,6 +2372,10 @@ def w4_execution(R: Report, c: Ctx, tr: dict, w: str):
             f"{rid}: seq {e.get('seq')} names testcase {p.get('testcase_id')!r}, not {tr.get('testcase_id')!r}")
     R.check(p.get("outcome") == tr.get("outcome"), "E-W4-AUDIT", w,
             f"{rid}: outcome {tr.get('outcome')} != sandbox_job_end outcome {p.get('outcome')} (seq {e.get('seq')})")
+    tc = c.ix.testcase_for(tr)
+    for key, want in (derive.execution_pins(tc.data, tr) if tc else {}).items():
+        R.check(p.get(key) == want, "E-W4-AUDIT", w, f"{rid}: sandbox_job_end (seq {e.get('seq')}) pins {key} {p.get(key)!r}, but what the "
+                f"bundle holds hashes to {want!r}: the testcase, artifact or result changed after the run")
     anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
     R.check(type(e.get("seq")) is int and e.get("seq") < anchored, "E-W4-AUDIT", w,
             f"{rid}: seq {e.get('seq')} is in the unanchored tail of the audit log; it cannot back a verdict yet")
@@ -2287,7 +2406,8 @@ def g3_rejected(c: Ctx, v: dict, cluster: dict) -> bool:
              if s.get("source_cluster_id") == k and s.get("threat_id")}
     if not tids:
         return False
-    recs = [x.data for x in c.ix.gate_records(cluster.get("run_id"), "G3")]  # timestamp order
+    # v0.5 (review r7 1.1): an EXPIRED record is unsigned; it decides nothing
+    recs = [x.data for x in c.ix.gate_records(cluster.get("run_id"), "G3") if x.data.get("outcome") != "EXPIRED"]
     last = {}
     for rec in recs:
         for x in rec.get("decisions", []):
@@ -2305,6 +2425,8 @@ def g2_latest(c: Ctx, cluster: dict) -> tuple[dict | None, str | None]:
     k = cluster.get("cluster_id")
     rec = dec = None
     for x in c.ix.gate_records(cluster.get("run_id"), "G2"):  # timestamp order
+        if x.data.get("outcome") == "EXPIRED":                   # v0.5 (review r7 1.1): unsigned, decides nothing
+            continue
         for d in x.data.get("decisions", []):
             if d.get("item_id") == k:
                 rec, dec = x.data, d.get("decision")
@@ -2592,7 +2714,7 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
                           for x in (v.get("test_evidence") or {}).get("results", []) if isinstance(x, dict)),
         weighted_support=any(x.get("stance") == "SUPPORT" for x in votes),
         weighted_refute=any(x.get("stance") == "REFUTE" for x in votes),
-        score=v.get("score") or 0.0,
+        score=derive.derived_score(c.ix, v, cluster),           # v0.5 (review r7 1.7)
         # audit-backed refs only (E-SARIF-REF), tiered by calibration (H-A1); never v.tool_corroboration / v.tool_signal
         strong_tool=bool(strong_sarif_refs(c, cluster)),
         weak_sarif=bool(weak_sarif_refs(c, cluster)),
@@ -2755,6 +2877,13 @@ def verdict_chains(R: Report, c: Ctx):
                     R.check(PHASE_ORDER.get(phase, -1) >= PHASE_ORDER[need], "E-VERDICT-PHASE", w,
                             f"{v.get('verdict_id')} was received at {at}, after {r.get('result_id')} ({r.get('phase')}) ran at "
                             f"{r.get('executed_at')}: it must be at least {need}, not {phase}")
+                # v0.5 (review r7 1.2): a B5 version that counts a B4 result is received after that result's job ended
+                if phase == "B5_readjudicate" and r.get("phase") == "B4" and r.get("job_id"):
+                    _, end = job_span(c, cluster.get("run_id"), r.get("job_id"))
+                    if end is not None:
+                        R.check(end < timeutil.parse_dt(at), "E-VERDICT-PHASE", w,
+                                f"{v.get('verdict_id')} was received at {at}, before job {r.get('job_id')} of {r.get('result_id')} "
+                                f"ended at {end.isoformat()}")
 
 
 # ============================================================== 14 traceability
@@ -2839,6 +2968,11 @@ def cluster_binding(R: Report, c: Ctx, d: Doc):
     same = [x.path for x in c.docs("cluster") if x is not d and x.data.get("run_id") == k.get("run_id")
             and k.get("fingerprint") and x.data.get("fingerprint") == k.get("fingerprint")]
     R.check(not same, "E-CLUSTER-BINDING", w, f"{k.get('cluster_id')}: fingerprint shared with {same} in the same run")
+    # v0.5 (review r7 1.6): a finding is a member of one cluster of its run, so its family is counted once
+    for fid in k.get("member_finding_ids") or []:
+        also = sorted(x.data.get("cluster_id") for x in c.docs("cluster") if x is not d and x.data.get("run_id") == k.get("run_id")
+                      and fid in (x.data.get("member_finding_ids") or []))
+        R.check(not also, "E-CLUSTER-BINDING", w, f"{k.get('cluster_id')}: member {fid} is also a member of {also}")
     if k.get("origin") in ("black_box", "tool_only"):         # tool_only: bound to its SARIF results (sarif_location_problem)
         return
     loc = k.get("canonical_location") or {}
@@ -2927,37 +3061,43 @@ def finding_evidence(R: Report, c: Ctx, d: Doc):
 def inventory_checks(R: Report, c: Ctx):
     """B2: internal references of every W0 inventory (middleware refs, source files)."""
     for d in c.docs("inventory"):
-        inv, w = d.data, d.path
-        paths = {x.get("path") for x in inv.get("files") or [] if isinstance(x, dict)}
-        mws = {m.get("middleware_id") for m in (inv.get("auth") or {}).get("middleware") or [] if isinstance(m, dict)}
-        for e in inv.get("endpoints") or []:
-            bad = sorted(set(e.get("middleware_refs") or []) - mws)
-            R.check(not bad, "E-INVENTORY", w, f"endpoint {e.get('method')} {e.get('path')}: unknown middleware_refs {bad}")
-            # v0.5 (BL-19): a scheduled job / queue consumer has no HTTP request: no method, a schedule: / queue: path
-            scheduled = e.get("kind") == "scheduled"
-            R.check((e.get("method") is None) == scheduled, "E-INVENTORY", w,
-                    f"endpoint {e.get('method')} {e.get('path')}: " + ("a scheduled job has no HTTP method" if scheduled
-                                                                         else f"kind {e.get('kind')} needs an HTTP method"))
-            if scheduled:
-                R.check(str(e.get("path", "")).startswith(("schedule:", "queue:")), "E-INVENTORY", w,
-                        f"scheduled endpoint path {e.get('path')!r} must be schedule:<name> or queue:<name>")
-        srcs = [("endpoint", e.get("file")) for e in inv.get("endpoints") or []]
-        srcs += [("llm_integration", x.get("file")) for x in inv.get("llm_integrations") or []]
-        srcs += [("middleware", m.get("file")) for m in (inv.get("auth") or {}).get("middleware") or []]
-        db = inv.get("db") or {}
-        for t in db.get("tables") or []:
-            srcs.append((f"table {t.get('name')}", (t.get("source") or {}).get("file")))
-            srcs += [(f"policy {p.get('name')}", (p.get("source") or {}).get("file")) for p in t.get("policies") or []]
-        srcs += [(f"function {x.get('name')}", (x.get("source") or {}).get("file")) for x in db.get("functions") or []]
-        srcs += [(f"bucket {x.get('name')}", (x.get("source") or {}).get("file")) for x in db.get("storage_buckets") or [] if x.get("source")]
-        srcs += [(f"env {x.get('name')}", r.get("file")) for x in inv.get("env_vars") or [] for r in x.get("referenced_in") or []]
-        for what, fpath in srcs:
-            R.check(fpath in paths, "E-INVENTORY", w, f"{what}: source file {fpath!r} is not in files")
-        ids = [t.get("table_id") for t in db.get("tables") or []]
-        R.check(len(ids) == len(set(ids)), "E-INVENTORY", w, "duplicate table_id")
-        for x in inv.get("env_vars") or []:
-            want = str(x.get("name", "")).startswith(PUBLIC_ENV_PREFIXES)
-            R.check(x.get("public_prefix") is want, "E-INVENTORY", w, f"env var {x.get('name')}: public_prefix must be {want}")
+        with doc_guard(R, d.path):
+            _inventory_doc(R, c, d)
+
+
+def _inventory_doc(R: Report, c: Ctx, d: Doc):
+    """B2 for one W0 inventory: middleware refs, source files, env vars (guarded per document by inventory_checks)."""
+    inv, w = d.data, d.path
+    paths = {x.get("path") for x in inv.get("files") or [] if isinstance(x, dict)}
+    mws = {m.get("middleware_id") for m in (inv.get("auth") or {}).get("middleware") or [] if isinstance(m, dict)}
+    for e in inv.get("endpoints") or []:
+        bad = sorted(set(e.get("middleware_refs") or []) - mws)
+        R.check(not bad, "E-INVENTORY", w, f"endpoint {e.get('method')} {e.get('path')}: unknown middleware_refs {bad}")
+        # v0.5 (BL-19): a scheduled job / queue consumer has no HTTP request: no method, a schedule: / queue: path
+        scheduled = e.get("kind") == "scheduled"
+        R.check((e.get("method") is None) == scheduled, "E-INVENTORY", w,
+                f"endpoint {e.get('method')} {e.get('path')}: " + ("a scheduled job has no HTTP method" if scheduled
+                                                                     else f"kind {e.get('kind')} needs an HTTP method"))
+        if scheduled:
+            R.check(str(e.get("path", "")).startswith(("schedule:", "queue:")), "E-INVENTORY", w,
+                    f"scheduled endpoint path {e.get('path')!r} must be schedule:<name> or queue:<name>")
+    srcs = [("endpoint", e.get("file")) for e in inv.get("endpoints") or []]
+    srcs += [("llm_integration", x.get("file")) for x in inv.get("llm_integrations") or []]
+    srcs += [("middleware", m.get("file")) for m in (inv.get("auth") or {}).get("middleware") or []]
+    db = inv.get("db") or {}
+    for t in db.get("tables") or []:
+        srcs.append((f"table {t.get('name')}", (t.get("source") or {}).get("file")))
+        srcs += [(f"policy {p.get('name')}", (p.get("source") or {}).get("file")) for p in t.get("policies") or []]
+    srcs += [(f"function {x.get('name')}", (x.get("source") or {}).get("file")) for x in db.get("functions") or []]
+    srcs += [(f"bucket {x.get('name')}", (x.get("source") or {}).get("file")) for x in db.get("storage_buckets") or [] if x.get("source")]
+    srcs += [(f"env {x.get('name')}", r.get("file")) for x in inv.get("env_vars") or [] for r in x.get("referenced_in") or []]
+    for what, fpath in srcs:
+        R.check(fpath in paths, "E-INVENTORY", w, f"{what}: source file {fpath!r} is not in files")
+    ids = [t.get("table_id") for t in db.get("tables") or []]
+    R.check(len(ids) == len(set(ids)), "E-INVENTORY", w, "duplicate table_id")
+    for x in inv.get("env_vars") or []:
+        want = str(x.get("name", "")).startswith(PUBLIC_ENV_PREFIXES)
+        R.check(x.get("public_prefix") is want, "E-INVENTORY", w, f"env var {x.get('name')}: public_prefix must be {want}")
 
 
 PUBLIC_ENV_PREFIXES = ("NEXT_PUBLIC_", "VITE_", "EXPO_PUBLIC_", "PUBLIC_")
@@ -3081,8 +3221,11 @@ def g_trace(R: Report, c: Ctx):
     ix = c.ix
     inv_ids = {i.get("requirement_id") for i in c.invariants.get("invariants", [])}
     req_ids = inv_ids | {x.get("requirement_id") for x in c.invariants.get("baseline", [])}
-    inventory_checks(R, c)
-    invariants_checks(R, c)
+    # v0.5 (review r7, group 5): helpers run guarded, so one broken document does not end the traceability group
+    with doc_guard(R, "inventory"):
+        inventory_checks(R, c)
+    with doc_guard(R, "invariants.yaml"):
+        invariants_checks(R, c)
     for d in c.docs("finding"):
         with doc_guard(R, d.path):
             f, w = d.data, d.path
@@ -3234,7 +3377,8 @@ def g_trace(R: Report, c: Ctx):
             ok = cl is not None and v is not None and th is not None and v.data.get("cluster_id") == s.get("source_cluster_id") \
                 and v.data.get("status") == s.get("cluster_status") and cl.data.get("cwe_bucket") == s.get("cwe_bucket")
             R.check(ok, "E-TRACE-SEED", d.path, f"{s.get('seed_id')}: cluster/verdict/threat/status/bucket do not match")
-    baseline_checks(R, c)
+    with doc_guard(R, "invariants.yaml baseline"):
+        baseline_checks(R, c)
     for d in c.docs("commander-plan"):
         with doc_guard(R, d.path):
             plan_facets(R, c, d)
@@ -3435,6 +3579,13 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
             if tr is not None and jid in ended:
                 R.check(tr.get("outcome") == ended[jid], "E-JOB-AUDIT", where,
                         f"testresult {tr.get('result_id')} outcome {tr.get('outcome')} != sandbox_job_end outcome {ended[jid]}")
+                # v0.5 (review r7 1.10): what ran and what it returned are pinned by the executor's event
+                end = next((e for e in evs if derive.job_end_of(e, tr)), None)
+                tc = c.ix.testcase_for(tr)
+                for key, want in (derive.execution_pins(tc.data, tr) if tc and end else {}).items():
+                    R.check((end.get("payload") or {}).get(key) == want, "E-JOB-AUDIT", where,
+                            f"sandbox_job_end (seq {end.get('seq')}) pins {key} {(end.get('payload') or {}).get(key)!r}, but the bundle's "
+                            f"testcase / result hash to {want!r}: changed after the run")
     for jid in ended:
         if jid in jobs:
             R.check(jid in results, "E-JOB-AUDIT", w, f"sandbox_job_end for job {jid} has no testresult")

@@ -91,6 +91,17 @@
 - 外洩比對：seed `sensitive_fields` 與參考實作 `safety.sensitive_leaks`（`E-SEED-SENSITIVE`）。seed manifest 內容改變，ROE 的 `seed_manifest_sha256` 隨之更新並重簽。
 - 新增 `tests/test_v05_schema_backlog.py`。每個新檢查都做過驗證：單獨停用時，只有它自己的測試失敗。
 
+### 第七輪審查：validator 繞過（第 1 組，含外部審查 1～4）
+- EXPIRED（沒有簽章）的關卡紀錄只能帶 needs_info 決定（`E-GATE-OUTCOME`），不再算 G1 核准的需求、G2／G3 的決定或 G4 核准的測試案例。
+- B4／S2 的執行時間以 `sandbox_job_start`／`end` 的收件時間判斷：`executed_at` 在 job 之內（`E-JOB-AUDIT`）；job 開始晚於核准它的最新 G4 決定（`E-RESULT-G4`）與 G5 決定（`E-RESULT-G5`），並在 ROE 時段內（`E-RESULT-WINDOW`）；B5 裁決晚於 job 結束才收件（`E-VERDICT-PHASE`）；`approved_testcase_ids` 看每個測試案例最新的 G4 決定。
+- W4 測試案例新增必填的 `target_files`；每個叢集的位置必須在測試涵蓋的檔案內（`E-W4-TC`）。
+- `sandbox_job_end` 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（W4：`E-W4-AUDIT`；B4：`E-JOB-AUDIT`）。
+- 誤報回饋由採用它的 run 以已錨定的 `feedback_recorded` 事件記錄，以收件時間驗章（`E-FEEDBACK`）；`audit-event` 新增此事件種類。
+- Scope Proxy：沒有路徑變數的 PATCH／PUT／DELETE 只能以 query 選取已綁定的列（body ID 不算）；`object_refs` 的 `{created:x}` 綁定 x 的 path_templates；Server Action 拒絕解析不到的參照，並以區分 JSON 型別的方式比對。
+- `read_only_endpoints` 不能是 W0 標為會寫入的端點（`E-SEED-SIDE-EFFECT`）；一個發現項只屬於一個叢集（`E-CLUSTER-BINDING`）；裁決規則改用推導出的 score。
+- 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
+- 新增 `tests/test_v05_r7_bypasses.py`。
+
 ### 白箱測試案例（BL-27）
 - 新增 `w4-testcase.schema.json`：W4 在 Z2 執行的單元、性質、本地 RLS 與假模型測試，與黑箱 testcase 分開。validator 檢查 run 與叢集、oracle 只引用 G1 已核准的 `requirement_ids`、reachability 對照、`local_rls` 的拋棄式 Postgres 與 migration（`E-W4-TC`、`E-TC-REQ-UNAPPROVED`、`E-TC-CONTROLS`）。
 - 修正：W4 的測試結果原本只能在黑箱測試案例中查找，等於借用黑箱測試案例的對照與 oracle。現在 `phase: W4` 的結果以 `testcase_id` 指向 W4 測試案例，借用黑箱測試案例是錯誤；W4 結果的 `target_ids` 為空，B4 結果至少一個目標（`E-RESULT-TARGETS`）。

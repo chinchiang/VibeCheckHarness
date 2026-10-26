@@ -1528,7 +1528,8 @@ class SeedService(Protocol):
     - query：ID 類參數只接受原值或 PostgREST 的 `eq.<值>`；其他運算子（`in.`、`neq.`、`gt.`、`like.`、`is.`、`not.` 等）與邏輯參數 `or=`／`and=` 一律擋下，因為它們能選到綁定物件以外的資料列。
     - body：ID 類鍵下的陣列或物件、複數 ID 鍵（`ids`、`*_ids`、`*Ids`、`*IDs`）一律擋下；頂層是陣列的 body（位置參數）不以鍵名綁定，見下一點。
     - 路徑沒有變數段的寫入，query 或 body 中至少要有一個已綁定的 ID，否則擋下（整表 `PATCH`／`DELETE`）。
-  - **Server Action**：位置參數沒有鍵名可比對。測試案例的 `request_allowlist[].server_action` 宣告 `{action_id, args}`；Scope Proxy 只在 `Next-Action` 標頭等於 `action_id`、body 等於把 `{seed:}`／`{created:}` 代換成解析值後的 `args` 時放行（`safety.server_action_problem`）。validator 檢查：只能用在 POST、沒有變數段的路徑，`args` 用到的參照都要列在 `object_refs`（`E-TC-MUTATION-SCOPE`）。
+    - v0.5（審查 r7 1.8，外部審查 1）：區分「選哪些列」與「寫什麼值」。PostgREST 的 `PATCH`／`PUT`／`DELETE` 會作用於 query 選到的每一列，body 是新的內容，不是篩選條件，所以 `PATCH /rest/v1/invoices` 加上 body `{"invoice_id": <已綁定值>}` 仍是整表寫入。路徑沒有變數段的這三種方法，選取條件只能來自 query 的 `<id>=eq.<已綁定值>`；body 中 ID 類鍵的值仍必須是已綁定的值（不能把資料寫到別人名下）。只有 POST（RPC、action 呼叫、建立）可以由 body 綁定。Scope Proxy 必須把請求方法傳給參考實作；沒有方法時視為會選取列的寫入（fail closed）。
+  - **Server Action**：位置參數沒有鍵名可比對。測試案例的 `request_allowlist[].server_action` 宣告 `{action_id, args}`；Scope Proxy 只在 `Next-Action` 標頭等於 `action_id`、body 等於把 `{seed:}`／`{created:}` 代換成解析值後的 `args` 時放行（`safety.server_action_problem`）。v0.5（審查 r7 1.9，外部審查 4）：任何參照解析不到就拒絕（不再代換成 null 後拿去比對）；比對區分 JSON 型別，遞迴比較型別與值（`true` ≠ `1`，`1` ≠ `1.0`）。validator 檢查：只能用在 POST、沒有變數段的路徑，`args` 用到的參照都要列在 `object_refs`（`E-TC-MUTATION-SCOPE`）。
   - 限制：不是 ID 類鍵名的欄位（例如 `invoice` 物件裡的 `ref`）仍無法用鍵名辨識，靠 G4 審查產物 [H]。
 - **協定**（v0.4）[H]：請求帶 `Upgrade: h2c` → 拒絕（h2c smuggling）；回應的 `Alt-Svc` 標頭被移除，UDP 443 在 job 的網路命名空間中封鎖（HTTP/3／QUIC 不經 TCP proxy）；CONNECT 之後的第一個位元組不是 TLS ClientHello → 斷線。
 - Scope Proxy 與 `policy/safety.py`（移植自 `vchlib/safety.py`）使用**同一個**正規化函式，由 parity 測試比對（§2.4）。
@@ -1936,7 +1937,7 @@ class SessionProvider(Protocol):
 - 去向：
   - 下一個 run 的 SARIF `suppressions`：`false_positive` → `accepted`；`needs_info` → `underReview`；
   - Calibration Lab 的**候選**語料，來源標為 `developer_feedback`。它不是真值，要照 [05 §5.1](05-bias-calibration.md#51-語料) 的雙標註流程確認後才能使用；確認為誤報的，也用來重新檢查 `high_precision_rules`（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)）。
-- 回饋紀錄是 `feedback.schema.json`（v0.5，[09 BL-18](09-backlog.md)；`E-FEEDBACK`）：指紋必須是所指叢集的指紋，該叢集要屬於同一委任的 run；`duplicate` 必須指向同一委任另一個叢集的指紋；`sarif_suppression` 依標籤決定（`false_positive` → `accepted`、`needs_info` → `underReview`、其他 null）；紀錄恰好有一個簽章，由 `signed_by` 的人以登錄金鑰簽署，而且這個人要有 `security_reviewer` 或 `app_owner` 角色。範例 FB-001：app_owner 把純工具叢集 K-016 標為誤報。
+- 回饋紀錄是 `feedback.schema.json`（v0.5，[09 BL-18](09-backlog.md)；`E-FEEDBACK`）：指紋必須是所指叢集的指紋，該叢集要屬於同一委任的 run；`duplicate` 必須指向同一委任另一個叢集的指紋；`sarif_suppression` 依標籤決定（`false_positive` → `accepted`、`needs_info` → `underReview`、其他 null）；紀錄恰好有一個簽章，由 `signed_by` 的人以登錄金鑰簽署，而且這個人要有 `security_reviewer` 或 `app_owner` 角色。範例 FB-001：app_owner 把純工具叢集 K-016 標為誤報。v0.5（審查 r7 1.11）：採用回饋的 run 以一筆已錨定的 `feedback_recorded` 稽核事件記錄它（payload 釘住 `feedback_id` 與 `feedback_sha256`），簽章以該事件的收件時間驗證；範例 FB-001 由跟進 run `run-2026-10-07-001` 記錄。
 
 **給開發者 AI 助手的修正說明**（fix brief）[H]：每個發布的問題附一份，以確定性範本產生。
 - **內容**：桶與 CWE；位置（檔案、行、符號）；違反的 G1 不變量（原文）；證據（測試 ID、oracle 類型、請求摘要）；預期行為（取自不變量）；驗收方式（必須通過的 W4 或黑箱測試 ID）；限制（不得刪除或停用該測試，要保留回歸測試）。

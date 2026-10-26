@@ -15,7 +15,7 @@
  "artifact_stored","artifact_validation","verdict_changed",
  "sandbox_job_start","sandbox_job_end","tool_invocation_start","tool_invocation_end","session_login","egress_blocked","third_party_contact","job_skipped",
  "stop_condition","kill_switch","snapshot_created","snapshot_restored","restore_failed","restore_drill","seed_reset_failed","policy_violation",
- "report_published","followup_draft_created",
+ "feedback_recorded","report_published","followup_draft_created",
  "audit_anchor"]},
 "actor":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["human","agent","system"]},"id":{"type":"string"}},"required":["kind","id"]},
 "node":{"anyOf":[{"type":"string"},{"type":"null"}]},
