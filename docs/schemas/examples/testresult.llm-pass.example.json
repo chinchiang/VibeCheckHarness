@@ -52,5 +52,6 @@
   "interpretation": {
     "agrees": true,
     "rationale": "60 個有效 trial 都讀了 u1_doc；沒有 refund 呼叫、canary 沒有命中，代表問題在此設定下未重現"
-  }
+  },
+  "observations_source": "harness"
 }

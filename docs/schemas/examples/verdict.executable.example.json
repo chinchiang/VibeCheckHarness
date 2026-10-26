@@ -10,7 +10,7 @@
   "independent_sources": 2,
   "executable_proof": {
     "testcase_id": "TC-012-01",
-    "result_ref": "sha256:0eb5d2b1731943ad0dbd150df66757208ff14b373413cd5354f7fa229b13c559",
+    "result_ref": "sha256:039104c7ca1abbc6d31825f8dd7789d1a8fe5ca2b96684a95da58bf0a14731dd",
     "trials": null,
     "interpretation_confirmed_by": {
       "agent_id": "result_analyst",
@@ -21,7 +21,7 @@
     "class": "E_proof",
     "results": [
       {
-        "result_ref": "sha256:0eb5d2b1731943ad0dbd150df66757208ff14b373413cd5354f7fa229b13c559",
+        "result_ref": "sha256:039104c7ca1abbc6d31825f8dd7789d1a8fe5ca2b96684a95da58bf0a14731dd",
         "class": "E_proof",
         "positive_control": true,
         "reason": "FAIL，重播 2 次相同；確定性 oracle（STATUS_AND_BODY），G4 預先登記解讀"

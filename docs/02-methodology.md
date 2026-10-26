@@ -190,7 +190,7 @@ flowchart TD
 | `WAITING_GATE` | 停在人工關卡或 `claim_run` 的 interrupt | 否 |
 | `SUSPENDED` | 關卡逾時、時間窗外、預算關卡逾時，或 ROE／`legal_review` 在執行中到期；checkpoint 保留，可在委任設定到期前 resume（B 階段的 resume 另需當時有效的 ROE；ROE 已到期 → 需要一份新簽署的有效 ROE，由 G0b 重驗與 `B4_preflight` 強制） | 否（可續跑） |
 | `STOPPED` | 停止條件或 kill switch 觸發；已執行補償 | 否（需測試負責人簽署 resume） |
-| `ABORTED` | 授權不成立（驗章失敗）、G1 三輪未通過、GB 選擇中止、ROE 在執行中驗章失效（金鑰撤銷、簽章無效、文件被改；**到期不算**，到期 → `SUSPENDED`） | 是 |
+| `ABORTED` | 授權不成立（驗章失敗）、G1 三輪未通過、GB 選擇中止、ROE 在執行中驗章失效（金鑰撤銷、簽章無效、文件被改；**到期不算**，到期 → `SUSPENDED`）。v0.7（審查 r8 H1）：這是 ROE 失效的唯一一份對照表——**撤銷或驗章失效 → `ABORTED`；到期 → `SUSPENDED`**，不論發生在 B 階段入口或 B 階段進行中；§1.6 與 [03 §5.6](03-system-architecture.md#56-中止補償與-resume) 引用這裡 | 是 |
 | `FAILED` | 無法恢復的技術錯誤（例如 W0 失敗、快照還原失敗） | 是 |
 | `COMPLETED` | 全部完成，未能測試清單中只有設計上的 `MANUAL` 項 | 是 |
 | `COMPLETED_WITH_GAPS` | 完成，但有計畫中的覆蓋沒做到（例如 G3 全部駁回、目標所有權失敗、版本識別不符、G5 駁回、執行錯誤或 `INVALID` 結果、GB 停止階段） | 是 |
@@ -199,7 +199,7 @@ flowchart TD
 
 | 關卡 | APPROVED／PARTIALLY_APPROVED（後者只限 G3、G4） | REJECTED | NEEDS_INFO | EXPIRED |
 |---|---|---|---|---|
-| G0a／G0b | 離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續。例外（只 G0b）：ROE 尚未生效（`not_before` 未到）或不在測試時間窗內時，結果仍是 `VERIFIED`，另記「不在有效期間或時間窗內」，run → `SUSPENDED`，時間到了再 resume | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0a：委任設定已過期 → `ABORTED`。G0b（ROE 的 `not_after` 或 `legal_review.expires_at` 已過）：**進入 B 階段時**已過期 → 跳到 B6 → `COMPLETED_WITH_GAPS`（沒有提供 ROE 時也這樣處理）；**B 階段已開始後**（resume 或 `B4_preflight`）才到期 → `SUSPENDED`，等新的有效 ROE |
+| G0a／G0b | 離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續。例外（只 G0b）：ROE 尚未生效（`not_before` 未到）或不在測試時間窗內時，結果仍是 `VERIFIED`，另記「不在有效期間或時間窗內」，run → `SUSPENDED`，時間到了再 resume | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0a：委任設定已過期 → `ABORTED`。G0b（ROE 的 `not_after` 或 `legal_review.expires_at` 已過）：**進入 B 階段時**已過期 → `SUSPENDED`（v0.7，審查 r8 H1：與 B 階段進行中到期相同；等新簽署的 ROE，或由 run_owner 以 `vibecheck run finish --whitebox-only` 結束為 `COMPLETED_WITH_GAPS`，只含白箱結果；v0.6 寫成直接跳到 B6，與 §1.6 的 `SUSPENDED` 矛盾）；完全沒有提供 ROE 的純白箱 run → 跳到 B6 → `COMPLETED_WITH_GAPS`；**B 階段已開始後**（resume 或 `B4_preflight`）才到期 → `SUSPENDED`，等新的有效 ROE |
 | G1 | 進入 W1 | 附審查意見回到 W0.5 重擬，最多 3 輪；第 3 輪仍未通過 → `ABORTED` | 同 REJECTED（共用 3 輪上限） | `SUSPENDED` |
 | G2 | 逐項：accept → 維持狀態，成為種子威脅。整關結果只有 `APPROVED` 或 `EXPIRED` | 只能逐項（不接受整關 `REJECTED`）：該叢集 → `REJECTED`（附理由；對投票、SARIF 與 `E_fail_u` 是最終決定，之後的這類證據只註記 `post_g2_conflict`。例外：之後出現可執行證明 `E_proof` → `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict` 並列入 B6 人工複核，05 R10，v0.4） | 逐項：維持 `DISPUTED`／`UNCORROBORATED`，成為種子威脅並在報告列出 | 未決項視同 NEEDS_INFO，run 繼續 [H] |
 | G3 | 已接受的威脅進入 B3；被駁回的種子威脅在 B6 列為「未做黑箱驗證（G3 駁回：理由）」 | 全部駁回 → 跳到 B6（只含白箱結果）→ `COMPLETED_WITH_GAPS` | 回到 `B2_merge_critic` 補充，最多 3 輪；之後仍 NEEDS_INFO 的項目視同駁回 [H] | `SUSPENDED` |
@@ -227,8 +227,8 @@ flowchart TD
 | `lane_a` | 每個 PR 的同步檢查 | W0 → W1 →（可選）單一家族 diff 審查 → 結束 | 只需 G0a；不進 B 階段 |
 
 - 每個 run 有 `parent_run_id`（`initial` 可為空）與 `reuse` 清單：以 content hash 引用上一個 run 的產物。只有當產物的**所有輸入 hash**（repo commit 或切片 `slice_id`、設定、模型 ID 與版本）都相同時才能沿用，否則重算 [H]。
-- **`regression` run 如何帶入叢集**（v0.6，審查 r7 4.5）[H]：草稿由 CMD-5 依上一個 run 的確認項建立，`reuse[]` 以 content hash 引用那些叢集與它們的最新裁決；W0／W1 在新 commit 上重算，W3 不重審帶入的叢集，而是由新增的回歸節點 `W4_regression` 對每個帶入的叢集跑它的 W4 回歸測試（與 B 階段對應的測試案例）。測試 PASS 且有正對照 → 叢集標為「已修正」；FAIL → 維持確認並列入報告；沒有回歸測試的帶入叢集一律列為「未驗證修正」。帶入的叢集在新 run 的 `cluster_ids` 中保留原 ID，`baseline_state` 依 `baseline_run_id` 計算。
-- **ROE 在 B 階段入口失效**（v0.6，審查 r7 4.5）：G0b 之後到 B1 之前，若 ROE 過期、被撤銷或簽署金鑰被撤銷，run 轉為 `SUSPENDED`（不是失敗），白箱產物保留；重新簽署 ROE 後，可以用新的 run（`followup`，`parent_run_id` 指向原 run、`reuse[]` 引用原 run 的 W5 產物）從 B 階段開始，不必重跑白箱。專用的「從上一個 run 的 W5 開始 B 階段」run kind 列為 [09](09-backlog.md) 待辦（BL-48），目前以 `followup`＋`reuse` 表達。
+- **`regression` run 如何帶入叢集**（v0.6，審查 r7 4.5）[H]：草稿由 CMD-5 依上一個 run 的確認項建立，`reuse[]` 以 content hash 引用那些叢集與它們的最新裁決；W0／W1 在新 commit 上重算，W3 不重審帶入的叢集，而是由新增的回歸節點 `W4_regression` 對每個帶入的叢集跑它的 W4 回歸測試（與 B 階段對應的測試案例）。測試 PASS 且有正對照 → 叢集標為「已修正」；FAIL → 維持確認並列入報告；沒有回歸測試的帶入叢集一律列為「未驗證修正」。帶入的叢集在新 run 是**新的叢集實例**（v0.7，審查 r8 外部 5）：自己的 `cluster_id`、`run_id` 是新 run，以 `carried_from: {run_id, cluster_id, fingerprint}` 指回上一個 run 的叢集，`fingerprint`、桶、家族與血統與來源相同，沒有本 run 的成員（`E-CLUSTER-CARRY`；跨 run 的問題識別是 fingerprint，不是共用 ID——cluster_id 是每個 run 的，W4 又要求叢集屬於本 run，v0.6 的「保留原 ID」做不到）。範例：跟進 run 的 `K-301` 帶入 `K-005`。`baseline_state` 依 `baseline_run_id` 計算。
+- **ROE 在 B 階段入口失效**（v0.6，審查 r7 4.5；v0.7 依 §1.4 統一）：G0b 之後到 B1 之前，若 ROE **過期**，run 轉為 `SUSPENDED`（不是失敗），白箱產物保留；若 ROE **被撤銷或簽署金鑰被撤銷**，依 §1.4 → `ABORTED`（v0.6 把三種情況都寫成 `SUSPENDED`，與 §1.4、03 §5.6 矛盾）；重新簽署 ROE 後，可以用新的 run（`followup`，`parent_run_id` 指向原 run、`reuse[]` 引用原 run 的 W5 產物）從 B 階段開始，不必重跑白箱。專用的「從上一個 run 的 W5 開始 B 階段」run kind 列為 [09](09-backlog.md) 待辦（BL-48），目前以 `followup`＋`reuse` 表達。
 - v0.7（審查 r8 H2、H3）：validator 對 `regression` run 的 `parent_run_id`／`reuse` 比照 `followup`（`E-RUN-FOLLOWUP`；v0.6 禁止）；到 G4 的 run，其 `testcase_ids` 每個測試案例的威脅都必須在**本 run** 的 G3 有 accept，沿用祖先 run 的核准要用 `carried_from`（`E-RUN-G3`）。範例的跟進 run 補上自己的 G3（`GR-G3-0002`，以 `carried_from` 沿用 T-012）；它在新的 commit 上重用 parent 的不變量與威脅模型 hash，因為這兩份產物的輸入是 G1 規格與 DFD／inventory 的 hash，不是 commit 本身（commit 不同時 W0／W1 重算，若 DFD 或 inventory 變了，hash 就不同、不能沿用）。
 - `followup`／`regression` run 另以 `baseline_run_id` 指定比較基準（通常就是 `parent_run_id`；`initial` 為 `null`）。W5 用它計算每個叢集的 `baseline_state`。
 - **跨 run 沿用核准：只限 G1／G3 中沒有變更的項目，而且逐項可驗證**（v0.5，[09 BL-21](09-backlog.md)）[H]：
@@ -252,10 +252,11 @@ flowchart TD
 | 多輪 LLM relay | 只有 `scripted` | 只有 `scripted` | `scripted` 或 `adaptive` |
 | 法務審查聲明（06 L-5） | 兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁寫明「法務審查聲明為自行簽署」 | 聲明者不能是 `test_lead`（`E-L5`） | 同 `team` |
 | 報告首頁 | 標示「單人模式，未經職責分離」，並附聲明全文；有 `W-L5-LITE` 時另標示法務審查聲明為自行簽署 | — | — |
+| G2 的決定（v0.7，審查 r8 M3） | 只有 `accept`／`needs_info`：一個不讀程式碼的使用者不該做對投票與 SARIF 而言是最終決定的 `reject`（R10），而 Lite 沒有 S2 證明能推翻；爭議留在報告裡（`E-GATE-OUTCOME`） | `reject` 由資安審查者決定 | 同 `team` |
 
 - **兼任者**在金鑰登錄中仍須具備每個兼任的角色；兼任只免除「必須是不同的人」，不免除角色登錄與簽章。
-- **各等級實際需要的最少人數**（v0.6，審查 r7 4.5）[H]：`lite` 1 人（兼任聲明）；`team` 至少 3 人——ROE 的必要簽署角色必須是不同的人，G5 核准者不得是發起者；`full` 另需 2 位不同的資安審查者核准每個 G5，所以有 S2 時至少 4 人。人數不足時，等級不能宣告，不是「先跑再補」。
-- **抽查推翻後自動升級**（v0.6，審查 r7 4.5）：同一委任的另一個 run 中，一筆已錨定、收件時間早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）推翻了 G5 決定，本 run 起 G5 一律需要兩位不同的資安審查者（`E-G5-TWO-PERSON`，`checks.g5_escalation`；[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包) ASI09）。
+- **各等級實際需要的人**（v0.6，審查 r7 4.5；v0.7，審查 r8 M7 改寫）[H]：規則是逐份紀錄的職責分離（`E-GATE-SOD`、`E-ROE-SOD`、`E-G5-G4`、`E-G5-TWO-PERSON`），所以真正的限制是 **`security_reviewer` 的人數**，不是總人數：`lite` 1 人（兼任聲明）；`team` 至少 1 位資安審查者，ROE 的必要簽署角色由不同的人擔任（一人可以兼任測試負責人＋資安審查者等多個角色，只要同一份紀錄裡的角色不是同一人）；有 S2 的 `team` 需要 2 位資安審查者（G4 核准者計入發起者，G5 核准者不得是發起者）；`full` 每個 G5 需要兩位不同的資安審查者，加上 G4 的一位，需要 **3 位**資安審查者。抽查推翻後的升級（下一點）讓 `team` 的 G5 也需要兩位：只有 2 位資安審查者的委任從此**無法再執行 S2**（不是「切換為 Full」——其他等級規則不變），報告要寫明。人數不足時，等級或 S2 不能宣告，不是「先跑再補」。
+- **抽查推翻後自動升級**（v0.6，審查 r7 4.5）：同一委任的另一個 run 中，一筆已錨定、收件時間早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）推翻了 G5 決定，本 run 起 G5 一律需要兩位不同的資安審查者（`E-G5-TWO-PERSON`，`checks.g5_escalation`；只有這一條規則改變，其他等級規則不變；[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包) ASI09）。
 - **G3 與 G4 同一次審查** [H]：
   - 做法：G3 簽核後，`CMD4_testplan` 與 B3 立即產生測試案例並開 G4，審查者接著在同一次審查中處理。
   - 兩者仍是兩份 GateRecord，各自簽章、各自綁定產物 hash。G4 在 G3 之後才開，所以 G3 駁回的威脅不會有測試案例出現在 G4。

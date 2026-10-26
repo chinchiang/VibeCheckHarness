@@ -50,5 +50,6 @@
   "interpretation": {
     "agrees": true,
     "rationale": "掃描到達已認證的列表端點；SQL injection 規則沒有 High／Medium 警示"
-  }
+  },
+  "observations_source": "harness"
 }

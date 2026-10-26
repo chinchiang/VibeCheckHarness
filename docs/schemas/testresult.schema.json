@@ -301,6 +301,20 @@
           "type": "null"
         }
       ]
+    },
+    "observations_source": {
+      "anyOf": [
+        {
+          "enum": [
+            "harness",
+            "sut"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "v0.7（審查 r8 外部 6）：oracle_observations 的來源。harness＝由 Z2／Z3 的 harness 行程取得（本地 Postgres 的唯讀連線、harness 端的假模型伺服器、受測行程結束後讀取的檔案、Scope Proxy 的請求紀錄）；sut＝由受測程式的行程輸出，可能被受測程式偽造，只能支持 E_inc。W4 結果必填（E-W4-OBSERVATION）；B4 結果的觀察一律來自 harness"
     }
   },
   "required": [
@@ -327,7 +341,8 @@
     "observed_build_id",
     "request_log_sha256",
     "interpreted_by",
-    "interpretation"
+    "interpretation",
+    "observations_source"
   ],
   "title": "TestResult（測試結果）",
   "description": "ERROR／SKIPPED／STOPPED 屬於執行失敗，INVALID 表示對照組未通過；兩者都列入「未能測試清單」，不代表需求未滿足；它們在 docs/05 §4.2 歸為 E_inc。"

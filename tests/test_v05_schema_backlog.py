@@ -112,7 +112,7 @@ def test_feedback_names_a_run_of_its_engagement(b):
 
 def test_unsigned_feedback_does_not_count(b):
     doc(b, FB).data["signatures"] = []
-    assert any("exactly one signature" in i.msg for i in errors(b, "E-FEEDBACK"))
+    assert any("one signature per signer" in i.msg for i in errors(b, "E-FEEDBACK"))
 
 
 # ================================================================ BL-19

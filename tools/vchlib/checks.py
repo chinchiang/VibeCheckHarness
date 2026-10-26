@@ -811,7 +811,9 @@ def cross_border_declared(c: Ctx) -> bool:
 
 
 # v0.5 (review 2026-10-25 T-10 / V-6): calibration and crosswalk decide verdicts and threat links, so they are pinned too
-CONFIG_PIN_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "licenses": "licenses",
+# v0.7 (review r8 M1): toolkit.yaml carries security policy (root-key fingerprint, automation accounts, gate timeouts and
+# queue caps, stop-condition defaults, retention caps), so it is pinned too
+CONFIG_PIN_KINDS = {"models": "model-registry", "agents": "agent-registry", "tools": "tool-registry", "licenses": "licenses", "toolkit": "toolkit-config",
                     "calibration": "calibration", "crosswalk": "crosswalk"}
 
 
@@ -1631,6 +1633,11 @@ def g_gates(R: Report, c: Ctx):
             if gate == "G2":
                 R.check(rec.get("outcome") in ("APPROVED", "EXPIRED"), "E-GATE-OUTCOME", w,
                         f"G2 whole-gate outcome must be APPROVED or EXPIRED (per-item REJECTED/NEEDS_INFO live in decisions), not {rec.get('outcome')}")
+                # v0.7 (review r8 M3): in Lite the one person is not equipped to make a final rejection (R10 makes it final
+                # against votes and SARIF, and Lite has no S2 proof to overturn it): a dispute stays visible in the report
+                if profile(c) == "lite":
+                    R.check("reject" not in decs, "E-GATE-OUTCOME", w,
+                            "assurance_profile lite: G2 decides accept / needs_info only; a reject is final and needs a security reviewer (docs/02 §1.7)")
             if gate in ("G1", "G5") and rec.get("outcome") == "APPROVED":
                 R.check(all(x == "accept" for x in decs), "E-GATE-OUTCOME", w, "APPROVED with non-accept decisions")
             if gate == "GB":
@@ -2278,6 +2285,28 @@ def access_cells_check(R: Report, c: Ctx, tc: dict, w: str):
 FEEDBACK_SUPPRESSION = {"false_positive": "accepted", "needs_info": "underReview"}
 
 
+def feedback_suppression(c: Ctx, f: dict) -> str | None:
+    """v0.7 (review r8 M4): the SARIF suppression a feedback record earns. false_positive -> accepted only when a
+    security_reviewer signed or co-signed it: an app_owner is the party with the conflict of interest, so its own
+    false_positive stays underReview until a reviewer co-signs (co_signed_by). The suppression also lapses (underReview)
+    when the adopting run's cluster with the same fingerprint is baseline_state updated: the code changed, review again."""
+    label = f.get("label")
+    if label == "needs_info":
+        return "underReview"
+    if label != "false_positive":
+        return None
+    roles = {(f.get("signed_by") or {}).get("role"), (f.get("co_signed_by") or {}).get("role")}
+    if "security_reviewer" not in roles:
+        return "underReview"
+    rec = feedback_record_event(c, f)
+    if not isinstance(rec, str):
+        adopting = (rec[0].get("run_id") if isinstance(rec[0], dict) else None)
+        for k in c.docs("cluster"):
+            if k.data.get("run_id") == adopting and k.data.get("fingerprint") == f.get("fingerprint") and k.data.get("baseline_state") == "updated":
+                return "underReview"
+    return "accepted"
+
+
 def g_feedback(R: Report, c: Ctx):
     """v0.5 (BL-18, docs/08 §11.16, E-FEEDBACK): a developer's PR comment is only a hint; a feedback record counts only when
     signed by a registered security_reviewer / app_owner. The fingerprint is the named cluster's (a cluster of a run of
@@ -2299,10 +2328,15 @@ def g_feedback(R: Report, c: Ctx):
                         "a duplicate names the fingerprint of another cluster of the engagement (duplicate_of)")
             else:
                 R.check(f.get("duplicate_of") is None, "E-FEEDBACK", w, "duplicate_of is only set for label duplicate")
-            want = FEEDBACK_SUPPRESSION.get(f.get("label"))
+            want = feedback_suppression(c, f)                   # v0.7 (review r8 M4)
             R.check(f.get("sarif_suppression") == want, "E-FEEDBACK", w,
-                    f"label {f.get('label')} gives SARIF suppression {want!r}, not {f.get('sarif_suppression')!r}")
+                    f"label {f.get('label')} by {(f.get('signed_by') or {}).get('role')} (co-signed by "
+                    f"{(f.get('co_signed_by') or {}).get('role')}) gives SARIF suppression {want!r}, not {f.get('sarif_suppression')!r}")
             sb = f.get("signed_by") or {}
+            cs = f.get("co_signed_by")
+            if isinstance(cs, dict):
+                R.check(cs.get("role") == "security_reviewer" and cs.get("person_id") != sb.get("person_id"), "E-FEEDBACK", w,
+                        "co_signed_by is a security_reviewer other than the signer")
             sigs = f.get("signatures") or []
             # v0.5 (review r7 1.11, external review 3): signed_at is the signer's own claim, so a retired key could sign
             # with a back-dated time. The run that adopts the feedback records it (feedback_recorded, anchored, pinning
@@ -2324,9 +2358,12 @@ def g_feedback(R: Report, c: Ctx):
                 start = run_start(c, f.get("run_id"))
                 R.check(start is None or (at is not None and at >= start), "E-FEEDBACK", w,
                         f"recorded at {event.get('ts')}, before run {f.get('run_id')} started ({start})")
-            ok = len(sigs) == 1 and sigs[0].get("signer") == sb.get("person_id") and sigs[0].get("key_fingerprint") == sb.get("key_fingerprint")
-            if R.check(ok, "E-FEEDBACK", w, "a feedback record carries exactly one signature, by its signed_by person and key"):
-                verify_signature(R, c, w, crypto.signing_payload(f), sigs[0], at, sb.get("role"))
+            signers = [sb] + ([cs] if isinstance(cs, dict) else [])
+            ok = len(sigs) == len(signers) and all(s.get("signer") == x.get("person_id") and s.get("key_fingerprint") == x.get("key_fingerprint")
+                                                   for s, x in zip(sigs, signers))
+            if R.check(ok, "E-FEEDBACK", w, "a feedback record carries one signature per signer (signed_by, then co_signed_by), by their keys"):
+                for s, x in zip(sigs, signers):
+                    verify_signature(R, c, w, crypto.signing_payload(f), s, at, x.get("role"))
 
 
 def feedback_record_event(c: Ctx, f: dict):
@@ -2445,6 +2482,11 @@ def g_w4_testcases(R: Report, c: Ctx):
                 R.check(not extra, "E-W4-TC", w, f"cluster_ids {extra} are not clusters of {tc.data.get('testcase_id')}")
                 R.check(tr.get("run_id") == tc.data.get("run_id"), "E-W4-TC", w, f"{tc.data.get('testcase_id')} belongs to run {tc.data.get('run_id')}")
             w4_execution(R, c, tr, w)
+            # v0.7 (review r8, external review 6; docs/08 W4): the observations the oracle judged come from the harness process
+            # (read-only DB connection, harness-side fake model, files read after the SUT exited), never from the SUT's own
+            # output, which the SUT can forge; a sut-sourced result is declared as such and classifies as E_inc
+            R.check(tr.get("observations_source") in ("harness", "sut"), "E-W4-OBSERVATION", w,
+                    "a W4 result declares observations_source (harness / sut): where the oracle's observations were read from")
 
 
 def w4_coverage(R: Report, c: Ctx, run: dict, w: str, approved: set):
@@ -3132,11 +3174,31 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
         R.check(not same, "E-CLUSTER-ORIGIN", w,
                 f"sarif_refs {same} come from the tool that reported the cluster ({sorted(map(str, reporters))}); a report is not its own corroboration")
     else:
-        R.check(bool(k.get("member_finding_ids")) and bool(k.get("families")) and bool(k.get("lineages")), "E-CLUSTER-ORIGIN", w,
-                "white_box cluster needs member findings, families and lineages")
+        if k.get("carried_from") is None:               # v0.7: a carried cluster has no members of its own (E-CLUSTER-CARRY)
+            R.check(bool(k.get("member_finding_ids")) and bool(k.get("families")) and bool(k.get("lineages")), "E-CLUSTER-ORIGIN", w,
+                    "white_box cluster needs member findings, families and lineages")
         R.check(k.get("threat_id") is None, "E-CLUSTER-ORIGIN", w, "threat_id is only set on black_box clusters")
         R.check(all(isinstance(loc.get(x), (str, dict)) for x in ("file", "symbol", "sink")), "E-CLUSTER-ORIGIN", w,
                 "white_box cluster needs canonical_location file, symbol and sink")
+    # v0.7 (review r8, external review 5; docs/02 §1.6): a cluster a followup / regression run carries in is this run's own
+    # instance (its own id, run_id this run) pointing at the parent's cluster by carried_from; the fingerprint is the
+    # cross-run identity. v0.6 said "keep the original id", which a per-run cluster could not do
+    cf = k.get("carried_from")
+    run = c.runs.get(k.get("run_id")) or {}
+    if isinstance(cf, dict):
+        src = c.ix.first("cluster", cluster_id=cf.get("cluster_id"), run_id=cf.get("run_id"))
+        R.check(run.get("run_kind") in ("followup", "regression") and cf.get("run_id") == run.get("parent_run_id"), "E-CLUSTER-CARRY", w,
+                f"carried_from names run {cf.get('run_id')}, which is not the parent of this {run.get('run_kind')} run")
+        R.check(src is not None and src.data.get("fingerprint") == cf.get("fingerprint") == k.get("fingerprint"), "E-CLUSTER-CARRY", w,
+                f"carried_from must name a cluster of the parent run with this cluster's fingerprint {k.get('fingerprint')}")
+        R.check(src is None or (k.get("cwe_bucket") == src.data.get("cwe_bucket") and k.get("families") == src.data.get("families")
+                                and k.get("lineages") == src.data.get("lineages")), "E-CLUSTER-CARRY", w,
+                "a carried cluster keeps the source's bucket, families and lineages")
+    elif run.get("run_kind") in ("followup", "regression"):
+        twins = [x.data.get("cluster_id") for x in c.docs("cluster") if x.data.get("run_id") == run.get("parent_run_id")
+                 and x.data.get("fingerprint") == k.get("fingerprint")]
+        R.check(not twins, "E-CLUSTER-CARRY", w,
+                f"the parent run has {twins} with the same fingerprint: carry it with carried_from instead of a new, unlinked cluster")
 
 
 def _evidence_sites(c: Ctx, cluster: dict) -> tuple[list[tuple[str, int, int]], list[str]]:
@@ -3452,9 +3514,10 @@ def g_trace(R: Report, c: Ctx):
             run = c.runs.get(k.get("run_id")) or {}
             R.check(k.get("cluster_id") in run.get("cluster_ids", []), "E-TRACE", w, "cluster not listed by its run")
             cluster_origin(R, c, d)
-            cluster_binding(R, c, d)
+            if k.get("carried_from") is None:
+                cluster_binding(R, c, d)               # v0.7: a carried cluster is bound to its source (E-CLUSTER-CARRY), not to members
             members = [ix.first("finding", finding_id=f) for f in k.get("member_finding_ids", [])]
-            if R.check(all(members), "E-TRACE", w, "member finding not found"):
+            if k.get("carried_from") is None and R.check(all(members), "E-TRACE", w, "member finding not found"):
                 fams = {(m.data.get("reporter") or {}).get("family") for m in members}
                 lins = {(m.data.get("reporter") or {}).get("lineage") for m in members}
                 R.check(set(k.get("families", [])) == fams and set(k.get("lineages", [])) == lins, "E-CLUSTER-FAMILIES", w,
@@ -3800,9 +3863,19 @@ def g_audit(R: Report, c: Ctx):
                     p = ev.get("payload") or {}
                     v = c.ix.first("verdict", verdict_id=p.get("verdict_id"))
                     R.check(v is not None and v.data.get("status") == p.get("status"), "E-AUDIT-VERDICT", where, "verdict_changed does not match the verdict")
+                    # v0.7 (review r8 H4): the event pins the whole verdict version, not only its status; v0.6 let anyone with
+                    # Z1 write access rewrite a verdict's severity, rule_trace or evidence refs after the anchor
+                    R.check(v is not None and p.get("verdict_sha256") == content_hash(v.data), "E-AUDIT-VERDICT", where,
+                            f"verdict_changed pins verdict_sha256 {p.get('verdict_sha256')!r}, but {p.get('verdict_id')} hashes to "
+                            f"{content_hash(v.data) if v is not None else None}: the verdict changed after it was recorded")
                 if et == "report_published":
+                    p = ev.get("payload") or {}
                     rm = c.ix.first("report-manifest", run_id=rid)
-                    R.check(rm is not None and rm.data.get("report_id") == (ev.get("payload") or {}).get("report_id"), "E-AUDIT-REPORT", where, "report id mismatch")
+                    R.check(rm is not None and rm.data.get("report_id") == p.get("report_id"), "E-AUDIT-REPORT", where, "report id mismatch")
+                    # v0.7 (review r8 H4): the manifest (whose artifacts pin the SARIF, HTML, verdicts and the audit log) is pinned too
+                    R.check(rm is not None and p.get("report_manifest_sha256") == content_hash(rm.data), "E-AUDIT-REPORT", where,
+                            f"report_published pins report_manifest_sha256 {p.get('report_manifest_sha256')!r}, but the manifest hashes to "
+                            f"{content_hash(rm.data) if rm is not None else None}: the report changed after it was published")
             tail, last_anchor = audit_anchor_tail(R, w, run, d)
             if run.get("status") in TERMINAL_RUN_STATES:
                 # at most one E-AUDIT-TAIL per run, listing every reason
@@ -4266,6 +4339,9 @@ def g_toolkit(R: Report, c: Ctx):
     missing = B1_SKIP_BASELINE - {str(k).lower() for k in (tk.get("b1_crawl") or {}).get("skip_keywords") or []}
     R.check(not missing, "E-TOOLKIT-B1", w, f"b1_crawl.skip_keywords drops the baseline keywords {sorted(missing)} (docs/08 §11.7)")
     R.check((tk.get("gate_timeouts_hours") or {}).get("G5", 99) <= 24, "E-TOOLKIT", w, "G5 timeout must be <= 24 h")
+    for key in ("g2_max_items", "g3_max_items", "g4_max_items"):          # v0.7 (review r8 M1): a cap of 0 sends every item to over_cap unreviewed
+        val = (tk.get("gate_queues") or {}).get(key)
+        R.check(type(val) is int and val >= 1, "E-TOOLKIT", w, f"gate_queues.{key} {val!r} must be an integer >= 1 (0 would skip the gate)")
     R.check(set(GATE_ROLES) - {"G0a", "G0b"} | {"claim_run", "GB"} <= set(tk.get("gate_timeouts_hours") or {}), "E-TOOLKIT", w, "missing gate timeouts")
     ref = tk.get("tool_registry_ref")
     R.check(ref is not None and (c.b.root / ref).exists(), "E-TOOLKIT", w, f"tool_registry_ref {ref} does not exist")

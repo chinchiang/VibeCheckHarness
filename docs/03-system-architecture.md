@@ -738,7 +738,7 @@ stateDiagram-v2
 2. `ah_restore`：對每個 `snapshot_ref` 不為空且 `restore_verified` 為 false 的 job，呼叫 Snapshot Service 還原並驗證（重試 2 次）。
 3. `ah_escalate`：還原失敗時，立即通知 ROE `stop_conditions.contacts`，最終狀態為 `FAILED`（staging 狀態未知，需人工處理）。
 4. `ah_revoke`：Session Provider 作廢本 run 的所有 session。
-5. `ah_report`：寫入稽核事件（`stop_condition`／`kill_switch`、`snapshot_restored`／`restore_failed`、`run_status_changed`），由 Reporter 產生中止報告（確定性部分）；最終狀態：還原失敗 → `FAILED`；ROE 驗章失效（金鑰撤銷、簽章無效）、GB 中止、政策違規 → `ABORTED`；其他 → `STOPPED`。
+5. `ah_report`：寫入稽核事件（`stop_condition`／`kill_switch`、`snapshot_restored`／`restore_failed`、`run_status_changed`），由 Reporter 產生中止報告（確定性部分）；最終狀態：還原失敗 → `FAILED`；ROE 驗章失效（金鑰撤銷、簽章無效；到期不算，到期 → `SUSPENDED`，v0.7 依 [02 §1.4](02-methodology.md#14-關卡結果與-run-狀態) 統一）、GB 中止、政策違規 → `ABORTED`；其他 → `STOPPED`。
 
 **resume 規則** [H]：
 - `SUSPENDED`：run_owner 或任何發起者以 `vibecheck run resume` 續跑；若停在關卡，重新開啟該關卡（新的 GateRecord，`round` 不增加）。

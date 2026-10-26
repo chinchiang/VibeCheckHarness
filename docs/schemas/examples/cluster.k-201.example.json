@@ -30,5 +30,6 @@
   "fingerprint": "sha256:574c281eab871007ec6a9febad3f3397499eee0e4cecde95a3a0352ebf31d860",
   "baseline_state": null,
   "reopened": false,
-  "severity": "high"
+  "severity": "high",
+  "carried_from": null
 }

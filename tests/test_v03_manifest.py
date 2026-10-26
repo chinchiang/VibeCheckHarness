@@ -41,7 +41,8 @@ def test_black_box_fingerprint_uses_the_endpoint(b):
 
 
 def test_baseline_state_without_baseline_is_null(b):
-    assert all(d.data["baseline_state"] is None for d in b.docs if d.kind == "cluster")
+    assert all(d.data["baseline_state"] is None for d in b.docs if d.kind == "cluster" and d.data.get("carried_from") is None)
+    assert doc(b, "cluster.followup.k-301.example.json").data["baseline_state"] == "updated"   # r8: carried into the follow-up run
     doc(b, "cluster.example.json").data["baseline_state"] = "new"
     assert "E-CLUSTER-BASELINE" in codes(b)
 

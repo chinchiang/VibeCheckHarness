@@ -57,5 +57,6 @@
   "interpretation": {
     "agrees": true,
     "rationale": "tenantA_user 的 GET 回應含 tenant_b_invoice 的欄位，兩次重播相同；不是對照組的請求"
-  }
+  },
+  "observations_source": "harness"
 }

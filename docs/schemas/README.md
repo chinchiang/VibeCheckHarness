@@ -159,6 +159,12 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-SPOT-CHECK`（v0.7，審查 r8 M2） | `spot_check_result` 的 actor 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5，`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者、發起者或其 run 的發起者（06 §1.1 ASI09 的獨立複核） |
 | `E-MODEL-LINEAGE`（v0.7，審查 r8 外部 3） | models.yaml 的 `derived_from` 必須是登錄中的另一個血統，而且不能形成循環（A → B → A 會讓兩者各自成為根、互相驗證） |
 | `E-CAL-COUNT`（v0.7，審查 r8 外部 4） | 校準檔的每一組計數 0 ≤ correct ≤ n、0 ≤ tp／fp ≤ n、0 ≤ holdout_tp ≤ holdout_n；不一致時不再計算界限（v0.6 接受 holdout 10 筆答對 11 筆，correct > n 則以 `E-INTERNAL` 崩潰） |
+| `E-AUDIT-VERDICT`、`E-AUDIT-REPORT`（v0.7 補充，審查 r8 H4） | `verdict_changed` 的 payload 釘住 `verdict_sha256`（該版裁決的內容 hash），`report_published` 釘住 `report_manifest_sha256`（manifest 的 artifacts 再釘住 SARIF、HTML、裁決與稽核紀錄）；錨點之後改裁決的任何欄位或報告都會被發現 |
+| `E-ENG-CONFIG-PIN`（v0.7 補充，審查 r8 M1） | `config_pins` 另釘 `toolkit`（toolkit.yaml）；`E-TOOLKIT`：`gate_queues.g2/g3/g4_max_items` ≥ 1 |
+| `E-FEEDBACK`（v0.7 補充，審查 r8 M4） | `sarif_suppression` 由 `checks.feedback_suppression` 推導：`false_positive` 只有在 `signed_by` 或 `co_signed_by` 是 `security_reviewer` 時才是 `accepted`，否則 `underReview`；採用 run 中同指紋叢集 `baseline_state: updated` 時回到 `underReview`；副簽者是 `security_reviewer` 且不是簽署者本人；signatures 依序對應 signed_by、co_signed_by |
+| `E-GATE-OUTCOME`（v0.7 補充，審查 r8 M3） | `assurance_profile: lite` 的 G2 決定只能是 accept／needs_info |
+| `E-CLUSTER-CARRY`（v0.7，審查 r8 外部 5） | `carried_from` 只在 followup／regression run 中、指向 parent run 的叢集，fingerprint、桶、家族、血統相同；parent 有同指紋叢集而本 run 的叢集沒有 `carried_from` → 報錯。帶入的叢集沒有本 run 的成員，不做成員綁定與家族檢查 |
+| `E-W4-OBSERVATION`（v0.7，審查 r8 外部 6） | W4 結果宣告 `observations_source`（harness／sut）；`sut` 的結果在 `classify_result` 只能是 `E_inc` |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；tool_only 叢集（v0.5，BL-13）沒有成員、`tool_report_refs` 至少一筆能解析，`sarif_refs` 不能含回報或同一工具的結果，其他 origin 的 `tool_report_refs` 為空；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |
 | `E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | 指紋＝sha256(JCS({cwe_bucket, file, symbol}))（black_box：{cwe_bucket, target_id, method, path_template}）；`baseline_state` 依 run `baseline_run_id` 推導；report `absent_fingerprints` |
 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-FINDING-FACET` | 證據 kind 的欄位；code_snippet 至少 12 個非空白字元並含 3 字元以上的識別字，`file` 在發現項的切片中（v0.4）；inventory_fact 由 inventory 重算 match；status 由 match 推導；facet 與叢集 CWE 桶（`FACET_BUCKETS`） |
