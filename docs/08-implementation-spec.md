@@ -297,6 +297,7 @@ class JobAllowlist(BaseModel):
     methods: list[str]                 # M1 只有 ["GET"]
     path_patterns: list[str]           # 已扣除 ROE 的 exclusions
     max_requests: int
+    max_requests_per_trial: int | None  # v0.7（審查 r8 外部 1）：逐 trial 的上限，trial 邊界由 harness 以 trial_id 標頭標示；機率型測試必填
     rate_per_s: float
     third_party: list[str]             # 預設為空
     expires_at: str
@@ -1974,9 +1975,10 @@ class SessionProvider(Protocol):
 3. **可達性**：`internal` → −1；`unknown` 視同 `internet`（fail-safe），不加減。
 4. **認證需求**：`none` → ＋1；`privileged` → −1。
 5. 結果夾在 0 到 4 之間：4＝`critical`、3＝`high`、2＝`medium`、1＝`low`、0＝`info`。
+6. **無法解析的輸入**（v0.7，審查 r8 F5）：可達性未知視同 `internet`；資料等級無法對應（位置所在的 process 沒有流向任何能對應到 inventory 資料表的 data store）不加減；位置沒有對應的端點（例如 migration 檔）認證需求不加減。無法解析的輸入永遠不會降低分數。
 
 - reviewer 提議的嚴重度照樣保存，報告同時列出兩者。人在 G2 或 G3 可以改，調低要附理由。
-- rubric 不改變裁決，但 v0.4 起**決定路由**：G2 佇列、W4 輸入、B2 高風險條件 4 與「只列報告的叢集」都用 rubric 嚴重度（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅)）。v0.3 用成員自報的最高嚴重度，等於讓單一家族的 LLM 決定哪些項目給人看。W3 時 DFD 只有確定性骨幹，可達性無法判定就視同 `internet`。
+- rubric 不改變裁決，但 v0.4 起**決定路由**：G2 佇列、W4 輸入、B2 高風險條件 4 與「只列報告的叢集」都用 rubric 嚴重度（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅)）。v0.3 用成員自報的最高嚴重度，等於讓單一家族的 LLM 決定哪些項目給人看。W3 時 DFD 只有確定性骨幹，可達性無法判定就視同 `internet`。v0.7：validator 以同一套規則推導每個叢集的 `severity`（`derive.rubric_severity`：端點由 inventory 依 `canonical_location.file` 或黑箱端點對應，process 由 DFD 的 `evidence_refs`（`endpoint:`／`code:`）對應，data store 經 `inventory:/db/tables/<i>` 對應到資料表再對應 G1 `data_classification` 的欄位前綴；`E-CLUSTER-SEVERITY`），G2 路由檢查用它（`E-PIPELINE`）。
 
 #### 報告敘事 linter
 

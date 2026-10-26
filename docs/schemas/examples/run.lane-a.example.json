@@ -176,5 +176,6 @@
       "line_sha256": "sha256:abe3f5c375f5f248ddd971d3b9af08d2f2fce883091f98edfd124f7558097549"
     }
   ],
-  "errors": []
+  "errors": [],
+  "pr_origin": "same_repo"
 }

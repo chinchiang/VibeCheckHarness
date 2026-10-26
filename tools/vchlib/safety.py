@@ -916,11 +916,14 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
 
 def request_budget(tc: dict) -> int:
     """v0.6 (review r7 3.8): the requests a testcase may send, replays included. A FAIL opens replay_n replay jobs, each
-    re-running one trial (max_requests / n requests, rounded up); v0.5 compared max_requests alone with the S1 cap,
-    although replays are 'not counted in max_requests'."""
+    re-running one trial; v0.5 compared max_requests alone with the S1 cap, although replays are 'not counted in
+    max_requests'. v0.7 (review r8, external review 1): a replayed trial is bounded by rate_limit.max_requests_per_trial,
+    the per-trial cap the Scope Proxy enforces; v0.6 divided max_requests by n, an average no rule enforced, so one trial
+    of 301 requests replayed twice sent 1,002 under a budget of 408. Without the cap a replay counts a whole job."""
     rl, trials = tc.get("rate_limit") or {}, tc.get("trials") or {}
-    mx, n, rn = rl.get("max_requests") or 0, max(1, trials.get("n") or 1), trials.get("replay_n") or 0
-    return mx + rn * -(-mx // n)
+    mx, rn = rl.get("max_requests") or 0, trials.get("replay_n") or 0
+    per = rl.get("max_requests_per_trial")
+    return mx + rn * (per if type(per) is int and 0 < per <= mx else mx)
 
 
 def seed_side_effects(manifest, roe, r: dict) -> str | None:

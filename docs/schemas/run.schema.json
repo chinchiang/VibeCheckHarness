@@ -947,6 +947,20 @@
           "detail_ref"
         ]
       }
+    },
+    "pr_origin": {
+      "anyOf": [
+        {
+          "enum": [
+            "same_repo",
+            "fork"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "v0.7（審查 r8 M6，docs/03 §12）：Lane A run 必填：PR 來自同一個 repo 或 fork。fork 的 PR 不做 LLM 審查（沒有裁決、叢集與 advisories），其結果視為不可信輸入；其他 run kind 為 null（E-RUN-LANE-A）"
     }
   },
   "required": [
@@ -1030,7 +1044,8 @@
     "budgets",
     "gaps",
     "audit_anchors",
-    "errors"
+    "errors",
+    "pr_origin"
   ],
   "$defs": {
     "gate_ref": {

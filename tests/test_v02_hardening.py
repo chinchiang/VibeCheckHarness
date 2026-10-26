@@ -188,6 +188,9 @@ def test_reproduced_black_box_fail_is_proof_without_an_eligible_analyst(b, keys)
     tr = doc(b, "testresult.llm-pass.example.json").data
     tr.update(outcome="FAIL", fail_oracles=["TOOL_CALL_LOG"], trials={"n": 60, "k": 3}, replays=20, replay_k=2,
               interpreted_by={"agent_id": "result_analyst_a", "family": "anthropic"})    # K-011 is anthropic: not eligible
+    for e in doc(b, "audit-event.run-2026-09-23-001.example.jsonl").data:                 # v0.7 (r8 F2a): the executor saw the FAIL
+        if e["event_type"] == "sandbox_job_end" and e["payload"].get("job_id") == tr["job_id"]:
+            e["payload"]["outcome"] = "FAIL"
     ix = Index(b)
     assert classify_result(ix, tr, ix.first("cluster", cluster_id="K-011").data)[0] == "E_proof"
     tr["fail_oracles"] = ["LLM_GRADER"]                 # only a non-deterministic oracle saw the violation
@@ -214,6 +217,17 @@ def test_tool_signal_from_e_fail_u(b, keys):
               interpreted_by={"agent_id": "result_analyst_a", "family": "anthropic"},
               interpretation={"agrees": True, "rationale": "同家族分析者（不合格）"})
     b.docs.append(Doc("docs/schemas/examples/testresult.w4.example.json", "testresult", w4, None))
+    # v0.7 (r8 F2a): a W4 result is evidence only with its anchored sandbox_job_end (pins re-derived by rederive)
+    evs = doc(b, "audit-event.run-2026-09-23-001.example.jsonl").data
+    i = next(n for n, e in enumerate(evs) if e["event_type"] == "sandbox_job_end" and e["payload"].get("result_id") == "R-WTC-015-01-1")
+    end = copy.deepcopy(evs[i])
+    end["idempotency_key"] = end["idempotency_key"].replace("WTC-015-01", "WTC-011-01")
+    end["payload"].update(job_id="w4-WTC-011-01-1", testcase_id="WTC-011-01", result_id="R-WTC-011-01-1", outcome="FAIL")
+    evs.insert(i + 1, end)
+    for n, e in enumerate(evs):
+        e["seq"] = n + 1
+    reload_json(doc(b, "audit-event.run-2026-09-23-001.example.jsonl"),
+                "".join(json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in evs))
     rederive(b, keys)
     c = Ctx(b)
     v = doc(b, "verdict.k-011-b5.example.json").data

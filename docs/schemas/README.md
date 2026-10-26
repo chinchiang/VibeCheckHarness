@@ -132,7 +132,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ID-DUP` | v0.5：同一種文件（run、verdict、cluster、finding、testcase、testresult、threat、gate-record、report-manifest、slice）的 ID 不能重複 |
 | `E-CLUSTER-BINDING` | v0.5：白箱叢集的 `canonical_location.file` 是成員證據的檔案、sink 落在成員證據的行範圍內、`file::name` 形式的 symbol 屬於該檔案、`cwe_bucket` 是某個成員 CWE 的桶（`facets.CWE_BUCKETS`）；同一 run 的叢集指紋不重複；審查 r7 1.6：同一個 run 內，一個發現項只能是一個叢集的成員 |
 | `W-CLUSTER-BUCKET` | v0.5（警告）：成員的 CWE 都不在 `facets.CWE_BUCKETS`，`cwe_bucket` 無法檢查 |
-| `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10） |
+| `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10）；審查 r8 F2a／F2b：每個 B4 結果的 job 必須在已執行的狀態（PENDING、EXECUTING、INTERRUPTED、STOPPED 的 job 不能有結果），每個 job 恰有一份結果，而且每一份結果都要有恰一筆已錨定、outcome 與三個 hash 都相符的 `sandbox_job_end`（不只是同一 job 的最後一份）；`derive.classify_result` 對沒有已錨定執行事件的結果一律給 `E_inc` |
 | `E-RESULT-G4`、`E-RESULT-G5`、`E-RESULT-WINDOW`、`E-RUN-G4` | 審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 |
 | `E-REPORT-QUEUE` | v0.4（BL-26）：`report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id）；v0.6（審查 r7 4.5）：清單也重算完整性：每個威脅被 G3 判為 over_cap 的種子都要列出 |
 | `E-ROE-EDGE-RANGE` | v0.4（BL-15）：`targets[].edge_ip_ranges` 只用於 http 目標，每項是主機位元為 0 的 CIDR，且不與任何非公開網段重疊 |
@@ -147,10 +147,18 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-W4-AUDIT` | v0.5（BL-27）：W4 結果恰好對應一筆已錨定的 W4／Z2 `sandbox_job_end`（同 result_id、testcase_id、outcome），`executed_at` 在該 job 的開始與結束之間；審查 r7 1.10：該事件另釘住 testcase、artifact 與結果的 hash |
 | `E-W4-COVERAGE` | v0.5（BL-27）：run 有 W4 產物或種子威脅後，每條 G1 核准的不變量有 W4 測試案例或列在 `w4_manual_requirements`（不能兩者都有）；MANUAL 只能列 G1 核准的不變量 |
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate；v0.5 BL-20：access_matrix_coverage、endpoint_slice_coverage、endpoint_test_coverage）由 run 的測試結果、testcase 的 access_cells、切片與 request_allowlist 重算；審查 r7（外部審查 5）：覆蓋率分成 `planned_*`（測試案例宣告的計畫）與 `executed_*`（只算有有效執行結果的測試案例：outcome PASS／FAIL、對照全部 PASS、有已錨定且 hash 相符的 `sandbox_job_end`），兩者都重算 |
-| `E-PIPELINE` | v0.5（審查 r7 第 2 組）：流程完整性，Lane A 除外。W3 之後，run 的每個叢集都有裁決，每個 VERIFIED_SNIPPET 發現項都屬於某個叢集。W5 之後，W 階段最新狀態為 DISPUTED 或成員嚴重度 high 以上的 UNCORROBORATED 白箱叢集，必須有 G2 決定或列為 over_cap；沒有被 REJECTED 的白箱叢集是種子威脅或 report_only；G2 駁回的叢集不是種子。G3 之後每個種子都有 `threat_id`。`manual_review_clusters` 等於推導值（`post_g2_conflict`，或 B5 後 DISPUTED）。報告的 `gaps` 等於 run 的 gaps，artifacts 列出每個叢集的最新裁決與 run 的每個測試結果 |
-| `E-TC-TRIALS`（v0.6 補充） | `fail_k_min` 在 1..n 之間；審查 r7 3.3：機率型測試（LLM 測試 adapter、`multi_turn`，或 `trials.record` 含 `target_model`）的 `trials.n` ≥ PASS 所需的有效次數（30；高風險威脅 60） |
-| `E-CAL-WEIGHT`、`E-CAL-THETA`、`E-CAL-HIGH-PRECISION`（v0.6） | 審查 r7：`weights[]` 的 a、w、near_zero 由計數重算，w 是兩邊的對數概似比（SUPPORT＝ln(TPR／(1−TNR))、REFUTE＝ln(TNR／(1−TPR))），任一邊 near_zero → 兩邊 w＝0（3.2）；`theta_confirm`／`theta_reject` 必須有 `by_bucket`，每一項 value 與 feasible 一致，`high_precision_min` 沒有 `by_bucket`（3.5）；`high_precision_rules` 每列 n＝tp＋fp ≥ 40、`precision_lower95` 等於 Clopper-Pearson 雙尾 95% 下界且 ≥ `high_precision_min`、保留切分 n ≥ 10 且點估計 ≥ 下限 − 0.05（3.5） |
+| `E-PIPELINE` | v0.5（審查 r7 第 2 組）：流程完整性，Lane A 除外。W3 之後，run 的每個叢集都有裁決，每個 VERIFIED_SNIPPET 發現項都屬於某個叢集。W5 之後，**W3 裁決**為 DISPUTED 或 rubric 嚴重度 high 以上的 UNCORROBORATED 白箱叢集，必須有 G2 決定或列為 over_cap（審查 r8 F5：以 G2 當時看到的 W3 版本與 `cluster.severity` 判斷，不看 W4 重新裁決後的版本，也不看成員自報的 `finding.severity`）；沒有被 REJECTED 的白箱叢集是種子威脅或 report_only；G2 駁回的叢集不是種子。G3 之後每個種子都有 `threat_id`。`manual_review_clusters` 等於推導值（`post_g2_conflict`，或 B5 後 DISPUTED）。報告的 `gaps` 等於 run 的 gaps，artifacts 列出每個叢集的最新裁決與 run 的每個測試結果 |
+| `E-TC-TRIALS`（v0.6 補充） | `fail_k_min` 在 1..n 之間；審查 r7 3.3：機率型測試的 `trials.n` ≥ PASS 所需的有效次數（30；高風險威脅 60）；審查 r8 外部 2：機率型由受測功能判定（`derive.probabilistic_signals`：LLM 威脅——taxonomy 為 owasp-llm／owasp-asi 或來源叢集在 `llm_specific` 桶、LLM 測試 adapter、`multi_turn`、`trials.record` 含 `target_model`、`trials.sampling: sampled`），有任何訊號時 `trials.sampling: deterministic` 即報錯 |
+| `E-CAL-WEIGHT`、`E-CAL-THETA`、`E-CAL-HIGH-PRECISION`（v0.6） | 審查 r7：`weights[]` 的 a、w、near_zero 由計數重算，w 是兩邊的對數概似比（SUPPORT＝ln(TPR／(1−TNR))、REFUTE＝ln(TNR／(1−TPR))），任一邊 near_zero → 兩邊 w＝0（3.2）；`theta_confirm`／`theta_reject` 必須有 `by_bucket`，每一項 value 與 feasible 一致，`high_precision_min` 沒有 `by_bucket`（3.5）；審查 r8：每個門檻的 value 必須是 ≥ 0.1 的有限數（§5.7 的格點下限；負的 θ_reject 會讓單一弱反駁票自動駁回）；`high_precision_rules` 每列 n＝tp＋fp ≥ 40、`precision_lower95` 等於 Clopper-Pearson 雙尾 95% 下界且 ≥ `high_precision_min`、保留切分 n ≥ 10 且點估計 ≥ 下限 − 0.05（3.5） |
 | `E-TC-SAFETY`（v0.6 補充） | 安全等級重算（審查 r7 3.8）：寫入副作用沒有被圍住的種子 → ≥ S2（種子沒有宣告且 ROE 有未停用的 integration 時視為 external）；請求預算 `max_requests ＋ replay_n × ⌈max_requests／n⌉` 超過 `s1_request_cap` → ≥ S2；GraphQL 請求不是 POST，或沒有 `graphql_document_sha256` → S3 |
+| `E-CLUSTER-SEVERITY`（v0.7，審查 r8 F5） | `cluster.severity` 等於 validator 依 [08 §11.17](../08-implementation-spec.md#1117-確定性輔助規則) 推導的 rubric 嚴重度（`derive.rubric_severity`：桶的基本分、G1 資料分級與 PII、DFD 的網路邊界可達性、inventory 端點的認證需求；無法解析的輸入不降低分數）；G2 路由與 report_only 用它 |
+| `E-TC-RATE`（v0.7，審查 r8 外部 1） | `rate_limit.max_requests_per_trial` 在 1..`max_requests` 之間，機率型測試必填；重播預算＝`max_requests ＋ replay_n × max_requests_per_trial`（`safety.request_budget`），沒有宣告時每次重播以整個 job 計 |
+| `E-GATE-ORDER`（v0.7，審查 r8 F1／F3） | 以稽核事件的收件時間檢查 run 的結構：各關卡第一次決定依 G0a < G1 < G2 < G0b < G3 < G4 < G5；G0a 之後的事件都在 VERIFIED 的 G0a 之後；B 階段事件（B0～B6 節點、G3／G4／G5 決定、B4 的 job）都在 VERIFIED 的 G0b 之後、而且中間沒有 VERIFY_FAILED；有 G3／G4／G5 紀錄或 job 的 run 一定有 VERIFIED 的 G0b；W4 在 G2 決定之後、G0b 之前 |
+| `E-RUN-CLAIM`（v0.7，審查 r8 F4） | Lane B run 在第一個 G1 決定、W4 或 B 階段事件之前，必須有人簽署的 `initiator_claim`（[02 §1.5](../02-methodology.md#15-自動觸發與發起者)、06 D7） |
+| `E-RUN-G3`（v0.7，審查 r8 H3） | 到 G4 的 run，其 `testcase_ids` 每個測試案例的威脅都在**本 run** 的 G3 有 accept（可用 `carried_from` 沿用祖先 run 的核准，但仍由本 run 簽署） |
+| `E-SPOT-CHECK`（v0.7，審查 r8 M2） | `spot_check_result` 的 actor 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5，`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者、發起者或其 run 的發起者（06 §1.1 ASI09 的獨立複核） |
+| `E-MODEL-LINEAGE`（v0.7，審查 r8 外部 3） | models.yaml 的 `derived_from` 必須是登錄中的另一個血統，而且不能形成循環（A → B → A 會讓兩者各自成為根、互相驗證） |
+| `E-CAL-COUNT`（v0.7，審查 r8 外部 4） | 校準檔的每一組計數 0 ≤ correct ≤ n、0 ≤ tp／fp ≤ n、0 ≤ holdout_tp ≤ holdout_n；不一致時不再計算界限（v0.6 接受 holdout 10 筆答對 11 筆，correct > n 則以 `E-INTERNAL` 崩潰） |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；tool_only 叢集（v0.5，BL-13）沒有成員、`tool_report_refs` 至少一筆能解析，`sarif_refs` 不能含回報或同一工具的結果，其他 origin 的 `tool_report_refs` 為空；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |
 | `E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | 指紋＝sha256(JCS({cwe_bucket, file, symbol}))（black_box：{cwe_bucket, target_id, method, path_template}）；`baseline_state` 依 run `baseline_run_id` 推導；report `absent_fingerprints` |
 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-FINDING-FACET` | 證據 kind 的欄位；code_snippet 至少 12 個非空白字元並含 3 字元以上的識別字，`file` 在發現項的切片中（v0.4）；inventory_fact 由 inventory 重算 match；status 由 match 推導；facet 與叢集 CWE 桶（`FACET_BUCKETS`） |
@@ -294,11 +302,11 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RUN` | run 的 `engagement_id`、`data_class`、`run_owner` 必須與委任相同，`calibration_version` 與 calibration.yaml 相同 |
 | `E-RUN-BUDGET` | GB 以 extend 核准後，`budgets.<phase>` 必須帶 GB 的 `new_caps`；各階段已用的 token、成本與運算分鐘不能超過對應上限 |
 | `E-RUN-DEADLINE` | WAITING_GATE 時，`resume_deadline` 必須等於待決關卡的 `opened_at` 加上委任對該關卡的逾時 |
-| `E-RUN-FOLLOWUP` | followup run 的 `parent_run_id` 必須存在，且來自父 run 的某個 follow-up 草稿；其他 run 不能有 `parent_run_id`，`reuse` 必須是 `[]` |
+| `E-RUN-FOLLOWUP` | followup／regression run 的 `parent_run_id` 必須存在，且來自父 run 的某個 follow-up 草稿；其他 run 不能有 `parent_run_id`，`reuse` 必須是 `[]`（v0.7，審查 r8 H2：regression 比照 followup） |
 | `E-RUN-GATES` | `gate_records` 必須依 `opened_at` 排序，列出的關卡紀錄都必須存在 |
 | `E-RUN-INITIATOR` | `initiators` 每一位都必須是已登錄、非自動化帳號的人員 |
 | `E-RUN-JOB` | `run.jobs` 的鍵等於 `job_id`；測試案例存在且經 G4 核准（列在 `approved_testcase_ids`）；`safety_class` 等於測試案例的計算等級；目標屬於該測試案例；只有 S2 job 有 `g5_record_id`；已執行的 job 有測試結果且列在 `executed_jobs`；`executed_jobs` ⊆ `jobs` |
-| `E-RUN-LANE-A` | Lane A run 沒有 `roe_ref`、不經過 G0b、沒有 jobs；它的裁決都是 advisory；`lane_a_advisories` 等於該 run 的叢集 |
+| `E-RUN-LANE-A` | Lane A run 沒有 `roe_ref`、不經過 G0b、沒有 jobs；它的裁決都是 advisory；`lane_a_advisories` 等於該 run 的叢集；v0.7（審查 r8 M6）：Lane A run 宣告 `pr_origin`（same_repo／fork），fork 的 PR 沒有裁決、叢集與 advisories；其他 run 的 `pr_origin` 為 null，其 `lane_a_advisories` 只能引用 same_repo Lane A run 的叢集 |
 | `E-RUN-OWASP` | run 的 `owasp_llm_version` 必須等於委任的設定（委任為 null 時用工具包的 `owasp_llm_default`） |
 | `E-RUN-S2` | S2 job 需要該 job 的 APPROVED G5 紀錄，並有快照、`restore_verified: true` 與狀態 RESTORED |
 | `E-RUN-STATUS` | 終止狀態的 run 不能有 `current_node` 或待決關卡；WAITING_GATE 必須恰好有一個待決關卡且等於 `current_node` |
@@ -383,7 +391,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-TRACE-INVARIANT` | invariants.yaml 每條不變量的 `signoff`（`gate_record_id` 與狀態）必須與 G1 紀錄的決定相符 |
 | `E-TRACE-REQUIREMENT` | `source: invariant` 的 requirement 必須與 invariants.yaml 的項目完全相同；其他 requirement 的 source、ref、level 必須與 baseline 項目相符 |
 | `E-TRACE-SEED` | seed-threats 每個種子的叢集、裁決、威脅、狀態與 CWE 桶必須互相相符 |
-| `E-TRACE-THREAT-REVIEW` | 威脅的 `review.status` 與 `gate_record_id` 必須與決定它的 G3 紀錄相符（accept → ACCEPTED，reject／over_cap → REJECTED，其他 → NEEDS_INFO） |
+| `E-TRACE-THREAT-REVIEW` | 威脅的 `review.status` 與 `gate_record_id` 必須與決定它的 G3 紀錄相符（accept → ACCEPTED，reject／over_cap → REJECTED，其他 → NEEDS_INFO）；以 `carried_from` 沿用的決定指向來源紀錄（v0.7） |
 | `E-THREAT-LLM-LINK` | ACCEPTED 的威脅不能有 llm-suggested 的對照連結 |
 | `E-XWALK-DUP` | crosswalk.yaml 的連結（from_scheme、from_id、target_scheme、target_id）不能重複 |
 | `E-XWALK-OWASP` | crosswalk 的 `owasp_llm_default` 必須等於 toolkit；`owasp-llm@` 的版本只能是 2025 或 2026；威脅的 `owasp-llm@` 分類版本必須等於 initial run 的 `owasp_llm_version` |

@@ -195,8 +195,8 @@ def test_seed_manifest_not_applicable_with_black_box_content(b):
 def test_white_box_only_run_may_skip_the_seed_manifest(b):
     """BL-23: a non-Lane-A run without any B phase (no G0b, jobs or G3-G5) marks the seed manifest not_applicable."""
     run = doc(b, "run.followup.example.json").data
-    b.docs[:] = [d for d in b.docs if "followup.g0b" not in d.path]
-    run["gate_records"] = [g for g in run["gate_records"] if g["gate"] not in ("G0b", "G4")]
+    b.docs[:] = [d for d in b.docs if "followup.g0b" not in d.path and "followup.g3" not in d.path]
+    run["gate_records"] = [g for g in run["gate_records"] if g["gate"] not in ("G0b", "G3", "G4")]
     cfg(b)["seed_manifest"] = {"state": "not_applicable", "reason": "純白箱 run，沒有 B 階段"}
     assert not [i for i in run_config_errors(b) if "seed_manifest" in i.where]
 

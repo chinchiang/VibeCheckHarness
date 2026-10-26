@@ -38,5 +38,6 @@
   "linked_cluster_ids": [],
   "fingerprint": "sha256:2bd0df29c8fe9777035f82193191595f4d256e18329f229db7dad1cf0231f366",
   "baseline_state": null,
-  "reopened": false
+  "reopened": false,
+  "severity": "critical"
 }

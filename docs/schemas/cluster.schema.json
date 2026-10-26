@@ -251,6 +251,16 @@
     "reopened": {
       "type": "boolean",
       "description": "資訊性：本 run 為 new，但在更早的 run 曾是 absent"
+    },
+    "severity": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info"
+      ],
+      "description": "v0.7（審查 r8 F5）：rubric 嚴重度（docs/08 §11.17），由 validator 依 inventory、合併 DFD 與 G1 資料分級推導（E-CLUSTER-SEVERITY）；G2 路由與 report_only 用它，成員自報的 finding.severity 只供參考"
     }
   },
   "required": [
@@ -270,7 +280,8 @@
     "linked_cluster_ids",
     "fingerprint",
     "baseline_state",
-    "reopened"
+    "reopened",
+    "severity"
   ],
   "title": "Cluster（叢集）"
 }

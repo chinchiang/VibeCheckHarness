@@ -254,6 +254,11 @@
           "type": "integer",
           "minimum": 1,
           "description": "單一 job 的請求上限（含對照組與 canary 紀錄讀取；重播 job 另計）"
+        },
+        "max_requests_per_trial": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "v0.7（審查 r8，外部 1）：單一 trial（含重播的 trial）的請求上限，Scope Proxy 逐 trial 強制；機率型測試必填。重播預算＝max_requests＋replay_n×max_requests_per_trial；沒有宣告時每次重播以整個 job 計（E-TC-RATE、safety.request_budget）"
         }
       },
       "required": [
@@ -460,6 +465,20 @@
             }
           ],
           "description": "multi_turn 時的輪數上限（≤ ROE relay.max_turns）"
+        },
+        "sampling": {
+          "anyOf": [
+            {
+              "enum": [
+                "sampled",
+                "deterministic"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "v0.7（審查 r8，外部 2）：取樣契約。sampled＝受測功能是取樣的（機率型）；deterministic 只能在沒有任何機率型訊號（LLM 威脅、promptfoo／pyrit、multi_turn、target_model 紀錄）時宣告，否則 E-TC-TRIALS；null＝由受測功能判定（derive.probabilistic_signals）"
         }
       },
       "required": [

@@ -213,7 +213,7 @@
 `UNVERIFIED` 只是**發現項層級**的暫時狀態（證據全部 `NOT_FOUND`），不是叢集裁決。
 
 **合格票（valid vote）的操作定義**：
-- 投票者的家族與血統都不在叢集中（§3 規則 2；v0.6，審查 r7 3.9：血統以根判定，models.yaml 的 `derived_from` 記錄衍生關係，微調或蒸餾自回報者血統的模型不算獨立，`Index.lineage_root`）；
+- 投票者的家族與血統都不在叢集中（§3 規則 2；v0.6，審查 r7 3.9：血統以根判定，models.yaml 的 `derived_from` 記錄衍生關係，微調或蒸餾自回報者血統的模型不算獨立，`Index.lineage_root`；v0.7，審查 r8 外部 3：`independent_families`（R2／R4／R6 的來源數）與 R8 的多樣性也以根計算，與驗證者池同一條規則，`derived_from` 的循環由 `E-MODEL-LINEAGE` 拒絕）；
 - 候選已匿名化、順序已隨機化；
 - 理由**引用了具體證據**，而且引用的證據通過同樣的接地比對（§3 規則 5）：程式位置（例如「第 57 行已有 `tenant_id` 條件」），或 inventory／設定事實（例如「`/db/tables/0/rls_enabled` 為 `true`」）。**工具輸出不能當引用**，因為驗證者看不到它。沒有可比對證據的票一律視為棄權。引用逐項記在票的 `votes[].cited_evidence`（v0.3 新增、必填；例如 K-014 的兩張票都引用 `routes/invoices.ts:88`）；它也是驗證者 LLM 輸出中僅有的三個欄位之一（另兩個是 `stance`、`rationale`）。
 - 「理由成立」因此不需要主觀判斷：Aggregator 只檢查引用的證據能否被程式碼或 inventory 比對。

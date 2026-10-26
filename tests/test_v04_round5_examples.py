@@ -40,8 +40,11 @@ def test_report_only_needs_an_unseeded_white_box_uncorroborated_cluster(b):
 
 
 def _k015_before_w4(b):
-    """K-015 as it stood before its W4 test: UNCORROBORATED (V-015-1), a seed candidate."""
+    """K-015 as it stood before its W4 test and before G2 decided it: UNCORROBORATED (V-015-1), a seed candidate
+    (v0.7, r8 F5: the example's G2 now decides K-015 too, so that decision is removed here)."""
     b.docs[:] = [d for d in b.docs if not d.path.endswith("verdict.k-015-w4.example.json")]
+    g2 = doc(b, "gate-record.g2.example.json").data
+    g2["decisions"] = [x for x in g2["decisions"] if x["item_id"] != "K-015"]
 
 
 def test_report_only_accepts_a_pruned_cluster(b):
@@ -56,13 +59,13 @@ def test_over_cap_g2_only_when_the_queue_was_full(b):
     _k015_before_w4(b)
     rm = doc(b, RM).data
     rm["over_cap_items"] = [{"gate": "G2", "item_id": "K-015"}]
-    assert errors(b, "E-REPORT-QUEUE")                     # G2 holds 1 decision, the cap is 30
-    doc(b, "toolkit.yaml").data["gate_queues"]["g2_max_items"] = 1
+    assert errors(b, "E-REPORT-QUEUE")                     # G2 holds 2 decisions (K-011, K-016), the cap is 30
+    doc(b, "toolkit.yaml").data["gate_queues"]["g2_max_items"] = 2
     assert not errors(b, "E-REPORT-QUEUE")
 
 
 def test_over_cap_g2_rejects_decided_and_unseeded_clusters(b):
-    doc(b, "toolkit.yaml").data["gate_queues"]["g2_max_items"] = 1
+    doc(b, "toolkit.yaml").data["gate_queues"]["g2_max_items"] = 3
     rm = doc(b, RM).data
     rm["over_cap_items"] = [{"gate": "G2", "item_id": "K-011"},     # decided at G2
                             {"gate": "G2", "item_id": "K-014"}]     # LIKELY, not a G2 candidate

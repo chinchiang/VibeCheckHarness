@@ -129,6 +129,9 @@ W4_TC, W4_TR = "w4-testcase.k-015.example.json", "testresult.w4-k-015.example.js
 def _w4(b, outcome, controls, fail_oracles):
     tr = copy.deepcopy(doc(b, W4_TR).data)
     tr.update(outcome=outcome, controls=controls, fail_oracles=fail_oracles, interpreted_by=None, interpretation=None)
+    for e in doc(b, "audit-event.run-2026-09-23-001.example.jsonl").data:   # v0.7 (r8 F2a): the executor's event agrees
+        if e["event_type"] == "sandbox_job_end" and e["payload"].get("result_id") == tr["result_id"]:
+            e["payload"]["outcome"] = outcome
     return tr
 
 
