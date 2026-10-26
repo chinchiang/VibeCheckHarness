@@ -201,6 +201,9 @@ def test_shared_platform_host_needs_platform_project(b):
     assert "E-ROE-PLATFORM" in codes(b)                           # still no accepted platform policy
     roe["platform_policies"] = [{"platform": "supabase", "policy_url": "https://supabase.example.net/policy", "accepted_by": "alice",
                                  "accepted_at": "2026-09-29T10:00:00+08:00", "restrictions": ["只測自己的專案"]}]
+    # v0.6 (review r7 4.1): the S1 testcases on this target also need a technical proof of control of the deployment
+    t["ownership_proof"]["technical_proof"] = {"method": "response_header", "token_ref": "vault://engagements/eng-acme-invoices-2026q4/ownership-token",
+                                               "location": "x-vibecheck-ownership"}
     assert "E-ROE-PLATFORM" not in codes(b)
 
 

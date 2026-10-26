@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "test_plan",
-    "sha256": "sha256:5567bdf8c9d47bac00c5c9df4c86d1e5c1f7ad913b194963b0075adfc854d7ed"
+    "sha256": "sha256:6bcbf5902a2058bf147bfb4ad89ebba2de5f92cbda270bab191b34e30b9f3fa2"
   },
   "job_id": null,
   "g4_gate_record_id": null,
@@ -22,7 +22,7 @@
   "decisions": [
     {
       "item_id": "TC-012-01",
-      "item_sha256": "sha256:8b917f184cb9cc83a62510355a3ac63c148b0eed744ffd859e1c3c3bcb5a37bb",
+      "item_sha256": "sha256:67253dfb9f91f7e385ee3d198bddd66327e5d1e35c5a04f80b5ec7fc94695880",
       "decision": "accept",
       "risk_override": null,
       "note": null,
@@ -30,7 +30,7 @@
     },
     {
       "item_id": "TC-027-01",
-      "item_sha256": "sha256:73427c5b17f919df366ee9f0a811936c15f3bbbfb968c1230eca42abe577c3f9",
+      "item_sha256": "sha256:9c035d882dc64f56b551a041a2cced7dbe6890377a77e707bccb40c2dec5ef9d",
       "decision": "accept",
       "risk_override": null,
       "note": "S2：每個 job 另需 G5",
@@ -38,7 +38,7 @@
     },
     {
       "item_id": "TC-031-01",
-      "item_sha256": "sha256:e25f25b83900e6728625e0c8cc1ec8829b533b9120049890a86be04441cc63a5",
+      "item_sha256": "sha256:9afbe4c5f21d0451ad3ebc703b41cd0c9d55b1b1727a1acdd078aa5fd0b4e498",
       "decision": "accept",
       "risk_override": null,
       "note": null,
@@ -46,7 +46,7 @@
     },
     {
       "item_id": "TC-033-01",
-      "item_sha256": "sha256:cc02858abd2acff175ffbb819975cfb73b9fe5d44808c4feb27e422b89d1257f",
+      "item_sha256": "sha256:d1de61453fb04f3a78ddba2fdd5b0f6e4ae059b80296a44222aa173f8db206d6",
       "decision": "accept",
       "risk_override": null,
       "note": null,
@@ -62,7 +62,7 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "97fKcPLbXJfyrBXacRGOvMyppiXRGzqy5plT8INEA0YIemXscXACUpCQfZF9Bx3Yz2DJafDtP7mxv7tj2uV6DA=="
+      "value": "PRDrv9xOjyvC2LShVh1zJP5tf1rPZBAz9hPPHjjBs2wHG+miQDQ6TDl2z+oxqLQ33OYEzaWFphcy0wUdlAgzCg=="
     }
   ]
 }

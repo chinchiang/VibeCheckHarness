@@ -514,6 +514,16 @@
         }
       ]
     },
+    "expected_error_statuses": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 429,
+        "maximum": 599
+      },
+      "description": "v0.6（審查 r7 4.3）：這個測試預期會引發的錯誤狀態碼（429 或 5xx，validator 另擋 430–499，E-TC-EXPECTED-STATUS；例如注入探測的 500、限流測試的 429），經 G4 核准。這些回應只計入本 job 的預算，不計入 run 層級的 5xx／429 停止條件（safety.counts_for_run_stop）；健康檢查與延遲仍適用於整個 run。沒有就是 []"
+    },
     "access_cells": {
       "type": "array",
       "uniqueItems": true,

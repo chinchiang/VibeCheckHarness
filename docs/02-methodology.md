@@ -225,6 +225,8 @@ flowchart TD
 | `lane_a` | 每個 PR 的同步檢查 | W0 → W1 →（可選）單一家族 diff 審查 → 結束 | 只需 G0a；不進 B 階段 |
 
 - 每個 run 有 `parent_run_id`（`initial` 可為空）與 `reuse` 清單：以 content hash 引用上一個 run 的產物。只有當產物的**所有輸入 hash**（repo commit 或切片 `slice_id`、設定、模型 ID 與版本）都相同時才能沿用，否則重算 [H]。
+- **`regression` run 如何帶入叢集**（v0.6，審查 r7 4.5）[H]：草稿由 CMD-5 依上一個 run 的確認項建立，`reuse[]` 以 content hash 引用那些叢集與它們的最新裁決；W0／W1 在新 commit 上重算，W3 不重審帶入的叢集，而是由新增的回歸節點 `W4_regression` 對每個帶入的叢集跑它的 W4 回歸測試（與 B 階段對應的測試案例）。測試 PASS 且有正對照 → 叢集標為「已修正」；FAIL → 維持確認並列入報告；沒有回歸測試的帶入叢集一律列為「未驗證修正」。帶入的叢集在新 run 的 `cluster_ids` 中保留原 ID，`baseline_state` 依 `baseline_run_id` 計算。
+- **ROE 在 B 階段入口失效**（v0.6，審查 r7 4.5）：G0b 之後到 B1 之前，若 ROE 過期、被撤銷或簽署金鑰被撤銷，run 轉為 `SUSPENDED`（不是失敗），白箱產物保留；重新簽署 ROE 後，可以用新的 run（`followup`，`parent_run_id` 指向原 run、`reuse[]` 引用原 run 的 W5 產物）從 B 階段開始，不必重跑白箱。專用的「從上一個 run 的 W5 開始 B 階段」run kind 列為 [09](09-backlog.md) 待辦（BL-48），目前以 `followup`＋`reuse` 表達。
 - `followup`／`regression` run 另以 `baseline_run_id` 指定比較基準（通常就是 `parent_run_id`；`initial` 為 `null`）。W5 用它計算每個叢集的 `baseline_state`。
 - **跨 run 沿用核准：只限 G1／G3 中沒有變更的項目，而且逐項可驗證**（v0.5，[09 BL-21](09-backlog.md)）[H]：
   - 內容可以重用（`reuse[]` 以 content hash 引用上一個 run 的不變量、威脅模型）；授權只能以「逐項指出來源」的方式沿用。一個 run 只能列出自己的關卡紀錄：沿用的項目仍列在本 run 的新 GateRecord 中，由本 run 的合格核准者簽署整份紀錄。沿用只省下重審內容，不省下簽章。
@@ -249,6 +251,8 @@ flowchart TD
 | 報告首頁 | 標示「單人模式，未經職責分離」，並附聲明全文；有 `W-L5-LITE` 時另標示法務審查聲明為自行簽署 | — | — |
 
 - **兼任者**在金鑰登錄中仍須具備每個兼任的角色；兼任只免除「必須是不同的人」，不免除角色登錄與簽章。
+- **各等級實際需要的最少人數**（v0.6，審查 r7 4.5）[H]：`lite` 1 人（兼任聲明）；`team` 至少 3 人——ROE 的必要簽署角色必須是不同的人，G5 核准者不得是發起者；`full` 另需 2 位不同的資安審查者核准每個 G5，所以有 S2 時至少 4 人。人數不足時，等級不能宣告，不是「先跑再補」。
+- **抽查推翻後自動升級**（v0.6，審查 r7 4.5）：同一委任的另一個 run 中，一筆已錨定、收件時間早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）推翻了 G5 決定，本 run 起 G5 一律需要兩位不同的資安審查者（`E-G5-TWO-PERSON`，`checks.g5_escalation`；[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包) ASI09）。
 - **G3 與 G4 同一次審查** [H]：
   - 做法：G3 簽核後，`CMD4_testplan` 與 B3 立即產生測試案例並開 G4，審查者接著在同一次審查中處理。
   - 兩者仍是兩份 GateRecord，各自簽章、各自綁定產物 hash。G4 在 G3 之後才開，所以 G3 駁回的威脅不會有測試案例出現在 G4。
@@ -451,7 +455,7 @@ flowchart TD
   3. **與工具結果相互佐證**（由程式碼）[H]：Aggregator 把對應同一位置與 CWE 桶的 SARIF 結果分成兩級：
      - **強佐證**（`tool_corroboration`）：該結果的 `(adapter, rule_id, tool_version)` 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90；設在校準檔，不在 `toolkit.yaml`）。`rule_id` 與 `tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.sarif_results[]` 與 `payload.tool_version`。校準之前這份清單是空的，所以沒有強佐證。
      - **弱訊號**（`tool_signal`）：其他所有 SARIF 結果，以及 W4／B5 的 `E_fail_u`。弱 SARIF 與 `E_fail_u` 各只算**一個**獨立來源（`independent_sources`），不能單獨確認。
-  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R13：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`。裁決的 `rule_version` 是 `05-v0.4`。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
+  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R13：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`。裁決的 `rule_version` 是 `05-v0.6`（第七輪審查）。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
   5. **CMD-2 加派** [H]：
      - 對 `DISPUTED` 與 `UNCORROBORATED` 叢集加派審查者或驗證者，**最多 2 輪**（`E-PLAN-ROUNDS`）。
      - Commander 收到的是程式碼建立的型別化視圖：叢集 ID、狀態、CWE 桶、嚴重度、家族、票數。視圖不含發現項的推理，也不含 repo 的文字。

@@ -107,12 +107,12 @@
   "threat_model_ref": null,
   "b1_diff_dispositions_ref": null,
   "g3_round": 0,
-  "testplan_ref": "sha256:dd44ba5aa4521d8667be8a22d7d6cb42e2193acb38ce144ad1806331bf17ba2d",
+  "testplan_ref": "sha256:31b02c753a18a2d5834f0a40803b175a810e2e591978a01f85dd80f7e819b86c",
   "testcase_ids": [
     "TC-012-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:8b917f184cb9cc83a62510355a3ac63c148b0eed744ffd859e1c3c3bcb5a37bb"
+    "TC-012-01": "sha256:67253dfb9f91f7e385ee3d198bddd66327e5d1e35c5a04f80b5ec7fc94695880"
   },
   "g4_round": 1,
   "approved_testcase_ids": [],
@@ -151,7 +151,7 @@
       "gate_record_id": null,
       "outcome": null,
       "round": 1,
-      "subject_hash": "sha256:dd44ba5aa4521d8667be8a22d7d6cb42e2193acb38ce144ad1806331bf17ba2d",
+      "subject_hash": "sha256:31b02c753a18a2d5834f0a40803b175a810e2e591978a01f85dd80f7e819b86c",
       "job_id": null,
       "opened_at": "2026-10-07T10:30:00+08:00",
       "decided_at": null

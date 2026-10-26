@@ -878,152 +878,169 @@ def g_roe(R: Report, c: Ctx):
         if black or any((run.get("jobs") or {}) for run in c.runs.values()):
             R.error("E-ROE-MISSING", w, f"no ROE, but the bundle has black-box content {black or ['run.jobs']}")
         return
-    eng = r.get("engagement") or {}
-    R.check(eng.get("id") == e.get("engagement_id") and eng.get("version") == e.get("version"), "E-ROE-ENGAGEMENT", w,
-            "engagement.id/version must match engagement.yaml")
-    v = r.get("validity") or {}
-    nb, na = ts(R, v.get("not_before"), w), ts(R, v.get("not_after"), w)
-    ev = e.get("validity") or {}
-    enb, ena = ts(R, ev.get("not_before"), "engagement.yaml"), ts(R, ev.get("not_after"), "engagement.yaml")
-    R.check(nb and na and nb < na, "E-ROE-VALIDITY", w, "not_before must precede not_after")
-    R.check(nb and na and enb and ena and enb <= nb and na <= ena, "E-ROE-VALIDITY", w, "ROE validity must lie inside the engagement validity")
-    for i, win in enumerate(v.get("windows") or []):
-        try:
-            timeutil.zone(win.get("tz"))
-            s, en = timeutil.hhmm(win.get("start")), timeutil.hhmm(win.get("end"))
-            R.check(s != en, "E-ROE-WINDOW", w, f"windows[{i}]: start == end")
-            R.check(set(win.get("days", [])) <= set(timeutil.DAYS) and win.get("days"), "E-ROE-WINDOW", w, f"windows[{i}]: bad days")
-        except timeutil.TimeError as exc:
-            R.error("E-ROE-WINDOW", w, f"windows[{i}]: {exc}")
-    roles = {s.get("role") for s in r.get("signatories") or []}
-    R.check(GATE_ROLES["G0b"] <= roles, "E-ROE-SIGNATORIES", w, f"signatories must include {sorted(GATE_ROLES['G0b'])}")
-    # E1 / L-13: one person signs the ROE in at most one required role (lite + acknowledged consolidation excepted)
-    holders: dict = {}
-    for s in r.get("signatories") or []:
-        if s.get("role") in GATE_ROLES["G0b"]:
-            holders.setdefault(s.get("person_id"), set()).add(s.get("role"))
-    for p, rs in holders.items():
-        if len(rs) > 1:
-            R.check(p == consolidation_person(c), "E-ROE-SOD", w,
-                    f"{p} signs the ROE as {sorted(rs)}: required ROE roles need distinct persons (assurance_profile {profile(c)})")
-    platform_rules(R, c)
-    used_roles = {x for d in c.docs("testcase") for x in (d.data.get("data_needed") or {}).get("roles") or []}
-    for tr_ in r.get("test_roles", []):
-        if tr_.get("role") in used_roles:
-            R.check(isinstance(tr_.get("whoami"), dict), "E-ROE-WHOAMI", w,
-                    f"test role {tr_.get('role')} is used by testcases but has no whoami check (E3)")
-    relay_ = r.get("relay") or {}
-    if relay_.get("mode") == "adaptive":
-        R.check(profile(c) == "full", "E-ROE-RELAY-MODE", w, f"relay mode adaptive is only allowed with assurance_profile full (got {profile(c)})")
-    targets = {t.get("id"): t for t in r.get("targets", [])}
-    R.check(len(targets) == len(r.get("targets", [])), "E-ROE-TARGETS", w, "duplicate target ids")
-    for t in r.get("targets", []):
-        if t.get("kind") == "http":
-            R.check(t.get("base_url") and t.get("endpoint") is None, "E-ROE-TARGETS", w, f"{t.get('id')}: http target needs base_url only")
-        elif t.get("kind") == "database":
-            R.check(t.get("endpoint") and t.get("base_url") is None, "E-ROE-TARGETS", w, f"{t.get('id')}: database target needs endpoint only")
-    # a target the ROE itself excludes is contradictory; for database targets the host comes from
-    # the endpoint (base_url is null), so the exclusion list must be checked against it as well
-    excl_hosts = (r.get("exclusions") or {}).get("hosts") or []
-    for t in r.get("targets", []):
-        if t.get("kind") == "database":
-            h = safety.target_host(t)     # None: unparseable (bare host, '[::1', '::1:5432', trailing dot)
-            R.check(h is not None, "E-ROE-DB-SCOPE", w,
-                    f"{t.get('id')}: unparseable endpoint {t.get('endpoint')!r} (need host:port or [IPv6]:port)")
-            R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-DB-SCOPE", w,
-                    f"{t.get('id')}: database host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
-        elif t.get("kind") == "http" and t.get("base_url"):
-            prob = url_problem(t.get("base_url"))
-            R.check(prob is None, "E-ROE-URL", w, f"{t.get('id')}: base_url {prob}")
-            h = safety.host_of(t.get("base_url"))
-            R.check(h is not None, "E-ROE-TARGETS", w, f"{t.get('id')}: unparseable base_url {t.get('base_url')!r} (no host)")
-            R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-TARGETS", w,
-                    f"{t.get('id')}: base_url host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
-        # v0.4 (BL-15): CDN edge ranges are public CIDRs on http targets only; the Scope Proxy enforces them (safety.ip_in_ranges)
-        for cidr in t.get("edge_ip_ranges") or []:
-            prob = safety.edge_range_problem(cidr) if t.get("kind") == "http" else "only http targets have edge ranges"
-            R.check(prob is None, "E-ROE-EDGE-RANGE", w, f"{t.get('id')}: edge_ip_ranges {prob}")
-    for tr in r.get("test_roles", []):
-        R.check((tr.get("login") or {}).get("target_id") in targets, "E-ROE-TARGETS", w, f"test role {tr.get('role')}: login target not in ROE")
-    db = r.get("db_access")
-    if db:
-        t = targets.get(db.get("target_id")) or {}
-        R.check(t.get("kind") == "database" and t.get("endpoint") == db.get("endpoint"), "E-ROE-DB", w,
-                f"[binding rule] db_access.target_id {db.get('target_id')!r} must be a database target whose endpoint "
-                f"string equals db_access.endpoint {db.get('endpoint')!r}")
-        # scope: the db_access host must be the host of an in-scope ROE database target and not excluded
-        dbh = safety.endpoint_host(db.get("endpoint"))
-        in_scope = {h for x in r.get("targets", []) if x.get("kind") == "database" and (h := safety.target_host(x))}
-        if R.check(dbh is not None, "E-ROE-DB-SCOPE", w,
-                   f"[scope rule] db_access: unparseable endpoint {db.get('endpoint')!r} (need host:port or [IPv6]:port)"):
-            R.check(dbh in in_scope, "E-ROE-DB-SCOPE", w,
-                    f"[scope rule] db_access endpoint host {dbh!r} is not the (normalised) host of any ROE database target (out of scope)")
-            R.check(not safety.host_excluded(dbh, excl_hosts), "E-ROE-DB-SCOPE", w,
-                    f"[exclusion rule] db_access endpoint host {dbh!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
-        R.check(db.get("oracle_readonly_attested") is True, "E-ROE-DB", w, "oracle_readonly_attested must be true")
-        R.check(db.get("seed_manifest_ref") == c.manifest.get("manifest_ref"), "E-ROE-DB", w, "seed_manifest_ref != seed manifest manifest_ref")
-        R.check(c.manifest.get("db_target_id") == db.get("target_id"), "E-ROE-DB", "seed-manifest.yaml", "db_target_id != roe db_access.target_id")
-        R.check(c.manifest.get("engagement_id") == e.get("engagement_id"), "E-ROE-DB", "seed-manifest.yaml", "engagement_id mismatch")
-        oracle = set(db.get("oracle_tables", []))
-        for qid, q in (c.manifest.get("oracle_queries") or {}).items():
-            R.check(q.get("table") in oracle, "E-ROE-DB", "seed-manifest.yaml", f"oracle query {qid}: table {q.get('table')} not in ROE oracle_tables")
-    acts = r.get("activities") or {}
-    R.check("S3" not in acts.get("allowed_safety_classes", []), "E-ROE-S3", w, "S3 can never be allowed")
-    R.check(safety.TOOLKIT_DENYLIST <= set(acts.get("denied_modes", [])), "E-ROE-DENYLIST", w, "denied_modes must include the toolkit deny-list")
-    tools = (c.tools.get("tools") or {})
-    denied_in_registry = {f"{t}:{m}" for t, spec in tools.items() for m, ms in (spec.get("modes") or {}).items() if ms.get("toolkit_denied")}
-    R.check(denied_in_registry == set(safety.TOOLKIT_DENYLIST), "E-TOOLS-DENYLIST", "tools.yaml",
-            f"toolkit_denied modes {sorted(denied_in_registry)} != safety.TOOLKIT_DENYLIST {sorted(safety.TOOLKIT_DENYLIST)}")
-    for t in acts.get("allowed_tools", []):
-        spec = tools.get(t)
-        R.check(spec is not None and any(m.get("b4_executable") for m in (spec.get("modes") or {}).values()), "E-ROE-TOOLS", w,
-                f"allowed tool {t!r} is not a B4-executable tool in tools.yaml")
-    for m in acts.get("denied_modes", []):
-        R.check(safety.registry_entry(c.tools, m) is not None, "E-ROE-TOOLS", w, f"denied mode {m!r} is not registered")
-    defaults = tk.get("stop_condition_defaults") or {}
-    for k, val in (r.get("stop_conditions") or {}).items():
-        if k in defaults and isinstance(val, (int, float)) and isinstance(defaults[k], (int, float)):
-            stricter = val >= defaults[k] if k.startswith("min_") else val <= defaults[k]
-            R.check(stricter, "E-ROE-STOP", w, f"stop_conditions.{k}={val} is looser than the toolkit default {defaults[k]}")
-    R.check(bool((r.get("stop_conditions") or {}).get("contacts")), "E-ROE-STOP", w, "stop_conditions.contacts must not be empty")
-    hu = (r.get("stop_conditions") or {}).get("health_url")
-    if hu is not None:
-        prob = url_problem(hu)
-        R.check(prob is None, "E-ROE-URL", w, f"stop_conditions.health_url {prob}")
-    for t in r.get("targets", []):
-        bi = t.get("build_identity") or {}
-        need = {"header": ("header_name",), "endpoint": ("path", "json_pointer"), "none": ()}.get(bi.get("method"), ())
-        extra = [k for k in ("header_name", "path", "json_pointer") if k not in need and bi.get(k) is not None]
-        missing = [k for k in need if bi.get(k) is None]
-        R.check(not extra and not missing, "E-ROE-TARGETS", w,
-                f"{t.get('id')}: build_identity method {bi.get('method')!r} needs {list(need)} and null {extra or 'others'}")
-    seed_manifest_rules(R, c, targets)
-    for ce in c.manifest.get("create_only_endpoints") or []:
-        R.check(ce.get("target_id") in targets and (targets.get(ce.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST",
-                "seed-manifest.yaml", f"create_only_endpoints: {ce.get('target_id')} is not an http target of the ROE")
-        problem = safety.created_resource_problem(ce)       # v0.5
-        R.check(problem is None, "E-SEED-MANIFEST", "seed-manifest.yaml",
-                f"create_only_endpoints {ce.get('method')} {ce.get('path_template')}: {problem}")
-    relay, trelay = r.get("relay") or {}, tk.get("relay") or {}
-    for k in ("max_turns", "max_spend_usd_per_job", "max_spend_usd_per_run"):
-        if k in relay:
-            R.check(trelay.get(k) is not None and relay[k] <= trelay[k], "E-ROE-RELAY", w, f"relay.{k} exceeds toolkit relay")
-    for mk in relay.get("models", []):
-        m = c.model(mk)
-        if R.check(m is not None, "E-MODEL-UNKNOWN", w, f"relay model {mk!r} unknown"):
-            R.check(mk in (e.get("allowed_models") or {}).get(e.get("data_class"), []), "E-ROE-RELAY", w, f"relay model {mk} not allowed for the data class")
-    dh = r.get("data_handling") or {}
-    R.check(dh.get("data_class") == e.get("data_class"), "E-ROE-DATA-CLASS", w, "data_handling.data_class != engagement data_class")
-    rrd = dh.get("retention_days")
-    R.check(isinstance(rrd, int) and rrd <= e.get("retention_days", 0), "E-ROE-RETENTION", w,
-            f"data_handling.retention_days {rrd} longer than the engagement retention_days {e.get('retention_days')} (ROE may only shorten)")
-    lim = retention_max(tk, e.get("data_class"))
-    R.check(lim is None or (isinstance(rrd, int) and rrd <= lim), "E-RETENTION", w,
-            f"data_handling.retention_days {rrd} above the toolkit.yaml maximum {lim}")
-    for u in r.get("upstream_llm_providers") or []:
-        R.check(u.get("terms_confirmed_by") in c.persons, "E-PERSON-UNKNOWN", w, "upstream terms_confirmed_by must be a registry person")
-    incident_rules(R, c)
-    legal(R, c)
+    # v0.6 (review r7, group 5): each section is guarded on its own, so one malformed section (signatories: [None],
+    # windows: "x", relay.max_turns: null, ...) yields one E-INTERNAL for that section instead of hiding the rest
+    targets: dict = {}
+    with doc_guard(R, "roe.yaml (engagement and validity)"):
+        eng = r.get("engagement") or {}
+        R.check(eng.get("id") == e.get("engagement_id") and eng.get("version") == e.get("version"), "E-ROE-ENGAGEMENT", w,
+                "engagement.id/version must match engagement.yaml")
+        v = r.get("validity") or {}
+        nb, na = ts(R, v.get("not_before"), w), ts(R, v.get("not_after"), w)
+        ev = e.get("validity") or {}
+        enb, ena = ts(R, ev.get("not_before"), "engagement.yaml"), ts(R, ev.get("not_after"), "engagement.yaml")
+        R.check(nb and na and nb < na, "E-ROE-VALIDITY", w, "not_before must precede not_after")
+        R.check(nb and na and enb and ena and enb <= nb and na <= ena, "E-ROE-VALIDITY", w, "ROE validity must lie inside the engagement validity")
+        for i, win in enumerate(v.get("windows") or []):
+            try:
+                timeutil.zone(win.get("tz"))
+                s, en = timeutil.hhmm(win.get("start")), timeutil.hhmm(win.get("end"))
+                R.check(s != en, "E-ROE-WINDOW", w, f"windows[{i}]: start == end")
+                R.check(set(win.get("days", [])) <= set(timeutil.DAYS) and win.get("days"), "E-ROE-WINDOW", w, f"windows[{i}]: bad days")
+            except timeutil.TimeError as exc:
+                R.error("E-ROE-WINDOW", w, f"windows[{i}]: {exc}")
+    with doc_guard(R, "roe.yaml (signatories)"):
+        roles = {s.get("role") for s in r.get("signatories") or []}
+        R.check(GATE_ROLES["G0b"] <= roles, "E-ROE-SIGNATORIES", w, f"signatories must include {sorted(GATE_ROLES['G0b'])}")
+        # E1 / L-13: one person signs the ROE in at most one required role (lite + acknowledged consolidation excepted)
+        holders: dict = {}
+        for s in r.get("signatories") or []:
+            if s.get("role") in GATE_ROLES["G0b"]:
+                holders.setdefault(s.get("person_id"), set()).add(s.get("role"))
+        for p, rs in holders.items():
+            if len(rs) > 1:
+                R.check(p == consolidation_person(c), "E-ROE-SOD", w,
+                        f"{p} signs the ROE as {sorted(rs)}: required ROE roles need distinct persons (assurance_profile {profile(c)})")
+    with doc_guard(R, "roe.yaml (platform)"):
+        platform_rules(R, c)
+    with doc_guard(R, "roe.yaml (test roles and relay mode)"):
+        used_roles = {x for d in c.docs("testcase") for x in (d.data.get("data_needed") or {}).get("roles") or []}
+        for tr_ in r.get("test_roles", []):
+            if tr_.get("role") in used_roles:
+                R.check(isinstance(tr_.get("whoami"), dict), "E-ROE-WHOAMI", w,
+                        f"test role {tr_.get('role')} is used by testcases but has no whoami check (E3)")
+        relay_ = r.get("relay") or {}
+        if relay_.get("mode") == "adaptive":
+            R.check(profile(c) == "full", "E-ROE-RELAY-MODE", w, f"relay mode adaptive is only allowed with assurance_profile full (got {profile(c)})")
+    with doc_guard(R, "roe.yaml (targets)"):
+        targets = {t.get("id"): t for t in r.get("targets", [])}
+        R.check(len(targets) == len(r.get("targets", [])), "E-ROE-TARGETS", w, "duplicate target ids")
+        for t in r.get("targets", []):
+            if t.get("kind") == "http":
+                R.check(t.get("base_url") and t.get("endpoint") is None, "E-ROE-TARGETS", w, f"{t.get('id')}: http target needs base_url only")
+            elif t.get("kind") == "database":
+                R.check(t.get("endpoint") and t.get("base_url") is None, "E-ROE-TARGETS", w, f"{t.get('id')}: database target needs endpoint only")
+        # a target the ROE itself excludes is contradictory; for database targets the host comes from
+        # the endpoint (base_url is null), so the exclusion list must be checked against it as well
+        excl_hosts = (r.get("exclusions") or {}).get("hosts") or []
+        for t in r.get("targets", []):
+            if t.get("kind") == "database":
+                h = safety.target_host(t)     # None: unparseable (bare host, '[::1', '::1:5432', trailing dot)
+                R.check(h is not None, "E-ROE-DB-SCOPE", w,
+                        f"{t.get('id')}: unparseable endpoint {t.get('endpoint')!r} (need host:port or [IPv6]:port)")
+                R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-DB-SCOPE", w,
+                        f"{t.get('id')}: database host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
+            elif t.get("kind") == "http" and t.get("base_url"):
+                prob = url_problem(t.get("base_url"))
+                R.check(prob is None, "E-ROE-URL", w, f"{t.get('id')}: base_url {prob}")
+                h = safety.host_of(t.get("base_url"))
+                R.check(h is not None, "E-ROE-TARGETS", w, f"{t.get('id')}: unparseable base_url {t.get('base_url')!r} (no host)")
+                R.check(h is None or not safety.host_excluded(h, excl_hosts), "E-ROE-TARGETS", w,
+                        f"{t.get('id')}: base_url host {h!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
+            # v0.4 (BL-15): CDN edge ranges are public CIDRs on http targets only; the Scope Proxy enforces them (safety.ip_in_ranges)
+            for cidr in t.get("edge_ip_ranges") or []:
+                prob = safety.edge_range_problem(cidr) if t.get("kind") == "http" else "only http targets have edge ranges"
+                R.check(prob is None, "E-ROE-EDGE-RANGE", w, f"{t.get('id')}: edge_ip_ranges {prob}")
+        for tr in r.get("test_roles", []):
+            R.check((tr.get("login") or {}).get("target_id") in targets, "E-ROE-TARGETS", w, f"test role {tr.get('role')}: login target not in ROE")
+    with doc_guard(R, "roe.yaml (db_access)"):
+        db = r.get("db_access")
+        if db:
+            t = targets.get(db.get("target_id")) or {}
+            R.check(t.get("kind") == "database" and t.get("endpoint") == db.get("endpoint"), "E-ROE-DB", w,
+                    f"[binding rule] db_access.target_id {db.get('target_id')!r} must be a database target whose endpoint "
+                    f"string equals db_access.endpoint {db.get('endpoint')!r}")
+            # scope: the db_access host must be the host of an in-scope ROE database target and not excluded
+            dbh = safety.endpoint_host(db.get("endpoint"))
+            in_scope = {h for x in r.get("targets", []) if x.get("kind") == "database" and (h := safety.target_host(x))}
+            if R.check(dbh is not None, "E-ROE-DB-SCOPE", w,
+                       f"[scope rule] db_access: unparseable endpoint {db.get('endpoint')!r} (need host:port or [IPv6]:port)"):
+                R.check(dbh in in_scope, "E-ROE-DB-SCOPE", w,
+                        f"[scope rule] db_access endpoint host {dbh!r} is not the (normalised) host of any ROE database target (out of scope)")
+                R.check(not safety.host_excluded(dbh, excl_hosts), "E-ROE-DB-SCOPE", w,
+                        f"[exclusion rule] db_access endpoint host {dbh!r} is in exclusions.hosts (compared after trailing-dot/case/IDNA normalisation)")
+            R.check(db.get("oracle_readonly_attested") is True, "E-ROE-DB", w, "oracle_readonly_attested must be true")
+            R.check(db.get("seed_manifest_ref") == c.manifest.get("manifest_ref"), "E-ROE-DB", w, "seed_manifest_ref != seed manifest manifest_ref")
+            R.check(c.manifest.get("db_target_id") == db.get("target_id"), "E-ROE-DB", "seed-manifest.yaml", "db_target_id != roe db_access.target_id")
+            R.check(c.manifest.get("engagement_id") == e.get("engagement_id"), "E-ROE-DB", "seed-manifest.yaml", "engagement_id mismatch")
+            oracle = set(db.get("oracle_tables", []))
+            for qid, q in (c.manifest.get("oracle_queries") or {}).items():
+                R.check(q.get("table") in oracle, "E-ROE-DB", "seed-manifest.yaml", f"oracle query {qid}: table {q.get('table')} not in ROE oracle_tables")
+    with doc_guard(R, "roe.yaml (activities)"):
+        acts = r.get("activities") or {}
+        R.check("S3" not in acts.get("allowed_safety_classes", []), "E-ROE-S3", w, "S3 can never be allowed")
+        R.check(safety.TOOLKIT_DENYLIST <= set(acts.get("denied_modes", [])), "E-ROE-DENYLIST", w, "denied_modes must include the toolkit deny-list")
+        tools = (c.tools.get("tools") or {})
+        denied_in_registry = {f"{t}:{m}" for t, spec in tools.items() for m, ms in (spec.get("modes") or {}).items() if ms.get("toolkit_denied")}
+        R.check(denied_in_registry == set(safety.TOOLKIT_DENYLIST), "E-TOOLS-DENYLIST", "tools.yaml",
+                f"toolkit_denied modes {sorted(denied_in_registry)} != safety.TOOLKIT_DENYLIST {sorted(safety.TOOLKIT_DENYLIST)}")
+        for t in acts.get("allowed_tools", []):
+            spec = tools.get(t)
+            R.check(spec is not None and any(m.get("b4_executable") for m in (spec.get("modes") or {}).values()), "E-ROE-TOOLS", w,
+                    f"allowed tool {t!r} is not a B4-executable tool in tools.yaml")
+        for m in acts.get("denied_modes", []):
+            R.check(safety.registry_entry(c.tools, m) is not None, "E-ROE-TOOLS", w, f"denied mode {m!r} is not registered")
+    with doc_guard(R, "roe.yaml (stop_conditions)"):
+        defaults = tk.get("stop_condition_defaults") or {}
+        for k, val in (r.get("stop_conditions") or {}).items():
+            if k in defaults and isinstance(val, (int, float)) and isinstance(defaults[k], (int, float)):
+                stricter = val >= defaults[k] if k.startswith("min_") else val <= defaults[k]
+                R.check(stricter, "E-ROE-STOP", w, f"stop_conditions.{k}={val} is looser than the toolkit default {defaults[k]}")
+        R.check(bool((r.get("stop_conditions") or {}).get("contacts")), "E-ROE-STOP", w, "stop_conditions.contacts must not be empty")
+        hu = (r.get("stop_conditions") or {}).get("health_url")
+        if hu is not None:
+            prob = url_problem(hu)
+            R.check(prob is None, "E-ROE-URL", w, f"stop_conditions.health_url {prob}")
+    with doc_guard(R, "roe.yaml (build_identity)"):
+        for t in r.get("targets", []):
+            bi = t.get("build_identity") or {}
+            need = {"header": ("header_name",), "endpoint": ("path", "json_pointer"), "none": ()}.get(bi.get("method"), ())
+            extra = [k for k in ("header_name", "path", "json_pointer") if k not in need and bi.get(k) is not None]
+            missing = [k for k in need if bi.get(k) is None]
+            R.check(not extra and not missing, "E-ROE-TARGETS", w,
+                    f"{t.get('id')}: build_identity method {bi.get('method')!r} needs {list(need)} and null {extra or 'others'}")
+    with doc_guard(R, "roe.yaml (seed manifest)"):
+        seed_manifest_rules(R, c, targets)
+        for ce in c.manifest.get("create_only_endpoints") or []:
+            R.check(ce.get("target_id") in targets and (targets.get(ce.get("target_id")) or {}).get("kind") == "http", "E-SEED-MANIFEST",
+                    "seed-manifest.yaml", f"create_only_endpoints: {ce.get('target_id')} is not an http target of the ROE")
+            problem = safety.created_resource_problem(ce)       # v0.5
+            R.check(problem is None, "E-SEED-MANIFEST", "seed-manifest.yaml",
+                    f"create_only_endpoints {ce.get('method')} {ce.get('path_template')}: {problem}")
+    with doc_guard(R, "roe.yaml (relay)"):
+        relay, trelay = r.get("relay") or {}, tk.get("relay") or {}
+        for k in ("max_turns", "max_spend_usd_per_job", "max_spend_usd_per_run"):
+            if k in relay:
+                R.check(trelay.get(k) is not None and relay[k] <= trelay[k], "E-ROE-RELAY", w, f"relay.{k} exceeds toolkit relay")
+        for mk in relay.get("models", []):
+            m = c.model(mk)
+            if R.check(m is not None, "E-MODEL-UNKNOWN", w, f"relay model {mk!r} unknown"):
+                R.check(mk in (e.get("allowed_models") or {}).get(e.get("data_class"), []), "E-ROE-RELAY", w, f"relay model {mk} not allowed for the data class")
+    with doc_guard(R, "roe.yaml (data handling)"):
+        dh = r.get("data_handling") or {}
+        R.check(dh.get("data_class") == e.get("data_class"), "E-ROE-DATA-CLASS", w, "data_handling.data_class != engagement data_class")
+        rrd = dh.get("retention_days")
+        R.check(isinstance(rrd, int) and rrd <= e.get("retention_days", 0), "E-ROE-RETENTION", w,
+                f"data_handling.retention_days {rrd} longer than the engagement retention_days {e.get('retention_days')} (ROE may only shorten)")
+        lim = retention_max(tk, e.get("data_class"))
+        R.check(lim is None or (isinstance(rrd, int) and rrd <= lim), "E-RETENTION", w,
+                f"data_handling.retention_days {rrd} above the toolkit.yaml maximum {lim}")
+        for u in r.get("upstream_llm_providers") or []:
+            R.check(u.get("terms_confirmed_by") in c.persons, "E-PERSON-UNKNOWN", w, "upstream terms_confirmed_by must be a registry person")
+    with doc_guard(R, "roe.yaml (incident response)"):
+        incident_rules(R, c)
+    with doc_guard(R, "roe.yaml (legal review)"):
+        legal(R, c)
 
 
 INCIDENT_COVERS = {"data_exposure", "third_party_side_effect", "shared_platform_impact", "staging_outage"}
@@ -1185,6 +1202,28 @@ def platform_rules(R: Report, c: Ctx):
                 f"{t.get('id')}: {t.get('base_url') or t.get('endpoint')} is on a shared {plat} domain: ownership_proof must be platform_project "
                 f"with platform {plat} (dns_txt / well_known_path prove nothing there)")
         R.check(plat in policies, "E-ROE-PLATFORM", w, f"{t.get('id')}: no platform_policies entry for {plat}")
+        shared_platform_proof(R, c, t, op)
+
+
+TECHNICAL_PROOFS = {"http": ("deployed_path", "response_header"), "database": ("db_comment",)}
+
+
+def shared_platform_proof(R: Report, c: Ctx, t: dict, op: dict):
+    """v0.6 (review r7 4.1): platform_project proves only that someone pointed at a project (evidence_ref is a screenshot
+    or a claim). A technical_proof shows control of the deployment itself: the engagement token served by the project's
+    own deployment (a path or a response header the app sets) or, for a database, in COMMENT ON DATABASE. Without it
+    the target may only be tested at S0 (passive reads of what anyone can fetch)."""
+    w, tp = "roe.yaml", op.get("technical_proof")
+    if isinstance(tp, dict):
+        R.check(tp.get("method") in TECHNICAL_PROOFS.get(t.get("kind"), ()) and bool(tp.get("token_ref")), "E-ROE-PLATFORM", w,
+                f"{t.get('id')}: technical_proof needs a token_ref and a method for a {t.get('kind')} target "
+                f"({list(TECHNICAL_PROOFS.get(t.get('kind'), ()))})")
+        return
+    for d in c.docs("testcase"):
+        tc = d.data
+        if t.get("id") in (tc.get("target_ids") or []) and tc.get("safety_class_computed") not in (None, "S0"):
+            R.error("E-ROE-PLATFORM", d.path, f"{tc.get('testcase_id')} is {tc.get('safety_class_computed')} on shared-platform target "
+                    f"{t.get('id')}, which has no technical_proof of ownership: only S0 is allowed there")
 
 
 # ============================================================== 9 models / agents
@@ -1600,9 +1639,11 @@ def g_gates(R: Report, c: Ctx):
                 for a in rec.get("approvers", []):
                     R.check(a.get("person_id") not in run.get("initiators", []) and a.get("person_id") != rec.get("initiator"),
                             "E-G5-INITIATOR", w, f"G5 approver {a.get('person_id')} must not be a run initiator")
-                if profile(c) == "full":
+                escalated = g5_escalation(c, rec.get("run_id"))
+                if profile(c) == "full" or escalated:
                     revs = {a.get("person_id") for a in rec.get("approvers", []) if a.get("role") == "security_reviewer"}
-                    R.check(len(revs) >= 2, "E-G5-TWO-PERSON", w, f"assurance_profile full: G5 needs two distinct security_reviewer approvers, got {sorted(revs)}")
+                    why = f"spot check {escalated} overturned a G5 decision of an earlier run" if escalated else "assurance_profile full"
+                    R.check(len(revs) >= 2, "E-G5-TWO-PERSON", w, f"{why}: G5 needs two distinct security_reviewer approvers, got {sorted(revs)}")
                 win_end = timeutil.window_end(opened, roe_windows(c))
                 R.check(win_end is not None, "E-G5-WINDOW", w, "G5 opened outside every ROE time window")
                 R.check(timeutil.in_any_window(at, roe_windows(c)), "E-G5-WINDOW", w, "G5 decided outside every ROE time window")
@@ -2160,6 +2201,9 @@ def g_testcases(R: Report, c: Ctx):
             R.check(refs <= approved, "E-TC-REQ-UNAPPROVED", w,
                     f"requirements {sorted(refs - approved)} are not approved at G1 (REJECTED / NEEDS_INFO requirements are not testable)")
             R.check(1 <= tr.get("fail_k_min", 1) <= tr.get("n", 1), "E-TC-TRIALS", w, "fail_k_min must be 1..n")
+            bad = [x for x in tc.get("expected_error_statuses") or [] if not (x == 429 or (isinstance(x, int) and 500 <= x <= 599))]
+            R.check(not bad, "E-TC-EXPECTED-STATUS", w,               # v0.6 (review r7 4.3)
+                    f"expected_error_statuses {bad}: only 429 and 5xx are exempt from the run-level stop conditions")
             if derive.is_probabilistic(tc):                     # v0.6 (review r7 3.3)
                 need = derive.pass_min_effective(c.ix, tc)
                 R.check(isinstance(tr.get("n"), int) and tr.get("n") >= need, "E-TC-TRIALS", w,
@@ -2253,6 +2297,27 @@ def feedback_record_event(c: Ctx, f: dict):
         return (f"{f.get('feedback_id')} has {len(hits)} feedback_recorded events in the audit logs of the engagement's other runs; "
                 "the run that adopts it records it exactly once")
     return hits[0]
+
+
+def g5_escalation(c: Ctx, run_id) -> str | None:
+    """v0.6 (review r7 4.5, docs/06 §1.1 ASI09): the seq of an anchored spot_check_result that overturned a G5 decision
+    (payload item_kind g5, outcome overturned) in another run of the same engagement, received before this run started,
+    or None. From then on the engagement runs G5 as in Full: two distinct security reviewers. v0.5 only wrote the rule."""
+    run = c.runs.get(run_id) or {}
+    start = run_start(c, run_id)
+    for a in c.ix.audit_docs():
+        rid = a.data[0].get("run_id") if a.data and isinstance(a.data[0], dict) else None
+        if rid == run_id or (c.runs.get(rid) or {}).get("engagement_id") != run.get("engagement_id"):
+            continue
+        last_anchor = max((i + 1 for i, e in enumerate(a.data) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"), default=0)
+        for e in a.data:
+            p = (e.get("payload") or {}) if isinstance(e, dict) else {}
+            if isinstance(e, dict) and e.get("event_type") == "spot_check_result" and p.get("item_kind") == "g5" \
+                    and p.get("outcome") == "overturned" and type(e.get("seq")) is int and e.get("seq") < last_anchor:
+                at = timeutil.parse_dt(e["ts"]) if isinstance(e.get("ts"), str) else None
+                if start is not None and at is not None and at < start:
+                    return f"{rid}#{e.get('seq')}"
+    return None
 
 
 def run_start(c: Ctx, run_id) -> dt.datetime | None:
@@ -3503,6 +3568,12 @@ def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
             why = "a seed threat of the run whose threat has a G3 decision over_cap"
         R.check(ok and (g, iid) not in seen, "E-REPORT-QUEUE", w, f"over_cap_items: {g} {iid} must be {why}, listed once")
         seen.add((g, iid))
+    # v0.6 (review r7 4.5): the list is recomputed, not only checked item by item: every seed whose threat G3 marked
+    # over_cap is listed (the report is where an over-cap item is still visible to a person)
+    for sd in seeds:
+        if sd.get("threat_id") in over_cap_g3:
+            R.check(("G3", sd.get("seed_id")) in seen, "E-REPORT-QUEUE", w,
+                    f"over_cap_items: seed {sd.get('seed_id')} (threat {sd.get('threat_id')}) is over_cap at G3 but not listed")
 
 
 HIGH_SEVERITIES = ("critical", "high")
