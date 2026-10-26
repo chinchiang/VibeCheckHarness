@@ -2036,5 +2036,6 @@ W4 需要安裝相依並建置受測程式 [H]：
 
 - report-manifest 的 `metrics` 由 validator 以本 run 的測試結果重算：`results_total`、`results_invalid`、`control_pass_rate`（PASS 的對照結果數 ÷ 全部對照結果數，四捨五入到小數 4 位；沒有對照時為 null）（`E-REPORT-METRICS`）。範例報告是 5 個結果（含 W4 的 R-WTC-015-01-1）、0 個 `INVALID`、`control_pass_rate` 1.0。
 - v0.5（[09 BL-20](09-backlog.md)）另有三個指標，也由 validator 重算：`access_matrix_coverage`（本 run 的 testcase 與 w4-testcase 以 `access_cells` 宣告涵蓋的 G1 矩陣格子 ÷ 總格數，每格必須在矩陣中，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`（handler 檔案在本 run 切片中的端點 ÷ 總數）、`endpoint_test_coverage`（被黑箱 testcase 的 `request_allowlist` 打到的端點，方法與路徑樣板都相同 ÷ 總數）。範例是 1.0、0.8571、0.8571；新增的排程工作沒有切片也沒有測試。
+- v0.5（審查 r7，外部審查 5）：上面兩個測試覆蓋率只代表**計畫**，所以拿掉全部測試結果仍是 1.0 與 0.8571。改名為 `planned_access_matrix_coverage`、`planned_endpoint_test_coverage`，並新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`：只算至少有一個有效執行結果的測試案例（outcome 為 PASS 或 FAIL，INVALID／ERROR／SKIPPED／STOPPED 不算；對照全部 PASS；本 run 稽核紀錄中恰好一筆已錨定的 `sandbox_job_end`，outcome 與三個 hash 相符，`checks.execution_backed`）。報告正文必須把 planned 與 executed 並列；只寫其中一個不符合報告契約。`endpoint_slice_coverage` 量的是 W3 實際審查的切片，名稱不變。
 
 **里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。

@@ -561,6 +561,8 @@ flowchart TD
   - 必要面向：每個切片 × 必要面向的完成率（缺票列出）。
   - 對照通過率（`control_pass_rate`）：本 run 所有測試結果的對照中，結果為 PASS 的對照數 ÷ 對照總數（四捨五入到 4 位；沒有任何對照時為 `null`）。
   - 報告清單（`report-manifest.schema.json`）的 `metrics` 由 validator 重算（`E-REPORT-METRICS`）：`results_total`、`results_invalid`、`control_pass_rate`，以及 v0.5 的 `access_matrix_coverage`（測試案例以 `access_cells` 宣告涵蓋的 G1 矩陣格子，每格必須存在，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`、`endpoint_test_coverage`（[09 BL-20](09-backlog.md)）。必要面向的完成率仍只在報告正文。
+  - 計畫與有效執行分開（v0.5，審查 r7，外部審查 5）：測試覆蓋率分成 `planned_*` 與 `executed_*`，後者只算有有效執行結果（PASS／FAIL、對照全部 PASS、已錨定且 hash 相符的執行紀錄）的測試案例；報告正文兩者並列（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）。
+  - 流程完整性（v0.5，審查 r7，`E-PIPELINE`）：叢集與發現項不能默默消失。W3 之後每個叢集都有裁決，每個已驗證的發現項都在某個叢集；W5 之後，DISPUTED 與嚴重度 high 以上的 UNCORROBORATED 叢集都經過 G2（或列為 over_cap），每個沒有被駁回的白箱叢集都是種子威脅或 report_only，G2 駁回的叢集不是種子；G3 之後每個種子都有威脅；人工複核清單由裁決推導；報告的 gaps 與 artifacts 完整。
 - **輸出**：`whitebox-report.md`、`w.sarif`（欄位對應見 [08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)）、`dfd.json`（`dfd.schema.json`）、`seed-threats.json`（`seed-threats.schema.json`）、報告清單（`report-manifest.schema.json`）。
 
 ## 3. 黑箱階段（B0–B6）

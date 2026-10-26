@@ -68,7 +68,7 @@ def test_vote_branch_still_capped_by_r8():
 # ================================================================ A1 / B12 validator
 def test_independent_sources_mismatch(b):
     doc(b, V014).data["independent_sources"] = 1
-    assert codes(b) == {"E-VERDICT-SOURCES"}
+    assert codes(b) == {"E-VERDICT-SOURCES", "E-DERIVED"}      # review r7: the report pins V-014-1's hash
 
 
 def test_sarif_from_legally_gated_adapter_is_rejected(b):
@@ -228,8 +228,10 @@ def test_fail_oracles_rules(b, fo, outcome):
 
 def test_report_metrics_recomputed(b):
     assert doc(b, "report-manifest.example.json").data["metrics"] == {"results_total": 5, "results_invalid": 0, "control_pass_rate": 1.0,
-                                                                    "access_matrix_coverage": 1.0, "endpoint_slice_coverage": 0.8571,
-                                                                    "endpoint_test_coverage": 0.8571}     # v0.5 BL-20
+                                                                    "planned_access_matrix_coverage": 1.0,
+                                                                    "executed_access_matrix_coverage": 1.0, "endpoint_slice_coverage": 0.8571,
+                                                                    "planned_endpoint_test_coverage": 0.8571,
+                                                                    "executed_endpoint_test_coverage": 0.8571}     # v0.5 BL-20, r7
     doc(b, "report-manifest.example.json").data["metrics"]["control_pass_rate"] = 0.9
     assert "E-REPORT-METRICS" in codes(b)
 

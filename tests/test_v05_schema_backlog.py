@@ -133,14 +133,14 @@ def test_http_endpoints_still_need_a_method(b):
 # ================================================================ BL-20
 def test_coverage_metrics_are_recomputed(b):
     m = doc(b, RM).data["metrics"]
-    assert (m["access_matrix_coverage"], m["endpoint_slice_coverage"], m["endpoint_test_coverage"]) == (1.0, 0.8571, 0.8571)
-    m["endpoint_test_coverage"] = 1.0                                   # the scheduled job is not tested
+    assert (m["planned_access_matrix_coverage"], m["endpoint_slice_coverage"], m["planned_endpoint_test_coverage"]) == (1.0, 0.8571, 0.8571)
+    m["planned_endpoint_test_coverage"] = 1.0                           # the scheduled job is not tested
     assert errors(b, "E-REPORT-METRICS")
 
 
 def test_dropping_a_cell_lowers_the_matrix_coverage(b):
     doc(b, "testcase.llm.example.json").data["access_cells"] = []        # the only refund_tool cell
-    assert report_metrics(Ctx(b), "run-2026-09-23-001")["access_matrix_coverage"] == 0.75
+    assert report_metrics(Ctx(b), "run-2026-09-23-001")["planned_access_matrix_coverage"] == 0.75
 
 
 def test_access_cells_exist_in_the_g1_matrix(b):

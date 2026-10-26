@@ -118,7 +118,8 @@ def test_tool_signal_from_sarif_refs(b):
     assert any(cl["sarif_refs"][0] in e["payload_refs"] and e["payload"]["adapter"] == "opengrep:scan" for e in ends)
     assert codes(b) == set()
     v["tool_signal"] = []                              # omitting the derived SARIF ref
-    assert codes(b) == {"E-VERDICT-TOOLSIGNAL"}
+    # review r7 group 2: the report now lists V-014-1, so its pinned hash no longer matches either
+    assert codes(b) == {"E-VERDICT-TOOLSIGNAL", "E-DERIVED"}
 
 
 def _repin_calibration(b, keys):
@@ -146,6 +147,9 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     counts = doc(b, "report-manifest.example.json").data["verdict_counts"]
     counts["LIKELY"] -= 1
     counts["CONFIRMED_CORROBORATED"] += 1
+    # review r7 group 2: K-014 is a seed threat (ST-004), which records the status W5 saw
+    next(s for s in doc(b, "seed-threats.example.json").data["seeds"] if s["source_cluster_id"] == "K-014")["cluster_status"] = \
+        "CONFIRMED_CORROBORATED"
     rederive(b, keys)
     assert codes(b) == {"E-AUDIT-VERDICT"}            # the audit verdict_changed event still says LIKELY
     next(e for e in doc(b, AUDIT).data if (e["payload"] or {}).get("verdict_id") == "V-014-1")["payload"]["status"] = "CONFIRMED_CORROBORATED"

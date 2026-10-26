@@ -102,6 +102,12 @@
 - 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
 - 新增 `tests/test_v05_r7_bypasses.py`。
 
+### 第七輪審查：流程完整性與有效覆蓋率（第 2 組，含外部審查 5）
+- 新增 `E-PIPELINE`：叢集都有裁決、已驗證的發現項都在叢集中；DISPUTED／高嚴重度 UNCORROBORATED 叢集經過 G2 或列為 over_cap；沒有被駁回的白箱叢集是種子或 report_only；G2 駁回的不是種子；G3 後種子都有威脅；`manual_review_clusters` 由裁決推導；報告的 gaps 與 artifacts 完整。
+- 範例修正：K-014（LIKELY）原本既不是種子也不是 report_only，補上種子 ST-004（T-012）；報告 artifacts 補上 V-014-1、V-015-2、V-016-1 與 W4 結果 R-WTC-015-01-1。
+- report `metrics`：`access_matrix_coverage`／`endpoint_test_coverage` 改名為 `planned_*`，新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`（只算有有效執行結果的測試案例，`checks.execution_backed`）。
+- 新增 `tests/test_v05_r7_pipeline.py`。
+
 ### 白箱測試案例（BL-27）
 - 新增 `w4-testcase.schema.json`：W4 在 Z2 執行的單元、性質、本地 RLS 與假模型測試，與黑箱 testcase 分開。validator 檢查 run 與叢集、oracle 只引用 G1 已核准的 `requirement_ids`、reachability 對照、`local_rls` 的拋棄式 Postgres 與 migration（`E-W4-TC`、`E-TC-REQ-UNAPPROVED`、`E-TC-CONTROLS`）。
 - 修正：W4 的測試結果原本只能在黑箱測試案例中查找，等於借用黑箱測試案例的對照與 oracle。現在 `phase: W4` 的結果以 `testcase_id` 指向 W4 測試案例，借用黑箱測試案例是錯誤；W4 結果的 `target_ids` 為空，B4 結果至少一個目標（`E-RESULT-TARGETS`）。
