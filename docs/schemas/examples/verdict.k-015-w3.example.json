@@ -18,7 +18,7 @@
       "anonymized": true,
       "order_randomized": true,
       "valid": true,
-      "weight": 0.5947,
+      "weight": 1.5808,
       "weighted_valid": true
     }
   ],
@@ -34,10 +34,10 @@
   "diversity_degraded": true,
   "no_eligible_verifier": false,
   "calibration_version": 3,
-  "theta_confirm": 1.2,
+  "theta_confirm": 2.5,
   "theta_reject": null,
   "provisional": false,
-  "score": 0.5947,
+  "score": 1.5808,
   "g2_decision_ref": null,
   "status": "UNCORROBORATED",
   "status_cap": null,

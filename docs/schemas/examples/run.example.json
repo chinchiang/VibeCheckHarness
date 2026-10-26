@@ -19,7 +19,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:035665b0b19e92b4c27c24fd38cf7881fbc6e59e692e67f3df61354688521ecf",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:3688497501eb7b177db42c7e75f13ae64485aa26668c9e3135692c6dd8be4a10",
+  "engagement_ref": "sha256:037700b3e9b37d51a7f8d3670d5bcc885619c947b292d233edc658e25ee2078e",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -35,7 +35,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:770c8524719fffa392111a23fd97ad9ffbc97dd3d52386999b1f498f25f97baf"
+      "sha256": "sha256:0c98f77970d9681388628dea57aeaed0295a8417e5672fe5d06bdc4908a38156"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -314,14 +314,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:7d3103ffdf57637ec9ea4c832d55c4f345c6db57bb6d4e5c297db74539ca79c6",
+  "report_manifest_ref": "sha256:dc4d1f6c7d76d9014f2229ee46216480542c1a8731f590164d3092f87a0f2775",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:3688497501eb7b177db42c7e75f13ae64485aa26668c9e3135692c6dd8be4a10",
+      "subject_hash": "sha256:037700b3e9b37d51a7f8d3670d5bcc885619c947b292d233edc658e25ee2078e",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"

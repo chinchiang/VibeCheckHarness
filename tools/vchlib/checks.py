@@ -1315,7 +1315,8 @@ def g_models(R: Report, c: Ctx):
         R.warn("W-DIVERSITY", "agents.yaml", f"reviewers for {dc} span {len(fams)} family: diversity degraded (verdicts capped)")
     R._checks += 1
     for rf, rl, _ in reviewers:
-        R.check(any(vf != rf and vl != rl and dc in vd for vf, vl, vd in verifiers), "E-DIVERSITY-VERIFIER", "agents.yaml",
+        R.check(any(vf != rf and c.ix.lineage_root(vl) != c.ix.lineage_root(rl) and dc in vd for vf, vl, vd in verifiers),
+                "E-DIVERSITY-VERIFIER", "agents.yaml",
                 f"no verifier outside family {rf} / lineage {rl} for {dc}")
     # model claims in findings, votes, testresults
     for d in c.docs("finding"):
@@ -2457,7 +2458,7 @@ def vote_model(c: Ctx, vt: dict) -> dict | None:
 def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
     """model key -> models.yaml entry of every agents.yaml `verifier` whose registry family is not in
     cluster.families and whose registry lineage is not in cluster.lineages (never self-declared)."""
-    fams, lins = set(cluster.get("families") or []), set(cluster.get("lineages") or [])
+    fams, lins = set(cluster.get("families") or []), c.ix.lineage_roots(cluster.get("lineages"))   # v0.6: base lineages
     # v0.5 (review 2026-10-25 §4.3): a verifier that may not receive the run's data class (engagement allowed_models)
     # can never vote on it; counting it inflated |E| and left C-class clusters diversity_degraded for good
     dc = (c.runs.get(cluster.get("run_id")) or {}).get("data_class")
@@ -2469,7 +2470,7 @@ def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
         if allowed and a.get("model") not in allowed:
             continue
         m = c.model(a.get("model"))
-        if m and m.get("family") not in fams and m.get("lineage") not in lins and isinstance(m.get("family"), str):
+        if m and m.get("family") not in fams and c.ix.lineage_root(m.get("lineage")) not in lins and isinstance(m.get("family"), str):
             out[a.get("model")] = m
     return out
 
@@ -2518,7 +2519,7 @@ def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
         return False
     if v.get("calibration_version") is None or v.get("theta_confirm") is None:
         return True
-    return all(c.ix.weight(k, cluster.get("cwe_bucket"), v.get("calibration_version"), st) == 0
+    return all(c.ix.weight(k, cluster.get("cwe_bucket"), v.get("calibration_version"), st, cluster.get("run_id")) == 0
                for k in eligible_verifier_models(c, cluster) for st in ("SUPPORT", "REFUTE"))
 
 
@@ -2655,8 +2656,50 @@ def sarif_is_strong(c: Ctx, cluster: dict, ref) -> bool:
     version = (e.get("payload") or {}).get("tool_version")
     lim = high_precision_min(c)
     return any(isinstance(h, dict) and h.get("adapter") == adapter and h.get("rule_id") == rule and h.get("tool_version") == version
-               and h.get("cwe_bucket") == cluster.get("cwe_bucket") and (h.get("precision_lower95") or 0) >= lim
+               and h.get("cwe_bucket") == cluster.get("cwe_bucket") and not high_precision_problems(h, lim)
                for h in (c.calibration.get("result") or {}).get("high_precision_rules") or [])
+
+
+HIGH_PRECISION_MIN_N, HOLDOUT_MIN_N, HOLDOUT_MARGIN = 40, 10, 0.05
+
+
+def clopper_pearson_lower(k: int, n: int, alpha: float = 0.05) -> float:
+    """Lower end of the two-sided (1 - alpha) Clopper-Pearson interval for k successes in n: the p with
+    P(X >= k | n, p) = alpha / 2 (docs/05 §5.10). Bisection on the binomial tail, no SciPy."""
+    if not (isinstance(k, int) and isinstance(n, int)) or n <= 0 or k <= 0:
+        return 0.0
+    k = min(k, n)
+
+    def tail(p):
+        return sum(math.comb(n, i) * p ** i * (1 - p) ** (n - i) for i in range(k, n + 1))
+    lo, hi = 0.0, 1.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if tail(mid) < alpha / 2 else (lo, mid)
+    return lo
+
+
+def high_precision_problems(h: dict, lim: float) -> list[str]:
+    """v0.6 (review r7 3.5): a high_precision_rules row is recomputed from its raw counts, never trusted: n = tp + fp
+    >= 40, precision_lower95 = the Clopper-Pearson lower bound of tp / n (+-0.0005) and >= high_precision_min, and the
+    holdout split has n >= 10 with a point precision >= high_precision_min - 0.05 (docs/05 §5.10)."""
+    tp, fp, n = h.get("tp"), h.get("fp"), h.get("n")
+    if not all(isinstance(x, int) for x in (tp, fp, n)):
+        return ["tp, fp and n are required counts"]
+    out = []
+    if n != tp + fp:
+        out.append(f"n {n} != tp + fp {tp + fp}")
+    if n < HIGH_PRECISION_MIN_N:
+        out.append(f"n {n} < {HIGH_PRECISION_MIN_N}")
+    low = clopper_pearson_lower(tp, tp + fp)
+    if abs((h.get("precision_lower95") or 0) - round(low, 4)) > 5e-4:
+        out.append(f"precision_lower95 {h.get('precision_lower95')} != recomputed {round(low, 4)}")
+    if low < lim:
+        out.append(f"lower bound {round(low, 4)} < high_precision_min {lim}")
+    hn, htp = h.get("holdout_n"), h.get("holdout_tp")
+    if not (isinstance(hn, int) and isinstance(htp, int)) or hn < HOLDOUT_MIN_N or htp / hn < lim - HOLDOUT_MARGIN:
+        out.append(f"holdout {htp}/{hn} needs n >= {HOLDOUT_MIN_N} and precision >= {round(lim - HOLDOUT_MARGIN, 4)}")
+    return out
 
 
 def strong_sarif_refs(c: Ctx, cluster: dict) -> list[str]:
@@ -2816,8 +2859,9 @@ def g_verdicts(R: Report, c: Ctx):
                             f"vote by {vt.get('voter_agent_id')}: voter_family/lineage {vt.get('voter_family')}/{vt.get('voter_lineage')} "
                             f"!= registry {m.get('family')}/{m.get('lineage')}")
                 if vt.get("valid"):
-                    R.check(vt.get("voter_family") not in cl.data.get("families", []) and vt.get("voter_lineage") not in cl.data.get("lineages", []),
-                            "E-VERDICT-VOTE", w, f"self-review vote by {vt.get('voter_agent_id')} counted as valid")
+                    R.check(vt.get("voter_family") not in cl.data.get("families", [])
+                            and c.ix.lineage_root(vt.get("voter_lineage")) not in c.ix.lineage_roots(cl.data.get("lineages")),
+                            "E-VERDICT-VOTE", w, f"self-review vote by {vt.get('voter_agent_id')} counted as valid (same family or base lineage)")
                 anon, rand = derive.verifier_template_controls(c.ix, cl.data)
                 R.check(vt.get("anonymized") is anon and vt.get("order_randomized") is rand, "E-VERDICT-VOTE", w,
                         f"vote by {vt.get('voter_agent_id')}: anonymized/order_randomized {vt.get('anonymized')}/{vt.get('order_randomized')} "
@@ -3748,6 +3792,17 @@ def wilson_lower(correct, n, z=1.959964):
     return (centre - margin) / den
 
 
+def lr_weights(tpr: float, tnr: float) -> dict:
+    """v0.6 (review r7 3.2, docs/05 §4.3): vote weights as log likelihood ratios of the two calibrated rates.
+    SUPPORT: ln(TPR / FPR) = ln(a_support / (1 - a_refute)); REFUTE: ln(TNR / FNR) = ln(a_refute / (1 - a_support)).
+    v0.4-v0.5 weighted each side by its own accuracy (2a - 1), so a verifier that always supports scored a high
+    support weight although its support carries no information (FPR = 1 - TNR is as high as its TPR). Floored at 0;
+    a rate of 1 is impossible after smoothing (k > 0) and is treated as no information."""
+    def ln_ratio(p, q):
+        return max(0.0, math.log(p / q)) if 0 < p and 0 < q else 0.0
+    return {"support": ln_ratio(tpr, 1 - tnr), "refute": ln_ratio(tnr, 1 - tpr)}
+
+
 def g_calibration(R: Report, c: Ctx):
     cal, w = c.calibration, "calibration.yaml"
     if not cal:
@@ -3761,32 +3816,46 @@ def g_calibration(R: Report, c: Ctx):
         reg = c.model(mk)
         R.check(reg is not None and reg.get("family") == m.get("family") and reg.get("lineage") == m.get("lineage"), "E-CAL-MODEL", w,
                 f"config.models {mk}: family/lineage disagree with models.yaml")
-    for mk, side_key in sorted({(r.get("model_key"), sk) for r in rows for sk in ("support", "refute")}, key=str):
+    abar = {}
+    for mk, side_key in {(r.get("model_key"), sk) for r in rows for sk in ("support", "refute")}:
         # v0.4: the support side (true defects) and the refute side (known non-defects) are computed separately
-        mine = [(r, r.get(side_key) or {}) for r in rows if r.get("model_key") == mk]
-        tn = sum(x.get("n", 0) for _, x in mine)
-        abar = sum(x.get("correct", 0) for _, x in mine) / tn if tn else 0
-        for row, r in mine:
-            where = f"{w} weights {mk}/{row.get('cwe_bucket')}/{side_key}"
-            R.check(mk in keys, "E-CAL-MODEL", where, "model not in config.models")
-            n, cc = r.get("n", 0), r.get("correct", 0)
-            a = (cc + k * abar) / (n + k) if n + k else 0
-            reasons = []
-            wv = max(0.0, 2 * a - 1)
-            if wv < nz.get("w_min", 0):
-                reasons.append("w_below_min")
-            if wilson_lower(cc, n) <= nz.get("wilson_lower_max", 0):
-                reasons.append("wilson_lower_le_max")
-            if n < nz.get("n_min", 0):
-                reasons.append("n_below_min")
-            near = bool(reasons)
-            R.check(abs(r.get("a", -1) - round(a, 4)) <= 5e-4, "E-CAL-WEIGHT", where, f"a={r.get('a')} but recomputed {a:.4f}")
-            R.check(abs(r.get("w", -1) - (0 if near else round(wv, 4))) <= 5e-4, "E-CAL-WEIGHT", where, f"w={r.get('w')} but recomputed {0 if near else round(wv, 4)}")
-            R.check(r.get("near_zero") is near and sorted(r.get("near_zero_reasons", [])) == sorted(reasons), "E-CAL-WEIGHT", where,
-                    f"near_zero/near_zero_reasons must be {near} {reasons}")
+        mine = [r.get(side_key) or {} for r in rows if r.get("model_key") == mk]
+        tn = sum(x.get("n", 0) for x in mine)
+        abar[(mk, side_key)] = sum(x.get("correct", 0) for x in mine) / tn if tn else 0
+    for row in rows:
+        mk = row.get("model_key")
+        R.check(mk in keys, "E-CAL-MODEL", f"{w} weights {mk}/{row.get('cwe_bucket')}", "model not in config.models")
+        sides = {sk: row.get(sk) or {} for sk in ("support", "refute")}
+        a = {sk: ((x.get("correct", 0) + k * abar[(mk, sk)]) / (x.get("n", 0) + k) if x.get("n", 0) + k else 0) for sk, x in sides.items()}
+        lr = lr_weights(a["support"], a["refute"])
+        reasons = {}
+        for sk, x in sides.items():
+            n, cc = x.get("n", 0), x.get("correct", 0)
+            reasons[sk] = [r for r, hit in (("w_below_min", lr[sk] < nz.get("w_min", 0)),
+                                            ("wilson_lower_le_max", wilson_lower(cc, n) <= nz.get("wilson_lower_max", 0)),
+                                            ("n_below_min", n < nz.get("n_min", 0))) if hit]
+        both_ok = not any(reasons.values())       # v0.6: each weight needs both rates, so an unreliable side zeroes both
+        for sk, x in sides.items():
+            where = f"{w} weights {mk}/{row.get('cwe_bucket')}/{sk}"
+            near = bool(reasons[sk])
+            want_w = round(lr[sk], 4) if both_ok else 0
+            R.check(abs(x.get("a", -1) - round(a[sk], 4)) <= 5e-4, "E-CAL-WEIGHT", where, f"a={x.get('a')} but recomputed {a[sk]:.4f}")
+            R.check(abs(x.get("w", -1) - want_w) <= 5e-4, "E-CAL-WEIGHT", where,
+                    f"w={x.get('w')} but recomputed {want_w} (log likelihood ratio of both sides; 0 when either side is near zero)")
+            R.check(x.get("near_zero") is near and sorted(x.get("near_zero_reasons", [])) == sorted(reasons[sk]), "E-CAL-WEIGHT", where,
+                    f"near_zero/near_zero_reasons must be {near} {reasons[sk]}")
     for name, th in (res.get("thresholds") or {}).items():
-        R.check(th.get("value") is not None or th.get("feasible") is False, "E-CAL-THETA", w, f"{name}: value null requires feasible false")
-        R.check(th.get("value") is None or th.get("feasible") is True, "E-CAL-THETA", w, f"{name}: a value requires feasible true")
+        # v0.6 (review r7 3.5): theta_confirm / theta_reject are searched per CWE bucket; the pooled entry is a summary
+        per = [(f"{name}/{b}", t) for b, t in (th.get("by_bucket") or {}).items()]
+        if name in ("theta_confirm", "theta_reject"):
+            R.check(isinstance(th.get("by_bucket"), dict), "E-CAL-THETA", w, f"{name}: by_bucket is required (one threshold per CWE bucket)")
+        else:
+            R.check(th.get("by_bucket") is None, "E-CAL-THETA", w, f"{name}: a policy threshold has no by_bucket")
+        for label, t in [(name, th)] + per:
+            R.check(t.get("value") is not None or t.get("feasible") is False, "E-CAL-THETA", w, f"{label}: value null requires feasible false")
+            R.check(t.get("value") is None or t.get("feasible") is True, "E-CAL-THETA", w, f"{label}: a value requires feasible true")
+        for label, t in per:
+            R.check(t.get("by_bucket") is None, "E-CAL-THETA", w, f"{label}: a bucket threshold has no by_bucket of its own")
     for arm in cfg.get("arms", []):
         R.check(arm.get("exploratory") is (arm.get("arm") == "5"), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: only arm 5 is exploratory")
         R.check(set(arm.get("model_keys", [])) <= set(keys), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: unknown model keys")
@@ -3795,6 +3864,11 @@ def g_calibration(R: Report, c: Ctx):
         want = "support_leaning" if row.get("value") is not None and row["value"] < 0.5 else None
         R.check(row.get("flag") == want, "E-CAL-M11", w, f"M-11 {row.get('model_key')}: flag must be {want}")
     R.check(set(res.get("valid_for_model_keys", [])) <= set(keys), "E-CAL-MODEL", w, "valid_for_model_keys not in config.models")
+    lim = high_precision_min(c)
+    for h in res.get("high_precision_rules") or []:
+        if isinstance(h, dict):
+            for p in high_precision_problems(h, lim):
+                R.error("E-CAL-HIGH-PRECISION", w, f"high_precision_rules {h.get('adapter')} {h.get('rule_id')} {h.get('cwe_bucket')}: {p}")
     for x in res.get("annotator_agreement", []):
         R.check(x.get("accepted") is (x.get("kappa", 0) >= (cfg.get("annotation") or {}).get("kappa_min", 0)), "E-CAL-KAPPA", w,
                 f"{x.get('batch_id')}: accepted must equal kappa >= kappa_min")

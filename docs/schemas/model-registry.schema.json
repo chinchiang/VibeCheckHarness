@@ -32,6 +32,17 @@
       "lineage": {
         "type": "string"
       },
+      "derived_from": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "v0.6（審查 r7 3.9）：本血統衍生自哪個血統（微調、蒸餾或以其權重繼續訓練）；獨立性以血統的根判定，衍生自回報者血統的驗證者不算獨立。省略或 null＝基礎血統"
+      },
       "usable_ctx": {
         "type": "integer",
         "minimum": 1

@@ -134,8 +134,9 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     """Positive case of H-A1: once calibration lists (opengrep:scan, rule, authz) with precision_lower95 >=
     high_precision_min, the same SARIF ref is STRONG: tool_corroboration, row 10 CONFIRMED_CORROBORATED (never
     capped by R8, although V-014-1 is diversity_degraded)."""
+    # v0.6 (review r7 3.5): the row carries its raw counts; 117/120 has a Clopper-Pearson lower bound of 0.9287
     rule = {"adapter": "opengrep:scan", "rule_id": "vc.authz.update-without-owner", "tool_version": "1.6.0", "cwe_bucket": "authz",
-            "n": 120, "precision_lower95": 0.93}
+            "n": 120, "tp": 117, "fp": 3, "precision_lower95": 0.9287, "holdout_n": 30, "holdout_tp": 29}
     doc(b, "calibration.yaml").data["result"]["high_precision_rules"] = [rule]
     _repin_calibration(b, keys)                        # v0.5: calibration.yaml is pinned by the engagement
     rederive(b, keys)                                  # run.config_refs hashes calibration.yaml (v0.3, B11)
@@ -155,9 +156,9 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     next(e for e in doc(b, AUDIT).data if (e["payload"] or {}).get("verdict_id") == "V-014-1")["payload"]["status"] = "CONFIRMED_CORROBORATED"
     rederive(b, keys)
     assert codes(b) == set()
-    rule["precision_lower95"] = 0.89                 # below high_precision_min 0.90 -> weak again
+    rule.update(tp=108, fp=12, precision_lower95=0.8318)   # below high_precision_min 0.90 -> weak again
     assert "E-VERDICT-TOOLCORR" in codes(b)
-    rule.update(precision_lower95=0.93, tool_version="1.5.2")   # measured on another scanner version -> weak
+    rule.update(tp=117, fp=3, precision_lower95=0.9287, tool_version="1.5.2")   # measured on another scanner version -> weak
     assert "E-VERDICT-TOOLCORR" in codes(b)
     rule["tool_version"] = "1.6.0"
     rederive(b, keys)

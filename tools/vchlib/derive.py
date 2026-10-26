@@ -125,18 +125,56 @@ class Index:
         m = self.models.get(a["model"])
         return m if isinstance(m, dict) else None
 
-    def weight(self, model_key, bucket, version, stance="SUPPORT") -> float:
+    def lineage_root(self, lineage):
+        """v0.6 (review r7 3.9): the base lineage a lineage was derived from (models.yaml `derived_from`, followed to
+        the end; a cycle stops where it closes). A fine-tune or distillation shares its base's blind spots, so
+        independence is judged on the root: a verifier derived from the reporter's lineage is not independent."""
+        parent = {m.get("lineage"): m.get("derived_from") for m in self.models.values()
+                  if isinstance(m, dict) and isinstance(m.get("derived_from"), str)}
+        seen = set()
+        while lineage in parent and lineage not in seen:
+            seen.add(lineage)
+            lineage = parent[lineage]
+        return lineage
+
+    def lineage_roots(self, lineages) -> set:
+        return {self.lineage_root(x) for x in lineages or []}
+
+    def calibrated_setup_problem(self, model_key, run_id) -> str | None:
+        """v0.6 (review r7 3.6, docs/05 §5.8): the weights hold only for the model version and verifier prompt they
+        were measured with. The calibration's config.models entry must name the model's current version (the last
+        segment of models.yaml litellm) and the w3-verify prompt template the run uses; otherwise the model weighs 0.
+        v0.5 relied on someone listing the change in invalidated_by."""
+        cm = next((m for m in (self.calibration.get("config") or {}).get("models") or []
+                   if isinstance(m, dict) and m.get("model_key") == model_key), None)
+        reg = self.models.get(model_key) if isinstance(model_key, str) else None
+        if cm is None or not isinstance(reg, dict):
+            return f"{model_key} is not a calibrated model"
+        if str(reg.get("litellm") or "").rsplit("/", 1)[-1] != cm.get("version"):
+            return f"{model_key} runs {reg.get('litellm')!r}, calibrated as version {cm.get('version')!r}"
+        run = self.first("run", run_id=run_id) if run_id else None
+        tpl = next((t for t in (run.data.get("prompt_templates") or []) if isinstance(t, dict)
+                    and t.get("template_id") == "w3-verify"), None) if run else None
+        if tpl is not None and tpl.get("sha256") != cm.get("prompt_template_sha256"):
+            return f"{model_key} was calibrated with prompt {cm.get('prompt_template_sha256')}, the run verifies with {tpl.get('sha256')}"
+        return None
+
+    def weight(self, model_key, bucket, version, stance="SUPPORT", run_id=None) -> float:
         """v0.4: calibration weight of one side. REFUTE votes use the refute side (accuracy on known non-defects),
-        every other stance the support side (accuracy on true defects); docs/05 §4.3."""
+        every other stance the support side (accuracy on true defects); docs/05 §4.3. v0.6: 0 unless the model and
+        the run's verifier prompt are the calibrated ones (calibrated_setup_problem)."""
         cal = self.calibration
         if not cal or version is None or cal.get("calibration_version") != version:
+            return 0.0
+        if self.calibrated_setup_problem(model_key, run_id) is not None:
             return 0.0
         side_key = "refute" if stance == "REFUTE" else "support"
         res = cal.get("result") or {}
         # v0.5 (review 2026-10-25 A-6, docs/05 §5.8): a model whose calibration is invalidated (model or version
         # changed) or that the result is not valid for weighs 0 until the minimal rerun
+        # v0.6 (review r7 3.6): an empty list means no model is valid (v0.5 read it as "all")
         valid_for = res.get("valid_for_model_keys") or []
-        if (valid_for and model_key not in valid_for) or any(
+        if model_key not in valid_for or any(
                 isinstance(x, dict) and x.get("model_key") == model_key for x in res.get("invalidated_by") or []):
             return 0.0
         for row in res.get("weights", []):
@@ -145,9 +183,17 @@ class Index:
                 return 0.0 if side.get("near_zero") else float(side.get("w", 0))
         return 0.0
 
-    def thresholds(self):
+    def thresholds(self, bucket=None):
+        """(theta_confirm, theta_reject) for a CWE bucket; None = +inf (disabled).
+        v0.6 (review r7 3.5): the rules use the bucket's own threshold (`by_bucket`); a bucket without one is disabled,
+        so a threshold searched on authz clusters does not confirm llm_specific ones. A threshold that did not
+        generalise to the holdout split (`generalised: false`) is disabled too."""
         th = ((self.calibration.get("result") or {}).get("thresholds") or {})
-        return (th.get("theta_confirm") or {}).get("value"), (th.get("theta_reject") or {}).get("value")
+
+        def value(name):
+            t = ((th.get(name) or {}).get("by_bucket") or {}).get(bucket) or {}
+            return t.get("value") if t.get("feasible") is True and t.get("generalised") is True else None
+        return value("theta_confirm"), value("theta_reject")
 
     def approved_requirement_ids(self) -> set[str]:
         """Requirements approved at G1 (D10): invariants whose signoff is ACCEPTED by the G1 record named in
@@ -368,10 +414,10 @@ def analyst_check(ix: "Index", tr: dict, cluster: dict) -> tuple[bool, str | Non
     m = ix.model_of_agent(ib.get("agent_id"))
     if not isinstance(a, dict) or a.get("role") != "result_analyst" or m is None:
         return False, None
-    if m.get("family") in set(cluster.get("families") or []) or m.get("lineage") in set(cluster.get("lineages") or []):
+    if m.get("family") in set(cluster.get("families") or []) or ix.lineage_root(m.get("lineage")) in ix.lineage_roots(cluster.get("lineages")):
         return False, None
     author_fams, author_lins = test_author_families(ix, tr)
-    if m.get("family") in author_fams or m.get("lineage") in author_lins:
+    if m.get("family") in author_fams or ix.lineage_root(m.get("lineage")) in ix.lineage_roots(author_lins):
         return False, None
     agrees = (tr.get("interpretation") or {}).get("agrees")
     if agrees is True:
@@ -449,7 +495,7 @@ def vote_terms(ix: "Index", vote: dict, cluster: dict, version) -> tuple[bool, f
     (E-VERDICT-VOTER-ROLE in checks); v0.5 (review 2026-10-25 A-3): an abstention takes a side neither way, so it is never
     weighted-valid (v0.4 counted it, and one abstaining family could lift the R8 cap through diversity)."""
     valid = vote_valid(vote, cluster, ix)
-    wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version, vote.get("stance"))
+    wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version, vote.get("stance"), cluster.get("run_id"))
     counts = valid and wgt > 0 and is_verifier_vote(ix, vote) and vote.get("stance") in ("SUPPORT", "REFUTE")
     return valid, wgt, counts
 
@@ -569,6 +615,8 @@ def vote_valid(v: dict, cluster: dict, ix: "Index | None" = None) -> bool:
     run's verifier template, not by the vote's own flags); and (v0.4) a cited item relevant to the cluster."""
     if v.get("voter_family") in cluster.get("families", []) or v.get("voter_lineage") in cluster.get("lineages", []):
         return False
+    if ix is not None and ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(cluster.get("lineages")):
+        return False                                                    # v0.6 (review r7 3.9): same base lineage
     if ix is None:
         return bool(v.get("anonymized")) and bool(v.get("order_randomized"))
     anon, rand = verifier_template_controls(ix, cluster)
@@ -744,11 +792,11 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
                 exp(d, ["artifact_sha256"], tc.data.get("artifact_sha256"), "testcase.artifact_sha256")
 
     # verdicts
-    t_conf, t_rej = ix.thresholds()
     for d in ix.docs("verdict"):
         with guard(d):
             v = d.data
             cl = ix.first("cluster", cluster_id=v.get("cluster_id"))
+            t_conf, t_rej = ix.thresholds((cl.data if cl else {}).get("cwe_bucket"))
             if not cl:
                 continue
             cluster = cl.data

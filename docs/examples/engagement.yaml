@@ -91,7 +91,7 @@ config_pins:                  # v0.4：影響安全判斷的設定檔內容 hash
   models: "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
   agents: "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
   tools: "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
-  calibration: "sha256:770c8524719fffa392111a23fd97ad9ffbc97dd3d52386999b1f498f25f97baf"   # v0.5
+  calibration: "sha256:0c98f77970d9681388628dea57aeaed0295a8417e5672fe5d06bdc4908a38156"   # v0.5
   crosswalk: "sha256:865d77a32541ebe394671103092781f2d672d8b1d74fd6bbe4d662fc91fc7b13"     # v0.5
   licenses: "sha256:dc6f7c0fb8f1e7e895610d28778e8e3d2da7d2abfbf9e238443f127fdb4f48dc"
 
@@ -102,8 +102,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "l0tPMxPABPKVXZYXQwi2o7TkSoVEtdsuo1G3XqheS13Tm11kiAEMOCyJQs3Kdkg24IAM1EmQS2Oujbaq7WH7CQ=="
+    value: "UYbnxAYCvj0KjH1DYXtZ8MQcb10J0nb+ows64gCSrPKVLe/tZgUwN/lo6N/h83mfJcdtlxmbaqkHd0N1myUoBQ=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "S3QqhcDGrhcV7OrfmaCCJm3liVW9L0LGcfbm1Ey74NFe9iYTv5DXoljOsKcBxyNHcDa4q+4a3yUEgMZys0luDw=="
+    value: "rJPo792+Il15NMoaGrkEAGGQve1ie1CJDygDZuHTkm3ABpylrcQHBrzRLTbxVzzkzknJwQuMyvCnfk1XWdhjAw=="

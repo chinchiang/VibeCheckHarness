@@ -213,7 +213,7 @@
 `UNVERIFIED` 只是**發現項層級**的暫時狀態（證據全部 `NOT_FOUND`），不是叢集裁決。
 
 **合格票（valid vote）的操作定義**：
-- 投票者的家族與血統都不在叢集中（§3 規則 2）；
+- 投票者的家族與血統都不在叢集中（§3 規則 2；v0.6，審查 r7 3.9：血統以根判定，models.yaml 的 `derived_from` 記錄衍生關係，微調或蒸餾自回報者血統的模型不算獨立，`Index.lineage_root`）；
 - 候選已匿名化、順序已隨機化；
 - 理由**引用了具體證據**，而且引用的證據通過同樣的接地比對（§3 規則 5）：程式位置（例如「第 57 行已有 `tenant_id` 條件」），或 inventory／設定事實（例如「`/db/tables/0/rls_enabled` 為 `true`」）。**工具輸出不能當引用**，因為驗證者看不到它。沒有可比對證據的票一律視為棄權。引用逐項記在票的 `votes[].cited_evidence`（v0.3 新增、必填；例如 K-014 的兩張票都引用 `routes/invoices.ts:88`）；它也是驗證者 LLM 輸出中僅有的三個欄位之一（另兩個是 `stance`、`rationale`）。
 - 「理由成立」因此不需要主觀判斷：Aggregator 只檢查引用的證據能否被程式碼或 inventory 比對。
@@ -396,15 +396,19 @@ R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
 
   ā(m) ＝ Σ_b C(m,b) ／ Σ_b n(m,b)
 
-- **權重** [H]：w(m,b) ＝ max(0, 2 · a(m,b) − 1)。正確率 0.5（等於擲硬幣）時權重為 0，正確率 1 時權重為 1。
-  - 例：C＝18、n＝20、ā＝0.8 → a＝(18＋8)／30＝0.867 → w＝0.733。
-- **「權重接近 0」的判準** [H]：下列任一成立，就把 w(m,b) 設為 0，並在報告與 `calibration.yaml` 標示 `near_zero: true`，原因寫入 `near_zero_reasons`（依序對應下列三項：`w_below_min`、`wilson_lower_le_max`、`n_below_min`）：
-  1. w(m,b) ＜ 0.2（即 a ＜ 0.6）；
+- **權重**（v0.6，審查 r7 3.2）[H]：每張票的權重是兩邊比率合起來的**對數概似比**。令 TPR＝support 邊的 a（真缺陷上投支持）、TNR＝refute 邊的 a（非缺陷上投反駁）：
+  - SUPPORT 票：w_support ＝ max(0, ln(TPR ／ (1 − TNR)))，即「真缺陷上投支持」與「非缺陷上也投支持」的比；
+  - REFUTE 票：w_refute ＝ max(0, ln(TNR ／ (1 − TPR)))。
+  - 理由：v0.4–v0.5 的 w＝2a−1 只看一邊。一個幾乎什麼都投支持的驗證者，TPR 很高，support 權重也很高；但它在非缺陷上也投支持（1−TNR 一樣高），所以它的支持票沒有提供任何資訊。對數概似比正好是這張票讓「是缺陷」的對數勝算增加多少，S＝Σ w × 立場因此是對數勝算的增量，θ 也在這個尺度上（範例 θ_confirm＝2.5：一張權重約 1.6 的票不夠，需要兩張獨立的支持）。
+  - 例：TPR 0.8467、TNR 0.8252 → w_support＝ln(0.8467／0.1748)＝1.578，w_refute＝ln(0.8252／0.1533)＝1.683。TPR 0.95、TNR 0.05（永遠投支持）→ w_support＝ln(0.95／0.95)＝0。
+  - 平滑後的 a 不會是 0 或 1（k ＞ 0）；`checks.lr_weights` 對比率 ≤ 0 的退化情況回傳 0。
+- **「權重接近 0」的判準** [H]：每一邊各自判定，任一邊成立就標示該邊 `near_zero: true`，原因寫入 `near_zero_reasons`（依序對應下列三項：`w_below_min`、`wilson_lower_le_max`、`n_below_min`）。**v0.6：任一邊 near_zero → 兩邊的 w 都是 0**，因為每個權重都用到兩邊的比率，一邊不可靠，另一邊的權重也不可靠：
+  1. 該邊的 w ＜ 0.2；
   2. 原始正確率 C／n 的 Wilson 95% 下界 ≤ 0.5（和隨機分不開）；
   3. n(m,b) ＜ 10（資料不足）。
 - 加權分數 S 用於 §4.2 的 R4、R5；w＝0 的票不算「計權合格票」。
 - 權重為 0 的模型**仍保留在報告中並註明**，不偷偷移除；它在該桶提出的新叢集仍會進入驗證（補充召回），只是不參與確認或否決（§5.5）。
-- **新模型或新版本**在完成 §5.8 的最小重跑前，所有桶 w＝0 [H]（fail-safe：只能補充召回）。v0.5 起由 validator 強制：`result.invalidated_by` 列出的模型，以及 `valid_for_model_keys` 不為空時不在其中的模型，權重一律為 0（`Index.weight`）。
+- **新模型或新版本**在完成 §5.8 的最小重跑前，所有桶 w＝0 [H]（fail-safe：只能補充召回）。v0.5 起由 validator 強制：`result.invalidated_by` 列出的模型，以及不在 `valid_for_model_keys` 的模型，權重一律為 0（`Index.weight`；v0.6：清單是空的時，代表沒有任何模型有效，v0.5 把空清單當成「全部有效」）。v0.6（審查 r7 3.6）另外不靠人登錄：`config.models` 的 `version` 必須等於 models.yaml 該模型 `litellm` 的最後一段，`prompt_template_sha256` 必須等於該 run 的 `w3-verify` 範本 hash，否則權重為 0（`Index.calibrated_setup_problem`）。
 - **fallback 的票**以投票時實際使用的模型（票上的 `voter_model_key`）查權重，不沿用被取代模型的權重 [H]。fallback 模型也適用上一條：完成 §5.8 重跑前 w＝0，所以票有紀錄、`valid` 照判，但不是計權合格票（§3 規則 3）。
 - **只有驗證者有權重** [H]：reviewer 只提出發現項、不投票，所以沒有 w。各家族 reviewer 的 recall／precision 在 §5.3 M-1 量測，只當指標，不轉成權重、不影響裁決。理由：發現項本來就要經過證據接地（§3 規則 5）與跨家族驗證；reviewer 的偏誤由驗證者與可執行測試處理。
 - **門檻由 §5.7 的程序決定**，不是事先憑直覺設定。
@@ -577,6 +581,8 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 
 **在校準切分上選定，在保留切分上報告**；兩者都以 §4.2 的完整規則在 ④ 預設設定下模擬 [H]。
 
+- **依 CWE 桶分開**（v0.6，審查 r7 3.5）：每個桶各自搜尋 θ，結果寫在 `thresholds.theta_confirm.by_bucket`／`theta_reject.by_bucket`；規則只用叢集所屬桶的門檻（`Index.thresholds(bucket)`）。沒有列出的桶、`feasible: false`，或 `generalised: false`（保留切分未能類推）的門檻，一律視為 +∞。外層的值是合併統計，只供報告。理由：authz 上搜出來的門檻，不代表 llm_specific 叢集的分數分布；v0.5 用單一門檻，也沒有在保留切分失敗時真的停用它（`E-CAL-THETA`）。
+
 - **格點**：θ ∈ {0.1, 0.2, …, S_max}，S_max＝該設定下可能的最大 |S|。
 - **θ_confirm**：目標＝**最大化** R5 投票分支的 recall，**限制**：經 R5 投票分支確認的叢集 precision ≥ 0.90，且其 Wilson 95% 下界 ≥ 0.80，且該分支至少有 40 個叢集。在可行的 θ 中取**最小者**（recall 最高）。
 - **θ_reject**：目標＝**最大化**被 R4 自動 `REJECTED` 的誤報數，**限制**：被自動駁回的叢集中真實缺陷的比例 ≤ 0.02，且其 Wilson 95% 上界 ≤ 0.08，且至少 40 個被駁回的叢集。在可行的 θ 中取**最小者**。駁回的限制比確認嚴，因為被駁回的叢集不會成為種子威脅，漏報無法在黑箱階段補回。
@@ -619,7 +625,7 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 1. 在校準切分的 P 與 D 應用上執行候選掃描器，版本固定，並寫入該列的 `tool_version`。V 變形版與 B 公開 benchmark 不計入：V 與原版高度相關，B 不用於任何門檻（§5.1）。
 2. 每筆 SARIF 結果依 §4.1 的叢集鍵對到正規位置與桶；同一條規則在同一位置的重複結果只算一筆。
 3. 對到真值缺陷（植入缺陷，或經 §5.1 雙標註確認的自然缺陷）＝真陽性；對到誘餌或被標為誤報＝偽陽性；範圍外的不計。對不上植入缺陷的結果，照 §5.1 的雙標註流程判定。n＝真陽性＋偽陽性。
-4. `precision_lower95`＝真陽性／n 的 **Clopper-Pearson 雙尾 95% 區間下界**。選精確法，是因為它與 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 報告 k／n 的方法相同。
+4. `precision_lower95`＝真陽性／n 的 **Clopper-Pearson 雙尾 95% 區間下界**。v0.6（審查 r7 3.5）：每一列記錄原始計數 `tp`、`fp`、`holdout_n`、`holdout_tp`，validator 由計數重算下界、n ≥ 40 與保留切分條件，不採信列上宣告的下界（`checks.high_precision_problems`、`E-CAL-HIGH-PRECISION`）；不符條件的列不是強工具佐證。選精確法，是因為它與 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 報告 k／n 的方法相同。
 
 **列入條件**（全部成立）[H]：
 - n ≥ 40（與 §5.7 的最小叢集數相同）；
