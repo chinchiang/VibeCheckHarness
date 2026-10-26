@@ -31,6 +31,16 @@
       "threat_id": "T-012",
       "disputed_after_g2": false,
       "reason": "W4 本地 RLS 測試（WTC-015-01）確認：CONFIRMED_EXECUTABLE；不進 G2，成為種子威脅；與 K-005 同屬 T-012（資料層缺少租戶隔離）"
+    },
+    {
+      "seed_id": "ST-004",
+      "source_cluster_id": "K-014",
+      "verdict_id": "V-014-1",
+      "cluster_status": "LIKELY",
+      "cwe_bucket": "authz",
+      "threat_id": "T-012",
+      "disputed_after_g2": false,
+      "reason": "LIKELY：updateInvoice 沒有檢查發票的租戶歸屬（CWE-862）；與 K-005 同屬 T-012（資料層缺少租戶隔離），由 TC-012-01 一併測試"
     }
   ]
 }

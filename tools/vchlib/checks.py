@@ -3434,6 +3434,87 @@ def check_report_queues(R: Report, c: Ctx, w: str, rm: dict, status: dict):
         seen.add((g, iid))
 
 
+HIGH_SEVERITIES = ("critical", "high")
+EMPTY_DOC = Doc("", "", {}, None)
+
+
+def manual_review_set(c: Ctx, rid) -> list[str]:
+    """v0.5 (review r7, group 2; docs/02 B6): the clusters of a run whose latest verdict carries post_g2_conflict, or whose
+    B5 version turned DISPUTED. Derived, so the run and the report cannot leave one out."""
+    out = set()
+    for v in verdict_heads(c, (c.runs.get(rid) or {}).get("verdicts", [])):
+        kinds = {a.get("kind") for a in v.get("annotations") or [] if isinstance(a, dict)}
+        if "post_g2_conflict" in kinds or (v.get("readjudicated_by") == "B5_readjudicate" and v.get("status") == "DISPUTED"):
+            out.add(v.get("cluster_id"))
+    return sorted(out)
+
+
+def pipeline_checks(R: Report, c: Ctx):
+    """v0.5 (review r7, group 2; E-PIPELINE): nothing leaves the pipeline silently. Per run (Lane A is advisory and stops at
+    W3): once W3 adjudicated, every cluster has a verdict and every verified finding is in a cluster; once W5 produced the
+    seed threats, every DISPUTED / high-severity UNCORROBORATED white-box cluster went through G2 (or over_cap), every
+    white-box cluster not REJECTED is a seed or report-only, and no G2-rejected cluster is a seed; after G3 every seed has
+    a threat; and the derived manual review list, the gaps and the artefacts reach the report."""
+    for rid, run in c.runs.items():
+        if run.get("run_kind") == "lane_a":
+            continue
+        w = f"run {rid}"
+        clusters = {d.data.get("cluster_id"): d.data for d in c.docs("cluster") if d.data.get("run_id") == rid}
+        heads = {v.get("cluster_id"): v for v in verdict_heads(c, run.get("verdicts", []))}
+        if heads:
+            for k in sorted(set(clusters) - set(heads)):
+                R.error("E-PIPELINE", w, f"cluster {k} has no verdict: W3 adjudicates every cluster of the run")
+            members = {f for k in clusters.values() for f in k.get("member_finding_ids") or []}
+            for f in c.docs("finding"):
+                if f.data.get("run_id") == rid and f.data.get("status") == "VERIFIED_SNIPPET":
+                    R.check(f.data.get("finding_id") in members, "E-PIPELINE", w,
+                            f"finding {f.data.get('finding_id')} is verified but in no cluster: it would never be adjudicated")
+        seed_docs = [d for d in c.docs("seed-threats") if d.data.get("run_id") == rid]
+        rms = [d.data for d in c.docs("report-manifest") if d.data.get("run_id") == rid]
+        if seed_docs:
+            seeds = [sd for d in seed_docs for sd in d.data.get("seeds") or [] if isinstance(sd, dict)]
+            seeded = {sd.get("source_cluster_id") for sd in seeds}
+            report_only = {x for rm in rms for x in rm.get("report_only_clusters") or []}
+            over_cap_g2 = {it.get("item_id") for rm in rms for it in rm.get("over_cap_items") or [] if it.get("gate") == "G2"}
+            pre_ids = [i for i in run.get("verdicts", []) if (c.ix.first("verdict", verdict_id=i) or EMPTY_DOC).data.get("readjudicated_by")
+                       in PRE_G3_PHASES]
+            w_status_of = {v.get("cluster_id"): v.get("status") for v in verdict_heads(c, pre_ids)}   # the state W5 saw
+            for k, cl in sorted(clusters.items()):
+                if cl.get("origin") == "black_box":                     # B-phase clusters come after W5
+                    continue
+                w_status = w_status_of.get(k)
+                sev = {f.data.get("severity") for f in c.docs("finding") if f.data.get("finding_id") in (cl.get("member_finding_ids") or [])}
+                if w_status == "DISPUTED" or (w_status == "UNCORROBORATED" and sev & set(HIGH_SEVERITIES)):
+                    rec, _ = g2_latest(c, cl)
+                    R.check(rec is not None or k in over_cap_g2, "E-PIPELINE", w,
+                            f"{k} is {w_status} after W3 (member severity {sorted(sev)}) but has no G2 decision and is not over_cap")
+                status = (heads.get(k) or {}).get("status")
+                if status != "REJECTED":
+                    R.check(k in seeded or k in report_only, "E-PIPELINE", w,
+                            f"{k} ({status}) is neither a seed threat nor report_only: it left the pipeline without a decision")
+                _, dec = g2_latest(c, cl)
+                if dec == "reject":
+                    R.check(k not in seeded, "E-PIPELINE", w, f"{k} was rejected at G2 but is a seed threat")
+            if any(x.data.get("outcome") != "EXPIRED" for x in c.ix.gate_records(rid, "G3")):
+                for sd in seeds:
+                    R.check(sd.get("threat_id") is not None, "E-PIPELINE", w,
+                            f"seed {sd.get('seed_id')} has no threat_id after G3: G3 decides threats, so every seed maps to one")
+        want_review = manual_review_set(c, rid)
+        R.check(sorted(run.get("manual_review_clusters") or []) == want_review, "E-PIPELINE", w,
+                f"manual_review_clusters must be {want_review} (post_g2_conflict, or DISPUTED after B5)")
+        for rm in rms:
+            rw = f"report {rm.get('report_id')}"
+            R.check(rm.get("gaps") == run.get("gaps"), "E-PIPELINE", rw, "gaps must be the run's gaps")
+            listed = {(a.get("kind"), a.get("ref")) for a in rm.get("artifacts") or [] if isinstance(a, dict)}
+            for v in sorted(heads.values(), key=lambda x: str(x.get("verdict_id"))):
+                R.check(("verdict", v.get("verdict_id")) in listed, "E-PIPELINE", rw,
+                        f"artifacts must list the latest verdict {v.get('verdict_id')} of {v.get('cluster_id')}")
+            for t in c.docs("testresult"):
+                if t.data.get("run_id") == rid:
+                    R.check(("testresult", t.data.get("result_id")) in listed, "E-PIPELINE", rw,
+                            f"artifacts must list testresult {t.data.get('result_id')}")
+
+
 # ============================================================== 15 audit log
 def g_audit(R: Report, c: Ctx):
     interval = (c.toolkit.get("audit") or {}).get("anchor_interval_events", 500)
@@ -3804,27 +3885,60 @@ def _ratio(n, d):
     return round(n / d, 4) if d else None
 
 
+def execution_backed(c: Ctx, tr: dict) -> bool:
+    """v0.5 (review r7, external review 5): the result is effective evidence: outcome PASS or FAIL (not INVALID, ERROR,
+    SKIPPED or STOPPED), every control PASSed, and exactly one sandbox_job_end in the anchored part of its run's audit log
+    names it with the same outcome and the hashes of what ran (derive.execution_pins)."""
+    controls = [y for y in tr.get("controls") or [] if isinstance(y, dict)]
+    if tr.get("outcome") not in ("PASS", "FAIL") or not controls or any(y.get("outcome") != "PASS" for y in controls):
+        return False
+    tc = c.ix.testcase_for(tr)
+    audit = c.ix.audit_for(tr.get("run_id"))
+    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict)]
+    ends = [e for e in evs if derive.job_end_of(e, tr)]
+    if tc is None or len(ends) != 1:
+        return False
+    e, p = ends[0], ends[0].get("payload") or {}
+    anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
+    return (type(e.get("seq")) is int and e.get("seq") < anchored and p.get("outcome") == tr.get("outcome")
+            and all(p.get(k) == v for k, v in derive.execution_pins(tc.data, tr).items()))
+
+
 def report_metrics(c: Ctx, run_id) -> dict:
     """B5: results_total, results_invalid, control_pass_rate (PASS control outcomes / all control outcomes, 4 decimals).
-    v0.5 (BL-20, docs/02 W5 coverage): access_matrix_coverage = G1 matrix cells named by the access_cells of the run's
-    testcases (run.testcase_ids) and w4-testcases / all cells; endpoint_slice_coverage = inventory endpoints whose
-    handler file is in a slice of the run / all; endpoint_test_coverage = endpoints hit by a request_allowlist entry of
-    the run's testcases (same method and path shape) / all."""
+    v0.5 (BL-20, docs/02 W5 coverage): planned_access_matrix_coverage = G1 matrix cells named by the access_cells of the
+    run's testcases (run.testcase_ids) and w4-testcases / all cells; endpoint_slice_coverage = inventory endpoints whose
+    handler file is in a slice of the run / all; planned_endpoint_test_coverage = endpoints hit by a request_allowlist
+    entry of the run's testcases (same method and path shape) / all.
+    v0.5 (review r7, external review 5): the planned figures stay 1.0 with every result removed, so the executed_*
+    figures count only testcases with at least one execution_backed result of the run."""
     results = [x.data for x in c.docs("testresult") if x.data.get("run_id") == run_id]
     outs = [y.get("outcome") for r in results for y in r.get("controls") or [] if isinstance(y, dict)]
     run = c.runs.get(run_id) or {}
     tcs = [t.data for t in c.docs("testcase") if t.data.get("testcase_id") in (run.get("testcase_ids") or [])]
     w4 = [t.data for t in c.docs("w4-testcase") if t.data.get("run_id") == run_id]
+    ran = {(r.get("phase") == "W4", r.get("testcase_id")) for r in results if execution_backed(c, r)}
     cells = access_matrix_cells(c)
-    covered = {(x.get("role"), x.get("resource"), x.get("action")) for t in tcs + w4 for x in t.get("access_cells") or [] if isinstance(x, dict)}
     eps = [e for e in (inventory_of_run(c, run_id) or {}).get("endpoints") or [] if isinstance(e, dict)]
+
+    def cell_cover(tests):
+        covered = {(x.get("role"), x.get("resource"), x.get("action")) for t in tests for x in t.get("access_cells") or [] if isinstance(x, dict)}
+        return _ratio(len(covered & cells), len(cells))
+
+    def endpoint_cover(tests):
+        hit = {(r.get("method"), path_shape(r.get("path"))) for t in tests for r in t.get("request_allowlist") or [] if isinstance(r, dict)}
+        return _ratio(sum(1 for e in eps if (e.get("method"), path_shape(e.get("path"))) in hit), len(eps))
+
+    tcs_ran = [t for t in tcs if (False, t.get("testcase_id")) in ran]
+    w4_ran = [t for t in w4 if (True, t.get("testcase_id")) in ran]
     sliced = {f.get("path") for s in c.docs("slice") if s.data.get("run_id") == run_id for f in s.data.get("files") or [] if isinstance(f, dict)}
-    hit = {(r.get("method"), path_shape(r.get("path"))) for t in tcs for r in t.get("request_allowlist") or [] if isinstance(r, dict)}
     return {"results_total": len(results), "results_invalid": sum(1 for r in results if r.get("outcome") == "INVALID"),
             "control_pass_rate": round(sum(1 for o in outs if o == "PASS") / len(outs), 4) if outs else None,
-            "access_matrix_coverage": _ratio(len(covered & cells), len(cells)),
+            "planned_access_matrix_coverage": cell_cover(tcs + w4),
+            "executed_access_matrix_coverage": cell_cover(tcs_ran + w4_ran),
             "endpoint_slice_coverage": _ratio(sum(1 for e in eps if e.get("file") in sliced), len(eps)),
-            "endpoint_test_coverage": _ratio(sum(1 for e in eps if (e.get("method"), path_shape(e.get("path"))) in hit), len(eps))}
+            "planned_endpoint_test_coverage": endpoint_cover(tcs),
+            "executed_endpoint_test_coverage": endpoint_cover(tcs_ran)}
 
 
 ID_KEYS = {"run": "run_id", "verdict": "verdict_id", "cluster": "cluster_id", "finding": "finding_id", "testcase": "testcase_id",
@@ -3875,6 +3989,8 @@ def threat_coverage(R: Report, c: Ctx):
 def g_misc(R: Report, c: Ctx):
     id_uniqueness(R, c)
     threat_coverage(R, c)
+    with doc_guard(R, "pipeline"):
+        pipeline_checks(R, c)
     for d in c.docs("dfd"):
         with doc_guard(R, d.path):
             els = d.data.get("elements", [])

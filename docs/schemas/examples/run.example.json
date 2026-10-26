@@ -179,7 +179,7 @@
   "whitebox_report_ref": "sha256:f607afc98514f0341c68630bc9a6208f6c0087d89eeae607c1fa253d3bb45a4e",
   "w_sarif_ref": "sha256:82f4a3c14165fe508e60abeac07c0518a59c57b027e20486c6eb48d28f703ce7",
   "dfd_ref": "sha256:66985305530c23a5e800b07a58d1275fd10b3c52ca334906e5067bef4cb10787",
-  "seed_threats_ref": "sha256:114c678ca375a353931babe924f0f854cfd2eaa39d8787b7cc9183dff0d7ebd1",
+  "seed_threats_ref": "sha256:9ceb61f9cf9b9064b60ccdf821587108f7c8de2cb41b20c67d5d2b0d0364678c",
   "lane_a_advisories": [],
   "disputed_after_g2": [],
   "egress_allowlist_ref": "sha256:33fb855d248a08262ce5f02dbdd80c717e6ad7913f551c522545533a9fbeeddb",
@@ -314,7 +314,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:77817d75b7187cef9f2cfdac5f928bcce5f52d122ff4b7d8f1372c9b2147e034",
+  "report_manifest_ref": "sha256:ac797b8d61da88935f2393489cbc5b5a3dbe4e107ff312caa5a81fb9fb54a5a8",
   "gate_records": [
     {
       "gate": "G0a",
