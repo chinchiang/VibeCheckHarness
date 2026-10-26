@@ -22,7 +22,7 @@
   - create-only 端點宣告看不到的副作用（`side_effects: external／llm_tools`）；沒有宣告 `contained` 就至少 S2。
   - v0.6（審查 r7 3.8）：
     - 種子也宣告 `side_effects`／`contained`。寫入（不是讀取）一個副作用沒有被圍住的種子 → 至少 S2。種子沒有宣告時，只要 ROE `integrations` 有任何一項不是 `disabled`，就視為 `external`（fail closed；更新訂單和建立訂單一樣可能寄信）（`safety.seed_side_effects`）。
-    - 請求預算包含重播：`max_requests ＋ replay_n × ⌈max_requests ／ n⌉`，因為每次重播重跑一個 trial。超過 `s1_request_cap` → 至少 S2（`safety.request_budget`）。v0.5 只比較 `max_requests`，但重播「不計入 max_requests」。
+    - 請求預算包含重播：v0.7（審查 r8 外部 1）改為 `max_requests ＋ replay_n × max_requests_per_trial`，`max_requests_per_trial` 是 Scope Proxy 逐 trial 強制的上限（機率型測試必填，`E-TC-RATE`），沒有宣告時每次重播以整個 job 計。v0.6 用 `⌈max_requests ／ n⌉`——一個沒有任何規則強制的平均值：一個 301 個請求的 trial 重播兩次就是 1,002，預算卻算成 408。超過 `s1_request_cap` → 至少 S2（`safety.request_budget`）。v0.5 只比較 `max_requests`，但重播「不計入 max_requests」。
     - GraphQL：在 Scope Proxy 能解析 document 之前（[09 BL-35](09-backlog.md)），GraphQL 請求只能以 POST 送出，並在白名單以 `graphql_document_sha256` 釘住 document；以 GET 送出，或 `graphql_operation` 不是 null 卻沒有釘住 document → S3。GET 的 document 放在 query string 中，Proxy 無法分辨 query 與 mutation。
   - seed manifest 的內容 hash 由基礎設施擁有者在 ROE 簽署（`E-ROE-SEED-MANIFEST`）。
   - Schemathesis 的 S1 模式只跑 GET／HEAD 操作；寫入操作改用綁種子的 GENERATED_SCRIPT。v0.5 起 validator 檢查：`schemathesis:*` 測試案例的 `request_allowlist` 只能有 GET／HEAD；`zap:baseline` 測試案例必須帶 `params.safe_mode: true`（adapter 以 `-S` 執行，`E-TC-TOOL`）。

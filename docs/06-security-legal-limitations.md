@@ -81,7 +81,7 @@
 | 只列報告的低優先叢集、超出 G2 上限的項目、G2 逾時未決的項目（v0.4） | 每類每個 run 抽 10%，至少 2 筆 | 同上 | 抽到 high 以上的真實缺陷 → 調整剪枝條件或佇列上限，並記入報告 |
 | G5 已核准的 S2 job | 全數（S2 數量少） | 執行後 2 個工作天內 | 任一筆不符 → 該 engagement 從下一個 run 起改用 Full 模式：G5 需兩位不同的資安審查者核准（validator 強制，`E-G5-TWO-PERSON`；[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 
-- 抽查結果寫入稽核事件 `spot_check_result`（v0.5：`actor.kind = human`，由複核者簽章；`payload` 為 `{item_kind, item_id, outcome, note}`）。v0.4 寫成 `gate_decision`，但每個 `gate_decision` 都必須對應一份關卡紀錄（`E-AUDIT-GATE`），抽查沒有關卡紀錄，照 v0.4 寫入就會讓稽核驗不過（審查 2026-10-25 §4.3）。
+- 抽查結果寫入稽核事件 `spot_check_result`（v0.5：`actor.kind = human`，由複核者簽章；`payload` 為 `{item_kind, item_id, outcome, note}`）。v0.4 寫成 `gate_decision`，但每個 `gate_decision` 都必須對應一份關卡紀錄（`E-AUDIT-GATE`），抽查沒有關卡紀錄，照 v0.4 寫入就會讓稽核驗不過（審查 2026-10-25 §4.3）。v0.7（審查 r8 M2）：validator 強制獨立性——`actor` 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5、`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者或發起者（`E-SPOT-CHECK`）；v0.6 只要求人簽章，G5 核准者可以「確認」自己的核准並觸發 `g5_escalation`。
 - 每季彙整推翻率，納入 [05](05-bias-calibration.md) 的校準資料。
 
 ### 1.2 受測程式碼造成的注入

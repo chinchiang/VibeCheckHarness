@@ -1255,6 +1255,15 @@ def g_models(R: Report, c: Ctx):
     ev = e.get("validity") or {}
     enb, ena = ts(R, ev.get("not_before"), "engagement.yaml"), ts(R, ev.get("not_after"), "engagement.yaml")
     used = set()
+    # v0.7 (review r8, external review 3): derived_from is a tree; a cycle gave each member its own root (lineage_root
+    # stops where the cycle closes), so two mutually derived lineages counted as independent and verified each other
+    for cyc in c.ix.lineage_cycles():
+        R.error("E-MODEL-LINEAGE", "models.yaml", f"derived_from cycle {' -> '.join(cyc + cyc[:1])}: a lineage cannot derive from itself")
+    lineages = {m.get("lineage") for m in models.values() if isinstance(m, dict)}
+    for mk, m in models.items():
+        if isinstance(m, dict) and isinstance(m.get("derived_from"), str):
+            R.check(m["derived_from"] in lineages and m["derived_from"] != m.get("lineage"), "E-MODEL-LINEAGE", f"models.yaml {mk}",
+                    f"derived_from {m['derived_from']!r} must be another lineage of the registry")
     for name, a in agents.items():
         with doc_guard(R, f"agents.yaml {name}"):
             where = f"agents.yaml {name}"
@@ -1668,8 +1677,11 @@ def g_gates(R: Report, c: Ctx):
                             R.check(not t.data.get("attack_tree_ref") and (t.data.get("risk") or {}).get("impact") != "high",
                                     "E-GATE-OVER-CAP", w, f"{x.get('item_id')} is high-risk or impact high: it is never over the G3 cap")
                         rv_ = t.data.get("review") or {}
-                        R.check(rv_.get("status") == want and rv_.get("gate_record_id") == rec.get("gate_record_id"), "E-TRACE-THREAT-REVIEW",
-                                t.path, f"review must be {want} by {rec.get('gate_record_id')}")
+                        # v0.7 (review r8 H3): a carried accept re-signs an ancestor's review; the threat's review names the
+                        # record that reviewed it (the carried_from source), not the carrying record
+                        owner = (x.get("carried_from") or {}).get("gate_record_id") or rec.get("gate_record_id")
+                        R.check(rv_.get("status") == want and rv_.get("gate_record_id") == owner, "E-TRACE-THREAT-REVIEW",
+                                t.path, f"review must be {want} by {owner}")
             if gate == "G1":
                 for inv in c.invariants.get("invariants", []):
                     so = inv.get("signoff") or {}
@@ -1717,14 +1729,39 @@ def g_runs(R: Report, c: Ctx):
                     v = c.ix.first("verdict", verdict_id=vid)
                     R.check(v is not None and v.data.get("advisory") is True, "E-RUN-LANE-A", w, f"Lane A verdict {vid} must be advisory")
                 R.check(set(run.get("lane_a_advisories", [])) == set(run.get("cluster_ids", [])), "E-RUN-LANE-A", w, "lane_a_advisories must list the run's clusters")
-            if kind == "followup":
+            if kind in ("followup", "regression"):
+                # v0.7 (review r8 H2): a regression run carries its parent's clusters the same way (docs/02 §1.6); v0.6 allowed
+                # a parent / reuse for followup runs only, although the schema and the docs defined regression runs with both
                 R.check(run.get("parent_run_id") in c.runs, "E-RUN-FOLLOWUP", w, "parent run not found")
                 parent = c.runs.get(run.get("parent_run_id")) or {}
                 R.check(any(fd in parent.get("followup_drafts", []) for p in c.docs("commander-plan") if p.data.get("plan_id") in run.get("plan_ids", [])
                             for fd in (x.get("draft_id") for x in p.data.get("followup_drafts", []))), "E-RUN-FOLLOWUP", w,
-                        "a follow-up run must come from a follow-up draft of its parent")
+                        f"a {kind} run must come from a follow-up draft of its parent")
             else:
-                R.check(run.get("parent_run_id") is None and run.get("reuse") == [], "E-RUN-FOLLOWUP", w, "only follow-up runs have a parent / reuse")
+                R.check(run.get("parent_run_id") is None and run.get("reuse") == [], "E-RUN-FOLLOWUP", w, "only follow-up / regression runs have a parent / reuse")
+            # v0.7 (review r8 M6, docs/03 §12): a Lane A run of a fork PR gets no LLM review and its results are untrusted
+            if kind == "lane_a":
+                R.check(run.get("pr_origin") in ("same_repo", "fork"), "E-RUN-LANE-A", w, "a Lane A run declares pr_origin (same_repo / fork)")
+                if run.get("pr_origin") == "fork":
+                    R.check(not run.get("verdicts") and not run.get("cluster_ids") and not run.get("lane_a_advisories"), "E-RUN-LANE-A", w,
+                            "a fork PR gets no LLM review: no verdicts, clusters or advisories (untrusted input, docs/03 §12)")
+            else:
+                R.check(run.get("pr_origin") is None, "E-RUN-LANE-A", w, "pr_origin is a Lane A field")
+                lane_a_clusters = {k.data.get("cluster_id") for k in c.docs("cluster")
+                                   if (c.runs.get(k.data.get("run_id")) or {}).get("run_kind") == "lane_a"
+                                   and (c.runs.get(k.data.get("run_id")) or {}).get("pr_origin") == "same_repo"}
+                bad = sorted(set(run.get("lane_a_advisories") or []) - lane_a_clusters)
+                R.check(not bad, "E-RUN-LANE-A", w, f"lane_a_advisories {bad} are not clusters of a same-repo Lane A run")
+            # v0.7 (review r8 H3; docs/02 §1.6): a testcase reaches G4 only after this run's G3 accepted its threat
+            # (carried_from an ancestor is an accept of this run); v0.6 read the threat's global review.status
+            if any(g.get("gate") == "G4" for g in run.get("gate_records", [])):
+                accepted = {x.get("item_id") for rec in c.ix.gate_records(rid, "G3") if rec.data.get("outcome") != "EXPIRED"
+                            for x in rec.data.get("decisions") or [] if isinstance(x, dict) and x.get("decision") == "accept"}
+                for tcid in run.get("testcase_ids") or []:
+                    tcd = c.ix.first("testcase", testcase_id=tcid)
+                    th = tcd.data.get("threat_id") if tcd else None
+                    R.check(th in accepted, "E-RUN-G3", w,
+                            f"testcase {tcid} is at G4 but its threat {th} has no accept in this run's G3 (carry it with carried_from, or decide it here)")
             # gate record ordering
             times = [ts(R, g.get("opened_at"), w) for g in run.get("gate_records", [])]
             times = [t for t in times if t]
@@ -2204,11 +2241,22 @@ def g_testcases(R: Report, c: Ctx):
             bad = [x for x in tc.get("expected_error_statuses") or [] if not (x == 429 or (isinstance(x, int) and 500 <= x <= 599))]
             R.check(not bad, "E-TC-EXPECTED-STATUS", w,               # v0.6 (review r7 4.3)
                     f"expected_error_statuses {bad}: only 429 and 5xx are exempt from the run-level stop conditions")
-            if derive.is_probabilistic(tc):                     # v0.6 (review r7 3.3)
+            signals = derive.probabilistic_signals(c.ix, tc)    # v0.6 (review r7 3.3); v0.7 (review r8, external review 2): the target decides
+            if signals:
                 need = derive.pass_min_effective(c.ix, tc)
                 R.check(isinstance(tr.get("n"), int) and tr.get("n") >= need, "E-TC-TRIALS", w,
-                        f"a probabilistic test ({(tc.get('tool_binding') or {}).get('adapter')}) declares n {tr.get('n')}: it needs "
+                        f"a probabilistic test ({'; '.join(signals)}) declares n {tr.get('n')}: it needs "
                         f"n >= {need}, the effective trials a PASS requires")
+                R.check(tr.get("sampling") != "deterministic", "E-TC-TRIALS", w,
+                        f"trials.sampling deterministic contradicts the target ({'; '.join(signals)}): an LLM feature is sampled whatever tool drives it")
+            # v0.7 (review r8, external review 1): the per-trial cap the Scope Proxy enforces, so the replay budget is a bound
+            trl = tc.get("rate_limit") or {}
+            per = trl.get("max_requests_per_trial")
+            R.check(per is None or (type(per) is int and 1 <= per <= trl.get("max_requests", 0)), "E-TC-RATE", w,
+                    f"rate_limit.max_requests_per_trial {per!r} must be between 1 and max_requests {trl.get('max_requests')}")
+            R.check(not signals or per is not None, "E-TC-RATE", w,
+                    "a probabilistic test declares rate_limit.max_requests_per_trial (replays re-run one trial; without the cap the budget "
+                    "counts a whole job per replay)")
             ctls = [x for x in tc.get("controls") or [] if isinstance(x, dict)]
             R.check(any(x.get("kind") == "reachability" for x in ctls), "E-TC-CONTROLS", w,
                     "a testcase needs at least one reachability control (B5)")
@@ -2564,13 +2612,14 @@ def derived_diversity_degraded(c: Ctx, v: dict, cluster: dict) -> bool:
     e = eligible_verifier_families(c, cluster)
     if not e:
         return False
-    fams = set()
+    roots = set()
     for x in v.get("votes", []):
         m = vote_model(c, x)
-        # only verifier-role votes count (others: E-VERDICT-VOTER-ROLE, ignored)
-        if x.get("weighted_valid") and m is not None and derive.is_verifier_vote(c.ix, x):
-            fams.add(m.get("family"))
-    return len(fams) < min(2, len(e))
+        # only verifier-role votes count (others: E-VERDICT-VOTER-ROLE, ignored); v0.7 (review r8, external review 3):
+        # weighted_valid is recomputed and diversity counts base lineages, as independent_families and E(cluster) do
+        if m is not None and derive.vote_terms(c.ix, x, cluster, v.get("calibration_version"))[2]:
+            roots.add(c.ix.lineage_root(m.get("lineage")))
+    return len(roots) < min(2, len(c.ix.lineage_roots(m.get("lineage") for m in eligible_verifier_models(c, cluster).values())))
 
 
 def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
@@ -2752,6 +2801,10 @@ def high_precision_problems(h: dict, lim: float) -> list[str]:
     if not all(isinstance(x, int) for x in (tp, fp, n)):
         return ["tp, fp and n are required counts"]
     out = []
+    if not all(type(x) is int and x >= 0 for x in (n, tp, fp, h.get("holdout_n"), h.get("holdout_tp"))) \
+            or h.get("holdout_tp") > h.get("holdout_n"):
+        return [f"counts tp {tp!r} / fp {fp!r} / n {n!r} / holdout {h.get('holdout_tp')!r}/{h.get('holdout_n')!r} must be non-negative "
+                "integers with holdout_tp <= holdout_n (E-CAL-COUNT)"]       # v0.7 (review r8, external review 4)
     if n != tp + fp:
         out.append(f"n {n} != tp + fp {tp + fp}")
     if n < HIGH_PRECISION_MIN_N:
@@ -2834,7 +2887,8 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
     # G2 exists, so a later G2 reject must not make it invalid; G2_apply writes the post-G2 version (R10 -> REJECTED)
     g2_rej = v.get("readjudicated_by") != "W3_adjudicate" and g2_latest(c, cluster)[1] == "reject"
     all_fail = all_evidence_not_found(c, cluster)      # R0 (v0.6): nothing grounded, one NOT_FOUND; False without members
-    votes = [x for x in v.get("votes", []) if x.get("weighted_valid") and derive.is_verifier_vote(c.ix, x)]
+    # v0.7 (review r8): weighted_valid is recomputed (vote_terms), never read from the verdict (docs/05 §4.2 "derived")
+    votes = [x for x in v.get("votes", []) if derive.vote_terms(c.ix, x, cluster, v.get("calibration_version"))[2]]
     g3_rej = g3_rejected(c, v, cluster)
     prev = c.ix.first("verdict", verdict_id=v["supersedes_verdict_id"]) if v.get("supersedes_verdict_id") else None
     return adj.Inputs(
@@ -3030,6 +3084,10 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
     loc = k.get("canonical_location") or {}
     R.check(k.get("origin") == "tool_only" or not k.get("tool_report_refs"), "E-CLUSTER-ORIGIN", w,
             "tool_report_refs is only set on tool_only clusters")
+    # v0.7 (review r8 F5): the rubric severity (docs/08 §11.17) is derived; it routes G2 and the report, the findings' own is advisory
+    want = derive.rubric_severity(c.ix, k)
+    R.check(k.get("severity") == want, "E-CLUSTER-SEVERITY", w,
+            f"severity must be the rubric severity {want} (inputs {derive.rubric_inputs(c.ix, k)}), got {k.get('severity')!r}")
     if k.get("origin") == "black_box":
         t = c.ix.first("threat", threat_id=k.get("threat_id")) if k.get("threat_id") else None
         R.check(t is not None and t.data.get("source_cluster_id") is None, "E-CLUSTER-ORIGIN", w,
@@ -3621,15 +3679,21 @@ def pipeline_checks(R: Report, c: Ctx):
             pre_ids = [i for i in run.get("verdicts", []) if (c.ix.first("verdict", verdict_id=i) or EMPTY_DOC).data.get("readjudicated_by")
                        in PRE_G3_PHASES]
             w_status_of = {v.get("cluster_id"): v.get("status") for v in verdict_heads(c, pre_ids)}   # the state W5 saw
+            # v0.7 (review r8 F5): G2 routing is decided on the W3 verdict (the state G2 saw), by the rubric severity
+            # (docs/02 W3 step 6, docs/08 §11.17). v0.6 took the head over W4 too, so a W4 re-adjudication hid a cluster
+            # that skipped G2, and read the reviewers' self-reported finding.severity, which the rubric replaced in v0.4
+            w3_ids = [i for i in run.get("verdicts", []) if (c.ix.first("verdict", verdict_id=i) or EMPTY_DOC).data.get("readjudicated_by")
+                      == "W3_adjudicate"]
+            w3_status_of = {v.get("cluster_id"): v.get("status") for v in verdict_heads(c, w3_ids)}
             for k, cl in sorted(clusters.items()):
                 if cl.get("origin") == "black_box":                     # B-phase clusters come after W5
                     continue
                 w_status = w_status_of.get(k)
-                sev = {f.data.get("severity") for f in c.docs("finding") if f.data.get("finding_id") in (cl.get("member_finding_ids") or [])}
-                if w_status == "DISPUTED" or (w_status == "UNCORROBORATED" and sev & set(HIGH_SEVERITIES)):
+                w3_status, sev = w3_status_of.get(k), derive.rubric_severity(c.ix, cl)
+                if w3_status == "DISPUTED" or (w3_status == "UNCORROBORATED" and sev in HIGH_SEVERITIES):
                     rec, _ = g2_latest(c, cl)
                     R.check(rec is not None or k in over_cap_g2, "E-PIPELINE", w,
-                            f"{k} is {w_status} after W3 (member severity {sorted(sev)}) but has no G2 decision and is not over_cap")
+                            f"{k} is {w3_status} after W3 (rubric severity {sev}) but has no G2 decision and is not over_cap")
                 status = (heads.get(k) or {}).get("status")
                 if status != "REJECTED":
                     R.check(k in seeded or k in report_only, "E-PIPELINE", w,
@@ -3708,6 +3772,8 @@ def g_audit(R: Report, c: Ctx):
                             f"Audit Writer's receive time by more than {MAX_CLOCK_SKEW})")
                 if et == "initiator_claim":
                     R.check(actor.get("id") in run.get("initiators", []), "E-AUDIT-INITIATOR", where, "claimed initiator not in run.initiators")
+                if et == "spot_check_result":
+                    spot_check(R, c, where, run, ev)
                 # v0.4: idempotency keys are run_id:node:<key> and unique within the run (re-written events are deduplicated by it)
                 ik = ev.get("idempotency_key")
                 parts = ik.split(":", 2) if isinstance(ik, str) else []
@@ -3741,6 +3807,7 @@ def g_audit(R: Report, c: Ctx):
             for g in c.ix.gate_records(rid):
                 R.check(g.data.get("gate_record_id") in logged, "E-AUDIT-GATE", w, f"{g.data.get('gate_record_id')} has no gate_decision event")
             job_audit(R, c, w, rid, run, evs)
+            run_structure(R, c, w, rid, run, evs)
 
 
     # v0.5 (review 2026-10-25, group 3): every verdict version has a verdict_changed event in its cluster's run log
@@ -3779,6 +3846,32 @@ def g_audit(R: Report, c: Ctx):
 JOB_RAN_STATES = ("EXECUTED", "RESTORED", "RESTORE_FAILED")       # finished with a result (INTERRUPTED has none)
 
 
+SPOT_CHECK_KINDS = ("g1", "g2", "g3", "g4", "g5")
+
+
+def spot_check(R: Report, c: Ctx, where: str, run: dict, ev: dict):
+    """v0.7 (review r8 M2; docs/06 §1.1 ASI09, 07 M2-X7): a spot_check_result is an independent re-review of a gate
+    decision: its actor is a registered security_reviewer, its item is a gate record of the same engagement, and the
+    reviewer neither approved that record nor initiated its run. v0.6 only required a human signature, so a G5 approver
+    could 'confirm' their own approvals and the result still drove g5_escalation."""
+    actor, p = ev.get("actor") or {}, ev.get("payload") or {}
+    who = actor.get("id")
+    R.check(actor.get("kind") == "human" and "security_reviewer" in c.roles_of(who), "E-SPOT-CHECK", where,
+            f"spot_check_result actor {who!r} must be a registered security_reviewer")
+    if not R.check(p.get("item_kind") in SPOT_CHECK_KINDS, "E-SPOT-CHECK", where,
+                   f"item_kind {p.get('item_kind')!r} must name a gate ({', '.join(SPOT_CHECK_KINDS)})"):
+        return
+    rec = c.record(p.get("item_id"))
+    if not R.check(rec is not None and rec.get("gate", "").lower() == p.get("item_kind")
+                   and rec.get("engagement_id") == run.get("engagement_id"), "E-SPOT-CHECK", where,
+                   f"item_id {p.get('item_id')!r} is not a {p.get('item_kind').upper()} gate record of this engagement"):
+        return
+    approvers = {a.get("person_id") for a in rec.get("approvers") or [] if isinstance(a, dict)}
+    initiators = set((c.runs.get(rec.get("run_id")) or {}).get("initiators") or []) | {rec.get("initiator")}
+    R.check(who not in approvers and who not in initiators, "E-SPOT-CHECK", where,
+            f"{who} approved or initiated {p.get('item_id')}: the spot check must be independent (docs/06 §1.1)")
+
+
 def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
     """v0.5 (review 2026-10-25 V-9, E-JOB-AUDIT): the B4 jobs of run.jobs agree with the sandbox_job_* events of the log
     and with the testresults. v0.4 never reconciled them, so deleting a FAIL result and marking its job SKIPPED passed.
@@ -3787,7 +3880,10 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
     started = {(e.get("payload") or {}).get("job_id") for e in evs if isinstance(e, dict) and e.get("event_type") == "sandbox_job_start"}
     ended = {(e.get("payload") or {}).get("job_id"): (e.get("payload") or {}).get("outcome")
              for e in evs if isinstance(e, dict) and e.get("event_type") == "sandbox_job_end"}
-    results = {r.data.get("job_id"): r.data for r in c.docs("testresult") if r.data.get("run_id") == rid}
+    results: dict[str, list] = {}
+    for r in c.docs("testresult"):
+        if r.data.get("run_id") == rid and r.data.get("phase") == "B4":
+            results.setdefault(r.data.get("job_id"), []).append(r.data)
     for jid, job in jobs.items():
         if not isinstance(job, dict):
             continue
@@ -3797,21 +3893,114 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
                     f"job {jid} is SKIPPED but the audit log has sandbox_job events for it (it ran)")
         elif job.get("status") in JOB_RAN_STATES:
             R.check(jid in ended, "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but the audit log has no sandbox_job_end for it")
-            tr = results.get(jid)
-            R.check(tr is not None, "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but no testresult names it")
-            if tr is not None and jid in ended:
-                R.check(tr.get("outcome") == ended[jid], "E-JOB-AUDIT", where,
-                        f"testresult {tr.get('result_id')} outcome {tr.get('outcome')} != sandbox_job_end outcome {ended[jid]}")
-                # v0.5 (review r7 1.10): what ran and what it returned are pinned by the executor's event
-                end = next((e for e in evs if derive.job_end_of(e, tr)), None)
-                tc = c.ix.testcase_for(tr)
-                for key, want in (derive.execution_pins(tc.data, tr) if tc and end else {}).items():
-                    R.check((end.get("payload") or {}).get(key) == want, "E-JOB-AUDIT", where,
-                            f"sandbox_job_end (seq {end.get('seq')}) pins {key} {(end.get('payload') or {}).get(key)!r}, but the bundle's "
+            R.check(bool(results.get(jid)), "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but no testresult names it")
+        # v0.7 (review r8 F2a): a job in any other state (PENDING, EXECUTING, INTERRUPTED, STOPPED, ...) never finished; a
+        # result naming it is rejected below ("never executed"). v0.6 reconciled only SKIPPED and the ran states.
+    for jid, trs in results.items():
+        # v0.7 (review r8 F2a / F2b): every B4 result, not only the last one named for a job, is reconciled with the
+        # executor's events: one result per job, a job that ran, and exactly one anchored sandbox_job_end whose
+        # outcome and pins (testcase, artifact, result hashes) are this result's
+        where = f"{w} (run.jobs {jid})"
+        R.check(len(trs) == 1, "E-JOB-AUDIT", where,
+                f"job {jid} has {len(trs)} testresults {[t.get('result_id') for t in trs]}: one job executes one result")
+        job = jobs.get(jid)
+        R.check(isinstance(job, dict) and job.get("status") in JOB_RAN_STATES, "E-JOB-AUDIT", where,
+                f"testresult {[t.get('result_id') for t in trs]} names job {jid}, which is "
+                f"{job.get('status') if isinstance(job, dict) else 'not in run.jobs'} (it never executed)")
+        for tr in trs:
+            end = derive.pinned_job_end(c.ix, tr)
+            if end is not None:
+                continue
+            ends = [e for e in evs if derive.job_end_of(e, tr)]
+            tc = c.ix.testcase_for(tr)
+            if len(ends) == 1 and tc is not None:
+                e, p = ends[0], ends[0].get("payload") or {}
+                R.check(p.get("outcome") == tr.get("outcome"), "E-JOB-AUDIT", where,
+                        f"testresult {tr.get('result_id')} outcome {tr.get('outcome')} != sandbox_job_end outcome {p.get('outcome')}")
+                for key, want in derive.execution_pins(tc.data, tr).items():
+                    R.check(p.get(key) == want, "E-JOB-AUDIT", where,
+                            f"sandbox_job_end (seq {e.get('seq')}) pins {key} {p.get(key)!r}, but the bundle's "
                             f"testcase / result hash to {want!r}: changed after the run")
+                R.check(False, "E-JOB-AUDIT", where,
+                        f"testresult {tr.get('result_id')}: its sandbox_job_end (seq {e.get('seq')}) is not in the anchored part of the log")
+            else:
+                R.check(False, "E-JOB-AUDIT", where,
+                        f"testresult {tr.get('result_id')} has {len(ends)} sandbox_job_end events for job {jid} (exactly one anchored event "
+                        "must pin the testcase, artifact and result it executed)")
     for jid in ended:
         if jid in jobs:
             R.check(jid in results, "E-JOB-AUDIT", w, f"sandbox_job_end for job {jid} has no testresult")
+
+
+B_NODES = ("B0", "B1", "B2", "B3", "B4", "B5", "B6")
+GATE_ORDER = ("G0a", "G1", "G2", "G0b", "G3", "G4", "G5")        # docs/02 §1.3: first decision of each gate in this order
+W_GATED_NODES = ("W4",)                                          # nodes that need the G2 decisions and the human claim
+
+
+def run_structure(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
+    """v0.7 (review r8 F1 / F3 / F4; docs/02 §1.3-§1.5): the shape of a run's audit log, judged by the Audit Writer's
+    receive times (self-declared opened_at / timestamp values are not used):
+    - the first decision of each gate follows the order G0a < G1 < G2 < G0b < G3 < G4 < G5 (E-GATE-ORDER);
+    - every event after G0a's decision follows a VERIFIED G0a; every B-phase event (nodes B0-B6, the G3 / G4 / G5
+      decisions, every job) follows a VERIFIED G0b with no later VERIFY_FAILED before it, so a run that reached the B
+      phase has a VERIFIED G0b (E-GATE-ORDER; a job without events is E-JOB-AUDIT); W4 runs after the G2 decision and
+      before G0b;
+    - a Lane B run makes no G1 decision and enters W4 or the B phase only after a human's signed initiator_claim
+      (E-RUN-CLAIM; docs/02 §1.5, docs/06 D7).
+    v0.6 checked the order of a run's own gate_records by their self-declared opened_at and required nothing of G0b or the
+    claim, so a log with no G0b, a VERIFY_FAILED G0b, G4 before G3, or no claim at all validated."""
+    times = {}
+    for e in evs:
+        if isinstance(e, dict) and isinstance(e.get("ts"), str):
+            try:
+                times[id(e)] = timeutil.parse_dt(e["ts"])
+            except (ValueError, TypeError):
+                pass
+    at = times.get
+    decisions = {}                                   # gate -> [(time, outcome)] in log order
+    for e in evs:
+        p = (e.get("payload") or {}) if isinstance(e, dict) else {}
+        if isinstance(e, dict) and e.get("event_type") == "gate_decision" and at(id(e)) is not None:
+            decisions.setdefault(p.get("gate"), []).append((at(id(e)), p.get("outcome")))
+    first = {g: min(t for t, _ in ds) for g, ds in decisions.items() if ds}
+    prev = None
+    for g in GATE_ORDER:
+        if g in first:
+            R.check(prev is None or first[g] > first[prev], "E-GATE-ORDER", w,
+                    f"the first {g} decision ({first[g].isoformat()}) precedes the first {prev} decision ({first[prev].isoformat() if prev else None})")
+            prev = g
+
+    def last_before(gate, t):
+        ds = [o for tt, o in decisions.get(gate, []) if tt < t]
+        return ds[-1] if ds else None
+
+    b_events, w4_events, g1_or_later = [], [], []
+    for e in evs:
+        if not isinstance(e, dict) or at(id(e)) is None:
+            continue
+        t, node, et, p = at(id(e)), e.get("node"), e.get("event_type"), e.get("payload") or {}
+        where = f"{w} seq {e.get('seq')}"
+        if node in B_NODES or (et == "gate_decision" and p.get("gate") in ("G3", "G4", "G5")) or et in ("sandbox_job_start", "sandbox_job_end") and node not in ("W0", "W1", "W4"):
+            b_events.append(t)
+            R.check(last_before("G0b", t) == "VERIFIED", "E-GATE-ORDER", where,
+                    f"B-phase event {et} at node {node} without a VERIFIED G0b before it (last G0b decision: {last_before('G0b', t)})")
+        if node in W_GATED_NODES:
+            w4_events.append(t)
+        if node not in ("START", "G0a", "claim_run") and et not in ("run_created", "initiator_claim") and node is not None:
+            R.check(last_before("G0a", t) == "VERIFIED", "E-GATE-ORDER", where,
+                    f"event {et} at node {node} without a VERIFIED G0a before it (last G0a decision: {last_before('G0a', t)})")
+        if et == "gate_decision" and p.get("gate") == "G1":
+            g1_or_later.append(t)
+    if w4_events:
+        R.check("G2" not in first or min(w4_events) > first["G2"], "E-GATE-ORDER", w, "W4 ran before the G2 decision it depends on")
+        R.check("G0b" not in first or max(w4_events) < first["G0b"], "E-GATE-ORDER", w, "W4 ran after G0b: the white-box phase ends before the B phase")
+    if run.get("run_kind") != "lane_a":
+        gated = g1_or_later + w4_events + b_events
+        claims = [at(id(e)) for e in evs if isinstance(e, dict) and e.get("event_type") == "initiator_claim"
+                  and (e.get("actor") or {}).get("kind") == "human" and at(id(e)) is not None]
+        if gated:
+            R.check(bool(claims) and min(claims) < min(gated), "E-RUN-CLAIM", w,
+                    "no human initiator_claim before the first G1 decision / W4 / B-phase event: a person claims the run first (docs/02 §1.5)")
 
 
 def audit_anchor_tail(R: Report, w: str, run: dict, d: Doc) -> tuple[int, int]:
@@ -3853,6 +4042,17 @@ def audit_anchor_tail(R: Report, w: str, run: dict, d: Doc) -> tuple[int, int]:
 
 
 # ============================================================== 16 calibration
+THETA_MIN = 0.1                                                   # docs/05 §5.7: the threshold grid starts at 0.1
+
+
+def count_problems(R: Report, where: str, k, n, what: str) -> bool:
+    """v0.7 (review r8, external review 4; E-CAL-COUNT): 0 <= k <= n for a (successes, trials) pair of the calibration file.
+    v0.6 accepted holdout_tp > holdout_n (the rule stayed high-precision) and crashed wilson_lower on correct > n."""
+    ok = type(n) is int and type(k) is int and 0 <= k <= n
+    R.check(ok, "E-CAL-COUNT", where, f"{what} {k!r} must be an integer between 0 and n {n!r}")
+    return ok
+
+
 def wilson_lower(correct, n, z=1.959964):
     if n == 0:
         return 0.0
@@ -3897,6 +4097,10 @@ def g_calibration(R: Report, c: Ctx):
         mk = row.get("model_key")
         R.check(mk in keys, "E-CAL-MODEL", f"{w} weights {mk}/{row.get('cwe_bucket')}", "model not in config.models")
         sides = {sk: row.get(sk) or {} for sk in ("support", "refute")}
+        # v0.7 (review r8, external review 4): the raw counts are consistent before anything is computed from them
+        if not all(count_problems(R, f"{w} weights {mk}/{row.get('cwe_bucket')} {sk}", x.get("correct"), x.get("n"), "correct")
+                   for sk, x in sides.items()):
+            continue
         a = {sk: ((x.get("correct", 0) + k * abar[(mk, sk)]) / (x.get("n", 0) + k) if x.get("n", 0) + k else 0) for sk, x in sides.items()}
         lr = lr_weights(a["support"], a["refute"])
         reasons = {}
@@ -3925,6 +4129,11 @@ def g_calibration(R: Report, c: Ctx):
         for label, t in [(name, th)] + per:
             R.check(t.get("value") is not None or t.get("feasible") is False, "E-CAL-THETA", w, f"{label}: value null requires feasible false")
             R.check(t.get("value") is None or t.get("feasible") is True, "E-CAL-THETA", w, f"{label}: a value requires feasible true")
+            # v0.7 (review r8): a threshold is a positive finite score (docs/05 §5.7 searches the grid from 0.1); S <= -theta_reject
+            # with a negative theta_reject rejected on a single weak refute, theta_confirm 0 confirmed on any support
+            val = t.get("value")
+            R.check(val is None or (isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val) and val >= THETA_MIN),
+                    "E-CAL-THETA", w, f"{label}: value {val!r} must be a finite number >= {THETA_MIN}")
         for label, t in per:
             R.check(t.get("by_bucket") is None, "E-CAL-THETA", w, f"{label}: a bucket threshold has no by_bucket of its own")
     for arm in cfg.get("arms", []):
@@ -3938,6 +4147,10 @@ def g_calibration(R: Report, c: Ctx):
     lim = high_precision_min(c)
     for h in res.get("high_precision_rules") or []:
         if isinstance(h, dict):
+            hw = f"{w} high_precision_rules {h.get('adapter')} {h.get('rule_id')} {h.get('cwe_bucket')}"
+            if not (count_problems(R, hw, h.get("holdout_tp"), h.get("holdout_n"), "holdout_tp")
+                    & count_problems(R, hw, h.get("tp"), h.get("n"), "tp") & count_problems(R, hw, h.get("fp"), h.get("n"), "fp")):
+                continue                                       # v0.7 (review r8, external review 4): E-CAL-COUNT, not a bound
             for p in high_precision_problems(h, lim):
                 R.error("E-CAL-HIGH-PRECISION", w, f"high_precision_rules {h.get('adapter')} {h.get('rule_id')} {h.get('cwe_bucket')}: {p}")
     for x in res.get("annotator_agreement", []):

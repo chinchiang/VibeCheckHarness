@@ -50,7 +50,7 @@
   "theta_reject": null,
   "provisional": false,
   "score": 1.5808,
-  "g2_decision_ref": null,
+  "g2_decision_ref": "GR-G2-0001",
   "status": "CONFIRMED_EXECUTABLE",
   "status_cap": null,
   "advisory": false,

@@ -1318,7 +1318,7 @@ erDiagram
 | Lane B（非同步，`initial`／`followup`／`regression`） | 手動、排程或合併到主幹 | 完整多家族白箱＋所有關卡＋黑箱；以 checkpoint 續跑，並發送通知；結果回貼 PR | 小時到天（受人工關卡影響） |
 
 - Lane A 只審 diff：RoboDuck 的 delta 模式縮小範圍後，誤報大幅減少 [V][E:reference_systems-12]。
-- **fork 來的 PR**（v0.6，審查 r7 4.5）[H]：fork 的程式碼是不可信輸入，可能刻意寫進對審查模型的提示注入，也可能讓 CI 憑證外流。Lane A 對 fork PR 只跑確定性的 W0、W1、secrets 與套件存在性檢查，**不呼叫任何 LLM**，結果標為「不可信來源」；CI 不提供模型 API 金鑰給 fork PR 的工作流程。
+- **fork 來的 PR**（v0.6，審查 r7 4.5）[H]：fork 的程式碼是不可信輸入，可能刻意寫進對審查模型的提示注入，也可能讓 CI 憑證外流。Lane A 對 fork PR 只跑確定性的 W0、W1、secrets 與套件存在性檢查，**不呼叫任何 LLM**，結果標為「不可信來源」；CI 不提供模型 API 金鑰給 fork PR 的工作流程。v0.7（審查 r8 M6）：Lane A run 以 `pr_origin`（`same_repo`／`fork`）宣告來源；`fork` 的 run 沒有裁決、叢集與 advisories，而且其他 run 的 `lane_a_advisories` 只能引用 `same_repo` 的 Lane A 叢集（`E-RUN-LANE-A`）。
 - **Lane A 的結果只有參考性**：單一家族的發現項最高只能是 `UNCORROBORATED`（05 R9），永遠不會進入 `CONFIRMED_*`，也不計入下一個 Lane B run 的 `independent_families`；它們會被帶入同一 repo 的下一個 Lane B run，作為額外輸入（`lane_a_advisories`）。Lane A 的模型必須在 G0a 的允許清單中；Lane A 也要先跑 W0，沒有遮罩對照表就不送任何 diff 給 LLM。
 - **排程與合併觸發的 Lane B**：只自動執行 W0 與 W0.5 的草稿（v0.6，審查 r7：與 [02 §1.5](02-methodology.md#15-自動觸發與發起者) 一致；v0.5 這裡寫 W0–W3，會讓沒有人認領的 run 先把切片送給多家族 LLM），紀錄發起者是 `run_owner`；在 G1 決定、W4 或任何 B 節點之前，必須有人認領（`claim_run`）。
 - CI 中的 GitHub Actions 鎖 commit SHA，binary 用 cosign 驗證；Trivy CVE-2026-33634 的官方建議是鎖 SHA、cosign 驗證、輪替 secrets [V][E:whitebox-13]；本設計再加上「掃描器在沒有 CI secrets 的環境中執行」[H：設計推論]。

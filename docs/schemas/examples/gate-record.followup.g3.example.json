@@ -1,0 +1,59 @@
+{
+  "gate_record_id": "GR-G3-0002",
+  "gate": "G3",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-10-07-001",
+  "round": 1,
+  "artifact": {
+    "kind": "threat_model",
+    "sha256": "sha256:348c5e807e303deae7615d3f08d1042ce3f91424cd7fe7e6687eb17f10c3535c"
+  },
+  "job_id": null,
+  "g4_gate_record_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "erin",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84"
+    },
+    {
+      "person_id": "frank",
+      "role": "app_owner",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "T-012",
+      "item_sha256": "sha256:79cf9db22cad2d79238fa46833c9076d0770f16fe48cd546d72810e5fc76ef4d",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "重測 TC-012-01：威脅內容未變，沿用 run-2026-09-23-001 的 G3 核准",
+      "carried_from": {
+        "run_id": "run-2026-09-23-001",
+        "gate_record_id": "GR-G3-0001",
+        "item_sha256": "sha256:79cf9db22cad2d79238fa46833c9076d0770f16fe48cd546d72810e5fc76ef4d"
+      }
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-07T10:06:00+08:00",
+  "timestamp": "2026-10-07T10:20:00+08:00",
+  "signatures": [
+    {
+      "signer": "erin",
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
+      "alg": "ed25519",
+      "value": "mVmaGzUXRsYK4Og7EmquOWDQYsZPh3GMTyVppHuS8ZiVLu2x5/q/1maQ3QLanLAGHYxAuumG9jR+tj7+iAoHBA=="
+    },
+    {
+      "signer": "frank",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
+      "alg": "ed25519",
+      "value": "7Py6D5SPzBH+Sd2izZ0JJ2WmheU+ni13RH4psHMPGV2OiRPl8TR9Ijci9Z1V4Z7WtOpL5fVbuIRBbZggXck2DQ=="
+    }
+  ]
+}

@@ -140,6 +140,30 @@ class Index:
     def lineage_roots(self, lineages) -> set:
         return {self.lineage_root(x) for x in lineages or []}
 
+    def lineage_cycles(self) -> list[list[str]]:
+        """v0.7 (review r8, external review 3): the derived_from cycles of models.yaml (A -> B -> A). lineage_root stops
+        where a cycle closes, so two mutually derived lineages got two different roots and verified each other;
+        E-MODEL-LINEAGE rejects the registry instead."""
+        parent = {m.get("lineage"): m.get("derived_from") for m in self.models.values()
+                  if isinstance(m, dict) and isinstance(m.get("derived_from"), str)}
+        cycles, done = [], set()
+        for start in parent:
+            path, cur = [], start
+            while cur in parent and cur not in path and cur not in done:
+                path.append(cur)
+                cur = parent[cur]
+            if cur in path:
+                cyc = path[path.index(cur):]
+                cycles.append(cyc)
+                done.update(cyc)
+            done.update(path)
+        return cycles
+
+    def root_of_agent(self, agent_id):
+        """The base lineage of the model an agents.yaml entry runs (None when unresolved)."""
+        m = self.model_of_agent(agent_id)
+        return self.lineage_root(m.get("lineage")) if isinstance(m, dict) and isinstance(m.get("lineage"), str) else None
+
     def calibrated_setup_problem(self, model_key, run_id) -> str | None:
         """v0.6 (review r7 3.6, docs/05 §5.8): the weights hold only for the model version and verifier prompt they
         were measured with. The calibration's config.models entry must name the model's current version (the last
@@ -234,16 +258,106 @@ def has_supporting_evidence(f: dict) -> bool:
 def independent_families(ix: Index, cluster: dict) -> list[str]:
     """docs/05 §4.1 (D14): families that contributed a member in the first round of this run, reported by an
     agents.yaml `reviewer` (Lane A advisories and CMD-2 extra rounds do not count), whose finding has at least
-    one grounded evidence item (MATCHED / MATCHED_SHIFTED; UNVERIFIED and NOT_CHECKED-only findings do not count). Sorted."""
-    fams = set()
+    one grounded evidence item (MATCHED / MATCHED_SHIFTED; UNVERIFIED and NOT_CHECKED-only findings do not count). Sorted.
+    v0.7 (review r8, external review 3): two families whose models share a base lineage (models.yaml derived_from) are
+    one source: a fine-tune of the reporter's base inherits its blind spots. Of each base lineage the first family in
+    sorted order is kept, so len() is the number of independent base lineages; the verifier pool, the Result Analyst
+    and diversity (R8) judge independence on the same roots."""
+    fams = {}
     for fid in cluster.get("member_finding_ids") or []:
         f = ix.finding(fid)
         rep = (f or {}).get("reporter") or {}
         a = ix.agents.get(rep.get("agent_id")) if isinstance(rep.get("agent_id"), str) else None
         if (f and rep.get("round") == 1 and isinstance(a, dict) and a.get("role") == "reviewer"
-                and f.get("run_id") == cluster.get("run_id") and has_supporting_evidence(f)):
-            fams.add(rep.get("family"))
-    return sorted(f for f in fams if isinstance(f, str))
+                and f.get("run_id") == cluster.get("run_id") and has_supporting_evidence(f) and isinstance(rep.get("family"), str)):
+            root = ix.root_of_agent(rep.get("agent_id")) or ix.lineage_root(rep.get("lineage"))
+            fams.setdefault(root, set()).add(rep.get("family"))
+    return sorted(min(fs) for fs in fams.values())
+
+
+RUBRIC_BASE = {"authz": 3, "authn": 3, "injection": 3, "secrets": 3, "llm_specific": 3, "deserialization": 3,
+               "ssrf": 2, "path_traversal": 2, "crypto": 2, "config": 2, "other": 1}
+RUBRIC_LEVELS = {4: "critical", 3: "high", 2: "medium", 1: "low", 0: "info"}
+
+
+def rubric_inputs(ix: Index, cluster: dict) -> dict:
+    """docs/08 §11.17: the four rubric inputs of a cluster, resolved from the run's inventory, merged DFD and G1
+    data classification; never from a finding. An input the bundle cannot resolve is None (reachability "unknown",
+    which the rubric treats as internet), and rubric_severity never lets an unresolved input lower the score.
+    v0.7 (review r8 F5): v0.4-v0.6 documented the rubric but routed G2 on the reviewers' self-reported finding.severity."""
+    rid, loc = cluster.get("run_id"), cluster.get("canonical_location") or {}
+    inv = ix.first("inventory", run_id=rid)
+    inv = inv.data if inv else {}
+    dfd = ix.first("dfd", run_id=rid, viewpoint="merged")
+    els = [e for e in (dfd.data.get("elements") if dfd else []) or [] if isinstance(e, dict)]
+    by_id = {e.get("element_id"): e for e in els}
+    # 1. the endpoints at the location (inventory), and the DFD processes they belong to
+    eps = [e for e in inv.get("endpoints") or [] if isinstance(e, dict)]
+    if cluster.get("origin") == "black_box":
+        ep = loc.get("endpoint") or {}
+        mine = [e for e in eps if e.get("method") == ep.get("method") and e.get("path") == ep.get("path_template")]
+    else:
+        mine = [e for e in eps if e.get("file") == loc.get("file")]
+    refs = {f"endpoint:{e.get('method')} {e.get('path')}" for e in mine} | ({f"code:{loc.get('file')}"} if loc.get("file") else set())
+    procs = {e.get("element_id") for e in els if e.get("type") == "process"
+             and any(r in refs or any(r.startswith(x + ":") for x in refs) for r in e.get("evidence_refs") or [])}
+    # 2. the data stores those processes read or write -> inventory tables -> G1 data classification
+    tables = set()
+    sym = str(loc.get("symbol") or "")
+    if cluster.get("origin") != "black_box" and sym.startswith("public."):
+        tables.add(sym.split(".", 1)[1])
+    inv_tables = [t for t in (inv.get("db") or {}).get("tables") or [] if isinstance(t, dict)]
+    for e in els:
+        if e.get("type") == "data_flow" and (e.get("from") in procs or e.get("to") in procs):
+            store = by_id.get(e.get("to") if e.get("from") in procs else e.get("from")) or {}
+            for r in store.get("evidence_refs") or [] if store.get("type") == "data_store" else []:
+                parts = str(r).split("/")
+                if parts[:2] == ["inventory:", "db"] and parts[2:3] == ["tables"] and parts[3:4] and parts[3].isdigit() \
+                        and int(parts[3]) < len(inv_tables):
+                    tables.add(inv_tables[int(parts[3])].get("name"))
+    levels, pii = [], False
+    for dc in (ix.b.data("invariants") or {}).get("data_classification") or []:
+        if isinstance(dc, dict) and any(str(f).split(".")[0] in tables for f in dc.get("fields") or []):
+            levels.append(dc.get("level"))
+            pii = pii or dc.get("pii") is True
+    order = ["restricted", "confidential", "internal", "public"]
+    data = next((lv for lv in order if lv in levels), None) if levels else None
+    # 3. reachability: a flow into the process that crosses a network boundary from outside
+    inbound = [e for e in els if e.get("type") == "data_flow" and e.get("to") in procs]
+    if any(any((by_id.get(b) or {}).get("kind") == "network" for b in f.get("crosses") or []) for f in inbound):
+        reach = "internet"
+    elif procs and inbound:
+        reach = "internal"
+    else:
+        reach = "unknown"
+    # 4. authentication: any anonymous endpoint -> none; every endpoint authenticated -> any_user
+    if not mine:
+        auth = None
+    elif any(e.get("auth_required") is not True for e in mine):
+        auth = "none"
+    else:
+        auth = "any_user"
+    return {"bucket": cluster.get("cwe_bucket"), "data": data, "pii": pii, "reachability": reach, "auth": auth}
+
+
+def rubric_severity(ix: Index, cluster: dict) -> str:
+    """docs/08 §11.17 severity rubric: base score by CWE bucket, +1 restricted / confidential / PII data (-1 public),
+    -1 internal-only reachability (unknown counts as internet), +1 anonymous (-1 privileged), clamped to 0..4.
+    An input the bundle cannot resolve never lowers the score: unknown data and a location without endpoints
+    (no authentication requirement to read) add nothing; unknown reachability is internet."""
+    x = rubric_inputs(ix, cluster)
+    score = RUBRIC_BASE.get(x["bucket"], 1)
+    if x["data"] in ("restricted", "confidential") or x["pii"]:
+        score += 1
+    elif x["data"] == "public":
+        score -= 1
+    if x["reachability"] == "internal":
+        score -= 1
+    if x["auth"] == "none":
+        score += 1
+    elif x["auth"] == "privileged":
+        score -= 1
+    return RUBRIC_LEVELS[max(0, min(4, score))]
 
 
 def slice_identity(files, redaction_map_sha256, prompt_template_sha256) -> str:
@@ -312,16 +426,48 @@ def positive_control_value(tc: dict, tr: dict) -> bool | None:
 
 
 PROBABILISTIC_TOOLS = ("promptfoo", "pyrit")                  # LLM test harnesses: a sampled target, not a fixed function
+LLM_TAXONOMY_SCHEMES = ("owasp-llm", "owasp-asi")             # a threat in these taxonomies targets a sampled component
 
 
-def is_probabilistic(tc: dict) -> bool:
-    """v0.6 (review r7 3.3): a test is probabilistic because of what it runs against, not because of the n it declares.
-    An LLM harness adapter, a multi-turn LLM test, or a testcase that records the target model is probabilistic. v0.5
-    read `trials.n > 1`, so an LLM test declaring n = 1 was treated as deterministic and one clean trial was a qualified
-    PASS. Such a test must also declare n >= pass_min_effective (E-TC-TRIALS)."""
+def llm_threat(ix: Index | None, tc: dict) -> bool:
+    """v0.7 (review r8, external review 2): the testcase's threat targets an LLM component: its taxonomy is an LLM one
+    (owasp-llm / owasp-asi, any version), or its source cluster is in the llm_specific bucket."""
+    th = ix.first("threat", threat_id=tc.get("threat_id")) if ix is not None and isinstance(tc.get("threat_id"), str) else None
+    if th is None:
+        return False
+    schemes = {str(x.get("scheme") or "").split("@")[0] for x in th.data.get("taxonomy") or [] if isinstance(x, dict)}
+    if schemes & set(LLM_TAXONOMY_SCHEMES) or th.data.get("cwe_bucket") == "llm_specific":
+        return True
+    src = ix.first("cluster", cluster_id=th.data.get("source_cluster_id")) if isinstance(th.data.get("source_cluster_id"), str) else None
+    return src is not None and src.data.get("cwe_bucket") == "llm_specific"
+
+
+def probabilistic_signals(ix: Index | None, tc: dict) -> list[str]:
+    """Why a testcase is probabilistic (empty: deterministic). v0.7 (review r8, external review 2): the target decides,
+    not the tool: an HTTP adapter can drive an LLM feature as well as promptfoo can, so the threat's taxonomy / bucket
+    and the declared sampling contract (`trials.sampling: sampled`) count too; v0.6 looked only at the adapter, multi_turn
+    and the target_model record, and an LLM test re-bound to playwright:api with n = 1 passed as deterministic."""
     adapter = str((tc.get("tool_binding") or {}).get("adapter") or "")
-    return (adapter.split(":")[0] in PROBABILISTIC_TOOLS or tc.get("multi_turn") is True
-            or "target_model" in ((tc.get("trials") or {}).get("record") or []))
+    trials = tc.get("trials") or {}
+    out = []
+    if adapter.split(":")[0] in PROBABILISTIC_TOOLS:
+        out.append(f"adapter {adapter}")
+    if tc.get("multi_turn") is True:
+        out.append("multi_turn")
+    if "target_model" in (trials.get("record") or []):
+        out.append("records target_model")
+    if trials.get("sampling") == "sampled":
+        out.append("trials.sampling sampled")
+    if llm_threat(ix, tc):
+        out.append("LLM threat (taxonomy / llm_specific bucket)")
+    return out
+
+
+def is_probabilistic(tc: dict, ix: Index | None = None) -> bool:
+    """v0.6 (review r7 3.3): a test is probabilistic because of what it runs against, not because of the n it declares.
+    v0.7 (review r8, external review 2): see probabilistic_signals; without an Index only the testcase's own signals are
+    seen, so callers that have one pass it. Such a test must also declare n >= pass_min_effective (E-TC-TRIALS)."""
+    return bool(probabilistic_signals(ix, tc))
 
 
 def pass_min_effective(ix: "Index", tc: dict) -> int:
@@ -439,12 +585,14 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     """
     tc_doc = ix.testcase_for(tr)
     tc = tc_doc.data if tc_doc else {}
-    probabilistic = is_probabilistic(tc)
+    probabilistic = is_probabilistic(tc, ix)
     got = tr.get("trials") or {}
     n, k = got.get("n", 0), got.get("k", 0)
     outcome = tr.get("outcome")
     if outcome not in ("FAIL", "PASS"):
         return "E_inc", f"outcome {outcome}"
+    if not execution_anchored(ix, tr):                 # v0.7 (review r8 F2a): a result nothing executed is no evidence
+        return "E_inc", "no anchored sandbox_job_end with this outcome names the result's job (it never ran)"
     eligible, disagreement = analyst_check(ix, tr, cluster)
     if outcome == "FAIL":
         ok, why = fail_reproduced(tc, tr)
@@ -472,6 +620,43 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     if eligible:
         return "E_pass", "qualified PASS, cross-family analyst"
     return "E_inc", disagreement or "no pre-registered interpretation or eligible analyst"
+
+
+def pinned_job_end(ix: Index, tr: dict) -> dict | None:
+    """v0.7 (review r8 F2a / F2b): the one sandbox_job_end that executed this result: in the anchored part of its run's
+    audit log, same outcome, and the three execution_pins equal the bundle's testcase / artifact / result hashes.
+    None when there is no such event, more than one, or the pins differ. v0.6 reconciled only the last result named
+    for a job, and only for jobs whose status said they ran, so a result on a PENDING / INTERRUPTED job (or a second
+    result for an executed job) was taken as evidence without any execution."""
+    tc = ix.testcase_for(tr)
+    audit = ix.audit_for(tr.get("run_id"))
+    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict)]
+    ends = [e for e in evs if job_end_of(e, tr)]
+    if tc is None or len(ends) != 1:
+        return None
+    e, p = ends[0], ends[0].get("payload") or {}
+    anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
+    ok = (type(e.get("seq")) is int and e.get("seq") < anchored and p.get("outcome") == tr.get("outcome")
+          and all(p.get(k) == v for k, v in execution_pins(tc.data, tr).items()))
+    return e if ok else None
+
+
+def execution_pinned(ix: Index, tr: dict) -> bool:
+    return pinned_job_end(ix, tr) is not None
+
+
+def execution_anchored(ix: Index, tr: dict) -> bool:
+    """v0.7 (review r8 F2a): exactly one sandbox_job_end in the anchored part of the run's log names this result's job
+    (B4) or result (W4) with the same outcome. The evidence class needs an execution; whether the executor ran this
+    exact testcase / result is E-JOB-AUDIT's (pinned_job_end), which fails the bundle on a mismatch."""
+    audit = ix.audit_for(tr.get("run_id"))
+    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict)]
+    ends = [e for e in evs if job_end_of(e, tr)]
+    if len(ends) != 1:
+        return False
+    e = ends[0]
+    anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
+    return type(e.get("seq")) is int and e.get("seq") < anchored and (e.get("payload") or {}).get("outcome") == tr.get("outcome")
 
 
 def job_end_of(e, tr: dict) -> bool:
@@ -743,6 +928,7 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
         for d in ix.docs("cluster"):
             with guard(d):
                 exp(d, ["fingerprint"], cluster_fingerprint(d.data), "sha256(JCS(fingerprint key))")
+                exp(d, ["severity"], rubric_severity(ix, d.data), "docs/08 §11.17 severity rubric (E-CLUSTER-SEVERITY)")
         for d in ix.docs("testresult"):
             with guard(d):
                 tc = ix.testcase_for(d.data)
@@ -819,9 +1005,11 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
             if cls == "E_proof":
                 tr = next(r for r, c in zip(results, classes) if c == "E_proof")
                 tc = ix.testcase_for(tr)
-                probabilistic = tc is not None and (tc.data.get("trials") or {}).get("n", 1) > 1
+                # v0.7 (review r8 F7): is_probabilistic, not n > 1, and only {n, k} (the verdict schema has no n_effective)
+                probabilistic = tc is not None and is_probabilistic(tc.data, ix)
+                got = tr.get("trials") or {}
                 proof = {"testcase_id": tr.get("testcase_id"), "result_ref": content_hash(tr),
-                         "trials": dict(tr.get("trials")) if probabilistic else None,
+                         "trials": {"n": got.get("n"), "k": got.get("k")} if probabilistic else None,
                          "interpretation_confirmed_by": tr.get("interpreted_by")}
             exp(d, ["executable_proof"], proof, "from the E_proof testresult")
 

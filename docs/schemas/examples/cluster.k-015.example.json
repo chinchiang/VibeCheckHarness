@@ -35,5 +35,6 @@
   ],
   "fingerprint": "sha256:ea3d9938ea428e77ffc1ada2f924c3cd49d76b2f1264bcdf33d88c4f8aff008a",
   "baseline_state": null,
-  "reopened": false
+  "reopened": false,
+  "severity": "critical"
 }

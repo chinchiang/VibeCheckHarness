@@ -61,14 +61,16 @@ def test_reading_a_seed_is_not_a_write(b):
 
 # ================================================================ replays in the budget
 def test_the_budget_counts_replays(b):
-    assert safety.request_budget(doc(b, LLM).data) == 250 + 20 * 5           # 20 replays of one 5-request trial
+    # v0.7 (review r8, external review 1): a replay re-runs one trial, bounded by max_requests_per_trial (4 for the LLM
+    # test; the deterministic IDOR test's one trial is its whole job)
+    assert safety.request_budget(doc(b, LLM).data) == 250 + 20 * 4
     assert safety.request_budget(doc(b, IDOR).data) == 10 + 2 * 10
 
 
 def test_replays_can_raise_the_class(b):
     """400 requests fit the S1 cap of 500; with two full replays (n = 1) the job may send 1200."""
     tc = copy.deepcopy(doc(b, IDOR).data)
-    tc["rate_limit"]["max_requests"] = 400
+    tc["rate_limit"]["max_requests"] = tc["rate_limit"]["max_requests_per_trial"] = 400      # n = 1: the trial is the job
     lv, trace = level(b, tc)
     assert lv == "S2" and any("replays = 1200" in t for t in trace)
     tc["trials"]["replay_n"] = 0

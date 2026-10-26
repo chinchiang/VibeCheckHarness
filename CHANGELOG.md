@@ -2,6 +2,30 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
+## 第八輪審查（2026-10-26）
+
+依 [2026-10-26 設計審查（第八輪）](docs/evidence/review-2026-10-26-r8.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（6 項，全部重現）。設計文件仍為 v0.5 的版本號；程式與 schema 的註解以 v0.7 標示本輪變更。
+
+### validator 繞過與 run 的結構（第 1、2 組，含外部審查 1～4）
+- **不需要金鑰的繞過**：
+  - 每個 B4 結果的 job 必須在已執行的狀態，每個 job 恰有一份結果，每份結果都要有恰一筆已錨定、outcome 與三個 hash 相符的 `sandbox_job_end`；`classify_result` 對沒有已錨定執行事件的結果一律 `E_inc`（`E-JOB-AUDIT`；審查 r8 F2a／F2b：v0.6 只核對 SKIPPED 與已執行狀態的 job，而且同一 job 只看最後一份結果，所以掛在 PENDING job 上的結果能把 K-011 從 UNCORROBORATED 變成 CONFIRMED_EXECUTABLE）。
+  - G2 路由改以 W3 裁決與 validator 推導的 rubric 嚴重度判斷；新增 `cluster.severity`（必填，`E-CLUSTER-SEVERITY`，`derive.rubric_severity` 依 08 §11.17）；範例的 K-015、K-016 因此補上 G2 決定（F5）。
+  - 機率型 `E_proof` 的 `trials` 只複製 `{n, k}`，並改用 `is_probabilistic`（F7；v0.6 複製 `n_effective`，每個 LLM 測試的 CONFIRMED_EXECUTABLE 都會是 `E-SCHEMA`）。
+  - 重播預算改用 `rate_limit.max_requests_per_trial`（機率型測試必填，`E-TC-RATE`）：`max_requests ＋ replay_n × max_requests_per_trial`，沒有宣告時每次重播以整個 job 計（外部 1）。
+  - 機率型由受測功能判定：LLM 威脅（taxonomy owasp-llm／owasp-asi，或來源叢集在 `llm_specific` 桶）、`trials.sampling: sampled`，加上原本的 adapter／`multi_turn`／`target_model` 訊號；有訊號時不能宣告 `deterministic`（`E-TC-TRIALS`、`derive.probabilistic_signals`；外部 2：改綁 `playwright:api`、n＝1 的 LLM 測試原本被當成確定性測試）。
+  - 獨立性以血統的根計算：`independent_families` 與 R8 的多樣性都用 `lineage_root`，`derived_from` 的循環與指向不存在血統的宣告由 `E-MODEL-LINEAGE` 拒絕（外部 3）。
+  - 校準檔的計數 0 ≤ k ≤ n（`E-CAL-COUNT`；外部 4），θ 必須是 ≥ 0.1 的有限數（`E-CAL-THETA`）；規則輸入的 `weighted_valid` 改為重算（`derive.vote_terms`），不讀裁決自填的旗標。
+- **run 的結構（需要 Z3 金鑰才能偽造，但流程錯誤也抓得到）**：
+  - `E-GATE-ORDER`：各關卡第一次決定的收件時間依 G0a < G1 < G2 < G0b < G3 < G4 < G5；B 階段事件都在 VERIFIED 的 G0b 之後且中間沒有 VERIFY_FAILED；W4 在 G2 之後、G0b 之前（F1、F3）。
+  - `E-RUN-CLAIM`：Lane B run 的第一個 G1 決定、W4 或 B 階段事件之前必須有人簽署的 `initiator_claim`（F4）。
+  - `E-RUN-G3`：到 G4 的 run，其測試案例的威脅都在本 run 的 G3 有 accept（可 `carried_from`）；威脅的 `review` 指向來源紀錄（H3）。範例的跟進 run 補上 `GR-G3-0002`。
+  - `regression` run 比照 `followup` 允許 `parent_run_id`／`reuse`（`E-RUN-FOLLOWUP`；H2）。
+  - `E-SPOT-CHECK`：抽查者是 `security_reviewer`、不是該紀錄的核准者或發起者，`item_id` 是同一委任的關卡紀錄（M2）。
+  - Lane A run 必填 `pr_origin`；fork 的 PR 沒有裁決、叢集與 advisories，其他 run 的 `lane_a_advisories` 只能引用 same_repo 的 Lane A 叢集（`E-RUN-LANE-A`；M6）。
+- schema：testcase `rate_limit.max_requests_per_trial`、`trials.sampling`；cluster `severity`；run `pr_origin`。
+- 文件：02 §1.5、§1.6、W3；03 §12；04 §5；05 §4；06 §1.1；08 §11.7、§11.17；schemas README 的錯誤碼表。
+- 新增 `tests/test_v07_r8_validator.py`（55 個測試，48 個在 `e5fa57d` 上失敗）。
+
 ## v0.5（2026-10-25）
 
 依 [2026-10-25 設計審查](docs/evidence/review-2026-10-25.md)。v0.5 分支（`07658d7`）是從 v0.3 分出的，直接合併會還原 v0.4；本版把它的內容在 v0.4 上重做（審查紀錄 §3、§7）。工具包本體仍未實作；新增的契約大多只有規格，交付時點見 [07 §1.4](docs/07-roadmap.md#14-v05-的前置工作與驗收順序-h)。第 2 組改變了 R4 與合格票的語意，`rule_version` 升為 `05-v0.5`；R10 保留 v0.4 的語意（使用者確認）。

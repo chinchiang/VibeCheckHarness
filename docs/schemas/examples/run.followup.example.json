@@ -104,15 +104,15 @@
   "b1_merged_ref": null,
   "b1_diff_ref": null,
   "taxonomy_plan_id": null,
-  "threat_model_ref": null,
+  "threat_model_ref": "sha256:348c5e807e303deae7615d3f08d1042ce3f91424cd7fe7e6687eb17f10c3535c",
   "b1_diff_dispositions_ref": null,
   "g3_round": 0,
-  "testplan_ref": "sha256:31b02c753a18a2d5834f0a40803b175a810e2e591978a01f85dd80f7e819b86c",
+  "testplan_ref": "sha256:fedf098de9d6e878229462390a339cf3b8bb6df486033b161949b48e9e7779ba",
   "testcase_ids": [
     "TC-012-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:67253dfb9f91f7e385ee3d198bddd66327e5d1e35c5a04f80b5ec7fc94695880"
+    "TC-012-01": "sha256:dee7ee0db171662f9a282407e4ed6ea22925e6ad555142a6e7a8c6eff7ce6ae5"
   },
   "g4_round": 1,
   "approved_testcase_ids": [],
@@ -147,11 +147,21 @@
       "decided_at": "2026-10-07T10:02:00+08:00"
     },
     {
+      "gate": "G3",
+      "gate_record_id": "GR-G3-0002",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:348c5e807e303deae7615d3f08d1042ce3f91424cd7fe7e6687eb17f10c3535c",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:06:00+08:00",
+      "decided_at": "2026-10-07T10:20:00+08:00"
+    },
+    {
       "gate": "G4",
       "gate_record_id": null,
       "outcome": null,
       "round": 1,
-      "subject_hash": "sha256:31b02c753a18a2d5834f0a40803b175a810e2e591978a01f85dd80f7e819b86c",
+      "subject_hash": "sha256:fedf098de9d6e878229462390a339cf3b8bb6df486033b161949b48e9e7779ba",
       "job_id": null,
       "opened_at": "2026-10-07T10:30:00+08:00",
       "decided_at": null
@@ -204,8 +214,13 @@
     },
     {
       "seq": 14,
-      "line_sha256": "sha256:c5fe357e3f1e938db475e29c91464dce9a08f2eda539e7ca3139fb45a2c55ec2"
+      "line_sha256": "sha256:c2b7db78bdbe9ec5a3c3debb40ebb3d1d5cbd15c18800547487cd49ade228c37"
+    },
+    {
+      "seq": 17,
+      "line_sha256": "sha256:ae9010a833dd730a98564cff574adf4122f020ea68ddb760bdd178684906ba66"
     }
   ],
-  "errors": []
+  "errors": [],
+  "pr_origin": null
 }

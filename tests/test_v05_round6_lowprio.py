@@ -160,7 +160,7 @@ def test_s1_floor_follows_is_mutation(b):
 
 def test_white_box_only_bundle_needs_no_roe(b):
     black = ("roe.yaml", "testcase.", "testresult.", "threat.", "gate-record.g0b", "gate-record.followup.g0b",
-             "gate-record.g3", "gate-record.g4", "gate-record.g5")
+             "gate-record.g3", "gate-record.followup.g3", "gate-record.g4", "gate-record.g5")
     b.docs[:] = [d for d in b.docs if not any(x in d.path for x in black)]
     for d in b.docs:
         if d.kind == "run":

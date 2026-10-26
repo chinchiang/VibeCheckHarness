@@ -72,7 +72,8 @@
   "safety_class_computed": "S1",
   "rate_limit": {
     "requests_per_second": 2,
-    "max_requests": 10
+    "max_requests": 10,
+    "max_requests_per_trial": 10
   },
   "request_allowlist": [
     {
@@ -138,7 +139,8 @@
     ],
     "fail_k_min": 1,
     "replay_n": 2,
-    "multi_turn_max_turns": null
+    "multi_turn_max_turns": null,
+    "sampling": null
   },
   "multi_turn": false,
   "script_turns": null,

@@ -212,8 +212,10 @@ flowchart TD
 
 ### 1.5 自動觸發與發起者
 - 排程或合併到主幹觸發的 Lane B run，只能自動執行 **W0 與 W0.5 的草稿**：沒有網路出站（Z2 只到鏡像）、不執行受測程式。v0.5 起 G1 在 W1 之前一律由本 run 的核准者簽署（沿用的項目也要，§1.6），所以自動觸發的 run 在 G1 前停在 `claim_run`；v0.4 以前「沿用上一版規格時可自動跑到 W3」的路徑已移除。紀錄上的發起者是委任設定指定的人類 **`run_owner`** [H]。
-- 在做任何 **G1 決定**、進入 **W4** 或任何 **B 階段節點**之前，必須有一位人類以 `vibecheck run claim` **認領**該 run（稽核事件 `initiator_claim`，附簽章）。狀態機中是 `claim_run` 節點（interrupt）。
+- 在做任何 **G1 決定**、進入 **W4** 或任何 **B 階段節點**之前，必須有一位人類以 `vibecheck run claim` **認領**該 run（稽核事件 `initiator_claim`，附簽章）。狀態機中是 `claim_run` 節點（interrupt）。v0.7（審查 r8 F4）：validator 以收件時間強制——Lane B run 的第一個 G1 決定、W4 或 B 階段事件之前，稽核紀錄必須有人簽署的 `initiator_claim`（`E-RUN-CLAIM`）；v0.6 只檢查認領者在 `run.initiators` 中，整個事件拿掉也驗得過。
 - 認領者成為發起者；**G5 核准者 ≠ 發起者**，G4 核准者也計入發起者集合。
+
+**關卡的順序由稽核紀錄的收件時間強制**（v0.7，審查 r8 F1／F3；`E-GATE-ORDER`）[H]：各關卡第一次決定依 G0a < G1 < G2 < G0b < G3 < G4 < G5；G0a 決定之後的每個事件都在 `VERIFIED` 的 G0a 之後；每個 B 階段事件（B0～B6 節點、G3／G4／G5 的決定、B4 的 job）都在 `VERIFIED` 的 G0b 之後，而且中間沒有 `VERIFY_FAILED`；有 G3／G4／G5 紀錄或 job 的 run 一定有 `VERIFIED` 的 G0b；W4 在 G2 決定之後、G0b 之前。v0.6 只檢查 run 自己列的 `gate_records` 依自填的 `opened_at` 排序，所以沒有 G0b、G0b 是 `VERIFY_FAILED`、G4 早於 G3 的稽核紀錄都驗得過（同時握有 Z1 與 Z3 金鑰的人仍可整條重寫，[03 §13](03-system-architecture.md#13-可觀測性與稽核) 的限制不變；這些檢查擋的是流程錯誤與只握有其中一把金鑰的人）。
 
 ### 1.6 執行種類與後續執行
 
@@ -227,6 +229,7 @@ flowchart TD
 - 每個 run 有 `parent_run_id`（`initial` 可為空）與 `reuse` 清單：以 content hash 引用上一個 run 的產物。只有當產物的**所有輸入 hash**（repo commit 或切片 `slice_id`、設定、模型 ID 與版本）都相同時才能沿用，否則重算 [H]。
 - **`regression` run 如何帶入叢集**（v0.6，審查 r7 4.5）[H]：草稿由 CMD-5 依上一個 run 的確認項建立，`reuse[]` 以 content hash 引用那些叢集與它們的最新裁決；W0／W1 在新 commit 上重算，W3 不重審帶入的叢集，而是由新增的回歸節點 `W4_regression` 對每個帶入的叢集跑它的 W4 回歸測試（與 B 階段對應的測試案例）。測試 PASS 且有正對照 → 叢集標為「已修正」；FAIL → 維持確認並列入報告；沒有回歸測試的帶入叢集一律列為「未驗證修正」。帶入的叢集在新 run 的 `cluster_ids` 中保留原 ID，`baseline_state` 依 `baseline_run_id` 計算。
 - **ROE 在 B 階段入口失效**（v0.6，審查 r7 4.5）：G0b 之後到 B1 之前，若 ROE 過期、被撤銷或簽署金鑰被撤銷，run 轉為 `SUSPENDED`（不是失敗），白箱產物保留；重新簽署 ROE 後，可以用新的 run（`followup`，`parent_run_id` 指向原 run、`reuse[]` 引用原 run 的 W5 產物）從 B 階段開始，不必重跑白箱。專用的「從上一個 run 的 W5 開始 B 階段」run kind 列為 [09](09-backlog.md) 待辦（BL-48），目前以 `followup`＋`reuse` 表達。
+- v0.7（審查 r8 H2、H3）：validator 對 `regression` run 的 `parent_run_id`／`reuse` 比照 `followup`（`E-RUN-FOLLOWUP`；v0.6 禁止）；到 G4 的 run，其 `testcase_ids` 每個測試案例的威脅都必須在**本 run** 的 G3 有 accept，沿用祖先 run 的核准要用 `carried_from`（`E-RUN-G3`）。範例的跟進 run 補上自己的 G3（`GR-G3-0002`，以 `carried_from` 沿用 T-012）；它在新的 commit 上重用 parent 的不變量與威脅模型 hash，因為這兩份產物的輸入是 G1 規格與 DFD／inventory 的 hash，不是 commit 本身（commit 不同時 W0／W1 重算，若 DFD 或 inventory 變了，hash 就不同、不能沿用）。
 - `followup`／`regression` run 另以 `baseline_run_id` 指定比較基準（通常就是 `parent_run_id`；`initial` 為 `null`）。W5 用它計算每個叢集的 `baseline_state`。
 - **跨 run 沿用核准：只限 G1／G3 中沒有變更的項目，而且逐項可驗證**（v0.5，[09 BL-21](09-backlog.md)）[H]：
   - 內容可以重用（`reuse[]` 以 content hash 引用上一個 run 的不變量、威脅模型）；授權只能以「逐項指出來源」的方式沿用。一個 run 只能列出自己的關卡紀錄：沿用的項目仍列在本 run 的新 GateRecord 中，由本 run 的合格核准者簽署整份紀錄。沿用只省下重審內容，不省下簽章。
@@ -464,7 +467,7 @@ flowchart TD
      - 輸出不合規 → 修復 ≤2 次 → 不加派。
   6. **G2 佇列**（加派結束後，由程式碼計算）[H]：
      - 所有 `DISPUTED` 叢集；
-     - 叢集的 rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)，由程式碼計算）為 `critical` 或 `high` 的 `UNCORROBORATED` 叢集。v0.4 起路由改用 rubric：v0.3 用成員自報的最高嚴重度，單一家族的 reviewer 自報 critical 就能把叢集送進 G2，自報 low 就能讓它跳過。rubric 在 W3 以 inventory、G1 規格與確定性 DFD 骨幹計算（可達性未知時視同 `internet`）；reviewer 自報的嚴重度照樣保存並在 G2 畫面並列。
+     - 叢集的 rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)，由程式碼計算）為 `critical` 或 `high` 的 `UNCORROBORATED` 叢集。v0.4 起路由改用 rubric：v0.3 用成員自報的最高嚴重度，單一家族的 reviewer 自報 critical 就能把叢集送進 G2，自報 low 就能讓它跳過。rubric 在 W3 以 inventory、G1 規格與確定性 DFD 骨幹計算（可達性未知時視同 `internet`）；reviewer 自報的嚴重度照樣保存並在 G2 畫面並列。v0.7（審查 r8 F5）：validator 自己推導 rubric 嚴重度並寫在 `cluster.severity`（`E-CLUSTER-SEVERITY`），`E-PIPELINE` 以 **W3 裁決**（G2 當時看到的版本）與這個值判斷哪些叢集必須有 G2 決定；v0.6 的檢查看的是 W4 重新裁決後的版本與成員自報的嚴重度，所以 W4 之後改判的叢集、或成員都自報 low 的叢集，跳過 G2 也驗得過。
      - **佇列上限與排序**（v0.4）[H]：每個 run 的 G2 佇列預設最多 30 項（`toolkit.yaml` 的 `gate_queues.g2_max_items`），依 rubric 嚴重度、再依 `DISPUTED` 優先排序；超出上限的項目不進 G2，照常成為種子威脅，在報告中列為「超出 G2 上限、未經人審」（report-manifest `over_cap_items`，`E-REPORT-QUEUE`）。G2 結束時逾時（未決）比例超過 50%（`gate_queues.g2_timeout_warn_ratio`） → 寫入 `gate_load_warning` 稽核事件並在報告首頁標示；這類未決項目另列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。
      - 其他 `UNCORROBORATED` 叢集不進 G2，直接成為種子威脅並在報告中列出。
      - `no_eligible_verifier` 的叢集（所有 verifier 家族都已回報，沒有人能驗證）通常是 `LIKELY`，不進 G2；它們成為種子威脅，由 W4 與 B 階段的測試確認（[05 §3](05-bias-calibration.md#3-設計規則)）。
