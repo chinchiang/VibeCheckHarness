@@ -144,6 +144,7 @@
   "script_turns": null,
   "strategy_template_sha256": null,
   "artifact_sha256": "sha256:391007bf87c869892bccfff6bce2239f19da9479f2e5b669f4fe317550e6d78f",
+  "expected_error_statuses": [],
   "access_cells": [
     {
       "role": "tenant_user",

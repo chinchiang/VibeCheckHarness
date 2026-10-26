@@ -23,7 +23,7 @@
 
 | 會做 | 不會做 |
 |---|---|
-| 測試**使用者自己擁有**、且基礎設施擁有者**書面授權**的程式碼與 staging 環境 | 測試正式環境、第三方系統、或無法證明所有權的主機 |
+| 測試**使用者自己擁有**、且基礎設施擁有者**書面授權**的程式碼與 staging 環境；共享平台（例如 `*.supabase.co`）上的目標要有平台專案證明加技術證明，否則只做 S0 的被動讀取（[06 §2.1](docs/06-security-legal-limitations.md#21-授權範圍)） | 測試正式環境、第三方系統、或無法證明所有權的主機 |
 | 以測試案例證明「安全需求沒有被滿足」（失敗的安全斷言） | exploit 開發、通用攻擊 payload 庫、破壞性測試（S3） |
 | 以程式碼強制 ROE（交戰規則）、範圍白名單、限速、人工關卡 | 只靠文件宣示的「請勿濫用」 |
 
@@ -132,7 +132,7 @@
 ```bash
 python -m pip install -r requirements.txt
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 1041 個測試，約 8–15 分鐘
+python -m pytest tests                 # 1056 個測試，約 8–15 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點

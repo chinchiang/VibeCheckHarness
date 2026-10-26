@@ -120,6 +120,33 @@ def sensitive_leaks(output: str, fields: list[dict]) -> list[str]:
     return hits
 
 
+def pii_stop_hits(hits: list[str], manifest, canaries=()) -> list[str]:
+    """v0.6 (review r7 4.2): the PII detector hits that stop a job. A hit that is a registered synthetic seed value
+    (seed manifest sensitive_fields, compared after the same normalisation as sensitive_leaks) or a planted canary is
+    the test working, not real personal data: a leakage test that finds the synthetic customer's phone number would
+    otherwise stop itself before its oracle ran. Every other hit still stops the job."""
+    registered = set()
+    for sd in ((manifest or {}).get("seeds") or {}).values() if isinstance(manifest, dict) else []:
+        for f in (sd.get("sensitive_fields") or []) if isinstance(sd, dict) else []:
+            registered.add(normalize_sensitive(str(f.get("value", ""))))
+    registered |= {normalize_sensitive(str(x)) for x in canaries}
+    registered.discard("")
+    return [h for h in hits if normalize_sensitive(h) not in registered]
+
+
+RUN_STOP_STATUSES = (429,)                       # plus every 5xx
+
+
+def counts_for_run_stop(status: int, tc: dict) -> bool:
+    """v0.6 (review r7 4.3): whether a response status counts toward the run-level 5xx / 429 stop conditions. A testcase
+    may declare (and G4 approves) the error statuses its probe is expected to provoke, e.g. a 500 from an injection
+    probe or 429s from a rate-limit test; those count only toward the job's own budget, so an expected error cannot
+    stop every other job of the run. Health checks and latency still apply to the whole run."""
+    if not (status in RUN_STOP_STATUSES or 500 <= status <= 599):
+        return False
+    return status not in set(tc.get("expected_error_statuses") or [])
+
+
 def normalize_for_match(path: str) -> str:
     """D1: the form an exclusion is compared against: percent-decode once, treat `\\` as `/` (v0.4: servers
     such as IIS and some Node routers do), strip `;params` from every segment, collapse `//`, resolve

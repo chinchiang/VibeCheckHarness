@@ -993,13 +993,13 @@ stateDiagram-v2
 
 | 條件 | 預設門檻 | 範圍 | 動作 |
 |---|---|---|---|
-| 5xx 比例 | > 5%（`max_5xx_ratio: 0.05`） | 目標 | run 停止 → `abort_handler` |
+| 5xx 比例 | > 5%（`max_5xx_ratio: 0.05`）；v0.6（審查 r7 4.3）：測試案例以 `expected_error_statuses` 宣告、經 G4 核准的預期錯誤（例如注入探測的 500、限流測試的 429）只計入該 job 的預算，不計入 run 層級的 5xx／429 條件（`safety.counts_for_run_stop`）；健康檢查與延遲仍適用於整個 run | 目標 | run 停止 → `abort_handler` |
 | 連續 5xx | ≥ 10 個 | 目標 | run 停止 |
 | p95 延遲 | > 3000 ms（`max_p95_latency_ms`），或 > 3 × `B4_preflight` 量到的基準 p95 | 目標 | run 停止 |
 | 連線錯誤或逾時比例 | > 10% | 目標 | run 停止 |
 | 目標回 429 | 60 秒內 ≥ 3 次 → 速率減半；持續 5 分鐘 | 目標 | 先降速，持續則 run 停止 |
 | 健康檢查（ROE 提供 `health_url` 時） | 連續 3 次失敗（每 30 秒一次） | 目標 | run 停止 |
-| 回應中偵測到 PII | 任一次高信心命中 | job | job 停止；B5 只用自架模型 |
+| 回應中偵測到 PII | 任一次高信心命中；v0.6（審查 r7 4.2）：seed manifest 登記的合成值（`sensitive_fields`）與我方 canary 不算（`safety.pii_stop_hits`），否則外洩類測試一找到合成客戶的電話就先把自己停掉 | job | job 停止；B5 只用自架模型 |
 | job 請求數 | 達到 `max_requests` | job | Scope Proxy 拒絕後續請求，job 結束 |
 | 越界請求（不在 job 白名單） | 單一 job ≥ 3 次被擋，或任何一次指向 ROE 以外的主機 | job | job 停止，產物標記為可疑並列入報告 |
 | 第三方接觸白名單以外的連線 | 任一次 | job | job 停止＋`policy_violation` 稽核事件 |
@@ -1063,7 +1063,7 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 | 測試前狀態擷取 | `oracle_capture(run_id, job_id, tables)`：在 job 執行前，用 **oracle 唯讀憑證**（不是快照憑證）擷取 `oracle_tables` 中相關資料列的 hash，存在 Z3，回傳 `before_ref`。S1 job 沒有 DB 快照，也能用這個方法做前後比對 |
 | 計數型 oracle | `oracle_count(query_id, params)`：只執行 **G4 核准**的參數化 `SELECT COUNT(*)` 查詢；v0.4 另有 `returns: row_hash`（每一列正規化內容的 sha256，只回傳 hash、不回傳值），用來偵測 PUT／PATCH 這類不改變列數的就地修改（查詢文字以產物 hash 綁定在測試案例中，參數只能是 seed manifest 中的 ID 或測試案例宣告的常數），只回傳整數。例如「工具呼叫紀錄表中沒有未確認的 `refund` 呼叫」（[04 §6](04-threat-to-testcase.md#6-完整範例) 範例 B）[H] |
 | 回傳 Z1 的內容 | 只回傳**比對結果**：每個資料列的 hash 是否改變、改變的欄位名稱與列數；**不回傳欄位值** |
-| 種子資料 | seed manifest（`seed-manifest.schema.json`）的 `seeds.<key>` 列出每個種子物件的 `id`、`table`、`owner_role` 與所屬資源的路徑樣板 `path_templates[]`，`reset` 記錄重置方式，`create_only_endpoints[]` 列出可建立新物件的端點（§7.1 寫入範圍規則）；有狀態改變的 S1 job 結束後、S2 還原後都依 manifest 重置。**生命週期**（v0.3，細節見 [08 §11.6](08-implementation-spec.md#116-種子資料生命週期)）：每個 run 有自己的命名空間前綴（`namespace`，例如 `vc-{run_id}-`）；建立種子本身是一個冪等的 S1 job（`seeding: {job_kind: S1_seed, idempotent: true}`），同樣經 Scope Proxy 執行、受 S1 的規則約束；LLM 機率型測試可設 `reseed_per_trial`，每次試驗前重建；run 結束時依 `teardown.method`（`delete_namespace`／`restore_snapshot`／`manual`）清除。範例 manifest 是 `vc-{run_id}-`、`restore_snapshot`、`reseed_per_trial: true`；這些生命週期欄位只由 schema 檢查形狀，`create_only_endpoints[]` 的目標必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。**重置失敗**：之後所有使用同一份 seed manifest 的 job 標 `SKIPPED`（`skip_reason: seed_reset_failed`），寫稽核事件 `seed_reset_failed`，列入 B6 未能測試清單；其他 job 繼續 [H] |
+| 種子資料 | seed manifest（`seed-manifest.schema.json`）的 `seeds.<key>` 列出每個種子物件的 `id`、`table`、`owner_role` 與所屬資源的路徑樣板 `path_templates[]`，`reset` 記錄重置方式，`create_only_endpoints[]` 列出可建立新物件的端點（§7.1 寫入範圍規則）；有狀態改變的 S1 job 結束後、S2 還原後都依 manifest 重置。**生命週期**（v0.3，細節見 [08 §11.6](08-implementation-spec.md#116-種子資料生命週期)）：每個 run 有自己的命名空間前綴（`namespace`，例如 `vc-{run_id}-`）；建立種子本身是一個冪等的 S1 job（`seeding: {job_kind: S1_seed, idempotent: true}`），同樣經 Scope Proxy 執行、受 S1 的規則約束；LLM 機率型測試可設 `reseed_per_trial`，每次試驗前重建；run 結束時依 `teardown.method`（`delete_namespace`／`restore_snapshot`／`manual`）清除。範例 manifest 是 `vc-{run_id}-`、`delete_namespace`（v0.4 起；整庫還原會回滾共用 staging 上其他人的資料）、`reseed_per_trial: true`；這些生命週期欄位只由 schema 檢查形狀，`create_only_endpoints[]` 的目標必須是 ROE 的 http 目標（`E-SEED-MANIFEST`）。**重置失敗**：之後所有使用同一份 seed manifest 的 job 標 `SKIPPED`（`skip_reason: seed_reset_failed`），寫稽核事件 `seed_reset_failed`，列入 B6 未能測試清單；其他 job 繼續 [H] |
 | 還原演練 | 「快照 → 修改一筆種子資料 → 還原 → 驗證 checksum」，結果寫成 `restore_drill` 稽核事件並存 `restore_drill_ref`。**每個 S2 job 開始前**，必須有一筆成功的 `restore_drill` 事件，且距今不超過 `toolkit.restore_drill_interval_days`（預設 7 天）；沒有就由 `B4_preflight` 先做一次演練。演練失敗 → 該 run 的所有 S2 job 略過 |
 | ROE 排除清單 | DB 目標的主機 ＝ `endpoint` 的 host 部分；`endpoint` 的格式必須是 `host:port` 或 `[IPv6]:port`，無法解析 → `E-ROE-DB-SCOPE`。比對前主機先正規化（去掉結尾的 `.`、大小寫摺疊、IDNA 轉換），正規化後不能在 `exclusions.hosts`（同樣正規化）中（精確比對，或符合 `*.` 前置萬用字元樣板，§7.1）；`db_access.endpoint` 的主機必須是某個 ROE DB 目標的主機，也不能被排除；違反 → validator 拒絕該 ROE（`E-ROE-DB-SCOPE`）。04 §5 的安全等級演算法第 4 步也對 DB 目標套用主機排除（→ S3）[H] |
 | 還原的排他權（v0.5） | 整庫還原前取得資料庫層級的排他租約，並確認背景工作與外部寫入已停止；做不到就不還原（§5.8）。這也是 v0.4 把整庫還原限制在 S2、種子改用命名空間刪除的原因 |
@@ -1318,8 +1318,9 @@ erDiagram
 | Lane B（非同步，`initial`／`followup`／`regression`） | 手動、排程或合併到主幹 | 完整多家族白箱＋所有關卡＋黑箱；以 checkpoint 續跑，並發送通知；結果回貼 PR | 小時到天（受人工關卡影響） |
 
 - Lane A 只審 diff：RoboDuck 的 delta 模式縮小範圍後，誤報大幅減少 [V][E:reference_systems-12]。
+- **fork 來的 PR**（v0.6，審查 r7 4.5）[H]：fork 的程式碼是不可信輸入，可能刻意寫進對審查模型的提示注入，也可能讓 CI 憑證外流。Lane A 對 fork PR 只跑確定性的 W0、W1、secrets 與套件存在性檢查，**不呼叫任何 LLM**，結果標為「不可信來源」；CI 不提供模型 API 金鑰給 fork PR 的工作流程。
 - **Lane A 的結果只有參考性**：單一家族的發現項最高只能是 `UNCORROBORATED`（05 R9），永遠不會進入 `CONFIRMED_*`，也不計入下一個 Lane B run 的 `independent_families`；它們會被帶入同一 repo 的下一個 Lane B run，作為額外輸入（`lane_a_advisories`）。Lane A 的模型必須在 G0a 的允許清單中；Lane A 也要先跑 W0，沒有遮罩對照表就不送任何 diff 給 LLM。
-- **排程與合併觸發的 Lane B**：只自動執行 W0–W3（無網路出站、不執行受測程式），紀錄發起者是 `run_owner`；在 G1 決定、W4 或任何 B 節點之前，必須有人認領（`claim_run`）。
+- **排程與合併觸發的 Lane B**：只自動執行 W0 與 W0.5 的草稿（v0.6，審查 r7：與 [02 §1.5](02-methodology.md#15-自動觸發與發起者) 一致；v0.5 這裡寫 W0–W3，會讓沒有人認領的 run 先把切片送給多家族 LLM），紀錄發起者是 `run_owner`；在 G1 決定、W4 或任何 B 節點之前，必須有人認領（`claim_run`）。
 - CI 中的 GitHub Actions 鎖 commit SHA，binary 用 cosign 驗證；Trivy CVE-2026-33634 的官方建議是鎖 SHA、cosign 驗證、輪替 secrets [V][E:whitebox-13]；本設計再加上「掃描器在沒有 CI secrets 的環境中執行」[H：設計推論]。
 - 本 repo 自己的 CI（`.github/workflows/validate.yml`）在 v0.3 也改為以 commit SHA 鎖定所用的 Actions（`actions/checkout`、`actions/setup-python`），與上面的規則一致。
 
@@ -1331,13 +1332,13 @@ erDiagram
 
 ### 13.1 稽核事件格式（`audit-event.schema.json`，[H]）
 - **儲存**：append-only JSONL，每個 run 一個檔（另有一個 engagement 層級的檔記錄跨 run 事件）；寫入端與讀取端都**只以 `\n` 分行**（不把 `\r`、U+2028 等其他換行字元當成行界，避免兩邊對「一行」的切法不同而使行 hash 不一致）[H]；大型內容（prompt、回應、請求紀錄）只存 CAS hash，本體加密存在 CAS。
-- **欄位**：`seq`（從 1 起連續）、`ts`、`run_id`、`engagement_id`、`event_type`、`actor`（`{kind: human|agent|system, id}`）、`node`、`zone`、`data_class`、`idempotency_key`、`payload`（小型結構化內容）、`payload_refs[]`（CAS hash）、`prev_hash`、`signature`。全部欄位都必填；只有人為的 `initiator_claim` 與 `run_resume` 事件有簽章（Ed25519，簽署對象是移除 `signature` 後事件的 JCS），其他事件 `signature: null`。
+- **欄位**：`seq`（從 1 起連續）、`ts`、`run_id`、`engagement_id`、`event_type`、`actor`（`{kind: human|agent|system, id}`）、`node`、`zone`、`data_class`、`idempotency_key`、`payload`（小型結構化內容）、`payload_refs[]`（CAS hash）、`prev_hash`、`signature`。全部欄位都必填；只有人為的 `initiator_claim`、`run_resume` 與 `spot_check_result`（v0.5）事件有簽章（Ed25519，簽署對象是移除 `signature` 後事件的 JCS），其他事件 `signature: null`。
 - **`ts`**（v0.4）：Audit Writer 寫入該行時的時鐘（收件時間），不是事件來源自填的時間；關卡決定的所有時間規則以它為準（§6.1 步驟 4）。
 - **hash chain**：`prev_hash` ＝ 前一行原始位元組（不含換行）的 sha256；第一行的 `prev_hash` ＝ sha256(`run_id`)。只有 Audit Writer 一個寫入者，以檔案鎖序列化。
 - **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件以 `{seq, line_sha256}` 寫入 run 紀錄的 `audit_anchors`（Postgres）：`seq` 是該錨點事件的序號，`line_sha256` 是該錨點事件**自己那一行**原始位元組（不含換行）的 sha256；因為這一行含 `prev_hash`，錨點同時承諾它之前的整條鏈；可選擇另外寫到 WORM 儲存或外部系統 [H]。
 - **Z3 副簽**（v0.4；v0.5 擴充）：每個 `audit_anchor` 的 `payload.z3_countersignature` 是 Z3 Executor 服務金鑰（金鑰登錄中角色 `z3_executor` 的 `z3-executor`）對 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`) 的 Ed25519 簽章；`domain` 固定為 `vibecheck/audit_anchor/v2`，`event_sha256` 是錨點事件本身（去掉 `payload.z3_countersignature`）的 JCS 的 sha256。v0.4 只簽 `{run_id, seq, prev_hash}`，最後一個錨點自己的 `ts`、`payload` 可以改而不被發現（後面沒有行用 `prev_hash` 釘住它）；v0.5 起錨點本身也被簽章蓋住（審查 2026-10-25 T-9）。validator 以金鑰登錄驗證，缺少或無效 → `E-AUDIT-ANCHOR-SIG`。
 - **Z3 簽之前先核對**（v0.5，T-9）[H]：v0.4 的 Z3 只看 `seq` 是否遞增、`prev_hash` 是否接得上，看不到鏈的內容，所以 run 進行中控制 Z1 的人可以先偽造幾行再請 Z3 簽。v0.5 起 Run Controller 送的是**上一個錨點之後的原始行**：Z3 自己保存上一個錨點的 hash，重算這一段的 `prev_hash` 鏈，並核對其中 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權驗證結果）與它的 job 帳本和輸出紀錄逐筆一致，才簽。限制：Z1 自己產生的事件（例如 `gate_decision`、`verdict_changed`）Z3 無法判斷真假，副簽只證明「這些行在簽章時已經存在，之後沒有被改」。
-- **未錨定的行不是證據**（v0.5，V-7）[H]：最後一個 `audit_anchor` 之後的行還沒有 Z3 副簽，任何能寫 Z1 的人都能附加。裁決用到的工具輸出（`sarif_refs` 解析到的 `tool_invocation_end`）必須在最後一個錨點之前，否則該參照不成立（`E-VERDICT-SARIF`／不計入佐證）。
+- **未錨定的行不是證據**（v0.5，V-7）[H]：最後一個 `audit_anchor` 之後的行還沒有 Z3 副簽，任何能寫 Z1 的人都能附加。裁決用到的工具輸出（`sarif_refs` 解析到的 `tool_invocation_end`）必須在最後一個錨點之前，否則該參照不成立（`E-SARIF-REF`，不計入佐證）。
 - **每個裁決版本都要有事件**（v0.5）：每一版裁決在其叢集所屬 run 的稽核檔中都要有一筆 `verdict_changed`（`payload.verdict_id` 與 `status` 相符）；沒有 → `E-AUDIT-VERDICT`。v0.4 只檢查已存在的事件，所以刪掉事件就能讓不一致的裁決躲過比對。
 - **B4 job 對帳**（v0.5，審查 2026-10-25 V-9）：`run.jobs` 中的 job、稽核檔的 `sandbox_job_start`／`sandbox_job_end` 與測試結果三者一致：有事件的 job 不能是 `SKIPPED`；已執行的 job（`EXECUTED`、`RESTORED`、`RESTORE_FAILED`）要有 `sandbox_job_end`，也要有 `job_id` 相符、`outcome` 與事件相同的測試結果（`E-JOB-AUDIT`）。v0.4 從不對帳，刪掉 FAIL 的結果再把 job 標成 `SKIPPED` 就能通過。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。

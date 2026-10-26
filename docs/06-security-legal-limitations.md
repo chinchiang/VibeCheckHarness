@@ -195,7 +195,7 @@
   - ROE 與委任設定只能引用登錄中的指紋，不能自行宣告可信金鑰（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)）。
   - 登錄是**唯一的信任來源**：登錄本身要能以 `toolkit.yaml` 的 `org_root_key.fingerprint` 驗章，且 `version` ≥ `key_registry.min_version`（防止換回舊版登錄）；登錄的 `registry_id` 必須等於 `toolkit.yaml` 的 `key_registry.location`，也等於 engagement／ROE 的 `key_registry_ref` [H]。
   - **撤銷語意** [H]：撤銷原因為 `compromised` 時，該金鑰的**所有**簽章都失效（不論簽署時間）；其他原因（例如離職、輪替）只讓 `revoked_at` 之後的簽章失效，之前的仍有效。
-  - 判斷「之前或之後」用的簽署時間，是文件自己的 `issued_at`、關卡紀錄的 `timestamp` 或稽核事件的 `ts`，都是**簽署者自己宣告的**，沒有第三方時間戳記（§3 #25）。
+  - 判斷「之前或之後」用的時間（v0.4 起）：關卡決定與誤報回饋用 Audit Writer 的**收件時間**（`gate_decision`／`feedback_recorded` 事件的 `ts`）；委任設定與 ROE 用首次驗章的收件時間（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)）。文件自填的 `issued_at`／`timestamp`／`signed_at` 只需與收件時間一致，不再決定撤銷前後。收件時間來自 Audit Writer 的時鐘，仍不是第三方時間戳記（§3 #25）。
 - **簽章格式** [H]（對應 `common.schema.json` 的 `signatures[]`）：
   - 每個被簽文件帶 `signatures[]`，每筆為 `{signer, key_fingerprint, alg: "ed25519", value}`。
   - `value` 是對「移除 `signatures` 欄位後的文件」取 RFC 8785 JCS 正規化，再以 Ed25519 簽署的結果。v0.1 的 `signature_ref`（外部簽章檔）已取消。
@@ -235,7 +235,7 @@
 
 ### 2.1 授權範圍
 - **擁有程式碼≠擁有基礎設施**。vibe-coded 應用常架在第三方平台（BaaS、PaaS、託管 DB、CDN）上。需要基礎設施擁有者的書面授權，並確認平台的安全測試政策。
-  - 共享平台網域（例如 `*.supabase.co`、`*.vercel.app`）由平台控制 DNS 與網站根目錄，無法用 DNS TXT 或 well-known path 證明所有權。這類主機必須改用**平台專案證明**（`ownership_proof.method: platform_project`），並在 ROE 的 `platform_policies` 記錄平台安全測試政策的連結、接受者與接受時間；validator 對這類主機拒絕 DNS／well-known 證明（`E-ROE-PLATFORM`）[H]。規格見 [08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)，限制見 §3 #37。
+  - 共享平台網域（例如 `*.supabase.co`、`*.vercel.app`）由平台控制 DNS 與網站根目錄，無法用 DNS TXT 或 well-known path 證明所有權。這類主機必須改用**平台專案證明**（`ownership_proof.method: platform_project`），並在 ROE 的 `platform_policies` 記錄平台安全測試政策的連結、接受者與接受時間；validator 對這類主機拒絕 DNS／well-known 證明（`E-ROE-PLATFORM`）[H]。v0.6（審查 r7 4.1）：平台專案證明本身只是截圖或聲明，證明不了對部署的控制，所以另外要求**技術證明**（`ownership_proof.technical_proof`）：本委任的 token 由專案自己的部署提供（一個路徑，或應用自己設定的回應標頭），資料庫則放在 `COMMENT ON DATABASE`。沒有技術證明的共享平台目標只能跑 S0 測試（任何人都抓得到的被動讀取），S1 以上 → `E-ROE-PLATFORM`。規格見 [08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)，限制見 §3 #37。
   - CVE-2025-48757 被標記為 disputed，Lovable 主張資料保護是客戶的責任 [V][E:vibe_risks-23]，可見平台與使用者的責任劃分並不單純。
 - **staging 也會碰到第三方**：email、SMS、金流、LLM API 等整合必須在 sandbox／test 模式，並列入 ROE，否則在出站層封鎖。
 - **LLM 供應商條款可能限制測試**：
@@ -497,7 +497,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 34 | **靜態抽取與呼叫圖一定不完整；WebSocket、SSE 的內容只能部分檢查** | 動態分派、反射、框架慣例；長連線的訊息內容不一定能逐則比對 [H] | 限制與盲點寫進切片與 inventory（[08 §11.3](08-implementation-spec.md#113-slicer)）；經 WebSocket／SSE 的測試限 S0／S1，並列入人工複核（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
 | 35 | **kill switch 撤不回已經送出的請求** | 停止只能阻止下一個請求；已送出的請求可能已被處理 [H] | 每個 job 的請求白名單與預算、限速；S2 只在可快照還原時執行；外部整合一律 sandbox（#17） |
 | 36 | **快照與還原的能力依平台而定** | 託管 DB 或 BaaS 可能不開放快照，或還原很慢 [H] | `snapshot_method: none` 時不執行 S2（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）；需要 DB oracle 的測試改用只看 API 回應的 oracle |
-| 37 | **共享平台網域無法以 DNS 或 well-known path 證明所有權**（例如 `*.supabase.co`、`*.vercel.app`） | 平台控制這些網域的 DNS 與網站根目錄 [H] | 改用平台專案證明＋`platform_policies`（§2.1、[08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)）；報告標示「所有權以平台專案證明，未以 DNS 驗證」 |
+| 37 | **共享平台網域無法以 DNS 或 well-known path 證明所有權**（例如 `*.supabase.co`、`*.vercel.app`） | 平台控制這些網域的 DNS 與網站根目錄 [H] | 改用平台專案證明＋`platform_policies`（§2.1、[08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)），v0.6 另加技術證明（部署提供的 token 或回應標頭）；沒有技術證明只允許 S0；報告標示「所有權以平台專案證明，未以 DNS 驗證」 |
 | 38 | **校準完成前，所有裁決都是暫定的** | 權重全部為 0、θ＝+∞、高精準規則白名單為空，所以投票與工具結果都不能單獨確認（[05 §4.3](05-bias-calibration.md#43-投票加權)、[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）[H] | 裁決標示 `provisional`；確認只來自可執行證明；報告首頁說明 |
 | 39 | **簽章只證明「誰核准」，不證明「有仔細審過」** | 人可能照單全收（ASI09，§1.1）[H] | 關卡顯示證據而非只有敘事；可以部分核准；§1.1 的定期抽查與升級規則 |
 | 40 | **成本與結果都無法完全重現** | LLM 輸出有隨機性 [V][E:multi_llm_bias-11]；供應商會更新模型與價格 [H] | run manifest 記錄帶日期的模型 ID、prompt 範本 hash、工具版本與設定 hash（[08 §11.13](08-implementation-spec.md#1113-run-manifest-與-prompt-範本登錄)）；執行前估算成本並設上限（[08 §11.12](08-implementation-spec.md#1112-成本模型與價格)）；重跑只保證「分布相近」，不保證逐字相同 |

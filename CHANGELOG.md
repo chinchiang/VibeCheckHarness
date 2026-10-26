@@ -102,6 +102,15 @@
 - 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
 - 新增 `tests/test_v05_r7_bypasses.py`。
 
+### 第七輪審查：方法論與架構（第 4 組）與審查紀錄
+- 共享平台目標新增 `ownership_proof.technical_proof`；沒有技術證明只允許 S0（`E-ROE-PLATFORM`）。
+- PII 停止條件排除登記的合成值與 canary（`safety.pii_stop_hits`）；測試案例可宣告 `expected_error_statuses`（只限 429／5xx，`E-TC-EXPECTED-STATUS`），不計入 run 層級停止條件（`safety.counts_for_run_stop`）。
+- ASI09 抽查推翻 G5 後，同一委任之後的 run 一律需要兩位資安審查者（`checks.g5_escalation`，`E-G5-TWO-PERSON`）；over_cap 清單重算 G3 的完整性（`E-REPORT-QUEUE`）。
+- `g_roe` 分成 14 個區段各自保護（第 5 組）。
+- 文件：W4 以乾淨設定執行並在行程外判定結果、自動觸發只跑 W0／W0.5、各保證等級的最少人數、`regression` 帶入叢集、ROE 在 B 階段入口失效、fork PR、本機目標的 loopback 例外、07 的精簡 Lite 候選；修正多處過時文字；schemas README 補上 154 個錯誤碼。
+- 審查紀錄 [docs/evidence/review-2026-10-25-r7.md](docs/evidence/review-2026-10-25-r7.md)；09 新增 BL-48～BL-52。
+- 新增 `tests/test_v06_r7_methodology.py`。
+
 ### 第七輪審查：安全等級（第 3 組之三）
 - 種子新增 `side_effects`／`contained`；寫入副作用沒有被圍住的種子 → 至少 S2，沒有宣告時依 ROE integrations 採 fail closed。範例的種子都宣告 `none`／`contained`，ROE 的 seed manifest hash 已更新。
 - 請求預算包含重播（`max_requests ＋ replay_n × ⌈max_requests／n⌉`）。計畫原本寫 `max_requests ×（1＋replay_n）`，但重播只重跑一個 trial，那樣會高估：LLM 範例會從 350 變成 5250。

@@ -77,7 +77,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 - JSON／JSONL 以嚴格模式載入（`vchlib/jsonstrict.py`）：重複鍵、NaN／Infinity、溢位成無限大的浮點數（如 `1e400`）、絕對值超過 2^53 的整數，以及（v0.5）巢狀超過 64 層、字串或鍵含孤立的 UTF-16 surrogate 一律拒絕（`E-JSON-STRICT`；v0.4 前者讓 validator 直接 `RecursionError`，後者讓整組檢查變成 `E-INTERNAL`；嚴格 YAML 同樣處理），該文件連同其上的簽章或雜湊鏈都不採信，語意與嚴格 YAML 相同。`3e0` 之類的浮點數不會被當成整數：schema 的 `integer` 只接受真正的整數（布林值與 `3.0` 都不算），`seq` 等欄位寫成浮點數 → `E-SCHEMA`（稽核 seq 另有 `E-AUDIT-SEQ`）。
 - 稽核日誌被嚴格載入器拒絕時，只回報那一個 `E-JSON-STRICT`：該 run 的稽核檢查（`E-AUDIT-*`）與依賴稽核日誌的 `E-RUN-RESTORE-DRILL` 都不再連帶報錯。
 
-### 檢查項目（21 組）
+### 檢查項目（23 組）
 
 1. **schema 與範例**：每個 schema 是合法 2020-12、`$id`＝檔名；每個範例（含 `docs/examples/*.yaml`）通過 schema，`date-time` 必須帶時區、`uri` 必須是有 scheme 與主機的絕對 URI；schema 用到沒有檢查器的 `format` → `E-SCHEMA-FORMAT`（啟動即失敗，不會默默略過）；除 `common` 外每個 schema 都有範例；YAML 以嚴格載入器讀取（重複鍵、anchor、tag → `E-YAML-STRICT`）；無對應 schema 的 YAML → `E-KIND`；頂層形狀錯誤（該是 mapping 卻是 list、該是 list 卻是整數…）→ 每個檔案一個 `E-INPUT-SHAPE`，該文件不進語意檢查，驗證程式不會丟出 traceback。
 2. **RFC 8785 JCS**：自寫的 `canonical.jcs` 對 RFC 8785 測試向量，並對每份文件與參考套件 `rfc8785==0.1.4` 比對。
@@ -95,7 +95,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
     - `tool_corroboration`＝**強**工具佐證：已解析的 SARIF ref 中，(adapter, rule_id, tool_version) 列在 calibration.yaml `result.high_precision_rules`（同 CWE 桶、`precision_lower95` ≥ `result.thresholds.high_precision_min.value`，預設 0.90）者 → R5 row 10（不受 R8 限制）；`E-VERDICT-TOOLCORR`
     - `tool_signal`＝**弱**工具訊號：其他已解析的 SARIF ref ∪ E_fail_u 結果；不能單獨確認；`E-VERDICT-TOOLSIGNAL`
     - `independent_sources`＝len(叢集 independent_families) ＋（有弱 SARIF 訊號 ? 1 : 0）＋（有 E_fail_u ? 1 : 0）；R6 需 ≥ 2；`E-VERDICT-SOURCES`
-    - E(cluster)＝agents.yaml 中 role verifier、家族與血統都不在叢集中的家族；`no_eligible_verifier`＝E 為空（`E-VERDICT-NOELIGIBLE`）；`diversity_degraded`＝非 Lane A、E 非空、且**計權合格票**的不同家族數 ＜ min(2, |E|)（`E-VERDICT-DIVERSITY`）
+    - E(cluster)＝agents.yaml 中 role verifier、模型在該 run 資料等級的 `allowed_models` 中、家族與血統（v0.6：血統的根，`derived_from`）都不在叢集中的家族；`no_eligible_verifier`＝E 為空（`E-VERDICT-NOELIGIBLE`）；`diversity_degraded`＝非 Lane A、E 非空、且**計權合格票**的不同家族數 ＜ min(2, |E|)（`E-VERDICT-DIVERSITY`）
     - `provisional`＝calibration_version 為 null，或 theta_confirm 為 null，或 E(cluster) 每個模型在該叢集 CWE 桶的權重都是 0（`E-VERDICT-PROVISIONAL`）
     - 每個 `sarif_refs` 項目必須對應到該 run 稽核日誌中一個 W1 節點（v0.5）`tool_invocation_end` 事件的 `payload_refs`（`tool_report_refs` 同），該事件 `payload.adapter` 是 tools.yaml 中白箱工具的 `tool:mode`（工具 zone Z2、`b4_executable: false`）、其 licenses.yaml 狀態已放行（`OK`／`注意`；`法務閘門` 不算）、事件 zone Z2、`payload.ok: true`，且該 ref 的 `payload.sarif_results[]` 項目的 `file`、`symbol`、`cwe_bucket` 等於叢集的 `canonical_location.file`／`.symbol` 與 `cwe_bucket`（v0.4；`origin: black_box` 的叢集不收 SARIF）；否則 → `E-SARIF-REF`，該 ref 不算任何工具證據。rule_id 取自 `payload.sarif_results[]`
     - 只有 agents.yaml 中 role 為 `verifier` 的代理可以投票；其他角色的票 → `E-VERDICT-VOTER-ROLE`，且不計入 weighted_valid、score、支持／反對與家族多樣性
@@ -110,7 +110,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 20. **工具包**：自動化帳號、逾時、保存期限欄位、`tool:mode` 命名、B4 模式在 Z3。
 21. **其他**：DFD 連線與 b1_diff、報告 verdict_counts（每叢集最新裁決）、自測（M1 需 ST-1／ST-3／ST-7 已執行且通過）、checkpoint。
 
-### v0.3 新增的錯誤碼
+### 錯誤碼（v0.3 起，逐版補充）
 
 | 錯誤碼 | 規則 |
 |---|---|
@@ -134,9 +134,9 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `W-CLUSTER-BUCKET` | v0.5（警告）：成員的 CWE 都不在 `facets.CWE_BUCKETS`，`cwe_bucket` 無法檢查 |
 | `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10） |
 | `E-RESULT-G4`、`E-RESULT-G5`、`E-RESULT-WINDOW`、`E-RUN-G4` | 審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 |
-| `E-REPORT-QUEUE` | v0.4（BL-26）：`report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id） |
+| `E-REPORT-QUEUE` | v0.4（BL-26）：`report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id）；v0.6（審查 r7 4.5）：清單也重算完整性：每個威脅被 G3 判為 over_cap 的種子都要列出 |
 | `E-ROE-EDGE-RANGE` | v0.4（BL-15）：`targets[].edge_ip_ranges` 只用於 http 目標，每項是主機位元為 0 的 CIDR，且不與任何非公開網段重疊 |
-| `E-RESULT-TRIALS` | v0.4：`trials` 滿足 k ≤ `n_effective` ≤ n；機率型 PASS 以 `n_effective`（n′）≥ 30 判定 `E_pass` |
+| `E-RESULT-TRIALS` | v0.4：`trials` 滿足 k ≤ `n_effective` ≤ n；機率型 PASS 以 `n_effective`（n′）≥ 30 判定 `E_pass`；高風險威脅（有 attack tree）≥ 60（v0.5）；v0.6 起機率型由測試對象判定（`derive.is_probabilistic`） |
 | `E-FINDING-ROUND` | v0.5：發現項的 `reporter.round` 由 run 的指揮官計畫推導（round 1＝CMD-1 派給該 agent 與切片；round n＞1＝round n−1 的 CMD-2 加派）；Lane A 不檢查 |
 | `E-TC-TOOL` | v0.5：`schemathesis:*` 的 `request_allowlist` 只有 GET／HEAD；`zap:baseline` 需要 `params.safe_mode: true`（`-S`） |
 | `E-THREAT-ATTACK-TREE` | v0.5：likelihood high＋impact high 的威脅必須有 `attack_tree_ref`；`attack_tree_ref` 指向該威脅自己的 `…/<threat_id>.json` |
@@ -169,8 +169,8 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-SEED-MANIFEST` | create_only_endpoints、state_changing_reads、read_only_endpoints 的目標必須是 ROE 的 http 目標；v0.5：create_only_endpoints 的 `created_resource` 必填且合法（`id_pointer` 是 token 非空的 JSON Pointer；每條 `path_templates` 恰有一段 `{created_id}`，其他變數段來自建立路徑） |
 | `E-ROE-SEED-MANIFEST`、`E-SEED-SIDE-EFFECT` | v0.4：ROE `db_access.seed_manifest_sha256` 等於 seed manifest 的內容 hash；W0 inventory 中 `writes: true` 的 GET／HEAD 端點都列在 `state_changing_reads`；審查 r7 1.5：W0 標為 `writes: true` 的端點不能列在 `read_only_endpoints` |
 | `E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG` | observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash |
-| `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任 |
-| `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer |
+| `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD` | https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；v0.6（審查 r7 4.1）：沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 |
+| `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`、`E-G5-TWO-PERSON` | G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer；v0.6（審查 r7 4.5）：同一委任另一個 run 中，已錨定且早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）也要求兩位資安審查者（`checks.g5_escalation`） |
 | `E-ENG-TRANSFER`、`E-ROE-TRANSFER` | v0.4：data_class C 時，每個能收 C 級資料的雲端（非 Z4）家族有 `providers[].region` 與同區域的 `data_transfer.transfers[]`；跨出 `source_jurisdiction` 需要 `same_jurisdiction` 以外的機制與 reference；聲明者是委任設定簽署人。委任設定宣告跨境傳輸時，ROE `legal_review.scope.cross_border` 必須為 true |
 | `E-ENG-CONFIG-PIN` | v0.4：engagement `config_pins` 等於 models／agents／tools／licenses 的內容 hash（sha256(JCS)）；v0.5 加入 calibration、crosswalk（決定裁決與威脅連結） |
 | `E-ROE-INCIDENT` | v0.4：ROE `incident_response` 的聯絡人在金鑰登錄中，`covers` 含 data_exposure、third_party_side_effect、shared_platform_impact、staging_outage |
@@ -183,6 +183,254 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-SCHEMA-FORMAT`、`E-INPUT-SHAPE` | 見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 |
 
 目前範例的預期警告只有一個：`nemotron_cloud` 的 litellm 是佔位模型 ID（`W-MODEL-PLACEHOLDER`；沒有 agent 會用到，`--real-run` 也不報錯）。U-11 已把 `claude_haiku` 換成 `claude_opus_48`（最早 2027-05-28 退役，不在委任期間內 [V][E:providers-52]）；U-12 已把 `gpt_flagship` 換成 `gpt-6-sol` [V][E:providers-46]。
+
+### 其餘錯誤碼（依家族，v0.6 補齊）
+
+以下錯誤碼與警告碼都是 validator（`tools/vchlib`）實際會回報、但上表沒有列出的項目，依前綴家族分組；說明依程式中的檢查條件整理。
+
+**稽核紀錄（`E-AUDIT-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-AUDIT-ACTOR` | `initiator_claim`／`run_resume`／`spot_check_result` 事件的 `actor.kind` 必須是 human；`actor.kind: human` 的 `actor.id` 必須是已登錄、非自動化帳號的人員；從 SUSPENDED 恢復的 `run_resume` 只能由該 run 的 `run_owner` 或發起者執行 |
+| `E-AUDIT-CHAIN` | 每筆事件的 `prev_hash` 必須是 sha256(run_id)（第一筆）或前一筆原始行的 sha256 |
+| `E-AUDIT-INITIATOR` | `initiator_claim` 事件的 actor 必須列在 `run.initiators` |
+| `E-AUDIT-REPORT` | `report_published` 事件的 `payload.report_id` 必須等於該 run 的 report-manifest 的 `report_id`（report-manifest 必須存在） |
+| `E-AUDIT-RUN` | 稽核檔所屬的 run 必須存在；每筆事件的 `run_id`、`engagement_id` 與該 run 及委任一致，`data_class` 與 run 相同 |
+| `E-AUDIT-SIG` | 人員發出的 `initiator_claim`／`run_resume`／`spot_check_result` 事件必須帶簽章；其他事件的 `signature` 必須是 null |
+| `E-AUDIT-TS` | 事件的 `ts` 不能倒退（不早於前一筆事件） |
+
+**關卡（`E-GATE-*`、`E-G4-*`、`E-G5-*`、`E-GB-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-GATE-APPROVER` | 每個核准者的 `key_fingerprint` 必須是金鑰登錄中該 `person_id` 的金鑰，且該金鑰具有所列的角色 |
+| `E-GATE-ENGAGEMENT` | 關卡的決定時間（收件時間）必須在委任有效期間內 |
+| `E-GATE-G0-APPROVERS` | G0a 核准者必須恰好是委任設定的簽署人，G0b 核准者恰好是 ROE 的簽署人（person_id、角色與金鑰指紋都相同） |
+| `E-GATE-G0-SIG` | G0a／G0b 是系統驗章，`signatures` 必須是 `[]` |
+| `E-GATE-G0-VERIFY` | G0a／G0b 的 `verification.signer_results` 必須等於以已載入金鑰登錄重新驗章的結果；`key_registry_version` 是 1 到已載入登錄版本之間的整數；outcome 為 VERIFIED 時至少有一個簽章且全部有效 |
+| `E-GATE-INITIATOR` | 關卡紀錄的 `initiator` 必須是已登錄、非自動化帳號的人員，且列在 `run.initiators` |
+| `E-GATE-JOB` | 只有 G5 使用 `job_id`，其他關卡必須是 null |
+| `E-GATE-OVER-CAP` | G3 的 `over_cap` 決定不能用在有 `attack_tree_ref` 或 impact 為 high 的威脅（這類威脅永遠不受 G3 佇列上限影響） |
+| `E-GATE-ROLES` | 核准者的角色必須涵蓋該關卡的必要角色（`GATE_ROLES`，例如 G3 需要 security_reviewer 與 app_owner） |
+| `E-GATE-TIME` | 關卡的開啟時間不能晚於決定時間（收件時間） |
+| `E-GATE-TIMEOUT` | G5 以外的關卡，決定時間與開啟時間的間隔不能超過逾時（委任 `gate_timeouts_hours`，未設定時用工具包上限） |
+| `E-G4-INITIATOR` | G4 核准者必須列在 `run.initiators` |
+| `E-G5-INITIATOR` | G5 核准者不能是 run 的發起者，也不能是該關卡紀錄的 `initiator` |
+| `E-G5-JOB` | G5 的 `job_id` 必須是該 run 中 `safety_class` 為 S2 的 job |
+| `E-G5-WINDOW` | G5 必須在某個 ROE 時間窗內開啟與決定，且決定時間早於該時間窗結束與「開啟時間加逾時（未設定時 24 小時）」兩者中較早者 |
+| `E-GB-APPROVER` | GB 核准者只能是委任的 `run_owner` 或 `budget_approver` |
+
+**ROE 與 L-1..L-6（`E-ROE-*`、`E-L*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-ROE-DATA-CLASS` | `data_handling.data_class` 必須等於委任的 `data_class` |
+| `E-ROE-DB` | `db_access.target_id` 必須是 database 目標且 endpoint 字串與 `db_access.endpoint` 相同；`oracle_readonly_attested` 為 true；`seed_manifest_ref` 等於 seed manifest 的 `manifest_ref`；manifest 的 `db_target_id`、`engagement_id` 一致；每個 oracle query 的資料表都在 ROE `oracle_tables` |
+| `E-ROE-DENYLIST` | `activities.denied_modes` 必須包含工具包內建的拒絕清單（`safety.TOOLKIT_DENYLIST`） |
+| `E-ROE-ENGAGEMENT` | ROE 的 `engagement.id`／`version` 必須等於 engagement.yaml 的 `engagement_id`／`version` |
+| `E-ROE-RELAY` | `relay` 的 `max_turns`、`max_spend_usd_per_job`、`max_spend_usd_per_run` 不能超過工具包的 relay 上限；relay 模型必須在委任該資料等級的 `allowed_models` |
+| `E-ROE-S3` | `activities.allowed_safety_classes` 永遠不能含 S3 |
+| `E-ROE-SIGNATORIES` | ROE 簽署人的角色必須涵蓋 G0b 的必要角色（test_lead、management、infrastructure_owner） |
+| `E-ROE-STOP` | `stop_conditions` 中與工具包預設同名的數值只能更嚴（`min_*` 不低於預設，其他不高於預設）；`contacts` 不能是空的 |
+| `E-ROE-TOOLS` | `allowed_tools` 每一項都必須是 tools.yaml 中有 B4 可執行模式的工具；`denied_modes` 每一項都必須已登錄 |
+| `E-ROE-VALIDITY` | ROE 的 `not_before` 必須早於 `not_after`，且有效期間落在委任有效期間內 |
+| `E-ROE-WINDOW` | 每個 `windows[]` 的時區與 HH:MM 時間必須可解析，start 不等於 end，`days` 非空且都是合法的星期 |
+| `E-L1` | ROE 必須有 `legal_review`（L-1）；`legal_review.scope` 每一項必須是 true，或帶 `not_applicable_reason` |
+| `E-L2` | `legal_review.attested_by` 必須有未撤銷的登錄金鑰（L-2），且具有 legal_reviewer 或 management 角色（只有 management 時改報 `W-L2-MANAGEMENT`） |
+| `E-L3` | `legal_review.attested_by` 必須在這份 ROE 上有有效簽章（L-3） |
+| `E-L4` | `legal_review.attested_at` 不晚於 ROE `not_before`，`expires_at` 不早於 ROE `not_after`（L-4） |
+| `E-L5` | `legal_review.attested_by` 不能是 ROE 的 test_lead（L-5；lite＋已確認的角色合併例外，改報 `W-L5-LITE`） |
+| `E-L6` | 允許的工具中有 licenses.yaml 狀態為「法務閘門」的元件時，`legal_review.scope.component_licenses` 必須是 true（L-6） |
+
+**測試案例（`E-TC-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-TC-ADMISSIBLE` | 重算的安全等級必須是 ROE 允許進入 G4 的等級（`safety.admissible`） |
+| `E-TC-DB` | `data_needed.db_tables` ⊆ ROE `db_access.oracle_tables`；oracle query 的資料表必須列在 `data_needed.db_tables` |
+| `E-TC-EXPECTED-STATUS` | v0.6：`expected_error_statuses` 只能列 429 與 5xx（只有這些狀態碼可以不觸發 run 層級的停止條件） |
+| `E-TC-ORACLE` | `oracle.oracle_query_id` 必須在 seed manifest 的 `oracle_queries` 中；`oracle.requirement_refs` ⊆ 測試案例的 `requirement_ids` |
+| `E-TC-RELAY` | `multi_turn` 測試案例需要 ROE relay 有模型，且 `trials.multi_turn_max_turns` 不超過 ROE `relay.max_turns`；非 `multi_turn` 的測試案例不能設 `multi_turn_max_turns` |
+| `E-TC-ROLES` | `data_needed.roles` ⊆ ROE `test_roles` 的角色 |
+| `E-TC-ZAP` | `zap:*` adapter 的 `params.delayInMs` 必須是整數且 ≥ ROE `rate_limits.zap_delay_ms_min`；`zap:active` 的 `maxScanDurationInMins` 必須在 1..`zap_max_scan_minutes`（不允許 0＝無上限） |
+| `E-TC-ZAP-THREADS` | `zap:*` 的 `threadPerHost` 有設定時必須在 1..ROE `rate_limits.max_concurrency` |
+
+**測試結果（`E-RESULT-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-RESULT-ANALYST` | `interpreted_by` 的家族必須等於該代理模型的家族；`interpretation` 與 `interpreted_by` 必須同時有或同時沒有 |
+| `E-RESULT-JOB` | B4 結果的 `job_id` 必須是該 run 中同一測試案例的 job；W4 結果的 `job_id` 必須是 null |
+| `E-RESULT-REQUESTS` | `request_count` 不能超過測試案例的 `rate_limit.max_requests` |
+| `E-RESULT-TARGETS` | `target_ids` ⊆ 測試案例的 `target_ids`；B4 結果至少有一個 ROE 目標，W4 結果（在 Z2 執行）不能有目標 |
+
+**裁決（`E-VERDICT-*`、`E-VOTE-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-VERDICT-ANNOTATIONS` | `annotations` 的 kind 集合必須等於裁決規則重算的結果 |
+| `E-VERDICT-CALIBRATION` | 裁決的 `calibration_version` 必須等於 calibration.yaml 的 `calibration_version` |
+| `E-VERDICT-G2` | 有 `g2_decision_ref` 時必須是決定該叢集的最新 G2 紀錄；沒有時（且不是 `W3_adjudicate` 的版本），該叢集不能已有 G2 紀錄 |
+| `E-VERDICT-PROOF` | CONFIRMED_EXECUTABLE 的 `executable_proof.interpretation_confirmed_by` 有值時，其家族不能是叢集的家族之一 |
+| `E-VERDICT-STATUS` | `status`、`status_cap`、`advisory` 必須等於 docs/05 §4.2 規則（`vchlib.adjudicate`）重算的結果 |
+| `E-VERDICT-TRACE` | `rule_trace` 的規則序列必須等於重算的規則序列 |
+| `E-VERDICT-VOTE` | 每張票的代理與模型都能經 agents.yaml／models.yaml 解析，`voter_family`／`voter_lineage` 與登錄相符；計為有效的票不能來自叢集的家族或相同的基礎血統（自我審查）；`anonymized`／`order_randomized` 必須等於該 run 驗證者範本的設定，不能由票自行宣告 |
+| `E-VOTE-MODEL` | 票的 `voter_agent_id` 在 agents.yaml 的模型及其在 models.yaml 的家族、血統，必須與票上的 `voter_model_key`、`voter_family`、`voter_lineage` 相符 |
+
+**校準（`E-CAL-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-CAL-ARMS` | 只有 arm 5 是 exploratory；每個 arm 的 `model_keys` 都在 `config.models`；`result.exploratory.arm` 必須是 5 |
+| `E-CAL-KAPPA` | `annotator_agreement[].accepted` 必須等於 kappa ≥ `annotation.kappa_min` |
+| `E-CAL-M11` | M-11 `by_model` 的 `flag`：值 ＜ 0.5 時必須是 support_leaning，否則必須是 null |
+| `E-CAL-MODEL` | `config.models` 的家族／血統必須與 models.yaml 相符；`weights[]` 與 `valid_for_model_keys` 的模型都必須在 `config.models` |
+
+**run（`E-RUN`、`E-RUN-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-RUN` | run 的 `engagement_id`、`data_class`、`run_owner` 必須與委任相同，`calibration_version` 與 calibration.yaml 相同 |
+| `E-RUN-BUDGET` | GB 以 extend 核准後，`budgets.<phase>` 必須帶 GB 的 `new_caps`；各階段已用的 token、成本與運算分鐘不能超過對應上限 |
+| `E-RUN-DEADLINE` | WAITING_GATE 時，`resume_deadline` 必須等於待決關卡的 `opened_at` 加上委任對該關卡的逾時 |
+| `E-RUN-FOLLOWUP` | followup run 的 `parent_run_id` 必須存在，且來自父 run 的某個 follow-up 草稿；其他 run 不能有 `parent_run_id`，`reuse` 必須是 `[]` |
+| `E-RUN-GATES` | `gate_records` 必須依 `opened_at` 排序，列出的關卡紀錄都必須存在 |
+| `E-RUN-INITIATOR` | `initiators` 每一位都必須是已登錄、非自動化帳號的人員 |
+| `E-RUN-JOB` | `run.jobs` 的鍵等於 `job_id`；測試案例存在且經 G4 核准（列在 `approved_testcase_ids`）；`safety_class` 等於測試案例的計算等級；目標屬於該測試案例；只有 S2 job 有 `g5_record_id`；已執行的 job 有測試結果且列在 `executed_jobs`；`executed_jobs` ⊆ `jobs` |
+| `E-RUN-LANE-A` | Lane A run 沒有 `roe_ref`、不經過 G0b、沒有 jobs；它的裁決都是 advisory；`lane_a_advisories` 等於該 run 的叢集 |
+| `E-RUN-OWASP` | run 的 `owasp_llm_version` 必須等於委任的設定（委任為 null 時用工具包的 `owasp_llm_default`） |
+| `E-RUN-S2` | S2 job 需要該 job 的 APPROVED G5 紀錄，並有快照、`restore_verified: true` 與狀態 RESTORED |
+| `E-RUN-STATUS` | 終止狀態的 run 不能有 `current_node` 或待決關卡；WAITING_GATE 必須恰好有一個待決關卡且等於 `current_node` |
+
+**委任（`E-ENG-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-ENG-DATA-CLASS` | `data_class` 必須是 P 或 C |
+| `E-ENG-LANE-A` | `lane_a_model` 必須在該資料等級的 `allowed_models` |
+| `E-ENG-MISSING` | bundle 沒有 engagement.yaml |
+| `E-ENG-MODEL-CLASS` | `allowed_models.<等級>` 列出的模型必須能收該等級的資料（models.yaml `data_classes`） |
+| `E-ENG-OWASP` | `owasp_llm_version` 只能是 null、2025 或 2026 |
+| `E-ENG-OWNERSHIP` | `code_ownership.attested_by` 必須是 app_owner、同時是委任的簽署人，且 `attestation` 為 true |
+| `E-ENG-SIGNATORIES` | 簽署人的角色必須涵蓋 G0a 的必要角色（app_owner、management） |
+| `E-ENG-TELEMETRY` | `telemetry_disabled` 必須是 true |
+| `E-ENG-TIMEOUT` | `gate_timeouts_hours` 每一關都不能超過 toolkit.yaml 的上限 |
+| `E-ENG-VALIDITY` | `validity.not_before` 必須早於 `not_after`，且 `issued_at` 不晚於有效期間結束 |
+
+**簽章與金鑰登錄（`E-SIG-*`、`E-KR-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-SIG-BAD` | `alg` 不是 ed25519，或 Ed25519 簽章驗證失敗 |
+| `E-SIG-COMPROMISED` | 簽章金鑰以 `compromised` 撤銷：該金鑰的所有簽章一律無效 |
+| `E-SIG-EXPIRED` | 沒有有效的簽章時間，或簽章時間落在金鑰的 `not_before`..`not_after` 之外 |
+| `E-SIG-EXTRA` | 簽章者不是文件預期的簽署人，或不是關卡紀錄的核准者 |
+| `E-SIG-MISSING` | 預期的簽署人或關卡核准者沒有簽章 |
+| `E-SIG-REVOKED` | 金鑰以 `compromised` 以外的原因撤銷，且簽章時間不早於 `revoked_at` |
+| `E-SIG-ROLE` | 簽章金鑰在登錄中沒有所需的角色 |
+| `E-SIG-SIGNER` | 簽章的金鑰屬於 `signer` 以外的人員；稽核事件簽章的 `signer` 不等於 `actor.id` |
+| `E-SIG-UNKNOWN-KEY` | 簽章的 `key_fingerprint` 不在金鑰登錄中 |
+| `E-KR-ALG` | 登錄項目的 `alg` 必須是 ed25519 |
+| `E-KR-AUTOMATION` | 自動化帳號不能持有人員金鑰 |
+| `E-KR-DUP` | 登錄中的金鑰指紋不能重複 |
+| `E-KR-FP` | `fingerprint` 必須等於由 `public_key` 計算出的指紋 |
+| `E-KR-LOCATION` | 登錄的 `registry_id` 與 engagement／ROE 的 `key_registry_ref` 必須等於 toolkit `key_registry.location`，且該檔案存在 |
+| `E-KR-MISSING` | bundle 沒有金鑰登錄 |
+| `E-KR-REVOCATION` | `revoked_at` 與 `revocation_reason` 必須同時設定或同時為 null；`revoked_at` 不能晚於登錄的 `issued_at` |
+| `E-KR-ROLLBACK` | 登錄的 `version` 必須是整數且 ≥ toolkit `key_registry.min_version`（防回滾） |
+| `E-KR-ROOT-PIN` | `org_root_public_key` 的指紋必須等於 toolkit `org_root_key.fingerprint` 的釘選值 |
+| `E-KR-ROOT-SIG` | 登錄必須恰好有一個由釘選根金鑰（`org_root`）做的簽章，且驗證通過 |
+| `E-KR-VALIDITY` | 登錄項目的 `not_before` 必須早於 `not_after` |
+
+**人員參照（`E-PERSON-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-PERSON-AUTOMATION` | 人員欄位不能是服務身分（z3_executor）或自動化帳號 |
+| `E-PERSON-KEY` | 人員參照所帶的金鑰指紋必須是該人員的登錄金鑰 |
+| `E-PERSON-ROLE` | 人員參照的角色必須是金鑰登錄授予該人員的角色 |
+| `E-PERSON-UNKNOWN` | person_id 必須在金鑰登錄中；ROE `upstream_llm_providers[].terms_confirmed_by` 也必須是登錄人員 |
+
+**代理與模型（`E-AGENT*`、`E-MODEL*`、`E-DIVERSITY-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-AGENT` | agents.yaml 的每個項目必須是物件 |
+| `E-AGENT-DATA-CLASS` | 代理的模型必須在委任該資料等級的 `allowed_models` |
+| `E-AGENT-FALLBACK` | 跨家族的 `fallback_models` 只能用在非裁決角色（reporter），每個 fallback 模型都必須已登錄且在允許清單 |
+| `E-AGENT-LANE-A` | agents.yaml `lane_a` 的模型必須等於委任的 `lane_a_model` |
+| `E-AGENT-MODEL` | 確定性角色（aggregator、scope_proxy、executor）的 `model` 必須是 null；LLM 角色必須有模型 |
+| `E-MODEL` | models.yaml 的每個項目必須是物件 |
+| `E-MODEL-FALLBACK` | models.yaml `fallback` 的每個模型都必須已登錄，且與本模型同家族 |
+| `E-MODEL-NIM` | `nvidia_nim/` 開頭的模型（build.nvidia.com 試用端點）只能收 P 級資料，且不能用於 production |
+| `E-MODEL-RETIRED` | 被代理使用或在允許清單中的模型，其 `earliest_retirement` 早於委任開始 |
+| `E-MODEL-STORE` | 能收 C 級資料的 `openai/` 模型必須設 `store: false` |
+| `E-DIVERSITY-VERIFIER` | 每個 reviewer 都必須有一個能收該資料等級、家族不同且基礎血統不同的 verifier |
+
+**發現項與切片（`E-FINDING-*`、`E-SLICE-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-FINDING-REPORTER` | `reporter` 的代理、`model_key`、家族與血統必須與 agents.yaml／models.yaml 相符 |
+| `E-SLICE-EXCLUDED` | 切片以 data_class 理由排除的模型，必須確實不能收該 run 的資料等級 |
+
+**追溯與對照表（`E-TRACE-*`、`E-THREAT-*`、`E-XWALK-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-TRACE-DFD` | 威脅的 `dfd_elements` 必須存在於 merged DFD，且型別相同 |
+| `E-TRACE-INVARIANT` | invariants.yaml 每條不變量的 `signoff`（`gate_record_id` 與狀態）必須與 G1 紀錄的決定相符 |
+| `E-TRACE-REQUIREMENT` | `source: invariant` 的 requirement 必須與 invariants.yaml 的項目完全相同；其他 requirement 的 source、ref、level 必須與 baseline 項目相符 |
+| `E-TRACE-SEED` | seed-threats 每個種子的叢集、裁決、威脅、狀態與 CWE 桶必須互相相符 |
+| `E-TRACE-THREAT-REVIEW` | 威脅的 `review.status` 與 `gate_record_id` 必須與決定它的 G3 紀錄相符（accept → ACCEPTED，reject／over_cap → REJECTED，其他 → NEEDS_INFO） |
+| `E-THREAT-LLM-LINK` | ACCEPTED 的威脅不能有 llm-suggested 的對照連結 |
+| `E-XWALK-DUP` | crosswalk.yaml 的連結（from_scheme、from_id、target_scheme、target_id）不能重複 |
+| `E-XWALK-OWASP` | crosswalk 的 `owasp_llm_default` 必須等於 toolkit；`owasp-llm@` 的版本只能是 2025 或 2026；威脅的 `owasp-llm@` 分類版本必須等於 initial run 的 `owasp_llm_version` |
+| `E-XWALK-REVIEW` | crosswalk 與威脅的對照連結：curated 必須有 `reviewed_by`，llm-suggested 不得有 |
+
+**Schema、載入與 JCS（`E-SCHEMA-*`、`E-LOAD`、`E-DATETIME`、`E-JCS`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-SCHEMA-ID` | schema 的 `$id` 必須等於檔名 |
+| `E-SCHEMA-META` | schema 必須通過 2020-12 meta-schema 檢查，且 `$schema` 是 2020-12 |
+| `E-SCHEMA-NO-EXAMPLE` | 每個 schema（`common` 除外）至少要有一個通過驗證的範例 |
+| `E-LOAD` | 已知種類的文件因嚴格 YAML／JSON 以外的原因無法載入 |
+| `E-DATETIME` | 時間欄位不是可解析的 RFC 3339 時間戳記 |
+| `E-JCS` | `canonical.jcs` 與參考套件都必須符合 RFC 8785 測試向量；每份文件都要能被兩者正規化，且結果相同 |
+
+**授權與工具包（`E-LIC-*`、`E-REQ`、`E-TOOLKIT`、`E-TOOLS-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-LIC-DUP` | licenses.yaml 的 component 不能重複 |
+| `E-LIC-GATE` | 狀態為「法務閘門」的元件必須有 `gate_milestone` |
+| `E-LIC-MISSING` | tools.yaml 的 `license_ref` 都必須在 licenses.yaml；requirements.txt 的每個套件都必須列在 licenses.yaml，且 usage 是 validator 依賴 |
+| `E-REQ` | requirements.txt 必須存在，且 `rfc8785` 釘選為 0.1.4 |
+| `E-TOOLKIT` | toolkit.yaml 必須存在；`toolkit_version` 是 semver；`automation_accounts` 含 run-controller、scheduler、ci-bot；`owasp_llm_default` 是 2025 或 2026；G5 逾時 ≤ 24 小時；G0a／G0b 以外的每關及 claim_run、GB 都有逾時；`tool_registry_ref` 指向存在的檔案 |
+| `E-TOOLS-CLASS` | B4 可執行且未被工具包拒絕的模式必須有合法的 `base_class` |
+| `E-TOOLS-DENYLIST` | tools.yaml 中 `toolkit_denied` 的模式集合必須等於 `safety.TOOLKIT_DENYLIST` |
+| `E-TOOLS-ID` | 每個工具模式的 ID 必須符合 D13 的 `tool:mode` 格式（`safety.ADAPTER_RE`） |
+| `E-TOOLS-ZONE` | 有 B4 可執行模式的工具必須在 Z3 |
+
+**其他（`E-DFD`、`E-REPORT`、`E-SELFTEST*`、`E-CHECKPOINT`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `E-DFD` | DFD 元素 ID 不重複；只有 trust_boundary 有 `kind`；data_flow 的 from／to 與 `crosses` 都指向存在的元素；merged DFD 的 `b1_diff` 每項 kind 必須與 external／merged 兩個視角相符 |
+| `E-REPORT` | report-manifest 的 run 必須存在；`advisory` 只在 Lane A 為 true；`verdict_counts` 等於每叢集最新裁決的計數；`manual_review_clusters` 與 run 相同；audit_log artifact 必須存在；gate_record artifact 必須恰好是該 run 的所有關卡紀錄 |
+| `E-SELFTEST` | NOT_RUN 項目沒有結果（`passed`、`value` 為 null、`runs` 為 0），RUN 項目有 `runs` 與 `passed`；`overall_passed` 等於所有 RUN 項目都通過；`finished_at` 不早於 `started_at`；`toolkit_version` 等於 toolkit |
+| `E-SELFTEST-M1` | milestone 為 M1 時，ST-1、ST-3、ST-7 都必須已執行且通過 |
+| `E-CHECKPOINT` | checkpoint 的 run 必須存在，`run_status`／`thread_id` 與 run 相符；C 級資料的 checkpoint 必須加密 |
+
+**警告（`W-*`）**
+
+| 錯誤碼 | 檢查內容 |
+|---|---|
+| `W-DIVERSITY` | 能收該資料等級的 reviewer 家族少於 2 個：多樣性降級（裁決受上限限制） |
+| `W-L2-MANAGEMENT` | `legal_review.attested_by` 沒有 legal_reviewer 角色而以 management 身分證明：報告中必須標示 |
+| `W-MODEL-RETIREMENT` | 被代理使用或在允許清單中的模型，其 `earliest_retirement` 落在委任有效期間內 |
 
 ## 簽章與測試金鑰
 

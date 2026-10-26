@@ -1537,7 +1537,7 @@ class SeedService(Protocol):
 
 **主機**：
 - `exclusions.hosts` 支援開頭的萬用字元：`*.example.com` 符合任何子網域，但不符合 `example.com` 本身（C-2）。比較前先正規化主機：去掉結尾的 `.`、大小寫摺疊、IDNA 轉換，與 DB 主機相同（§5.1）。
-- **只允許 HTTPS**（C-3）：ROE 的 `targets[].base_url` 與 `stop_conditions.health_url` 必須是 `https://`；`http://` 只允許 `localhost`、`127.0.0.1`、`[::1]`（MVP-1）。不符，或根本不是絕對 URI → `E-ROE-URL`。Scope Proxy 也不會以明文連到其他主機。
+- **只允許 HTTPS**（C-3）：ROE 的 `targets[].base_url` 與 `stop_conditions.health_url` 必須是 `https://`；`http://` 只允許 `localhost`、`127.0.0.1`、`[::1]`（MVP-1）。v0.6（審查 r7 4.5）：這個例外同時是 IP 規則的例外——Scope Proxy 對 loopback 位址的封鎖（`safety.ip_problem`）只在目標 `environment: local`、主機正是 ROE 宣告的 loopback 名稱、且 job 在同一台主機上執行時放行；其他目標解析到 loopback 一律擋下（DNS rebinding 到 127.0.0.1 不會因此變成合法目標）。不符，或根本不是絕對 URI → `E-ROE-URL`。Scope Proxy 也不會以明文連到其他主機。
 
 **build 識別**（H-B4）：
 - `build_identity.method: header`：Scope Proxy 從回應讀取 ROE 指定的標頭，記入請求紀錄；Executor 以它填 testresult 的 `observed_build_id`。
@@ -2019,6 +2019,10 @@ W4 需要安裝相依並建置受測程式 [H]：
 - **只安裝鎖檔中的套件**，加上預先核准的測試相依（例如 Hypothesis、fast-check、pytest）。鏡像只提供通過套件存在性檢查的套件，所以幻覺套件裝不起來。
 - **停用安裝腳本**：以各套件管理器的對應選項關閉，與 [03 §2](03-system-architecture.md#2-部署與信任區) 的「預設關閉 lifecycle scripts」一致。
 - 資源上限與輸出遮罩照 Z2 的規則。
+- **測試與受測程式隔離**（v0.6，審查 r7 4.4）[H]：受測 repo 可以帶自己的 `conftest.py`、pytest 外掛、`vitest.config`／`setupFiles` 或 `sitecustomize`，在測試行程內改寫 assertion 或結果。所以：
+  - 以乾淨的設定執行：pytest 用 `-p no:cacheprovider --noconftest`、`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` 與 harness 自己的 `-c` 設定檔；vitest／jest 以 harness 的設定檔執行，忽略 repo 的 setup 檔；`PYTHONNOUSERSITE=1`，不載入 repo 的 `sitecustomize`。
+  - outcome 與對照的結果**不在**受測程式的行程中判定：測試只輸出結構化的觀察結果（例如本地 Postgres 的資料列 hash、假模型的工具呼叫紀錄），由 Z2 的另一個行程依 w4-testcase 的 oracle 計算 PASS／FAIL，再寫入 `sandbox_job_end`（連同 PR1 的三個 hash）。
+  - 受測程式寫入結果目錄以外的檔案一律丟棄。
 
 #### 前端 bundle 中的公開前綴 secret
 
