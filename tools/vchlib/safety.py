@@ -827,6 +827,16 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
         hits = [p for p in roe["exclusions"]["paths"] if path_may_match(r["path"], p)]
         if hits:
             return "S3", [f"{r['method']} {r['path']}: may match ROE exclusion {hits}"]
+    # v0.6 (review r7 3.8): until the Scope Proxy parses GraphQL documents (09 BL-35), a GraphQL request is POST only and
+    # pins its document: over GET the document rides the query string, where the proxy cannot tell a query from a
+    # mutation, and an unpinned body can carry any operation under a "query" label
+    gql_paths = graphql_paths(roe)
+    for r in reqs:
+        graphql = r.get("graphql_operation") is not None or r["path"] in gql_paths.get(r["target_id"], set())
+        if graphql and r["method"] != "POST":
+            return "S3", [f"{r['method']} {r['path']}: GraphQL only over POST until the proxy parses documents (BL-35)"]
+        if r.get("graphql_operation") is not None and not r.get("graphql_document_sha256"):
+            return "S3", [f"{r['method']} {r['path']}: a GraphQL request pins its document (graphql_document_sha256)"]
     # every mutation is seed-bound or a create in the run namespace; seeds only on their own resources
     scope = mutation_scope_problems(tc, manifest, roe)
     if scope:
@@ -858,9 +868,16 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
             level = hi(level, "S2")
             trace.append(f"{r['method']} {r['path']}: create-only endpoint with uncontained {ce.get('side_effects')} side effects -> >=S2")
             break
-    if tc["rate_limit"]["max_requests"] > roe["rate_limits"]["s1_request_cap"]:
+    for r in reqs:
+        effects = seed_side_effects(manifest, roe, r) if is_mutation(r, gql, manifest) else None
+        if effects is not None:
+            level = hi(level, "S2")
+            trace.append(f"{r['method']} {r['path']}: writes a seed with uncontained {effects} side effects -> >=S2")
+            break
+    total = request_budget(tc)
+    if total > roe["rate_limits"]["s1_request_cap"]:
         level = hi(level, "S2")
-        trace.append("max_requests > s1_request_cap -> >=S2")
+        trace.append(f"max_requests + replays = {total} > s1_request_cap -> >=S2")
 
     # 8. the LLM proposal is only a floor
     proposed = tc.get("safety_class_proposed") or "S0"
@@ -868,6 +885,34 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
     if result != level:
         trace.append(f"LLM proposal {proposed} used as floor")
     return result, trace
+
+
+def request_budget(tc: dict) -> int:
+    """v0.6 (review r7 3.8): the requests a testcase may send, replays included. A FAIL opens replay_n replay jobs, each
+    re-running one trial (max_requests / n requests, rounded up); v0.5 compared max_requests alone with the S1 cap,
+    although replays are 'not counted in max_requests'."""
+    rl, trials = tc.get("rate_limit") or {}, tc.get("trials") or {}
+    mx, n, rn = rl.get("max_requests") or 0, max(1, trials.get("n") or 1), trials.get("replay_n") or 0
+    return mx + rn * -(-mx // n)
+
+
+def seed_side_effects(manifest, roe, r: dict) -> str | None:
+    """v0.6 (review r7 3.8): the uncontained side effects of the seeds a mutation writes, or None. A seed declares
+    side_effects / contained like a create-only endpoint; a seed that declares nothing is assumed to reach the
+    application's integrations when the ROE lists any that is not disabled (fail closed: an update of an order can
+    send mail as well as a create)."""
+    seeds = (manifest or {}).get("seeds") or {} if isinstance(manifest, dict) else {}
+    live = [i.get("name") for i in (roe or {}).get("integrations") or [] if isinstance(i, dict) and i.get("mode") != "disabled"]
+    refs = [m.group(1) for s in segments(r.get("path", "")) for m in [SEED_SEG_RE.match(s)] if m]
+    refs += [m.group(1) for x in r.get("object_refs") or [] for m in [SEED_REF_RE.match(str(x))] if m]
+    for key in refs:
+        sd = seeds.get(key) if isinstance(seeds.get(key), dict) else {}
+        effects = sd.get("side_effects")
+        if effects is None:
+            effects = "external" if live else "none"
+        if effects != "none" and sd.get("contained") is not True:
+            return f"{effects} ({key})"
+    return None
 
 
 def admissible(level: str, roe: dict) -> bool:

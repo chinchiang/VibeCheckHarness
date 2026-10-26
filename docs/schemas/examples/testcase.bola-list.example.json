@@ -78,6 +78,7 @@
       "path": "/api/invoices",
       "step_id": null,
       "graphql_operation": null,
+      "graphql_document_sha256": null,
       "object_refs": [],
       "server_action": null
     }

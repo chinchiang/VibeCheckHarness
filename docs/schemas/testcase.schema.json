@@ -315,6 +315,17 @@
               }
             ]
           },
+          "graphql_document_sha256": {
+            "anyOf": [
+              {
+                "$ref": "common.schema.json#/$defs/sha256"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "v0.6（審查 r7 3.8）：GraphQL 請求的 document（query 文字）的 hash；Scope Proxy 只放行 body 中 document 的 hash 等於它的請求。graphql_operation 不是 null 時必填，而且 GraphQL 只能以 POST 送出（BL-35 完成前；否則 S3）"
+          },
           "object_refs": {
             "type": "array",
             "items": {
