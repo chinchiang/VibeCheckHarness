@@ -2,6 +2,15 @@
 
 > 你的需求：白箱每個 agent 可以接不同 LLM，以減少模型差異造成的偏誤。本文件說明：證據支持到什麼程度、工具包怎麼設計、以及**必須自己量測**的部分。標記說明見 [README](../README.md#標記說明)。
 
+## v0.7 變更摘要（第八輪審查 第 3 組）
+
+`rule_version` 改為 `05-v0.7`：
+- **平滑的先驗**（§4.3）：a ＝ (C ＋ k·ā ＋ 1) ／ (n ＋ k ＋ 2)。v0.6 的 a ＝ (C ＋ k·ā) ／ (n ＋ k) 只往模型自己的跨桶正確率 ā 收縮：一個在每個桶都單邊全對的模型 ā＝1，a 也是 1，ln(a／(1−a)) 除以零而權重被歸零——最準的驗證者反而沒有發言權。範例的權重與分數因此重算（K-014 的 S 由 1.5775 變為 1.4633，θ_confirm 2.5 不變，裁決狀態都不變）。
+- **R6 的來源**：`E_fail_u` 只有在寫或塑造那個測試的代理（`derive.test_author_families`：W4 的 test_generator／test_critic、黑箱的 test_designer／test_implementer／test_critic 與威脅建模者）都在叢集的家族與基底血統之外時，才算一個獨立來源（`Inputs.fail_u_independent`，由 validator 推導）。v0.6 算每一個 `E_fail_u`，所以單一家族回報缺陷、自己寫 W4 測試、自己解讀 FAIL，就能靠 R6 到 `LIKELY`。`E_fail_u` 仍是第 7 列的訊號：單一反駁票遇上它會變 `DISPUTED`，交給人。
+- **決定表**：第 3、5 列與「G2 駁回後才出現 FAIL 證明」的邊界列改寫，與 v0.6 的 R10（只有 `proof_overrides_g2` 的證明能推翻駁回）一致；v0.6 的表仍寫著任何 `E_proof` 都是 R10＋R1，與程式不符（2,304 個輸入組合）。
+- **`provisional` 的例外**補上第 10 列（強工具佐證，v0.5 起程式已如此）。
+- 機率型測試的預算不足不再降低 n（[04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界)）。
+
 ## v0.6 變更摘要（第七輪審查 第 3 組）
 
 `rule_version` 改為 `05-v0.6`：
@@ -286,10 +295,10 @@
   - `calibration_version` 為 null；
   - `theta_confirm` 為 null；
   - 合格驗證家族 E(叢集)（§3 規則 3）中的**每一個**驗證模型，在該叢集 CWE 桶的校準權重（支持與反駁兩邊）都是 0。
-  - **例外**（v0.4）：決定規則是 R9、R10、R0 或 R1（決定表第 1–5 列），或叢集是 `black_box`，一律不是暫定。這些狀態不取決於投票，標暫定沒有意義；v0.3 會讓同為黑箱、同樣沒有票的 K-201 與 K-202 只因桶不同而一個暫定、一個不是。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
+  - **例外**（v0.4；v0.5 加第 10 列）：決定規則是 R9、R10、R0 或 R1（決定表第 1–5 列），或是強工具佐證的 R5（第 10 列），或叢集是 `black_box`，一律不是暫定。這些狀態不取決於投票，標暫定沒有意義；v0.3 會讓同為黑箱、同樣沒有票的 K-201 與 K-202 只因桶不同而一個暫定、一個不是。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
   - v0.3 的例子（已由上面的例外取代）：黑箱叢集 K-201 的 V-201-1 沒有票，因為合格的 `nemotron_self` 在 `authz` 桶有權重而不是暫定；K-202 在 `injection` 桶，沒有任何模型有權重，V-202-1 曾是 true。v0.4 起兩者都是 false。
   - 它不改規則的計算（w＝0 時投票分支本來就不會成立，θ＝null 視為 +∞），只表示這個狀態沒有經過校準的投票支撐。報告（W5、B6）把暫定裁決標為「暫定（校準前）」，並在摘要列出暫定裁決的比例。校準前的其他預設見 [08 §11.11](08-implementation-spec.md#1111-校準前的預設)。
-- **規則版本**：v0.6 改變了 R10（只有 G4 核准、重播命中的 B4 證明能推翻 G2）、R0 與機率型測試的判定，裁決的 `rule_version` 為 **`05-v0.6`**。v0.5 改變了 R4（多家族回報不自動駁回）、計權合格票（不含棄權）與引用相關性，`rule_version` 為 `05-v0.5`（v0.4 改變了 R0、R10、R11 與獨立家族的語意，為 `05-v0.4`；v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
+- **規則版本**：v0.7 改變了 R6 的來源計算（獨立作者的 `E_fail_u` 才算）與權重的先驗，裁決的 `rule_version` 為 **`05-v0.7`**。v0.6 改變了 R10（只有 G4 核准、重播命中的 B4 證明能推翻 G2）、R0 與機率型測試的判定，裁決的 `rule_version` 為 **`05-v0.6`**。v0.5 改變了 R4（多家族回報不自動駁回）、計權合格票（不含棄權）與引用相關性，`rule_version` 為 `05-v0.5`（v0.4 改變了 R0、R10、R11 與獨立家族的語意，為 `05-v0.4`；v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
 - 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`；v0.2 另有每票的 `votes[].weight`、`votes[].weighted_valid`（＝計權合格票），以及 `status_cap`、`advisory`、`test_evidence{class, results[]}`、`annotations[]{kind, reason}`（kind：`test_not_reproduced`、`test_inconclusive`、`conflicting_test_results`、`g3_rejected`、`post_g2_conflict`、`w4_became_disputed`）、`g2_decision_ref`、`calibration_version`（整數）、`theta_confirm`、`theta_reject`、`readjudicated_by`（產生該版裁決的節點：`W3_adjudicate`、`G2_apply`（v0.5，G2 逐項套用駁回時寫的新版）、`W4_readjudicate` 或 `B5_readjudicate`；R10 只看 G2 之後產生的版本）、`supersedes_verdict_id`。
   - **版本鏈**（v0.5，審查 2026-10-25 V-4）：同一叢集的版本以 `supersedes_verdict_id` 形成單一線性鏈：不能指向自己、不能循環、不能分岔，恰好有一個最新版（`E-VERDICT-CHAIN`）；報告的 `verdict_counts` 取每條鏈的最新版。
   - **階段不能倒填**（v0.5，V-12）：黑箱叢集只有 `B5_readjudicate` 版本；`W3_adjudicate` 版本不取代任何版本；鏈上的階段只能 W3 → G2_apply → W4 → B5；某一版的 `verdict_changed` 收件時間晚於該叢集某筆 W4／B4 測試結果的執行時間時，這一版至少是 `W4_readjudicate`／`B5_readjudicate`（`E-VERDICT-PHASE`）。否則把 `readjudicated_by` 改成 `W3_adjudicate` 就能關掉測試證據的連結。v0.3 的 `tool_corroboration` 只含**強**工具佐證，另新增 `tool_signal`（弱工具訊號）、`independent_sources`（整數）、`provisional`，以及每票必填的 `votes[].cited_evidence`。
@@ -308,15 +317,15 @@
 
 下表把 A–C 段所有輸入組合對應到**恰好一個**基本狀態。每列由上而下第一個符合者勝出；「·」表示不論該欄取值。最後一列沒有任何條件，所以每種組合都至少符合一列；由上而下取第一列，所以恰好一列 [H]。
 
-欄位說明：「強工具佐證」＝`tool_corroboration` 非空；「弱工具訊號／`E_fail_u`」＝`tool_signal` 非空（弱 SARIF 或 `E_fail_u`）；「獨立來源」＝第一輪獨立回報的家族數＋（有弱 SARIF 時 1）＋（有 `E_fail_u` 時 1）；「R0 條件」＝全部證據 `NOT_FOUND`、沒有已解析的 SARIF、沒有 `E_proof`／`E_fail_u`（v0.4），在叢集沒有成員時（黑箱起源）恆為「否」。第 7 列的「任一」表示這兩欄至少一欄為「有」。
+欄位說明：「強工具佐證」＝`tool_corroboration` 非空；「弱工具訊號／`E_fail_u`」＝`tool_signal` 非空（弱 SARIF 或 `E_fail_u`）；「獨立來源」＝第一輪獨立回報的基底血統數（v0.7：共用 `derived_from` 根的家族算一個）＋（有弱 SARIF 時 1）＋（有**獨立作者**的 `E_fail_u` 時 1，v0.7）；「R0 條件」＝沒有任何一項證據接地（`MATCHED`／`MATCHED_SHIFTED`）且至少一項 `NOT_FOUND`（v0.6；v0.4 為全部 `NOT_FOUND`）、沒有已解析的 SARIF、沒有 `E_proof`／`E_fail_u`，在叢集沒有成員時（黑箱起源）恆為「否」。第 7 列的「任一」表示這兩欄至少一欄為「有」。
 
 | # | lane_a | G2 駁回 | R0 條件 | 測試證據 | 計權支持 | 計權反駁 | 強工具佐證 | 弱工具訊號／`E_fail_u` | S 對門檻 | 獨立來源 ≥ 2 | 基本狀態（規則） |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | 是 | · | 是 | · | · | · | · | · | · | · | `REJECTED`（R9） |
 | 2 | 是 | · | 否 | · | · | · | · | · | · | · | `UNCORROBORATED`（R9） |
-| 3 | 否 | 是 | · | 非 proof | · | · | · | · | · | · | `REJECTED`（R10） |
+| 3 | 否 | 是 | · | 非 proof，或 `E_proof` 但不是 G4 核准、重播命中的 B4 證明（`proof_overrides_g2` 為否） | · | · | · | · | · | · | `REJECTED`（R10；有 FAIL 類證據時加註 `post_g2_conflict`，送 B6 人工複核） |
 | 4 | 否 | 否 | 是 | · | · | · | · | · | · | · | `REJECTED`（R0） |
-| 5 | 否 | · | 否 | `E_proof` | · | · | · | · | · | · | `CONFIRMED_EXECUTABLE`（R1；G2 駁回時為 R10、R1，加註 `post_g2_conflict`） |
+| 5 | 否 | · | 否 | `E_proof`（G2 駁回時必須是 `proof_overrides_g2` 的證明） | · | · | · | · | · | · | `CONFIRMED_EXECUTABLE`（R1；G2 駁回時為 R10、R1，加註 `post_g2_conflict`） |
 | 6 | 否 | 否 | 否 | 非 proof | 有 | 有 | · | · | · | · | `DISPUTED`（R3） |
 | 7 | 否 | 否 | 否 | 非 proof | 無 | 有 | 任一 | 任一 | · | · | `DISPUTED`（R4） |
 | 8 | 否 | 否 | 否 | 非 proof | 無 | 有 | 無 | 無 | S ≤ −θ_reject | · | `REJECTED`（R4）；v0.5 起只在獨立家族 ≤ 1 時，否則同第 9 列 |
@@ -358,7 +367,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 | 3 個家族都在第一輪回報（`no_eligible_verifier`） | 沒有票；獨立來源 ≥ 3 → `LIKELY`（R6）；不進 G2，改由 W4 與黑箱測試確認（§3 規則 2） |
 | 黑箱起源叢集（`origin: black_box`） | 確定性 FAIL（G4 核准即事先登記）→ `E_proof` → `CONFIRMED_EXECUTABLE`（R1）；沒有 `E_proof` → `UNCORROBORATED`（R7） |
 | G3 駁回種子威脅（D5） | 狀態不變，加註 `g3_rejected`（R13）；不產生 B3 測試案例；B6 列為「未做黑箱驗證（G3 駁回：理由）」 |
-| G2 駁回後才出現 FAIL 證明 | `E_proof` → `CONFIRMED_EXECUTABLE`（R10、R1，v0.4；v0.5 保留這個語意）；`E_fail_u` → 維持 `REJECTED`（R10）。報告的呈現、去重與複核流程見 [02 B6](02-methodology.md#b6-報告) 的「G2 駁回後的新證據」。兩者都加註 `post_g2_conflict` 並列入 B6 人工複核清單 |
+| G2 駁回後才出現 FAIL 證明 | G4 核准、重播命中（k_r ≥ 1）的 B4 `E_proof` → `CONFIRMED_EXECUTABLE`（R10、R1）；W4 的 `E_proof`、沒有重播命中的 B4 證明與 `E_fail_u` → 維持 `REJECTED`（R10，v0.6）。報告的呈現、去重與複核流程見 [02 B6](02-methodology.md#b6-報告) 的「G2 駁回後的新證據」。兩者都加註 `post_g2_conflict` 並列入 B6 人工複核清單 |
 | 成員片段全部 `NOT_FOUND`，但同一位置有 SARIF 或可重現的 FAIL | R0 不成立（v0.4）：照 R2–R7 裁決，例如只有一筆弱 SARIF → `UNCORROBORATED`（R7），成為種子威脅 |
 | Lane A 參考性發現項 | `UNCORROBORATED`（R9），`advisory: true`；帶入下一個 Lane B run 作為額外輸入，在那次 run 中重新從頭裁決，但不計入獨立家族數（§4.1） |
 
@@ -368,7 +377,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 |---|---|---|
 | 第一輪獨立回報的家族 | anthropic | anthropic（`routes/invoices.ts::updateInvoice`，桶 `authz`） |
 | SARIF | 1 筆已解析的 ref，來自 `semgrep:scan`，算工具佐證 | 同一個 ref，改由 `opengrep:scan` 1.6.0 產生（稽核 seq 13，`inv-w1-opengrep-001`；規則 `vc.authz.update-without-owner`）。`semgrep:scan` 在 `licenses.yaml` 是法務閘門，v0.3 的 `E-SARIF-REF` 不接受它（N-7）；Opengrep 的狀態是「注意」，可以執行。規則不在 `high_precision_rules`（校準前為空）→ 弱工具訊號 |
-| 票 | `ver_1`（nvidia，`nemotron_self`）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同，兩票的 `cited_evidence` 都是 `routes/invoices.ts:88`；只有 `ver_1` 是計權合格票；S＝0.6933 ＜ θ_confirm＝1.2（`calibration_version` 3，θ_reject 為 null） |
+| 票 | `ver_1`（nvidia，`nemotron_self`）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同，兩票的 `cited_evidence` 都是 `routes/invoices.ts:88`；只有 `ver_1` 是計權合格票；S＝0.6933 ＜ θ_confirm＝1.2（`calibration_version` 3，θ_reject 為 null）。目前的範例（v0.7 的對數概似比權重與先驗）：w＝1.4633、S＝1.4633 ＜ θ_confirm＝2.5 |
 | 合格驗證家族 E | —（v0.2 沒有這個定義） | {nvidia, openai}；`ver_2`（`claude_sonnet`）屬 anthropic，排除 |
 | `diversity_degraded` | false（有效票有 2 個家族） | true（計權合格票只有 1 個家族 ＜ min(2, 2)）；不影響結果，因為 R8 只作用在第 11 列 |
 | 裁決欄位 | `tool_corroboration`＝[該 ref] | `tool_corroboration`＝[]、`tool_signal`＝[該 ref]、`independent_sources`＝2、`no_eligible_verifier`＝false、`provisional`＝false（E 中的 `nemotron_self` 在 `authz` 桶 w＞0） |
@@ -377,7 +386,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 範例的 `rule_trace`：
 
 ```text
-R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=2
+R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.4633<theta_confirm=2.5,independent_sources=2
 R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
 ```
 
@@ -400,8 +409,8 @@ R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
   - SUPPORT 票：w_support ＝ max(0, ln(TPR ／ (1 − TNR)))，即「真缺陷上投支持」與「非缺陷上也投支持」的比；
   - REFUTE 票：w_refute ＝ max(0, ln(TNR ／ (1 − TPR)))。
   - 理由：v0.4–v0.5 的 w＝2a−1 只看一邊。一個幾乎什麼都投支持的驗證者，TPR 很高，support 權重也很高；但它在非缺陷上也投支持（1−TNR 一樣高），所以它的支持票沒有提供任何資訊。對數概似比正好是這張票讓「是缺陷」的對數勝算增加多少，S＝Σ w × 立場因此是對數勝算的增量，θ 也在這個尺度上（範例 θ_confirm＝2.5：一張權重約 1.6 的票不夠，需要兩張獨立的支持）。
-  - 例：TPR 0.8467、TNR 0.8252 → w_support＝ln(0.8467／0.1748)＝1.578，w_refute＝ln(0.8252／0.1533)＝1.683。TPR 0.95、TNR 0.05（永遠投支持）→ w_support＝ln(0.95／0.95)＝0。
-  - 平滑後的 a 不會是 0 或 1（k ＞ 0）；`checks.lr_weights` 對比率 ≤ 0 的退化情況回傳 0。
+  - 例：TPR 0.8333、TNR 0.8071 → w_support＝ln(0.8333／0.1929)＝1.4633，w_refute＝ln(0.8071／0.1667)＝1.5775。TPR 0.95、TNR 0.05（永遠投支持）→ w_support＝ln(0.95／0.95)＝0。
+  - 平滑（v0.7）：a ＝ (C ＋ k·ā ＋ 1) ／ (n ＋ k ＋ 2)，ā 是該模型該邊的跨桶原始正確率，k 是 `smoothing_k`；+1／+2 的先驗讓 a 嚴格落在 (0, 1)。v0.6 的 (C ＋ k·ā) ／ (n ＋ k) 在模型單邊全對時 a＝1，`lr_weights` 的比率除以零而回傳 0，最準的驗證者反而權重歸零。範例：nemotron_self 在 authz 的 support C＝34、n＝40、ā＝0.8333、k＝10 → a＝0.8333；refute C＝20、n＝24、ā＝0.8056 → a＝0.8071；w_support＝ln(0.8333／0.1929)＝1.4633。
 - **「權重接近 0」的判準** [H]：每一邊各自判定，任一邊成立就標示該邊 `near_zero: true`，原因寫入 `near_zero_reasons`（依序對應下列三項：`w_below_min`、`wilson_lower_le_max`、`n_below_min`）。**v0.6：任一邊 near_zero → 兩邊的 w 都是 0**，因為每個權重都用到兩邊的比率，一邊不可靠，另一邊的權重也不可靠：
   1. 該邊的 w ＜ 0.2；
   2. 原始正確率 C／n 的 Wilson 95% 下界 ≤ 0.5（和隨機分不開）；

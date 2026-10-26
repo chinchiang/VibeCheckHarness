@@ -426,7 +426,7 @@ LLM 功能的結果每次可能不同，所以同一設定跑 n 次（固定目�
   - b＝10% → n＝29（近似 30）
   - b＝5% → n＝59（近似 60）
   - b＝3% → n＝99（近似 100）
-- **預設**：高風險威脅（[02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)）的 LLM 測試目標上界 5%，n＝60；其他 n＝30（上界 10%）。B3 依受測應用上游 LLM 的單價估算費用；超過 ROE `spend_cap_usd` 時降低 n，並在報告寫出降低後的上界，不假裝達到目標。
+- **預設**：高風險威脅（[02 B2](02-methodology.md#b2-威脅建模g3-強制簽核)）的 LLM 測試目標上界 5%，n＝60；其他 n＝30（上界 10%）。B3 依受測應用上游 LLM 的單價估算費用；超過 ROE `spend_cap_usd` 時**不降低 n**（v0.7，審查 r8：`E-TC-TRIALS` 要求機率型測試的 n ≥ PASS 所需的有效次數，降低 n 的測試案例進不了 G4）——該測試案例改標 `MANUAL`（`manual_reason: budget`）並列入 run 的 `gaps`，報告寫明「因費用上限未測」，不以較弱的上界假裝有測。v0.6 的文字允許降低 n 並報告較弱的上界，與 validator 的規則矛盾。
 - **重現**（FAIL 時）：另開一個重播 job，同一設定跑 n_r＝`trials.replay_n`（LLM 預設 20）次；TestResult 以 `replays`＝n_r、`replay_k`＝k_r 記錄（validator 檢查 0 ≤ k_r ≤ n_r，且 v0.5 起 n_r 只能是 0 或 `trials.replay_n`，不能少跑；`E-RESULT-TRIALS`）。
   - **確定性測試**：每次重播都失敗（k_r＝n_r）才算重現；不一致代表 oracle 或環境不穩定 → `E_inc`。
   - **機率型測試**（v0.5，審查 2026-10-25 M-3）：重播是**可重現性紀錄**，不改變 FAIL 判定。一次經確定性 oracle 確認的違反（例如未經確認的工具呼叫）就已經違反需求；而真實違反率 5% 時，20 次重播全部沒重現的機率約 0.95^20≈36%，v0.4 要求 k_r ≥ `fail_k_min` 會把約三分之一的真實違反降成 `E_inc`，與「一次即違反」矛盾。所以只要第一批達到 `fail_k_min` 且重播 job 跑滿 n_r 次，就是 `E_proof`（另需事先登記與 G4 核准，05 §4.2）；報告寫出 k_r／n_r 作為重現率，k_r＝0 時另標「重播未重現，請人工檢視第一批的工具呼叫紀錄」。（`tools/vchlib/derive.py` 依此判定）
@@ -1014,7 +1014,7 @@ db_access:
   - promptfoo 要設定 `PROMPTFOO_DISABLE_REMOTE_GENERATION=true` 與 `PROMPTFOO_DISABLE_TELEMETRY=1`，grader 指定為 Gateway 上允許的模型 [V][S-08]；部分策略據報仍會使用遠端生成 [單源][S-09]，所以另外在出站層封鎖 promptfoo 雲端（詳見 [03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)）
   - LLM grader 的判定只作參考（本測試以確定性 oracle 判定）
 - **rate_limit**：`requests_per_second: 1`；`max_requests: 250`，只涵蓋**本 job 自己**的請求：每個 trial ≤ 4 個請求（開對話、送訊息、最多 2 次取回），60 × 4 ＝ 240，加 reachability 控制最多 4 個（CTL-01 的開對話、送訊息、最多 2 次取回）與 canary 紀錄讀取 1 個，共 245 ≤ 250（範例 PASS 結果的 `request_count` 為 184）。**重播是獨立 job，有自己的 `max_requests`，不計入本 job**。
-- **花費上限**：ROE `upstream_llm_providers[].spend_cap_usd`（範例為 20 USD）。B3 依上游模型單價估算對話費用（60 trial ＋ reachability 控制）；估算超過上限時降低 n，並依 §4.4 寫出降低後的上界。重播 job（n_r＝20）另計。
+- **花費上限**：ROE `upstream_llm_providers[].spend_cap_usd`（範例為 20 USD）。B3 依上游模型單價估算對話費用（60 trial ＋ reachability 控制）；估算超過上限時不降低 n，測試案例改標 `MANUAL`（`budget`）並列入 gaps（§4.4，v0.7）。重播 job（n_r＝20）另計。
 - **安全等級**：proposed S1；computed 依 §5：
   1. `promptfoo:eval` 已登錄、可在 B4 執行（base S1）；不在拒絕清單；`promptfoo` 在 `allowed_tools`
   2. `tgt-staging-app`、`tgt-canary` 都是 ROE 目標；base URL 分別是 `https://app.staging.example.com` 與 `https://canary.example.net`（`host_of` 可解析；`tgt-canary` 的 `environment` 是 `tester_controlled`）；主機不在排除清單

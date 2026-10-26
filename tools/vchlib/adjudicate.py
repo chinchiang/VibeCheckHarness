@@ -24,6 +24,14 @@ v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a rea
     positive control (an oracle_can_fail control that PASSed). A PASS without one only adds
     test_not_reproduced: a test that was never shown able to fail cannot refute.
 
+v0.7 (rule_version 05-v0.7, review r8 group 3):
+  - R6 / R2 sources: an E_fail_u result is an independent source only when the agents that wrote or shaped its test
+    are outside the cluster's families and base lineages (Inputs.fail_u_independent, derived by the validator); v0.6
+    counted any E_fail_u, so one family could report a defect, write the W4 test and read its FAIL, and reach LIKELY.
+    An E_fail_u still turns a lone refutation into DISPUTED (row 7): a dispute goes to a person.
+  - Vote weights use a non-degenerate prior (docs/05 §4.3), so a verifier perfect on one side keeps its weight; the
+    calibration example's weights and scores changed, theta_confirm stays 2.5.
+
 v0.6 (rule_version 05-v0.6, review r7 group 3):
   - R10: only a G4-approved black-box proof that the replay job reproduced (k_r >= 1) overrides a G2 rejection.
     A W4 proof is written and interpreted inside the white-box pipeline the human just overruled; it still confirms
@@ -35,7 +43,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.6"
+RULE_VERSION = "05-v0.7"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -47,6 +55,7 @@ class Inputs:
     all_snippets_fail: bool = False                       # no member evidence item grounded, one NOT_FOUND (v0.6; False without members)
     pass_positive: bool = False                           # some E_pass result has a PASSed oracle_can_fail control (R11, v0.4)
     evidence: set[str] = field(default_factory=set)       # classes present among linked results
+    fail_u_independent: bool = False                      # an E_fail_u whose test authors are outside the cluster (v0.7)
     weighted_support: bool = False
     weighted_refute: bool = False
     score: float = 0.0                                    # S = sum(w * stance)
@@ -80,8 +89,8 @@ def strongest(evidence: set[str]) -> str | None:
 
 
 def independent_sources(x: Inputs) -> int:
-    """R2: independent families + (1 if a weak SARIF signal) + (1 if an E_fail_u result)."""
-    return x.independent_families + int(bool(x.weak_sarif)) + int("E_fail_u" in x.evidence)
+    """R2: independent families + (1 if a weak SARIF signal) + (1 if an independently authored E_fail_u result, v0.7)."""
+    return x.independent_families + int(bool(x.weak_sarif)) + int(x.fail_u_independent)
 
 
 def fail_class(x: Inputs) -> bool:
