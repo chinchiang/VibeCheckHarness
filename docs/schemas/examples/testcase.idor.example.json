@@ -81,6 +81,7 @@
       "path": "/api/invoices/{seed:tenant_a_invoice}",
       "step_id": null,
       "graphql_operation": null,
+      "graphql_document_sha256": null,
       "object_refs": [],
       "server_action": null
     },
@@ -90,6 +91,7 @@
       "path": "/api/invoices/{seed:tenant_b_invoice}",
       "step_id": null,
       "graphql_operation": null,
+      "graphql_document_sha256": null,
       "object_refs": [],
       "server_action": null
     },
@@ -99,6 +101,7 @@
       "path": "/api/invoices/{seed:tenant_b_invoice}",
       "step_id": null,
       "graphql_operation": null,
+      "graphql_document_sha256": null,
       "object_refs": [],
       "server_action": null
     },
@@ -108,6 +111,7 @@
       "path": "/api/invoices/{seed:tenant_b_invoice}",
       "step_id": null,
       "graphql_operation": null,
+      "graphql_document_sha256": null,
       "object_refs": [],
       "server_action": null
     }

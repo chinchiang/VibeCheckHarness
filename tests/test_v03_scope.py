@@ -22,7 +22,9 @@ def level(b, tc):
 
 
 def req(target, method, path, step=None, op=None):
-    return {"target_id": target, "method": method, "path": path, "step_id": step, "graphql_operation": op}
+    # v0.6 (review r7 3.8): a GraphQL request pins its document
+    return {"target_id": target, "method": method, "path": path, "step_id": step, "graphql_operation": op,
+            "graphql_document_sha256": "sha256:" + "d" * 64 if op else None}
 
 
 # ================================================================ B6 mutation scope

@@ -276,6 +276,18 @@
               ]
             },
             "description": "v0.5（09 BL-40，docs/04 §4.3 M-5）：外洩類 oracle 要比對的結構化欄位。比對前做 NFKC、大小寫摺疊、去除空白與分隔符號；phone／account 另比對數字序列（safety.sensitive_leaks）。省略＝沒有登記欄位（E-SEED-SENSITIVE）"
+          },
+          "side_effects": {
+            "enum": [
+              "none",
+              "external",
+              "llm_tools"
+            ],
+            "description": "v0.6（審查 r7 3.8）：寫入這個種子的請求在請求層看不到的副作用（同 create_only_endpoints）。不是 none 且 contained 不是 true → 至少 S2。省略時，若 ROE integrations 有任何一項不是 disabled，視為 external（fail closed）"
+          },
+          "contained": {
+            "type": "boolean",
+            "description": "v0.6：基礎設施擁有者聲明寫入這個種子的副作用只落在 run 命名空間或 sandbox"
           }
         },
         "required": [

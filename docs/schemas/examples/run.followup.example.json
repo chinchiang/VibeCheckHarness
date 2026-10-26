@@ -45,7 +45,7 @@
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:b93dcd96b838bacb9ffd4cdd9a57fb3037c4335b309a0b25fb8fa219a4415f57"
+      "sha256": "sha256:50b805b9bf6a06811d823e12f5ef6547303546287bbc162335f16cb16ff90ed9"
     }
   },
   "prompt_templates": [
@@ -63,7 +63,7 @@
     }
   ],
   "rule_version": "05-v0.6",
-  "roe_ref": "sha256:ba429b0893ee7e1a3735f543742a939b71c052ebdbc1ec3976762c3daf637ca4",
+  "roe_ref": "sha256:beb8a302a584bc1632d013c85ebd8e5b86c4352e4b2f305122707a407db57c47",
   "repo_commit": "7d3e1a0",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
@@ -107,12 +107,12 @@
   "threat_model_ref": null,
   "b1_diff_dispositions_ref": null,
   "g3_round": 0,
-  "testplan_ref": "sha256:76fb6c182133651bd818081cc904aade0281f290acaa00f1dc363d76d6e1576d",
+  "testplan_ref": "sha256:dd44ba5aa4521d8667be8a22d7d6cb42e2193acb38ce144ad1806331bf17ba2d",
   "testcase_ids": [
     "TC-012-01"
   ],
   "artifact_hashes": {
-    "TC-012-01": "sha256:b8436a5875891d82e0eb7aca0deed197b19194a83ef5dfe3fcb804e5ef1eaebe"
+    "TC-012-01": "sha256:8b917f184cb9cc83a62510355a3ac63c148b0eed744ffd859e1c3c3bcb5a37bb"
   },
   "g4_round": 1,
   "approved_testcase_ids": [],
@@ -141,7 +141,7 @@
       "gate_record_id": "GR-G0b-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:ba429b0893ee7e1a3735f543742a939b71c052ebdbc1ec3976762c3daf637ca4",
+      "subject_hash": "sha256:beb8a302a584bc1632d013c85ebd8e5b86c4352e4b2f305122707a407db57c47",
       "job_id": null,
       "opened_at": "2026-10-07T10:01:00+08:00",
       "decided_at": "2026-10-07T10:02:00+08:00"
@@ -151,7 +151,7 @@
       "gate_record_id": null,
       "outcome": null,
       "round": 1,
-      "subject_hash": "sha256:76fb6c182133651bd818081cc904aade0281f290acaa00f1dc363d76d6e1576d",
+      "subject_hash": "sha256:dd44ba5aa4521d8667be8a22d7d6cb42e2193acb38ce144ad1806331bf17ba2d",
       "job_id": null,
       "opened_at": "2026-10-07T10:30:00+08:00",
       "decided_at": null

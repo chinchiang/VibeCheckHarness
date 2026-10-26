@@ -20,6 +20,10 @@
   - 以 POST 送出的唯讀端點（`read_only_endpoints`，BL-25）算讀取。
   - 路徑沒有變數段的寫入（Next.js Server Actions、GraphQL mutation、PostgREST 過濾條件）以 `object_refs` 綁定種子（BL-24）；Scope Proxy 把 body 與 query 中的物件 ID 綁到解析後的值，並移除 method override。v0.5（審查 2026-10-25 H-6）：綁定規則補上 query 字串（只接受 PostgREST `eq.`）、ID 鍵下的陣列與物件、複數 ID 鍵、沒有任何綁定 ID 的整表寫入；Server Action 改以 `server_action {action_id, args}` 逐字比對（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)）。審查 r7：沒有路徑變數的 PATCH／PUT／DELETE 只能以 query 的 `eq.` 選取已綁定的物件，body 中的 ID 不算選取條件（只有 POST 可以由 body 綁定）；Server Action 的參照全部要能解析，引數依 JSON 型別比對；`object_refs` 中的 `{created:x}` 只用在 x 的 `created_resource.path_templates` 宣告的路徑上。
   - create-only 端點宣告看不到的副作用（`side_effects: external／llm_tools`）；沒有宣告 `contained` 就至少 S2。
+  - v0.6（審查 r7 3.8）：
+    - 種子也宣告 `side_effects`／`contained`。寫入（不是讀取）一個副作用沒有被圍住的種子 → 至少 S2。種子沒有宣告時，只要 ROE `integrations` 有任何一項不是 `disabled`，就視為 `external`（fail closed；更新訂單和建立訂單一樣可能寄信）（`safety.seed_side_effects`）。
+    - 請求預算包含重播：`max_requests ＋ replay_n × ⌈max_requests ／ n⌉`，因為每次重播重跑一個 trial。超過 `s1_request_cap` → 至少 S2（`safety.request_budget`）。v0.5 只比較 `max_requests`，但重播「不計入 max_requests」。
+    - GraphQL：在 Scope Proxy 能解析 document 之前（[09 BL-35](09-backlog.md)），GraphQL 請求只能以 POST 送出，並在白名單以 `graphql_document_sha256` 釘住 document；以 GET 送出，或 `graphql_operation` 不是 null 卻沒有釘住 document → S3。GET 的 document 放在 query string 中，Proxy 無法分辨 query 與 mutation。
   - seed manifest 的內容 hash 由基礎設施擁有者在 ROE 簽署（`E-ROE-SEED-MANIFEST`）。
   - Schemathesis 的 S1 模式只跑 GET／HEAD 操作；寫入操作改用綁種子的 GENERATED_SCRIPT。v0.5 起 validator 檢查：`schemathesis:*` 測試案例的 `request_allowlist` 只能有 GET／HEAD；`zap:baseline` 測試案例必須帶 `params.safe_mode: true`（adapter 以 `-S` 執行，`E-TC-TOOL`）。
 

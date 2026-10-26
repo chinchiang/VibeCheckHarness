@@ -102,6 +102,12 @@
 - 穩健性：推導值與 inventory／invariants／baseline 檢查逐份文件保護，一份壞文件不再遮蔽其他文件的錯誤。
 - 新增 `tests/test_v05_r7_bypasses.py`。
 
+### 第七輪審查：安全等級（第 3 組之三）
+- 種子新增 `side_effects`／`contained`；寫入副作用沒有被圍住的種子 → 至少 S2，沒有宣告時依 ROE integrations 採 fail closed。範例的種子都宣告 `none`／`contained`，ROE 的 seed manifest hash 已更新。
+- 請求預算包含重播（`max_requests ＋ replay_n × ⌈max_requests／n⌉`）。計畫原本寫 `max_requests ×（1＋replay_n）`，但重播只重跑一個 trial，那樣會高估：LLM 範例會從 350 變成 5250。
+- GraphQL 只能 POST，並以 `graphql_document_sha256` 釘住 document（testcase `request_allowlist` 新欄位）；否則 S3。
+- 新增 `tests/test_v06_r7_safety.py`。
+
 ### 第七輪審查：校準（第 3 組之二）
 - 權重改為兩邊比率的對數概似比（SUPPORT＝ln(TPR／(1−TNR))、REFUTE＝ln(TNR／(1−TPR))），任一邊 near_zero → 兩邊都是 0；範例的權重、θ_confirm（2.5，新尺度）與 K-011 的 provisional 隨之更新。
 - θ_confirm／θ_reject 依 CWE 桶分開（`by_bucket`）；沒有列出的桶、不可行或未能類推（`generalised: false`）的門檻都視為 +∞。
