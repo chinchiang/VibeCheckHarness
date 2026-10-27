@@ -1,0 +1,138 @@
+"engagement_id": "eng-acme-invoices-2026q4"
+"version": 1
+"purpose": "ACME 發票系統的白箱＋黑箱安全驗證"
+"issued_at": "2026-09-18T10:00:00+08:00"
+"key_registry_ref": "docs/examples/key-registry.yaml"
+"run_owner": "alice"
+"budget_approver": null
+"code_ownership":
+  "repositories":
+  - "url": "https://git.example.com/acme/invoices"
+    "owner": "ACME Inc."
+  "attested_by":
+    "person_id": "alice"
+    "role": "app_owner"
+    "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "attestation": true
+"data_class": "C"
+"allowed_models":
+  "P":
+  - "claude_sonnet"
+  - "claude_opus_48"
+  - "gpt_flagship"
+  - "gpt_oss_self"
+  - "nemotron_self"
+  - "nemotron_cloud"
+  "C":
+  - "claude_sonnet"
+  - "claude_opus_48"
+  - "gpt_flagship"
+  - "gpt_oss_self"
+  - "nemotron_self"
+"lane_a_model": "claude_opus_48"
+"owasp_llm_version": null
+"telemetry_disabled": true
+"retention_days": 30
+"validity":
+  "not_before": "2026-09-20T00:00:00+08:00"
+  "not_after": "2026-10-31T23:59:59+08:00"
+"budgets":
+  "run_total":
+    "max_input_tokens": 30000000
+    "max_output_tokens": 3000000
+    "max_cost_usd": 400
+    "max_compute_minutes": 2880
+  "W":
+    "max_input_tokens": 15000000
+    "max_output_tokens": 1500000
+    "max_cost_usd": 150
+    "max_compute_minutes": 1440
+  "B":
+    "max_input_tokens": 5000000
+    "max_output_tokens": 500000
+    "max_cost_usd": 50
+    "max_compute_minutes": 1440
+  "families":
+    "anthropic":
+      "max_cost_usd": 120
+    "openai":
+      "max_cost_usd": 60
+"publishing":
+  "enabled": false
+  "platform": null
+  "token_scopes": []
+"gate_timeouts_hours":
+  "claim_run": 168
+  "G1": 168
+  "G2": 168
+  "G3": 168
+  "G4": 72
+  "G5": 24
+  "GB": 24
+"signatories":
+- "person_id": "alice"
+  "role": "app_owner"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+- "person_id": "alice"
+  "role": "management"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+"gate_approvers":
+  "G0a":
+  - "alice"
+  "G1":
+  - "alice"
+  "G2":
+  - "alice"
+"providers":
+- "family": "anthropic"
+  "zdr": "confirmed"
+  "zdr_evidence_ref": "doc:zdr-anthropic-2026-09"
+  "dpa_signed": true
+  "retention_days": null
+  "region": "US"
+- "family": "openai"
+  "zdr": "confirmed"
+  "zdr_evidence_ref": "doc:zdr-openai-2026-09"
+  "dpa_signed": true
+  "retention_days": null
+  "region": "US"
+- "family": "nvidia"
+  "zdr": "not_available"
+  "zdr_evidence_ref": null
+  "dpa_signed": false
+  "retention_days": null
+  "region": null
+"data_transfer":
+  "source_jurisdiction": "TW"
+  "attested_by": "alice"
+  "transfers":
+  - "family": "anthropic"
+    "region": "US"
+    "mechanism": "contract"
+    "reference": "doc:dpa-anthropic-2026-09#cross-border"
+  - "family": "openai"
+    "region": "US"
+    "mechanism": "contract"
+    "reference": "doc:dpa-openai-2026-09#cross-border"
+"config_pins":
+  "models": "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+  "agents": "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
+  "tools": "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
+  "calibration": "sha256:ad3ec68e89a76fa0e0ce76ebdbeea1cd34f2ce0ad79608a753d129e0dbd4449d"
+  "crosswalk": "sha256:e83a2cd8412b3694ff5221b7b59d6abd08274edf3f8f01b0dfbcdde5d94887e8"
+  "licenses": "sha256:dc6f7c0fb8f1e7e895610d28778e8e3d2da7d2abfbf9e238443f127fdb4f48dc"
+  "toolkit": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327"
+"assurance_profile": "lite"
+"role_consolidation":
+  "acknowledged": true
+  "person_id": "alice"
+  "statement": "單人專案：alice 同時是測試負責人、管理者、基礎設施擁有者、資安審查者、應用程式擁有者與法務聲明者"
+"signatures":
+- "signer": "alice"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "alg": "ed25519"
+  "value": "lBovhuoV8AnJBLmCLsqr+zIL9rud6uUW0goAMJXP6/lPzqW4N4iowK6rOFf1ASHqRerC0QC0ZiCkbC6/TrVvDA=="
+- "signer": "alice"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "alg": "ed25519"
+  "value": "lBovhuoV8AnJBLmCLsqr+zIL9rud6uUW0goAMJXP6/lPzqW4N4iowK6rOFf1ASHqRerC0QC0ZiCkbC6/TrVvDA=="

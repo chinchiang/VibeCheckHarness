@@ -4,7 +4,7 @@
 >
 > 本清單收錄 [2026-09-26 深度審查](evidence/review-2026-09-26.md) 中**本輪沒有修正**的項目：低優先（L）項目，以及刻意延後、需要更多資訊才能處理的部分。高、中優先項目本輪都已處理，或在此寫明延後的理由。
 >
-> [第十輪審查](evidence/review-2026-10-27-r10.md)的發現已處理，留下的契約、估算與營運工作（BL-61～65）在 §4.1。[第九輪審查](evidence/review-2026-10-27-r9.md)的發現已處理，留下的契約與範例工作（BL-58～60）在 §4.1。[第八輪審查](evidence/review-2026-10-26-r8.md)的發現已處理，留下的執行期與營運項目（BL-53～57）也在 §4.1。[第七輪審查](evidence/review-2026-10-25-r7.md)的發現已處理，留下的執行期項目見 §4.1。[2026-10-25 設計審查](evidence/review-2026-10-25.md)（第六輪）的發現已全部處理（該審查紀錄 §7～§14）。其中只寫成規格、或 validator 只做靜態檢查的部分，連同處理時記下的限制，列在下方 §4（BL-36 起）。已處理的舊項目移到 §5，編號保留供追溯（BL-07～BL-09 從未配發：第一次編號時跳過，不是遺失的項目）。
+> [第十輪審查](evidence/review-2026-10-27-r10.md)的發現已處理，留下的契約、估算與營運工作（BL-61～65）在 §4.1。[第九輪審查](evidence/review-2026-10-27-r9.md)的發現已處理，留下的契約與範例工作（BL-58、59）在 §4.1，BL-60 已完成。[第八輪審查](evidence/review-2026-10-26-r8.md)的發現已處理，留下的執行期與營運項目（BL-53～57）也在 §4.1。[第七輪審查](evidence/review-2026-10-25-r7.md)的發現已處理，留下的執行期項目見 §4.1。[2026-10-25 設計審查](evidence/review-2026-10-25.md)（第六輪）的發現已全部處理（該審查紀錄 §7～§14）。其中只寫成規格、或 validator 只做靜態檢查的部分，連同處理時記下的限制，列在下方 §4（BL-36 起）。已處理的舊項目移到 §5，編號保留供追溯（BL-07～BL-09 從未配發：第一次編號時跳過，不是遺失的項目）。
 >
 > - **需要使用者決定的事項**（金鑰、GPU、法務關卡、保留期限等）不在這裡，見 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定)。
 > - **狀態**：`待辦`＝尚未處理；`延後`＝有意留到之後的里程碑。
@@ -80,7 +80,6 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-57 | r8 M9 | 相依套件的 hash 鎖定：`requirements.lock` 目前只釘版本號；`--require-hashes` 需要四個 CI 平台（ubuntu／windows × py3.11／3.13）的 wheel digest，要用 `pip download --platform` 逐平台產生 | [06 §1.5](06-security-legal-limitations.md#15-供應鏈)、[CONTRIBUTING](../CONTRIBUTING.md) | MVP-0 | 版本已釘；hash 未產生 |
 | BL-58 | r9 | harness 自身的多租戶分區與 CLI／API 角色（06 §1.10 的表）、harness 端的 RPO／RTO | [06 §1.10](06-security-legal-limitations.md#110-harness-自身的多租戶與存取控制h) | MVP-1 | 契約已寫；未實作 |
 | BL-59 | r9 | W4 的 MANUAL 需求在 G4 逐項核准（schema 欄位與 `E-W4-COVERAGE` 的檢查）；`sandbox_job_end.result_sha256` 改釘去掉 B5 解讀欄位的 hash | [08 §11.18](08-implementation-spec.md#1118-受測系統的準備檢核表h) | MVP-1 黑箱執行之前 | 契約已寫；未實作 |
-| BL-60 | r9 | 第二個小型範例 bundle：`lite` 委任、G2 駁回（R10／`post_g2_conflict`）、`ABORTED` 與 `SUSPENDED` 的 run、`stop_condition`、`E-G5-TWO-PERSON`；目前這些路徑由記憶體中的測試涵蓋（[schemas README 的路徑表](schemas/README.md#範例沒有走過的路徑)） | [schemas README](schemas/README.md) | MVP-0 | 路徑表與測試已有；bundle 未建 |
 | BL-61 | r10 | harness 的可觀測性與值班：健康檢查、指標、告警、每晚的稽核驗證、事故紀錄 | [06 §1.11](06-security-legal-limitations.md#111-harness-的可觀測性與值班-h) | MVP-1 | 契約已寫；未實作 |
 | BL-62 | r10 | 審查者與抽查人的資格：金鑰登錄加 `qualifications`、核准時資格有效的 validator 檢查、練習對答的題組 | [06 §1.12](06-security-legal-limitations.md#112-審查者與抽查人的資格-h) | MVP-2 | 契約已寫；未實作 |
 | BL-63 | r10 | 人力與時程估算的實測：pilot 記錄每個里程碑的實際人週，超過估算 50% 時重估 | [07 §1.5](07-roadmap.md#15-人力與時程估算-h) | MVP-0 | 估算已寫；待量測 |
@@ -109,3 +108,4 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-25 | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（seed manifest `read_only_endpoints`） |
 | BL-26 | `toolkit.yaml` 沒有 G2／G3 佇列上限與逾時比例告警門檻的欄位；run／report-manifest 沒有「超出上限」「只列報告」清單的欄位 | v0.4 已處理：`toolkit.yaml` `gate_queues`；report-manifest `over_cap_items`、`report_only_clusters`（`E-REPORT-QUEUE`）；v0.5 另加 G4 上限（`g4_max_items`，見 BL-41）與 G3 的 `over_cap` 決定 |
 | BL-64 | r10 錯誤碼表分成兩段、250 列，11 個錯誤碼散在多列，28 個沒有自己的列 | 已處理：`tools/build_error_table.py` 維護單一的表（每碼一列、依家族排序、自動產生「守住的測試」欄），CI 以 `--check` 檢查（[schemas README](schemas/README.md#錯誤碼)） |
+| BL-60 | r9：第二個小型範例 bundle（Lite、G2 駁回、ABORTED、停止條件、G5 兩人）；這些路徑只由記憶體中的測試涵蓋 | 已處理：`lite` 與 `edge` 兩個變體 bundle，由 `tools/build_variants.py` 從主範例產生、簽署並以 `--check` 守住（[schemas README](schemas/README.md#變體-bundlebl-60)）。SUSPENDED 的 run 與抽查推翻後升級 G5 的路徑仍只在記憶體中測試 |

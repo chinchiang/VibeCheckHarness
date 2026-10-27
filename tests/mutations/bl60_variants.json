@@ -1,0 +1,28 @@
+{
+  "tests": "tests/test_bl60_variants.py",
+  "mutations": [
+    {"name": "MANUAL testcases need no job", "file": "tools/vchlib/checks.py",
+     "old": "                if ((tc.data if tc else {}).get(\"tool_binding\") or {}).get(\"kind\") == \"MANUAL\":\n                    continue",
+     "new": "                if False:\n                    continue",
+     "k": "manual_testcase_needs_no or validates_cleanly"},
+    {"name": "G2 rejection needs a post-G2 head", "file": "tools/vchlib/checks.py",
+     "old": "            R.check(head.get(\"readjudicated_by\") != \"W3_adjudicate\", \"E-VERDICT-G2\", ids[heads[0]].path,",
+     "new": "            R.check(True, \"E-VERDICT-G2\", ids[heads[0]].path,",
+     "k": "post_g2_verdict"},
+    {"name": "schema coverage on the main bundle only", "file": "tools/vchlib/checks.py",
+     "old": "            if getattr(b, \"variant\", None) is None:\n                R.check(name in seen, \"E-SCHEMA-NO-EXAMPLE\"",
+     "new": "            if True:\n                R.check(name in seen, \"E-SCHEMA-NO-EXAMPLE\"",
+     "k": "main_bundle_only or validates_cleanly"},
+    {"name": "overlay removes listed documents", "file": "tools/vchlib/bundle.py",
+     "old": "    b.docs = [d for d in b.docs if d.path not in removed]\n    # the main loader",
+     "new": "    # the main loader",
+     "k": "replaces_adds_and_removes"},
+    {"name": "builder refreshes config pins", "file": "tools/build_variants.py",
+     "old": "                if cfg is not None and ref != content_hash(cfg.data):",
+     "new": "                if False:",
+     "k": "builder_writes"},
+    {"name": "CI checks the variants", "file": ".github/workflows/validate.yml",
+     "old": "        run: python tools/build_variants.py --check", "new": "        run: python tools/build_variants.py",
+     "k": "ci_checks_the_variants"}
+  ]
+}

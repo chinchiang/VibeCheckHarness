@@ -35,3 +35,5 @@ jobs:
         run: python tools/build_references.py --check
       - name: Error-code table matches the validator
         run: python tools/build_error_table.py --check
+      - name: Variant bundles are up to date and validate cleanly
+        run: python tools/build_variants.py --check

@@ -1,0 +1,14 @@
+{
+  "checkpoint_id": "ckpt-run-2026-10-07-001-0007",
+  "run_id": "run-2026-10-07-001",
+  "thread_id": "run-2026-10-07-001",
+  "parent_checkpoint_id": "ckpt-run-2026-10-07-001-0006",
+  "node": "G4",
+  "created_at": "2026-10-07T10:30:00+08:00",
+  "state_sha256": "sha256:ae2b03dc79ef0dc600e4869021b6f37d2582e96b9fdc809162711a277430b612",
+  "schema_version": "0.5",
+  "run_status": "ABORTED",
+  "pending_interrupt": null,
+  "encrypted": true,
+  "authoritative": false
+}

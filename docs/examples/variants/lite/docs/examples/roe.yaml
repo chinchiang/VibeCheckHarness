@@ -1,0 +1,260 @@
+"engagement":
+  "id": "eng-acme-invoices-2026q4"
+  "version": 1
+  "purpose": "ACME 發票系統 staging 的安全驗證（先白箱、後黑箱）"
+"issued_at": "2026-09-30T15:00:00+08:00"
+"key_registry_ref": "docs/examples/key-registry.yaml"
+"signatories":
+- "person_id": "alice"
+  "role": "test_lead"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+- "person_id": "alice"
+  "role": "management"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+- "person_id": "alice"
+  "role": "infrastructure_owner"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+"gate_approvers":
+- "person_id": "alice"
+  "role": "security_reviewer"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+- "person_id": "alice"
+  "role": "security_reviewer"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+- "person_id": "alice"
+  "role": "app_owner"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+"validity":
+  "not_before": "2026-10-01T00:00:00+08:00"
+  "not_after": "2026-10-31T23:59:59+08:00"
+  "windows":
+  - "days":
+    - "mon"
+    - "tue"
+    - "wed"
+    - "thu"
+    - "fri"
+    "start": "20:00"
+    "end": "23:00"
+    "tz": "Asia/Taipei"
+  - "days":
+    - "sat"
+    "start": "22:00"
+    "end": "02:00"
+    "tz": "Asia/Taipei"
+"targets":
+- "id": "tgt-staging-api"
+  "kind": "http"
+  "base_url": "https://api.staging.example.com"
+  "endpoint": null
+  "environment": "staging"
+  "ownership_proof":
+    "method": "dns_txt"
+    "token_ref": "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+  "build_identity":
+    "method": "header"
+    "header_name": "x-build-sha"
+    "path": null
+    "json_pointer": null
+- "id": "tgt-staging-app"
+  "kind": "http"
+  "base_url": "https://app.staging.example.com"
+  "endpoint": null
+  "environment": "staging"
+  "ownership_proof":
+    "method": "well_known_path"
+    "token_ref": "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+  "build_identity":
+    "method": "header"
+    "header_name": "x-build-sha"
+    "path": null
+    "json_pointer": null
+- "id": "tgt-canary"
+  "kind": "http"
+  "base_url": "https://canary.example.net"
+  "endpoint": null
+  "environment": "tester_controlled"
+  "ownership_proof":
+    "method": "dns_txt"
+    "token_ref": "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+  "build_identity":
+    "method": "none"
+    "header_name": null
+    "path": null
+    "json_pointer": null
+- "id": "tgt-staging-db"
+  "kind": "database"
+  "base_url": null
+  "endpoint": "db.staging.example.com:5432"
+  "environment": "staging"
+  "ownership_proof":
+    "method": "db_comment"
+    "token_ref": "vault://engagements/eng-acme-invoices-2026q4/ownership-token"
+  "build_identity":
+    "method": "none"
+    "header_name": null
+    "path": null
+    "json_pointer": null
+"platform_policies": []
+"test_roles":
+- "role": "tenantA_user"
+  "description": "合成租戶 A 的一般使用者"
+  "credential_ref": "vault://engagements/eng-acme-invoices-2026q4/roles/tenantA_user"
+  "login":
+    "method": "api_token"
+    "target_id": "tgt-staging-api"
+    "login_path": null
+    "recipe_ref": null
+    "mfa": "none"
+    "captcha_bypass": "not_needed"
+    "idp": "local"
+  "whoami":
+    "path": "/api/me"
+    "expect_json_pointer": "/user_id"
+    "expect_value_from_role": "user_id"
+  "storage_state_encrypted": true
+- "role": "tenantB_user"
+  "description": "合成租戶 B 的一般使用者"
+  "credential_ref": "vault://engagements/eng-acme-invoices-2026q4/roles/tenantB_user"
+  "login":
+    "method": "api_token"
+    "target_id": "tgt-staging-api"
+    "login_path": null
+    "recipe_ref": null
+    "mfa": "none"
+    "captcha_bypass": "not_needed"
+    "idp": "local"
+  "whoami":
+    "path": "/api/me"
+    "expect_json_pointer": "/user_id"
+    "expect_value_from_role": "user_id"
+  "storage_state_encrypted": true
+- "role": "U1"
+  "description": "LLM 客服功能的合成使用者"
+  "credential_ref": "vault://engagements/eng-acme-invoices-2026q4/roles/U1"
+  "login":
+    "method": "form"
+    "target_id": "tgt-staging-app"
+    "login_path": "/login"
+    "recipe_ref": null
+    "mfa": "totp"
+    "captcha_bypass": "staging_bypass_token"
+    "idp": "local"
+  "whoami":
+    "path": "/api/chat/me"
+    "expect_json_pointer": "/user/id"
+    "expect_value_from_role": "user_id"
+  "storage_state_encrypted": true
+"exclusions":
+  "paths":
+  - "/admin/billing/*"
+  - "/api/payments/*"
+  "hosts": []
+"activities":
+  "allowed_safety_classes":
+  - "S0"
+  - "S1"
+  - "S2"
+  "allowed_tools":
+  - "zap"
+  - "schemathesis"
+  - "playwright"
+  - "nuclei"
+  - "promptfoo"
+  - "pyrit"
+  - "k6"
+  "denied_modes":
+  - "nuclei:code_protocol"
+  - "restler:fuzz"
+"rate_limits":
+  "per_host_rps": 5
+  "max_concurrency": 2
+  "s1_request_cap": 500
+  "zap_delay_ms_min": 200
+  "zap_max_scan_minutes": 60
+"stop_conditions":
+  "max_5xx_ratio": 0.05
+  "max_p95_latency_ms": 3000
+  "health_url": "https://api.staging.example.com/healthz"
+  "contacts":
+  - "oncall-staging@example.com"
+"data_handling":
+  "data_class": "C"
+  "synthetic_data_attested": true
+  "pii_scan_before_b4": true
+  "retention_days": 30
+"integrations":
+- "name": "email"
+  "mode": "sandbox"
+- "name": "payments"
+  "mode": "disabled"
+"upstream_llm_providers":
+- "provider": "受測應用使用的 LLM 供應商"
+  "terms_confirmed_by": "alice"
+  "spend_cap_usd": 20
+"relay":
+  "mode": "scripted"
+  "models":
+  - "nemotron_self"
+  "max_turns": 6
+  "max_spend_usd_per_job": 1
+  "max_spend_usd_per_run": 10
+"db_access":
+  "target_id": "tgt-staging-db"
+  "endpoint": "db.staging.example.com:5432"
+  "snapshot_method": "provider_api"
+  "snapshot_credential_ref": "vault://engagements/eng-acme-invoices-2026q4/db/snapshot"
+  "oracle_readonly_credential_ref": "vault://engagements/eng-acme-invoices-2026q4/db/oracle-ro"
+  "oracle_readonly_attested": true
+  "oracle_tables":
+  - "invoices"
+  - "agent_tool_calls"
+  - "orders"
+  "seed_manifest_ref": "docs/examples/seed-manifest.yaml"
+  "seed_manifest_sha256": "sha256:50b805b9bf6a06811d823e12f5ef6547303546287bbc162335f16cb16ff90ed9"
+"legal_review":
+  "attested_by": "alice"
+  "attested_at": "2026-09-29T16:00:00+08:00"
+  "jurisdictions":
+  - "TW"
+  "scope":
+    "computer_misuse": true
+    "privacy": true
+    "cross_border": true
+    "third_party_platform_policy": true
+    "upstream_llm_terms": true
+    "component_licenses": true
+  "reference_doc_sha256": "sha256:5d1c1b1e0a3f9c8e7d6b5a4f3e2d1c0b9a8f7e6d5c4b3a291807f6e5d4c3b2a1"
+  "expires_at": "2027-03-31T23:59:59+08:00"
+"incident_response":
+  "contacts":
+  - "alice"
+  - "alice"
+  "notify_within_hours": 24
+  "covers":
+  - "data_exposure"
+  - "third_party_side_effect"
+  - "shared_platform_impact"
+  - "staging_outage"
+  "procedure_ref": "doc:acme-ir-playbook-2026#security-testing"
+  "liability_ref": "doc:acme-msa-2026#security-testing-liability"
+"secrets_verification":
+  "trufflehog_verify": false
+  "providers": []
+"signatures":
+- "signer": "alice"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "alg": "ed25519"
+  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="
+- "signer": "alice"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "alg": "ed25519"
+  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="
+- "signer": "alice"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "alg": "ed25519"
+  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="
+- "signer": "alice"
+  "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "alg": "ed25519"
+  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="

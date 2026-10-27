@@ -1,0 +1,234 @@
+{
+  "run_id": "run-2026-10-07-001",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_kind": "followup",
+  "parent_run_id": "run-2026-09-23-001",
+  "baseline_run_id": "run-2026-09-23-001",
+  "reuse": [
+    "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff",
+    "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441"
+  ],
+  "trigger": "manual",
+  "run_owner": "alice",
+  "initiators": [
+    "alice"
+  ],
+  "status": "ABORTED",
+  "status_reason": "測試負責人中止：staging 停機，重測改排下一個 run",
+  "current_node": null,
+  "resume_node": null,
+  "resume_deadline": null,
+  "data_class": "C",
+  "toolkit_config_ref": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327",
+  "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
+  "engagement_ref": "sha256:666fb3d62bc5cbca47f936110938224000e6fa66c30a0767ac41c1fe2942fd2e",
+  "config_refs": {
+    "models": {
+      "path": "docs/examples/models.yaml",
+      "sha256": "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+    },
+    "agents": {
+      "path": "docs/examples/agents.yaml",
+      "sha256": "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
+    },
+    "tools": {
+      "path": "docs/examples/tools.yaml",
+      "sha256": "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
+    },
+    "calibration": {
+      "path": "docs/examples/calibration.yaml",
+      "sha256": "sha256:ad3ec68e89a76fa0e0ce76ebdbeea1cd34f2ce0ad79608a753d129e0dbd4449d"
+    },
+    "invariants": {
+      "path": "docs/examples/invariants.yaml",
+      "sha256": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff"
+    },
+    "seed_manifest": {
+      "path": "docs/examples/seed-manifest.yaml",
+      "sha256": "sha256:50b805b9bf6a06811d823e12f5ef6547303546287bbc162335f16cb16ff90ed9"
+    }
+  },
+  "prompt_templates": [
+    {
+      "template_id": "result-analyst",
+      "version": "2026.09.1",
+      "sha256": "sha256:fe373423a62b5b6e053cd4d8b2f8228d36af7fa9369f0cd069b5d67335ea4001"
+    }
+  ],
+  "tool_versions": [
+    {
+      "adapter": "playwright:api",
+      "version": "1.55.0",
+      "image_digest": "sha256:483a0d7d3d408064a4332ba9c55aadeba5f4e53d3bcd34b8472ed00e2f65b6ad"
+    }
+  ],
+  "rule_version": "05-v0.9",
+  "roe_ref": "sha256:8cbdc9389af8ec2ea7b82330d7d643d12bc2b6bb576b94eb556a15f0c9a3d4e4",
+  "repo_commit": "7d3e1a0c4b2e9f6d1a8c3b5e7f9a2d4c6e8b0f1a",
+  "owasp_llm_version": "2026",
+  "calibration_version": 3,
+  "inventory_ref": null,
+  "sbom_ref": null,
+  "tool_results_ref": null,
+  "w4_manual_requirements": [],
+  "redaction_map_ref": null,
+  "invariants_ref": null,
+  "invariants_changed": false,
+  "g1_round": 1,
+  "w1_sarif_ref": null,
+  "deps_check_ref": null,
+  "slice_refs": [],
+  "plan_ids": [
+    "plan-2026-10-06-cmd5"
+  ],
+  "findings": [],
+  "cluster_ids": [
+    "K-301"
+  ],
+  "verdicts": [],
+  "missing_votes": [],
+  "diversity_flags": [],
+  "cmd2_rounds": 0,
+  "g2_queue": [],
+  "w4_iteration": 0,
+  "w4_results": [],
+  "whitebox_report_ref": null,
+  "w_sarif_ref": null,
+  "dfd_ref": null,
+  "seed_threats_ref": null,
+  "lane_a_advisories": [],
+  "disputed_after_g2": [],
+  "egress_allowlist_ref": null,
+  "ownership_results": [],
+  "b1_external_ref": null,
+  "b1_merged_ref": null,
+  "b1_diff_ref": null,
+  "taxonomy_plan_id": null,
+  "threat_model_ref": "sha256:348c5e807e303deae7615d3f08d1042ce3f91424cd7fe7e6687eb17f10c3535c",
+  "b1_diff_dispositions_ref": null,
+  "g3_round": 0,
+  "testplan_ref": "sha256:fedf098de9d6e878229462390a339cf3b8bb6df486033b161949b48e9e7779ba",
+  "testcase_ids": [
+    "TC-012-01"
+  ],
+  "artifact_hashes": {
+    "TC-012-01": "sha256:dee7ee0db171662f9a282407e4ed6ea22925e6ad555142a6e7a8c6eff7ce6ae5"
+  },
+  "g4_round": 1,
+  "approved_testcase_ids": [],
+  "restore_drill_ref": null,
+  "jobs": {},
+  "executed_jobs": [],
+  "stop_events": [],
+  "kill_switch": false,
+  "testresults": [],
+  "manual_review_clusters": [],
+  "followup_drafts": [],
+  "report_manifest_ref": null,
+  "gate_records": [
+    {
+      "gate": "G0a",
+      "gate_record_id": "GR-G0a-0002",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:666fb3d62bc5cbca47f936110938224000e6fa66c30a0767ac41c1fe2942fd2e",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:00:00+08:00",
+      "decided_at": "2026-10-07T10:01:00+08:00"
+    },
+    {
+      "gate": "G0b",
+      "gate_record_id": "GR-G0b-0002",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:8cbdc9389af8ec2ea7b82330d7d643d12bc2b6bb576b94eb556a15f0c9a3d4e4",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:01:00+08:00",
+      "decided_at": "2026-10-07T10:02:00+08:00"
+    },
+    {
+      "gate": "G1",
+      "gate_record_id": "GR-G1-0002",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:7670231dce457b9d88161ebfd9389cbb752b01e9cb56e09370ba70ca367f3fb5",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:01:10+08:00",
+      "decided_at": "2026-10-07T10:01:30+08:00"
+    },
+    {
+      "gate": "G3",
+      "gate_record_id": "GR-G3-0002",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:348c5e807e303deae7615d3f08d1042ce3f91424cd7fe7e6687eb17f10c3535c",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:06:00+08:00",
+      "decided_at": "2026-10-07T10:20:00+08:00"
+    }
+  ],
+  "budgets": {
+    "run_total": {
+      "max_input_tokens": 30000000,
+      "max_output_tokens": 3000000,
+      "max_cost_usd": 400,
+      "max_compute_minutes": 2880,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "W": {
+      "max_input_tokens": 15000000,
+      "max_output_tokens": 1500000,
+      "max_cost_usd": 150,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "B": {
+      "max_input_tokens": 5000000,
+      "max_output_tokens": 500000,
+      "max_cost_usd": 50,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "upstream_llm_spend_usd": 0,
+    "relay_spend_usd": 0,
+    "gb_return_node": null
+  },
+  "gaps": [],
+  "audit_anchors": [
+    {
+      "seq": 7,
+      "line_sha256": "sha256:77eadf25e57d0cdd89d8178cef52b116d42dfcff80d64b88c84088c74409129d"
+    },
+    {
+      "seq": 10,
+      "line_sha256": "sha256:c7a9bfd90f184606498e24c6090cae9dbbf671a84ac5d82fa4d904c91153b72e"
+    },
+    {
+      "seq": 13,
+      "line_sha256": "sha256:1a323f8652792dfe1bad7e0d91834a14f523ba508854604b7b20304205fd7026"
+    },
+    {
+      "seq": 18,
+      "line_sha256": "sha256:4eaf957049623235f383519689e8fa65c6a5127f91b9b6f4b78e32738cb4221a"
+    },
+    {
+      "seq": 21,
+      "line_sha256": "sha256:90c39c09d964e28b1f85fc2ec24737e6036d580a89ac19d274e79fcf90123396"
+    },
+    {
+      "seq": 24,
+      "line_sha256": "sha256:0902fda91f155249d9d830d73298a8e6e09189d9096666b493d62e27d26c7c3d"
+    }
+  ],
+  "errors": [],
+  "pr_origin": null
+}

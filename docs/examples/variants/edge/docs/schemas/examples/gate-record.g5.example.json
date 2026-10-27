@@ -1,0 +1,55 @@
+{
+  "gate_record_id": "GR-G5-0001",
+  "gate": "G5",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "s2_job",
+    "sha256": "sha256:8935b6224f4d660bdb85024504a92ffde315f94a5082f06ced320b00ff654fc2"
+  },
+  "job_id": "job-zap-active-001",
+  "g4_gate_record_id": "GR-G4-0001",
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "heidi",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:1jyZZuA652L7cTLJWgVC2VwK7buTjLotvqc4xrc9bKk"
+    },
+    {
+      "person_id": "grace",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "TC-027-01",
+      "item_sha256": "sha256:fbe6e550967fc3a252721e2678f3e37dab8f6d2c5ee554447994cd45a7f110a5",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "快照 snap-2026-10-05-01 已建立；還原演練 10-02 通過",
+      "carried_from": null
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-05T21:00:00+08:00",
+  "timestamp": "2026-10-05T21:50:00+08:00",
+  "signatures": [
+    {
+      "signer": "heidi",
+      "key_fingerprint": "ed25519:SHA256:1jyZZuA652L7cTLJWgVC2VwK7buTjLotvqc4xrc9bKk",
+      "alg": "ed25519",
+      "value": "KaMIJe+Ac5/7xn6WPOgbBdjOBXkdfo9cPeHfhlOJDWnr6WQ0hflnnlxwTb4lIVrDASQq77FGYStIPfgICnReAA=="
+    },
+    {
+      "signer": "grace",
+      "key_fingerprint": "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w",
+      "alg": "ed25519",
+      "value": "iE/8juq2OpZ5Vb/BKxsJS9A567+ib2Aunv6m5ueBxjkXVnglDEhtlBT0zsM0ox+7GUmTEQkbaF6k/34UzAG9BA=="
+    }
+  ]
+}

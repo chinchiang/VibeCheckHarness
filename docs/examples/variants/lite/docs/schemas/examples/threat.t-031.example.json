@@ -1,0 +1,90 @@
+{
+  "threat_id": "T-031",
+  "title": "間接 prompt injection 讓客服 agent 退款他人訂單",
+  "description": "U1 上傳含注入指令的文件；agent 摘要文件時被誘導呼叫 refund(ord-u2-0001)，未經人工確認也未檢查訂單擁有者。",
+  "taxonomy": [
+    {
+      "scheme": "owasp-llm@2026",
+      "id": "LLM01"
+    },
+    {
+      "scheme": "owasp-llm@2026",
+      "id": "LLM03"
+    },
+    {
+      "scheme": "owasp-asi@2026",
+      "id": "ASI01"
+    },
+    {
+      "scheme": "owasp-asi@2026",
+      "id": "ASI02"
+    }
+  ],
+  "dfd_elements": [
+    {
+      "element_id": "proc-support-agent",
+      "type": "process"
+    },
+    {
+      "element_id": "flow-agent-refund",
+      "type": "data_flow"
+    },
+    {
+      "element_id": "store-orders",
+      "type": "data_store"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "code_location",
+      "ref": "app/support/agent.py:57",
+      "match": "MATCHED"
+    },
+    {
+      "kind": "cluster",
+      "ref": "K-011",
+      "match": "MATCHED"
+    }
+  ],
+  "source_cluster_id": "K-011",
+  "source_finding_ids": [
+    "F-044"
+  ],
+  "modeled_by": [
+    {
+      "agent_id": "tm_a",
+      "family": "anthropic",
+      "viewpoint": "merged"
+    },
+    {
+      "agent_id": "tm_b",
+      "family": "openai",
+      "viewpoint": "merged"
+    }
+  ],
+  "attack_tree_ref": "attack-trees/T-031.json",
+  "risk": {
+    "likelihood": "medium",
+    "impact": "high"
+  },
+  "review": {
+    "status": "ACCEPTED",
+    "gate_record_id": "GR-G3-0001"
+  },
+  "crosswalk": [
+    {
+      "target_scheme": "cwe",
+      "target_id": "CWE-1427",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "alice"
+    },
+    {
+      "target_scheme": "invariant",
+      "target_id": "INV-LLM-003",
+      "provenance": "curated",
+      "source_ref": null,
+      "reviewed_by": "alice"
+    }
+  ]
+}

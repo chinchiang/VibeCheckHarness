@@ -146,7 +146,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 
 | 錯誤碼 | 規則 | 守住的測試 |
 |---|---|---|
-| `E-JOB-AUDIT` | `run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10）；審查 r8 F2a／F2b：每個 B4 結果的 job 必須在已執行的狀態（PENDING、EXECUTING、INTERRUPTED、STOPPED 的 job 不能有結果），每個 job 恰有一份結果，而且每一份結果都要有恰一筆已錨定、outcome 與三個 hash 都相符的 `sandbox_job_end`（不只是同一 job 的最後一份）；`derive.classify_result` 對沒有已錨定執行事件的結果一律給 `E_inc`；審查 r9：B 階段的每個 `sandbox_job_*` 事件都要對應 `run.jobs` 的 job（拿掉 job 與它的 FAIL 結果，已錨定的 `sandbox_job_end` 不再被忽略），完成的 run 對 G4 核准的每個測試案例都有 job（已執行或 SKIPPED） | `test_v05_round6_group6`、`test_v07_r8_validator`、`test_v05_r7_bypasses` 等 4 份 |
+| `E-JOB-AUDIT` | `run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10）；審查 r8 F2a／F2b：每個 B4 結果的 job 必須在已執行的狀態（PENDING、EXECUTING、INTERRUPTED、STOPPED 的 job 不能有結果），每個 job 恰有一份結果，而且每一份結果都要有恰一筆已錨定、outcome 與三個 hash 都相符的 `sandbox_job_end`（不只是同一 job 的最後一份）；`derive.classify_result` 對沒有已錨定執行事件的結果一律給 `E_inc`；審查 r9：B 階段的每個 `sandbox_job_*` 事件都要對應 `run.jobs` 的 job（拿掉 job 與它的 FAIL 結果，已錨定的 `sandbox_job_end` 不再被忽略），完成的 run 對 G4 核准的每個測試案例都有 job（已執行或 SKIPPED）<br>BL-60：G4 核准的 MANUAL 測試案例不需要工具包的 job（由人執行，列在報告的未能測試清單） | `test_v05_round6_group6`、`test_v07_r8_validator`、`test_bl60_variants` 等 5 份 |
 | `E-PIPELINE` | 流程完整性，Lane A 除外。W3 之後，run 的每個叢集都有裁決，每個 VERIFIED_SNIPPET 發現項都屬於某個叢集。W5 之後，**W3 裁決**為 DISPUTED 或 rubric 嚴重度 high 以上的 UNCORROBORATED 白箱叢集，必須有 G2 決定或列為 over_cap（審查 r8 F5：以 G2 當時看到的 W3 版本與 `cluster.severity` 判斷，不看 W4 重新裁決後的版本，也不看成員自報的 `finding.severity`）；沒有被 REJECTED 的白箱叢集是種子威脅或 report_only；G2 駁回的叢集不是種子。G3 之後每個種子都有 `threat_id`。`manual_review_clusters` 等於推導值（`post_g2_conflict`，或 B5 後 DISPUTED）。報告的 `gaps` 等於 run 的 gaps，artifacts 列出每個叢集的最新裁決與 run 的每個測試結果 | `test_v07_r8_validator`、`test_v05_r7_pipeline` |
 | `E-RUN` | run 的 `engagement_id`、`data_class`、`run_owner` 必須與委任相同，`calibration_version` 與 calibration.yaml 相同 | — |
 | `E-RUN-BUDGET` | GB 以 extend 核准後，`budgets.<phase>` 必須帶 GB 的 `new_caps`；各階段已用的 token、成本與運算分鐘不能超過對應上限 | — |
@@ -240,7 +240,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ROE-WHOAMI` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
 | `E-ROE-WINDOW` | 每個 `windows[]` 的時區與 HH:MM 時間必須可解析，start 不等於 end，`days` 非空且都是合法的星期 | `test_v03_robustness` |
 | `W-L2-MANAGEMENT` | `legal_review.attested_by` 沒有 legal_reviewer 角色而以 management 身分證明：報告中必須標示 | — |
-| `W-L5-LITE` | Lite 委任中法務審查聲明由兼任測試負責人的同一人簽署（警告）；報告首頁必須寫明聲明為自行簽署 | `test_v03_gates` |
+| `W-L5-LITE` | Lite 委任中法務審查聲明由兼任測試負責人的同一人簽署（警告）；報告首頁必須寫明聲明為自行簽署 | `test_v03_gates`、`test_bl60_variants` |
 
 **委任**
 
@@ -327,7 +327,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-MODEL-UNKNOWN` | 委任設定 `allowed_models` 與 agents.yaml 引用的模型必須在 models.yaml 中，而且能接收該資料等級 | `test_validator` |
 | `E-PROVENANCE` | （同一條規則也涵蓋 `E-MODEL-FALLBACK-CLASS`、`E-MODEL-RETIREMENT-DATE`、`E-RESULT-ANALYST-ROLE`）threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 | `test_v03_manifest` |
 | `W-DIVERSITY` | 能收該資料等級的 reviewer 家族少於 2 個：多樣性降級（裁決受上限限制） | — |
-| `W-MODEL-PLACEHOLDER` | models.yaml 有標示 `placeholder: true` 的模型 ID（警告）；真實 run 前必須換成真實 ID | `test_v02_hardening`、`test_review_fixes`、`test_v03_robustness` 等 4 份 |
+| `W-MODEL-PLACEHOLDER` | models.yaml 有標示 `placeholder: true` 的模型 ID（警告）；真實 run 前必須換成真實 ID | `test_bl60_variants`、`test_v02_hardening`、`test_review_fixes` 等 5 份 |
 | `W-MODEL-RETIREMENT` | 被代理使用或在允許清單中的模型，其 `earliest_retirement` 落在委任有效期間內 | `test_validator` |
 
 **白箱產物：盤點、計畫、發現項、切片、叢集、W4、種子**
@@ -441,7 +441,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-VERDICT-CALIBRATION` | 裁決的 `calibration_version` 必須等於 calibration.yaml 的 `calibration_version` | — |
 | `E-VERDICT-CHAIN` | 同一叢集的裁決版本以 `supersedes_verdict_id` 形成單一線性鏈（不自我取代、不循環、不分岔、恰好一個最新版） | `test_v05_round6_group6` |
 | `E-VERDICT-DIVERSITY` | 裁決的 `diversity_degraded` 必須等於由計權合格票的登錄家族與血統根推導的值，不採自填 | `test_v02_hardening` |
-| `E-VERDICT-G2` | 有 `g2_decision_ref` 時必須是決定該叢集的最新 G2 紀錄；沒有時（且不是 `W3_adjudicate` 的版本），該叢集不能已有 G2 紀錄；`G2_apply` 版本一定要引用決定該叢集的 G2 紀錄 | `test_adjudicate`、`test_v07_r9_anchor` |
+| `E-VERDICT-G2` | 有 `g2_decision_ref` 時必須是決定該叢集的最新 G2 紀錄；沒有時（且不是 `W3_adjudicate` 的版本），該叢集不能已有 G2 紀錄；`G2_apply` 版本一定要引用決定該叢集的 G2 紀錄<br>BL-60：G2 最新的決定是駁回時，該叢集最新的裁決版本必須在 G2 之後（`G2_apply` 或更晚的版本），不能還是 W3 版本 | `test_adjudicate`、`test_bl60_variants`、`test_v07_r9_anchor` |
 | `E-VERDICT-NOELIGIBLE` | （同一條規則也涵蓋 `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-RULE-VERSION`）裁決的推導欄位（第 13 組） | `test_v03_adjudication` |
 | `E-VERDICT-PHASE` | `readjudicated_by` 不能倒填：黑箱叢集只有 B5 版本；W3 版本不取代任何版本；白箱與 tool_only 叢集的第一版一定是 `W3_adjudicate`（標成 `G2_apply` 會跳過 G2 路由檢查）；階段只能往後；收件時間晚於 W4／B4 測試結果的版本至少是 W4／B5；審查 r7 1.2：B5 版本的收件時間晚於所連 B4 job 的 `sandbox_job_end` | `test_v05_round6_group6`、`test_v05_r7_bypasses`、`test_v07_r9_anchor` |
 | `E-VERDICT-PROOF` | CONFIRMED_EXECUTABLE 的 `executable_proof.interpretation_confirmed_by` 有值時，其家族不能是叢集的家族之一 | — |
@@ -499,7 +499,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-SCHEMA-FORMAT` | （同一條規則也涵蓋 `E-INPUT-SHAPE`）見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 | `test_v03_scope` |
 | `E-SCHEMA-ID` | schema 的 `$id` 必須等於檔名 | — |
 | `E-SCHEMA-META` | schema 必須通過 2020-12 meta-schema 檢查，且 `$schema` 是 2020-12 | — |
-| `E-SCHEMA-NO-EXAMPLE` | 每個 schema（`common` 除外）至少要有一個通過驗證的範例 | — |
+| `E-SCHEMA-NO-EXAMPLE` | 每個 schema（`common` 除外）至少要有一個通過驗證的範例 | `test_bl60_variants` |
 | `E-YAML-STRICT` | YAML 以嚴格模式載入：重複鍵、錨點與別名、非標準標籤等一律拒絕 | `test_validator` |
 
 **授權與工具包設定**
@@ -519,28 +519,46 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 
 <!-- error-table:end -->
 
+### 變體 bundle（BL-60）
+
+變體是主範例 bundle 加上一層覆蓋：`docs/examples/variants/<名稱>/` 依 repo 的相對路徑放「取代或新增」的檔案，`removed.txt` 列出拿掉的主範例檔案；`vchlib.bundle.load_variant` 套用它，文件保留主範例的路徑。覆蓋由 [`tools/build_variants.py`](../../tools/build_variants.py) 從主範例以腳本修改後，重算衍生值並以 TEST ONLY 金鑰重簽到穩定而產生（Ed25519 簽章是確定性的，所以重建結果逐位元組相同）；不要手改覆蓋裡的檔案。
+
+| 變體 | 走過的路徑 |
+|---|---|
+| [`lite`](../examples/variants/lite/README.md) | 單人委任：alice 以簽署的 `role_consolidation` 兼任所有角色；只有 S0／S1 job，S2 的主動掃描改為 MANUAL，所以沒有 G5；沒有抽查；只保留主範例的首次 run。預期警告 `W-L5-LITE`（法務聲明自行簽署） |
+| [`edge`](../examples/variants/edge/README.md) | G2 駁回 K-016，G2_apply 版本由 R10 決定為 REJECTED；委任為 `full`，S2 job 的 G5 由兩位資安審查者核准；跟進 run 在等 G4 時觸發停止條件，由測試負責人中止（`ABORTED`，以 `run_end` 錨點收尾） |
+
+```bash
+python tools/validate_schemas.py --variant lite   # 驗證一個變體
+python tools/build_variants.py                    # 改了主範例或推導規則後重建所有變體
+python tools/build_variants.py --check            # CI：覆蓋是最新的，而且每個變體零錯誤
+```
+
+建置變體時找到兩個 validator 缺口，已修正：G4 核准的 MANUAL 測試案例不需要工具包的 job（它由人執行，列在報告的未能測試清單）；G2 駁回的叢集，最新的裁決版本必須在 G2 之後（`E-VERDICT-G2`），否則報告會顯示它在 G2 之前的狀態。「每個 schema 都有範例」（`E-SCHEMA-NO-EXAMPLE`）只檢查主範例。
+
 ### 範例沒有走過的路徑
 
-範例 bundle 只有一個委任（`team`）、三個 run，所以下列文件化的路徑沒有出現在範例裡，由記憶體中的測試在範例上修改後檢查。每一列都由 `tests/test_v07_r9_examples.py` 確認所列的測試存在；第二個小型 bundle 列為 [09 BL-60](../09-backlog.md)。
+主範例 bundle 只有一個委任（`team`）、三個 run。兩個**變體 bundle**（見上一節）在真實簽署的資料上走過其中幾條路徑，標「`lite` 變體」「`edge` 變體」；其餘路徑由記憶體中的測試在範例上修改後檢查。每一列都由 `tests/test_v07_r9_examples.py` 確認所列的測試存在。
 
 | 路徑 | 規則 | 測試 |
 |---|---|---|
-| `lite` 委任的安全等級與抽查 | `E-PROFILE-SAFETY`、`E-SPOT-CHECK` | `tests/test_v03_gates.py::test_lite_rejects_s2_toolkit_jobs`、`tests/test_v07_r9_contracts.py::test_a_lite_engagement_records_no_spot_check` |
-| G2 駁回之後的證據（R10） | `E-VERDICT-G2`、R10 | `tests/test_adjudicate.py::test_r10_cannot_be_bypassed_by_null_g2_ref` |
-| `ABORTED`／`FAILED` 的 run | `E-RUN-CONFIG`、`E-AUDIT-TAIL` | `tests/test_v05_backlog_high.py::test_a_run_that_ended_before_g1_keeps_its_invariants_pending` |
+| `lite` 委任的安全等級與抽查（`lite` 變體） | `E-PROFILE-SAFETY`、`E-SPOT-CHECK` | `tests/test_v03_gates.py::test_lite_rejects_s2_toolkit_jobs`、`tests/test_v07_r9_contracts.py::test_a_lite_engagement_records_no_spot_check`、`tests/test_bl60_variants.py::test_lite_runs_no_s2_job_and_has_no_g5`、`tests/test_bl60_variants.py::test_lite_records_no_spot_check` |
+| G2 駁回之後的證據（R10；`edge` 變體以 G2_apply 版本走過） | `E-VERDICT-G2`、R10 | `tests/test_adjudicate.py::test_r10_cannot_be_bypassed_by_null_g2_ref`、`tests/test_bl60_variants.py::test_edge_g2_rejection_is_applied_by_r10` |
+| `ABORTED`／`FAILED` 的 run（`edge` 變體的跟進 run 被中止） | `E-RUN-CONFIG`、`E-AUDIT-TAIL` | `tests/test_v05_backlog_high.py::test_a_run_that_ended_before_g1_keeps_its_invariants_pending`、`tests/test_bl60_variants.py::test_edge_follow_up_run_is_stopped_then_aborted` |
 | G0b `VERIFY_FAILED` 擋住 B 階段 | `E-GATE-ORDER` | `tests/test_v07_r8_validator.py::test_a_failed_g0b_stops_the_b_phase` |
 | `STOPPED` 之後的 resume | `E-SIG-ROLE` | `tests/test_v05_round6_lowprio.py::test_stopped_resume_needs_a_test_lead` |
 | PII 停止條件 | `safety.pii_stop_hits` | `tests/test_v06_r7_methodology.py::test_unregistered_pii_still_stops` |
-| G5 抽查推翻後改為兩人核准 | `E-G5-TWO-PERSON` | `tests/test_v06_r7_methodology.py::test_an_overturned_g5_spot_check_requires_two_reviewers_later` |
+| G5 兩人核准（`edge` 變體以 `full` 等級走過；抽查推翻後升級的路徑仍只在記憶體中） | `E-G5-TWO-PERSON` | `tests/test_v06_r7_methodology.py::test_an_overturned_g5_spot_check_requires_two_reviewers_later`、`tests/test_bl60_variants.py::test_edge_g5_has_two_security_reviewers` |
 | `regression` run | `E-RUN-FOLLOWUP` | `tests/test_v07_r8_validator.py::test_a_regression_run_carries_a_parent` |
 | 逾時的關卡（EXPIRED 不核准任何項目） | `Index.approved_requirement_ids` | `tests/test_v05_r7_bypasses.py::test_an_expired_g1_approves_nothing` |
 | 已完成的 run 被截回較早的錨點 | `E-AUDIT-ANCHOR-GAP` | `tests/test_v07_r9_anchor.py::test_rolling_a_completed_run_back_to_an_earlier_anchor_leaves_a_counter_gap` |
+| 停止條件（`stop_condition`）之後中止 run（`edge` 變體） | `E-AUDIT-TAIL`、`E-RUN-STATUS` | `tests/test_bl60_variants.py::test_edge_follow_up_run_is_stopped_then_aborted` |
 
 ## 簽章與測試金鑰
 
 - 簽章是**真的 Ed25519**，簽在 RFC 8785 JCS（去掉 `signatures`）上；稽核事件簽在去掉 `signature` 的事件上。指紋＝`ed25519:SHA256:` ＋ base64（無 padding）的 SHA-256（原始 32 位元組公鑰）[H]。
 - 範例用的私鑰在 `tests/fixtures/TEST_ONLY_private_keys/*.TEST_ONLY.pem`，**是公開的測試資料，只證明驗證程式的邏輯，不代表任何真實核准**。正式部署必須用各人自己的金鑰，絕不可沿用這些檔案。
-- 修改任何範例後執行 `python tools/sign_examples.py`：取代 `FP:<名稱>`／`PK:<名稱>` 佔位字串，重算所有衍生值、重簽 YAML 與關卡紀錄、重建稽核雜湊鏈，直到不再變動。
+- 修改任何範例後執行 `python tools/sign_examples.py`：取代 `FP:<名稱>`／`PK:<名稱>` 佔位字串，重算所有衍生值、重簽 YAML 與關卡紀錄、重建稽核雜湊鏈，直到不再變動；接著執行 `python tools/build_variants.py` 重建變體 bundle。
 
 ## 設計決定（其他文件參照用）
 

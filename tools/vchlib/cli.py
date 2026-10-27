@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""`python tools/validate_schemas.py [--root DIR] [--quiet] [--real-run]` — validate the design bundle."""
+"""`python tools/validate_schemas.py [--root DIR] [--quiet] [--real-run] [--variant NAME]` — validate the design bundle."""
 from __future__ import annotations
 
 import argparse
 import pathlib
 import sys
 
-from .bundle import load_bundle
+from .bundle import load_bundle, load_variant
 from .checks import run_all
 
 SIGNATURE_NOTE = ("signatures: real Ed25519 over RFC 8785 JCS, verified against the key registry; "
@@ -21,15 +21,16 @@ def main(argv=None) -> int:
     ap.add_argument("--real-run", action="store_true",
                     help="pre-flight for a real run: a placeholder model (placeholder: true or a placeholder-looking "
                          "litellm ID) reachable from any agents.yaml agent is E-MODEL-PLACEHOLDER instead of a warning")
+    ap.add_argument("--variant", help="validate a variant bundle (docs/examples/variants/<name>, BL-60) instead of the main one")
     args = ap.parse_args(argv)
     for s in (sys.stdout, sys.stderr):
         try:
             s.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
             pass
-    b = load_bundle(pathlib.Path(args.root))
+    b = load_variant(pathlib.Path(args.root), args.variant) if args.variant else load_bundle(pathlib.Path(args.root))
     R = run_all(b, real_run=args.real_run)
-    print(f"bundle: {len(b.schemas)} schemas, {len(b.docs)} documents")
+    print(f"bundle{f' (variant {args.variant})' if args.variant else ''}: {len(b.schemas)} schemas, {len(b.docs)} documents")
     if not args.quiet:
         for name, n, errs in R.groups:
             print(f"  [{'FAIL' if errs else ' ok '}] {name}: {n} checks" + (f", {errs} error(s)" if errs else ""))

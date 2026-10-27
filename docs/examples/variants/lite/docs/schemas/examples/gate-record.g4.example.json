@@ -1,0 +1,68 @@
+{
+  "gate_record_id": "GR-G4-0001",
+  "gate": "G4",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "test_plan",
+    "sha256": "sha256:e9fe2f4d78e43252a8b8af58be7c1bbaa3e24d4d78bbd3a926ad37226b3927c6"
+  },
+  "job_id": null,
+  "g4_gate_record_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "alice",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "TC-012-01",
+      "item_sha256": "sha256:dee7ee0db171662f9a282407e4ed6ea22925e6ad555142a6e7a8c6eff7ce6ae5",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    },
+    {
+      "item_id": "TC-027-01",
+      "item_sha256": "sha256:11daddf94ec60d4ba67ddadef2586f6d4e9d7b54d60d47c5b2006a511635bc13",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "S2：每個 job 另需 G5",
+      "carried_from": null
+    },
+    {
+      "item_id": "TC-031-01",
+      "item_sha256": "sha256:b5b935fce8bfc12afeb53983554a79230d64950806e590a75221f2cf4beb5910",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    },
+    {
+      "item_id": "TC-033-01",
+      "item_sha256": "sha256:ab9ba10827b7688ae811738f9ab52134632aeeff40be7cfe1be91913b6e10853",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-02T12:00:00+08:00",
+  "timestamp": "2026-10-03T11:00:00+08:00",
+  "signatures": [
+    {
+      "signer": "alice",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+      "alg": "ed25519",
+      "value": "ELgbD98pkGideVno8H7rZHXWDlkRME6UOD33dE0lhF9Uc0vgovM7DYZwkYDkhWFHjAWKnFiq3Ael96fusollCQ=="
+    }
+  ]
+}

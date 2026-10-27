@@ -1,0 +1,59 @@
+{
+  "gate_record_id": "GR-G0a-0001",
+  "gate": "G0a",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "engagement",
+    "sha256": "sha256:06d926d08dc599538115531f7ab52ade29edeea5f0445dc6c794b52b4b08e588"
+  },
+  "job_id": null,
+  "g4_gate_record_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "alice",
+      "role": "app_owner",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    },
+    {
+      "person_id": "alice",
+      "role": "management",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    }
+  ],
+  "outcome": "VERIFIED",
+  "decisions": [
+    {
+      "item_id": "eng-acme-invoices-2026q4",
+      "item_sha256": "sha256:06d926d08dc599538115531f7ab52ade29edeea5f0445dc6c794b52b4b08e588",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    }
+  ],
+  "gb": null,
+  "verification": {
+    "document_ref": "sha256:06d926d08dc599538115531f7ab52ade29edeea5f0445dc6c794b52b4b08e588",
+    "key_registry_version": 4,
+    "signer_results": [
+      {
+        "person_id": "alice",
+        "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "person_id": "alice",
+        "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "opened_at": "2026-09-23T10:00:00+08:00",
+  "timestamp": "2026-09-23T10:01:00+08:00",
+  "signatures": []
+}

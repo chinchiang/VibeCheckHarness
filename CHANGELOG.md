@@ -6,6 +6,13 @@
 
 ## 待辦 BL-64、BL-60（2026-10-27）
 
+### 變體 bundle（BL-60）
+- 兩個**變體 bundle**在真實簽署的資料上走過主範例沒有走過的路徑：`lite`（單人委任、只有 S0／S1、S2 改為 MANUAL 而沒有 G5、沒有抽查）與 `edge`（G2 駁回由 G2_apply 依 R10 決定、`full` 等級的 G5 兩人核准、跟進 run 觸發停止條件後中止）。
+- 變體是覆蓋：`docs/examples/variants/<名稱>/` 只放與主範例不同的檔案與 `removed.txt`；`vchlib.bundle.load_variant` 套用它，`validate_schemas.py --variant` 驗證它。新工具 `tools/build_variants.py` 從主範例以腳本修改、重算並重簽，`--check` 加進 CI。
+- 建置時找到兩個 validator 缺口並修正：G4 核准的 MANUAL 測試案例不再要求工具包的 job（`E-JOB-AUDIT`）；G2 駁回的叢集，最新裁決版本必須在 G2 之後（`E-VERDICT-G2`）。`E-SCHEMA-NO-EXAMPLE` 只檢查主範例。
+- schemas README 的「範例沒有走過的路徑」表標出變體走過的列，新增停止條件一列；BL-60 移到已完成（SUSPENDED 與抽查推翻後升級 G5 仍只在記憶體中測試）。
+- 新增 `tests/test_bl60_variants.py`（17 個）與 `tests/mutations/bl60_variants.json`。
+
 ### 錯誤碼表整併（BL-64）
 - schemas README 的錯誤碼表原本分成兩段、250 列：11 個錯誤碼散在多列，28 個錯誤碼只出現在檢查清單或別列的說明裡。現在是單一的表，validator 會回報的 314 個錯誤碼與警告碼每碼恰好一列，依 17 個家族分組、組內依字母排序。
 - 新工具 `tools/build_error_table.py`：規則欄仍是手寫，工具負責列的集合、排序，以及由 `tests/` 自動產生的「守住的測試」欄；`--check` 加進 CI。

@@ -1,0 +1,87 @@
+{
+  "gate_record_id": "GR-G3-0001",
+  "gate": "G3",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "threat_model",
+    "sha256": "sha256:bf9de98ebd52b958f715dc30a8ea3bffe186da8f0ac8ae9a4437a56702303284"
+  },
+  "job_id": null,
+  "g4_gate_record_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "alice",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    },
+    {
+      "person_id": "alice",
+      "role": "app_owner",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    }
+  ],
+  "outcome": "PARTIALLY_APPROVED",
+  "decisions": [
+    {
+      "item_id": "T-012",
+      "item_sha256": "sha256:a829aa10c4677b536675e693905b4e122c2abe43ec2ffb7c3f42aa3b34c8a8e0",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    },
+    {
+      "item_id": "T-019",
+      "item_sha256": "sha256:17e84e637d7df5a9a484caee00a2fe7a4ea43761b0f240adb3dd9df5363e8439",
+      "decision": "reject",
+      "risk_override": null,
+      "note": "與 T-012 重複",
+      "carried_from": null
+    },
+    {
+      "item_id": "T-027",
+      "item_sha256": "sha256:d486ac770763562dbec951551bc6b9831946f427b7005bff017853afe6ddee19",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    },
+    {
+      "item_id": "T-031",
+      "item_sha256": "sha256:c39fa0ab1e5d7b67a7f9710df7717177e6ae56dcf0d12830bce6db6a0c8a41b8",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    },
+    {
+      "item_id": "T-033",
+      "item_sha256": "sha256:3a1b65245be80dee9b4301870fdbb69f40dfe09ad46bfe05d961d222b152797c",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "外部視角提出；白箱沒有對應叢集",
+      "carried_from": null
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-01T18:00:00+08:00",
+  "timestamp": "2026-10-02T10:15:00+08:00",
+  "signatures": [
+    {
+      "signer": "alice",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+      "alg": "ed25519",
+      "value": "j7F+CAccmMlB5UxTuezetiBVA6KEKbPw008ImTIjzdw6V4UBCCJGXLldJuBg64MFXfdasu0q6QV0V/BGn15zBA=="
+    },
+    {
+      "signer": "alice",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+      "alg": "ed25519",
+      "value": "j7F+CAccmMlB5UxTuezetiBVA6KEKbPw008ImTIjzdw6V4UBCCJGXLldJuBg64MFXfdasu0q6QV0V/BGn15zBA=="
+    }
+  ]
+}
