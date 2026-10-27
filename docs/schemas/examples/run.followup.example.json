@@ -74,7 +74,7 @@
   "redaction_map_ref": null,
   "invariants_ref": null,
   "invariants_changed": false,
-  "g1_round": 0,
+  "g1_round": 1,
   "w1_sarif_ref": null,
   "deps_check_ref": null,
   "slice_refs": [],
@@ -147,6 +147,16 @@
       "decided_at": "2026-10-07T10:02:00+08:00"
     },
     {
+      "gate": "G1",
+      "gate_record_id": "GR-G1-0002",
+      "outcome": "APPROVED",
+      "round": 1,
+      "subject_hash": "sha256:7670231dce457b9d88161ebfd9389cbb752b01e9cb56e09370ba70ca367f3fb5",
+      "job_id": null,
+      "opened_at": "2026-10-07T10:01:10+08:00",
+      "decided_at": "2026-10-07T10:01:30+08:00"
+    },
+    {
       "gate": "G3",
       "gate_record_id": "GR-G3-0002",
       "outcome": "APPROVED",
@@ -210,15 +220,19 @@
     },
     {
       "seq": 10,
-      "line_sha256": "sha256:3ccca361f651804044bfeb0b573b80211bc1632bff442f8c9dab087234413d9e"
+      "line_sha256": "sha256:e35988e125fbbf8479c587ab40885c5f7ca84a852e4592831e983404e5879221"
     },
     {
-      "seq": 14,
-      "line_sha256": "sha256:f670eae5375f86edfed02cebf369578fcd74973afba90591ef7a1b5cae209979"
+      "seq": 13,
+      "line_sha256": "sha256:c5050842d63a7a103176ffe058f250433b93967d2aec919d1ee3f433fb9d4168"
     },
     {
       "seq": 17,
-      "line_sha256": "sha256:fc393236f6f7ea8593932c4cfcda4a2c087d2c6fb8226e92812c558bba346e19"
+      "line_sha256": "sha256:20ca0e40f3b249710a5a0637a4d97afac6573e3727e2ebf6ccb7fa9b11ea410b"
+    },
+    {
+      "seq": 20,
+      "line_sha256": "sha256:3bc7e114a170d8f60a767d339b53176900c6d1f2e1c538dd78134838fea4929b"
     }
   ],
   "errors": [],

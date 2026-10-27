@@ -612,7 +612,8 @@
             "enum": [
               "dns_txt",
               "well_known_path",
-              "platform_project"
+              "platform_project",
+              "db_comment"
             ]
           },
           "ok": {

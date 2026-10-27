@@ -221,7 +221,7 @@
     {
       "name": "M2 spot check item",
       "file": "tools/vchlib/checks.py",
-      "old": "    if not R.check(rec is not None and rec.get(\"gate\", \"\").lower() == p.get(\"item_kind\")",
+      "old": "    if not R.check(rec is not None and rec.get(\"gate\", \"\").lower() == kind",
       "new": "    if not R.check(True",
       "k": "names_a_gate_record"
     },

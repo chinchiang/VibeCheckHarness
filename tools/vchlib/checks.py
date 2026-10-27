@@ -1698,12 +1698,38 @@ def g_gates(R: Report, c: Ctx):
                 for inv in c.invariants.get("invariants", []):
                     so = inv.get("signoff") or {}
                     dec = next((x for x in rec.get("decisions", []) if x.get("item_id") == inv.get("requirement_id")), None)
-                    R.check(dec is not None and so.get("gate_record_id") == rec.get("gate_record_id")
+                    # v0.7 (review r9): a carried G1 accept re-signs an ancestor's signoff, which names the source record
+                    owner = ((dec or {}).get("carried_from") or {}).get("gate_record_id") or rec.get("gate_record_id")
+                    R.check(dec is not None and so.get("gate_record_id") == owner
                             and so.get("status") == {"accept": "ACCEPTED", "reject": "REJECTED"}.get(dec.get("decision")),
-                            "E-TRACE-INVARIANT", "invariants.yaml", f"{inv.get('requirement_id')}: signoff does not match {rec.get('gate_record_id')}")
+                            "E-TRACE-INVARIANT", "invariants.yaml", f"{inv.get('requirement_id')}: signoff does not match {owner}")
 
 
 # ============================================================== 11 runs
+def run_ownership(R: Report, c: Ctx, w: str, run: dict):
+    """v0.7 (review r9, E-RUN-OWNERSHIP): run.ownership_results agree with the ROE. Each result names a ROE target and
+    uses the method the ROE declares for it (a database proves control with db_comment, which a DNS record says
+    nothing about), and every target a B4 job ran against has an ok result. v0.7 never read ownership_results, so the
+    example's database target was 'verified' by dns_txt."""
+    targets = {t.get("id"): t for t in c.roe.get("targets") or [] if isinstance(t, dict)}
+    results = [o for o in run.get("ownership_results") or [] if isinstance(o, dict)]
+    for o in results:
+        t = targets.get(o.get("target_id"))
+        if not R.check(t is not None, "E-RUN-OWNERSHIP", w, f"ownership result for {o.get('target_id')!r}, which is not a ROE target"):
+            continue
+        want = (t.get("ownership_proof") or {}).get("method")
+        R.check(o.get("method") == want, "E-RUN-OWNERSHIP", w,
+                f"{o.get('target_id')} was verified with {o.get('method')!r}, but the ROE declares {want!r} for it")
+    ok = {o.get("target_id") for o in results if o.get("ok") is True}
+    used = set()
+    for jid, job in (run.get("jobs") or {}).items():
+        if isinstance(job, dict) and job.get("status") in JOB_RAN_STATES:
+            tc = c.ix.first("testcase", testcase_id=job.get("testcase_id"))
+            used |= set((tc.data if tc else {}).get("target_ids") or [])
+    for tid in sorted(used - ok):
+        R.error("E-RUN-OWNERSHIP", w, f"a B4 job ran against {tid}, which has no ok ownership result in this run (B4_preflight)")
+
+
 def g_runs(R: Report, c: Ctx):
     tk, e = c.toolkit, c.engagement
     for d in c.docs("run"):
@@ -1732,6 +1758,7 @@ def g_runs(R: Report, c: Ctx):
                     R.check(op and dl and lim is not None and dl == op + dt.timedelta(hours=lim), "E-RUN-DEADLINE", w,
                             f"resume_deadline must be opened_at + {lim} h")
             run_manifest(R, c, d)
+            run_ownership(R, c, w, run)
             kind = run.get("run_kind")
             gates = [g.get("gate") for g in run.get("gate_records", [])]
             if kind == "lane_a":
@@ -1764,6 +1791,12 @@ def g_runs(R: Report, c: Ctx):
                                    and (c.runs.get(k.data.get("run_id")) or {}).get("pr_origin") == "same_repo"}
                 bad = sorted(set(run.get("lane_a_advisories") or []) - lane_a_clusters)
                 R.check(not bad, "E-RUN-LANE-A", w, f"lane_a_advisories {bad} are not clusters of a same-repo Lane A run")
+            # v0.7 (review r9; docs/02 §1.6): G1 and G3 are signed by the run itself (items may be carried from an ancestor);
+            # a run whose G3 decides threats has an approved G1, so its threats rest on requirements this run approved
+            if any(x.data.get("outcome") != "EXPIRED" for x in c.ix.gate_records(rid, "G3")):
+                R.check(any(x.data.get("outcome") in ("APPROVED", "PARTIALLY_APPROVED") for x in c.ix.gate_records(rid, "G1")),
+                        "E-RUN-G1", w, "the run's G3 decides threats, but the run has no approved G1 (decide it here or carry it "
+                        "item by item with carried_from)")
             # v0.7 (review r8 H3; docs/02 §1.6): a testcase reaches G4 only after this run's G3 accepted its threat
             # (carried_from an ancestor is an accept of this run); v0.6 read the threat's global review.status
             if any(g.get("gate") == "G4" for g in run.get("gate_records", [])):
@@ -4054,6 +4087,9 @@ JOB_RAN_STATES = ("EXECUTED", "RESTORED", "RESTORE_FAILED")       # finished wit
 
 
 SPOT_CHECK_KINDS = ("g1", "g2", "g3", "g4", "g5")
+# v0.7 (review r9): docs/06 §1.1's population also holds verdicts (CONFIRMED_*), clusters (auto-rejected, report-only,
+# over-cap, G2-timed-out) and suppressed items (feedback records)
+SPOT_CHECK_ITEMS = ("verdict", "cluster", "feedback")
 
 
 def spot_check(R: Report, c: Ctx, where: str, run: dict, ev: dict):
@@ -4065,18 +4101,52 @@ def spot_check(R: Report, c: Ctx, where: str, run: dict, ev: dict):
     who = actor.get("id")
     R.check(actor.get("kind") == "human" and "security_reviewer" in c.roles_of(who), "E-SPOT-CHECK", where,
             f"spot_check_result actor {who!r} must be a registered security_reviewer")
-    if not R.check(p.get("item_kind") in SPOT_CHECK_KINDS, "E-SPOT-CHECK", where,
-                   f"item_kind {p.get('item_kind')!r} must name a gate ({', '.join(SPOT_CHECK_KINDS)})"):
+    # v0.7 (review r9): Lite has one person, who approved everything; a spot check there would be self-review
+    if not R.check(profile(c) != "lite", "E-SPOT-CHECK", where,
+                   "a lite engagement records no spot check: its one person cannot re-review their own decisions (docs/06 §1.1)"):
+        return
+    kind = p.get("item_kind")
+    if not R.check(kind in SPOT_CHECK_KINDS + SPOT_CHECK_ITEMS, "E-SPOT-CHECK", where,
+                   f"item_kind {kind!r} must name a gate ({', '.join(SPOT_CHECK_KINDS)}) or an item ({', '.join(SPOT_CHECK_ITEMS)})"):
+        return
+    if kind in SPOT_CHECK_ITEMS:
+        spot_check_item(R, c, where, run, who, kind, p.get("item_id"))
         return
     rec = c.record(p.get("item_id"))
-    if not R.check(rec is not None and rec.get("gate", "").lower() == p.get("item_kind")
+    if not R.check(rec is not None and rec.get("gate", "").lower() == kind
                    and rec.get("engagement_id") == run.get("engagement_id"), "E-SPOT-CHECK", where,
-                   f"item_id {p.get('item_id')!r} is not a {p.get('item_kind').upper()} gate record of this engagement"):
+                   f"item_id {p.get('item_id')!r} is not a {kind.upper()} gate record of this engagement"):
         return
     approvers = {a.get("person_id") for a in rec.get("approvers") or [] if isinstance(a, dict)}
     initiators = set((c.runs.get(rec.get("run_id")) or {}).get("initiators") or []) | {rec.get("initiator")}
     R.check(who not in approvers and who not in initiators, "E-SPOT-CHECK", where,
             f"{who} approved or initiated {p.get('item_id')}: the spot check must be independent (docs/06 §1.1)")
+
+
+def spot_check_item(R: Report, c: Ctx, where: str, run: dict, who, kind: str, item_id):
+    """v0.7 (review r9): a spot check of a verdict, cluster or feedback record. The item exists in this engagement, and the
+    reviewer neither initiated its run, approved the G2 decision on its cluster, nor signed the feedback."""
+    if kind == "verdict":
+        v = c.ix.first("verdict", verdict_id=item_id)
+        cid = v.data.get("cluster_id") if v else None
+    elif kind == "feedback":
+        f = c.ix.first("feedback", feedback_id=item_id)
+        cid = f.data.get("cluster_id") if f else None
+        signers = {(f.data.get(k) or {}).get("person_id") for k in ("signed_by", "co_signed_by")} if f else set()
+    else:
+        cid = item_id
+    cl = c.ix.first("cluster", cluster_id=cid) if cid else None
+    if not R.check(cl is not None and (c.runs.get(cl.data.get("run_id")) or {}).get("engagement_id") == run.get("engagement_id"),
+                   "E-SPOT-CHECK", where, f"item_id {item_id!r} is not a {kind} of this engagement"):
+        return
+    involved = set((c.runs.get(cl.data.get("run_id")) or {}).get("initiators") or [])
+    for g in c.ix.gate_records(cl.data.get("run_id"), "G2"):
+        if any(x.get("item_id") == cid for x in g.data.get("decisions") or []):
+            involved |= {a.get("person_id") for a in g.data.get("approvers") or [] if isinstance(a, dict)}
+    if kind == "feedback":
+        involved |= signers
+    R.check(who not in involved, "E-SPOT-CHECK", where,
+            f"{who} initiated, decided at G2 or signed {item_id}: the spot check must be independent (docs/06 §1.1)")
 
 
 def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):

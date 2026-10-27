@@ -212,7 +212,7 @@
     },
     {
       "target_id": "tgt-staging-db",
-      "method": "dns_txt",
+      "method": "db_comment",
       "ok": true,
       "checked_at": "2026-10-01T09:30:00+08:00",
       "batch_id": "own-2026-10-01-1",

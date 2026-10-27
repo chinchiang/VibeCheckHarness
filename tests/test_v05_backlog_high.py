@@ -138,6 +138,14 @@ def cfg(b, suffix="run.followup.example.json"):
     return doc(b, suffix).data["config_refs"]
 
 
+def before_g1(b):
+    """v0.7 (review r9, E-RUN-G1): the follow-up run now has its own G1 (GR-G1-0002, carried); these tests model a run
+    that has not reached G1 yet, so they take that record out."""
+    b.docs.remove(doc(b, "gate-record.followup.g1.example.json"))
+    run = doc(b, "run.followup.example.json").data
+    run["gate_records"] = [g for g in run["gate_records"] if g["gate"] != "G1"]
+
+
 def run_config_errors(b, suffix="run.followup.example.json"):
     return [i for i in errors(b, "E-RUN-CONFIG") if suffix in i.where]
 
@@ -154,6 +162,7 @@ def test_a_bare_null_is_an_error(b):
 
 def test_invariants_pending_before_g1(b):
     """The followup run has not reached G1 nor W2: its invariants may be pending."""
+    before_g1(b)
     cfg(b)["invariants"] = {"state": "pending", "expected_node": "G1"}
     assert not run_config_errors(b)
 
@@ -161,6 +170,7 @@ def test_invariants_pending_before_g1(b):
 @pytest.mark.parametrize("status", ["ABORTED", "FAILED"])
 def test_a_run_that_ended_before_g1_keeps_its_invariants_pending(b, status):
     """docs/08 §11.13: missing = the producing node finished. A run that ended before G1 never had invariants."""
+    before_g1(b)
     doc(b, "run.followup.example.json").data["status"] = status
     cfg(b)["invariants"] = {"state": "pending", "expected_node": "G1"}
     assert not [i for i in run_config_errors(b) if "invariants" in i.where]
