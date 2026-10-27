@@ -1,0 +1,61 @@
+{
+  "tests": "tests/test_v07_r9_contracts.py",
+  "mutations": [
+    {
+      "name": "ownership: ROE method",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(o.get(\"method\") == want, \"E-RUN-OWNERSHIP\", w,",
+      "new": "        R.check(True, \"E-RUN-OWNERSHIP\", w,",
+      "k": "another_method"
+    },
+    {
+      "name": "ownership: target outside the ROE",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not R.check(t is not None, \"E-RUN-OWNERSHIP\", w, f\"ownership result for {o.get('target_id')!r}, which is not a ROE target\"):",
+      "new": "        if t is None:",
+      "k": "outside_the_roe"
+    },
+    {
+      "name": "ownership: every job target has an ok result",
+      "file": "tools/vchlib/checks.py",
+      "old": "    for tid in sorted(used - ok):",
+      "new": "    for tid in []:",
+      "k": "job_ran_against or failed_result"
+    },
+    {
+      "name": "spot check: none in Lite",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if not R.check(profile(c) != \"lite\", \"E-SPOT-CHECK\", where,",
+      "new": "    if not R.check(True, \"E-SPOT-CHECK\", where,",
+      "k": "lite"
+    },
+    {
+      "name": "spot check: verdicts, clusters, feedback",
+      "file": "tools/vchlib/checks.py",
+      "old": "SPOT_CHECK_ITEMS = (\"verdict\", \"cluster\", \"feedback\")",
+      "new": "SPOT_CHECK_ITEMS = ()",
+      "k": "verdict_cluster_or_suppression"
+    },
+    {
+      "name": "spot check: item reviewer independent",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(who not in involved, \"E-SPOT-CHECK\", where,",
+      "new": "    R.check(True, \"E-SPOT-CHECK\", where,",
+      "k": "g2_approver_cannot"
+    },
+    {
+      "name": "G1: a run with G3 has an approved G1",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(any(x.data.get(\"outcome\") in (\"APPROVED\", \"PARTIALLY_APPROVED\") for x in c.ix.gate_records(rid, \"G1\")),",
+      "new": "                R.check(True,",
+      "k": "needs_a_g1"
+    },
+    {
+      "name": "G1: carried signoff names the source",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    owner = ((dec or {}).get(\"carried_from\") or {}).get(\"gate_record_id\") or rec.get(\"gate_record_id\")",
+      "new": "                    owner = rec.get(\"gate_record_id\")",
+      "k": "examples_are_clean"
+    }
+  ]
+}

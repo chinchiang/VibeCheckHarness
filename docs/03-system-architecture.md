@@ -387,7 +387,7 @@ class ToolVersion(BaseModel):
 
 class OwnershipCheck(BaseModel):
     target_id: str
-    method: Literal["dns_txt", "well_known_path", "platform_project"]   # 共享平台網域只接受 platform_project（§2）
+    method: Literal["dns_txt", "well_known_path", "platform_project", "db_comment"]   # 共享平台網域只接受 platform_project（§2）；DB 目標用 db_comment（v0.7，審查 r9：必須等於 ROE 該目標的 ownership_proof.method，E-RUN-OWNERSHIP）
     ok: bool
     checked_at: datetime
     batch_id: str | None                # None = B0；否則為 B4_preflight 的批次
@@ -633,7 +633,8 @@ stateDiagram-v2
   [*] --> G0b_roe_check
   G0b_roe_check --> ABORTED: 驗章失敗
   G0b_roe_check --> suspended_wait: 未生效或時間窗外
-  G0b_roe_check --> B6_report: 進入 B 階段時 ROE 已過期或未提供
+  G0b_roe_check --> suspended_wait: 進入 B 階段時 ROE 已過期（v0.7 r9，與 02 §1.4 一致）
+  G0b_roe_check --> B6_report: 進入 B 階段時沒有提供 ROE
   G0b_roe_check --> suspended_wait: resume 時 ROE 或 legal_review 已到期（等新 ROE）
   G0b_roe_check --> B0_ownership_verify: 通過
   B0_ownership_verify --> B1_crawl: 至少一個目標通過
@@ -695,7 +696,7 @@ stateDiagram-v2
 ```
 
 - **批次**：S0／S1 job 依目標分批，每批至多 `toolkit.yaml` 的 `b4_batch.max_jobs`（預設 20）個 job 或 `b4_batch.max_minutes`（預設 60）分鐘 [H]；每批開始都進 `B4_preflight`。每個 S2 job 自成一批。
-- **`B4_preflight` 檢查**：ROE 驗章仍有效、ROE 與 `legal_review` 都未到期（到期 → `suspended_wait`），且在時間窗內；所有簽署金鑰未撤銷；該批目標的所有權重驗（DNS TXT／well-known token，共享平台網域為 `platform_project`，§2）；**build 識別**（見下）；`kill_switch` 為 false；預算足夠；該批每個角色的 session 可用，且 whoami 回應符合該角色（§7.4）；每個 S2 job 前，`toolkit.restore_drill_interval_days`（預設 7）天內有成功的 `restore_drill` 稽核事件（§7.6）；量測目標基準延遲（§7.3）。
+- **`B4_preflight` 檢查**：ROE 驗章仍有效、ROE 與 `legal_review` 都未到期（到期 → `suspended_wait`），且在時間窗內；所有簽署金鑰未撤銷；該批目標的所有權重驗（方法一律是 ROE 為該目標宣告的 `ownership_proof.method`：DNS TXT／well-known token、DB 目標的 `db_comment`（v0.7，審查 r9，`E-RUN-OWNERSHIP`），共享平台網域為 `platform_project`，§2）；**build 識別**（見下）；`kill_switch` 為 false；預算足夠；該批每個角色的 session 可用，且 whoami 回應符合該角色（§7.4）；每個 S2 job 前，`toolkit.restore_drill_interval_days`（預設 7）天內有成功的 `restore_drill` 稽核事件（§7.6）；量測目標基準延遲（§7.3）。
 - **build 識別**（H-B4，[H]）：確認 staging 跑的就是被審查的 commit。ROE 每個目標有 `build_identity.method`：
   - `header`：讀取目標回應中 ROE 指定的標頭（例如 `x-build-sha`）；
   - `endpoint`：讀取 ROE 指定路徑的回應，再以 JSON Pointer 取值；
@@ -938,6 +939,24 @@ stateDiagram-v2
 - **所有等級都相同的安全底線**：Scope Proxy 與 job 白名單、ROE 排除清單、kill switch、secrets 遮罩、不測正式環境。
 - G5 的職責分離（核准者不能是發起者）在任何等級都成立；`lite` 沒有 S2，所以不會出現 G5。
 - `lite` 的兼任是**明示接受的限制**：同一人簽署多個角色時，簽章只證明這個人同意，不能提供職責分離（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 26 條）。範例委任設定是 `team`，`role_consolidation` 為 null。
+
+### 6.5 人力負擔與周轉時間（v0.7，審查 r9）[H]
+
+§6.2 的逾時是上限，不是目標：逾時全部用滿時，一次 Team run 在 B4 之前就可能等待 claim 7 天＋G1 7 天＋G2 7 天＋G3 7 天＋G4 3 天＝31 天。設計因此另訂**目標周轉時間**與每個關卡的負擔估算，pilot（[07 MVP0-X8](07-roadmap.md#11-分段-mvp)、M1 出口）以實測值校正。下表的「每項分鐘」是設計假設，不是量測值。
+
+| 關卡 | 項目數上限（`toolkit.yaml` 預設） | 每項分鐘（假設） | 審查者人數 | 每個 run 的人時上限 | 目標周轉（Lite／Team／Full） |
+|---|---|---|---|---|---|
+| `claim_run` | 1 | 5 | 1 | 0.1 | 1 天／1 天／1 天 |
+| G1 | 不變量約 10～30 條 | 3 | 1（app_owner） | 1.5 | 2 天／2 天／3 天 |
+| G2 | `g2_max_items` | 5 | 1（Full 2） | `g2_max_items` × 5 ÷ 60 | 2 天／2 天／3 天 |
+| G3 | `g3_max_items` | 6 | 1～2 | `g3_max_items` × 6 ÷ 60 | —／2 天／3 天 |
+| G4 | 測試案例數 | 4 | 1～2 | 案例數 × 4 ÷ 60 | —／1 天／2 天 |
+| G5 | S2 job 數 | 10 | 1（升級後 2） | job 數 × 10 ÷ 60 | 依時間窗 |
+| ASI09 抽查 | 06 §1.1 的抽樣數 | 8 | 1 | 抽樣數 × 8 ÷ 60 | run 結束後 5 個工作天 |
+
+- **目標周轉**：Lite 的白箱報告 ≤ 1 個工作天（與 MVP0-X8 相同）；Team 從 claim 到 B6 報告 ≤ 10 個工作天；Full ≤ 15 個工作天。超過目標但未逾時，報告首頁列出每個關卡的實際等待時間。
+- **人力**：Team 每個 run 約需 1 位 app_owner 3～5 人時、1～2 位 security_reviewer 6～12 人時（以預設上限計）；Full 加倍。這個估算與 02 §1.7 的審查者人數一起決定一個組織能同時跑幾個 engagement。
+- 佇列上限（`gate_queues`）讓每關的人時有上限；超出上限的項目進 `over_cap` 並在報告列出，不是延長周轉。
 
 ## 7. 黑箱執行安全
 

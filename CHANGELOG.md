@@ -8,6 +8,14 @@
 
 依第九輪設計審查：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（2 項，都重現）。審查紀錄在本輪最後一個 PR 加入。
 
+### 設計契約（PR3）
+- **所有權驗證的方法綁回 ROE**（`E-RUN-OWNERSHIP`）：每筆結果的方法等於 ROE 為該目標宣告的方法，B4 job 跑過的每個目標都有 ok 的結果。v0.7 從不讀 `run.ownership_results`，範例的 DB 目標以 `dns_txt`「通過」；run schema 與 03 §5.1 補上 `db_comment`，範例改正。
+- **ASI09 抽查的母體**（`E-SPOT-CHECK`）：除了關卡紀錄，也可以抽查裁決、叢集與回饋（06 §1.1 的母體），抽查人獨立於該 run 的發起者、該叢集的 G2 核准者與回饋簽署者；Lite 不做抽查（06 §1.1 原寫「自行抽查」，與獨立性規則矛盾），報告首頁標示「未經獨立抽查」。audit-event schema 列出 `item_kind`。
+- **跟進 run 自己的 G1**（`E-RUN-G1`）：有 G3 決定的 run 一定有核准的 G1；範例的跟進 run 以 `GR-G1-0002` 逐項沿用 `GR-G1-0001`，沿用的不變量 `signoff` 指向來源紀錄（`E-TRACE-INVARIANT`）。02 §1.6 的「從 B 階段開始」說明不跳過 G1。
+- **文件矛盾**：ROE 在 B 階段入口過期 → `SUSPENDED`（02 §5.2 與 03 的狀態圖改正）；02 §1.4 G2 列的 R10 對齊 v0.6；Lite／Team 的升級只改 G5 規則（02 §1.7、06 的 v0.3 摘要加註）；PII 停止是 job 級（02 B5、06 §1.3）；07 的 Lite pilot 人數對齊 ≥8。
+- **補上的規格**（契約，未實作）：03 §6.5 人力負擔與目標周轉；06 §1.10 harness 的多租戶與 CLI／API 角色（BL-58）；06 §2.2 偵測到個資的 CAS 內容與校準語料去識別化；07 §1.2 對照一次外包滲透測試；08 §11.18 受測系統準備檢核表、W4 MANUAL 需求的 G4 核准與執行時釘住的結果 hash（BL-59）。
+- 新增 `tests/test_v07_r9_contracts.py`（12 個）與 `tests/mutations/r9_contracts.json`（8 個突變）；第八輪 `r8_validator` 的 M2 突變錨點改指新的變數名。
+
 ### 投票的獨立性與校準（PR2；`rule_version` 改為 `05-v0.8`）
 - **S 以基底血統計**：同一個根的計權合格票取平均（`derive.root_score`）；v0.7 讓 claude_sonnet＋claude_opus 兩張同根支持票相加跨過 θ_confirm，單一血統就能確認。
 - **血統宣告一致**（外部審查 2）：同一血統的模型宣告相同的 `derived_from`（`E-MODEL-LINEAGE`）；根不再依 models.yaml 的順序而變。

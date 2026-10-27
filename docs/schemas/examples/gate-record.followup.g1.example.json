@@ -1,0 +1,60 @@
+{
+  "gate_record_id": "GR-G1-0002",
+  "gate": "G1",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-10-07-001",
+  "round": 1,
+  "artifact": {
+    "kind": "invariants",
+    "sha256": "sha256:7670231dce457b9d88161ebfd9389cbb752b01e9cb56e09370ba70ca367f3fb5"
+  },
+  "job_id": null,
+  "g4_gate_record_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "frank",
+      "role": "app_owner",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "INV-AC-007",
+      "item_sha256": "sha256:b858889cd46927ec075d3f0f312d48a9e4f8bbe8fb78a432fc5dae90f71ea4fa",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "需求內容未變，沿用 run-2026-09-23-001 的 G1 核准（v0.7，審查 r9：本 run 自己的 G1）",
+      "carried_from": {
+        "run_id": "run-2026-09-23-001",
+        "gate_record_id": "GR-G1-0001",
+        "item_sha256": "sha256:b858889cd46927ec075d3f0f312d48a9e4f8bbe8fb78a432fc5dae90f71ea4fa"
+      }
+    },
+    {
+      "item_id": "INV-LLM-003",
+      "item_sha256": "sha256:8a61198e2f16a652ffb63e9408e2906299421c34e8e58a5c12f1d61c18944c79",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "需求內容未變，沿用 run-2026-09-23-001 的 G1 核准（v0.7，審查 r9：本 run 自己的 G1）",
+      "carried_from": {
+        "run_id": "run-2026-09-23-001",
+        "gate_record_id": "GR-G1-0001",
+        "item_sha256": "sha256:8a61198e2f16a652ffb63e9408e2906299421c34e8e58a5c12f1d61c18944c79"
+      }
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-07T10:01:10+08:00",
+  "timestamp": "2026-10-07T10:01:30+08:00",
+  "signatures": [
+    {
+      "signer": "frank",
+      "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
+      "alg": "ed25519",
+      "value": "sBZhvcsywbEGkjAD2wLyOuVWAjeAI16qcC2AQjWnIbrCVi/BQRkGRGL1Q895joo7s0lwO8IUsFT+iKyfgfhxBg=="
+    }
+  ]
+}

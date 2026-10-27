@@ -156,13 +156,15 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-GATE-ORDER`（v0.7，審查 r8 F1／F3） | 以稽核事件的收件時間檢查 run 的結構：各關卡第一次決定依 G0a < G1 < G2 < G0b < G3 < G4 < G5；G0a 之後的事件都在 VERIFIED 的 G0a 之後；B 階段事件（B0～B6 節點、G3／G4／G5 決定、B4 的 job）都在 VERIFIED 的 G0b 之後、而且中間沒有 VERIFY_FAILED；有 G3／G4／G5 紀錄或 job 的 run 一定有 VERIFIED 的 G0b；W4 在 G2 決定之後、G0b 之前 |
 | `E-RUN-CLAIM`（v0.7，審查 r8 F4） | Lane B run 在第一個 G1 決定、W4 或 B 階段事件之前，必須有人簽署的 `initiator_claim`（[02 §1.5](../02-methodology.md#15-自動觸發與發起者)、06 D7） |
 | `E-RUN-G3`（v0.7，審查 r8 H3） | 到 G4 的 run，其 `testcase_ids` 每個測試案例的威脅都在**本 run** 的 G3 有 accept（可用 `carried_from` 沿用祖先 run 的核准，但仍由本 run 簽署） |
-| `E-SPOT-CHECK`（v0.7，審查 r8 M2） | `spot_check_result` 的 actor 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5，`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者、發起者或其 run 的發起者（06 §1.1 ASI09 的獨立複核） |
+| `E-SPOT-CHECK`（v0.7，審查 r8 M2） | `spot_check_result` 的 actor 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5，`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者、發起者或其 run 的發起者（06 §1.1 ASI09 的獨立複核）；審查 r9：`item_kind` 也可以是 `verdict`、`cluster`、`feedback`（06 §1.1 的母體），項目屬於本委任，抽查人不是該 run 的發起者、該叢集 G2 的核准者或回饋的簽署者；Lite 委任不記錄抽查（一個人無法獨立重看自己的決定） |
 | `E-MODEL-LINEAGE`（v0.7，審查 r8 外部 3） | models.yaml 的 `derived_from` 必須是登錄中的另一個血統，而且不能形成循環（A → B → A 會讓兩者各自成為根、互相驗證）；審查 r9 外部 2：同一血統的所有模型宣告相同的 `derived_from`（v0.7 取檔案中最後一筆，調換 models.yaml 的順序就改變根） |
 | `E-CAL-COUNT`（v0.7，審查 r8 外部 4） | 校準檔的每一組計數 0 ≤ correct ≤ n、0 ≤ tp／fp ≤ n、0 ≤ holdout_tp ≤ holdout_n；不一致時不再計算界限（v0.6 接受 holdout 10 筆答對 11 筆，correct > n 則以 `E-INTERNAL` 崩潰） |
 | `E-AUDIT-VERDICT`、`E-AUDIT-REPORT`（v0.7 補充，審查 r8 H4） | `verdict_changed` 的 payload 釘住 `verdict_sha256`（該版裁決的內容 hash），`report_published` 釘住 `report_manifest_sha256`（manifest 的 artifacts 再釘住 SARIF、HTML、裁決與稽核紀錄）；錨點之後改裁決的任何欄位或報告都會被發現 |
 | `E-ENG-CONFIG-PIN`（v0.7 補充，審查 r8 M1） | `config_pins` 另釘 `toolkit`（toolkit.yaml）；`E-TOOLKIT`：`gate_queues.g2/g3/g4_max_items` ≥ 1 |
 | `E-FEEDBACK`（v0.7 補充，審查 r8 M4） | `sarif_suppression` 由 `checks.feedback_suppression` 推導：`false_positive` 只有在 `signed_by` 或 `co_signed_by` 是 `security_reviewer` 時才是 `accepted`，否則 `underReview`；審查 r9：一律兩個不同的人，其中一位是沒有核准該叢集 G2 決定的 `security_reviewer`；採用 run 中同指紋叢集 `baseline_state: updated` 時回到 `underReview`；副簽者是 `security_reviewer` 且不是簽署者本人；signatures 依序對應 signed_by、co_signed_by |
 | `E-GATE-OUTCOME`（v0.7 補充，審查 r8 M3） | `assurance_profile: lite` 的 G2 決定只能是 accept／needs_info |
+| `E-RUN-OWNERSHIP`（v0.7，審查 r9） | `run.ownership_results` 的每一筆對應 ROE 的目標，方法等於 ROE 為該目標宣告的 `ownership_proof.method`（DB 目標是 `db_comment`）；B4 job 跑過的每個目標都有 `ok: true` 的結果。v0.7 第八輪從不讀這個欄位，範例的 DB 目標以 `dns_txt`「通過」 |
+| `E-RUN-G1`（v0.7，審查 r9） | 有 G3 決定（非 EXPIRED）的 run 必須有核准的 G1（本 run 決定，或以 `carried_from` 逐項沿用祖先 run 的 G1）；沿用的 G1 決定，其不變量的 `signoff` 指向來源紀錄（`E-TRACE-INVARIANT`） |
 | `E-AUDIT-ANCHOR-GAP`（v0.7，審查 r9） | Z3 對每個副簽的錨點編上本委任的遞增編號 `payload.anchor_counter`（在副簽範圍內）：所有 run 的錨點編號必須是 1、2、3…不重複、不缺號，而且依收件時間排序。只控制 Z1 的人把一個 run 截回較早的錨點（刪掉 B4 證據、G5、B5 裁決與報告）時，之後的錨點已經用過被刪掉的編號，所以會留下缺號 |
 | `E-RUN-STATUS`（v0.7，審查 r9） | `run.status` 必須是稽核檔最後一筆 `run_status_changed` 的 `to`（第一筆之前是 `RUNNING`）；稽核檔有 `run_end` 錨點的 run 一定是終止狀態。v0.7 第八輪只看 run 紀錄自填的狀態，把已完成的 run 改回 RUNNING 就能在 `run_end` 錨點之後繼續附加未錨定的行 |
 | `E-RUN-COMMIT`（v0.7，審查 r9） | 已錨定的 `run_created` 事件以 `payload.repo_commit` 釘住 run 測試的 commit；run 紀錄與本 run 的 W0 inventory 必須是同一個 commit（`E-RESULT-BUILD` 再拿它比對觀察到的 build） |
@@ -398,7 +400,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | 錯誤碼 | 檢查內容 |
 |---|---|
 | `E-TRACE-DFD` | 威脅的 `dfd_elements` 必須存在於 merged DFD，且型別相同 |
-| `E-TRACE-INVARIANT` | invariants.yaml 每條不變量的 `signoff`（`gate_record_id` 與狀態）必須與 G1 紀錄的決定相符 |
+| `E-TRACE-INVARIANT` | invariants.yaml 每條不變量的 `signoff`（`gate_record_id` 與狀態）必須與 G1 紀錄的決定相符；v0.7（審查 r9）：以 `carried_from` 沿用的決定，`signoff` 指向來源紀錄 |
 | `E-TRACE-REQUIREMENT` | `source: invariant` 的 requirement 必須與 invariants.yaml 的項目完全相同；其他 requirement 的 source、ref、level 必須與 baseline 項目相符 |
 | `E-TRACE-SEED` | seed-threats 每個種子的叢集、裁決、威脅、狀態與 CWE 桶必須互相相符；v0.7（審查 r9）：來源叢集屬於種子文件的 run |
 | `E-TRACE-THREAT-REVIEW` | 威脅的 `review.status` 與 `gate_record_id` 必須與決定它的 G3 紀錄相符（accept → ACCEPTED，reject／over_cap → REJECTED，其他 → NEEDS_INFO）；以 `carried_from` 沿用的決定指向來源紀錄（v0.7） |

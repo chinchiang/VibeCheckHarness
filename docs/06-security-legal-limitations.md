@@ -21,7 +21,7 @@
 - **ASI09 抽查**（§1.1）：
   - 抽查母體改為所有 `CONFIRMED_*` 裁決。G2 佇列只有爭議與高嚴重度未佐證的叢集，原本的母體永遠是空的。
   - G2 的決定另外抽查。
-  - G5 的升級方式改為「下一個 run 起改用 Full 模式」，由 validator 強制兩人核准。
+  - G5 的升級方式改為「下一個 run 起改用 Full 模式」，由 validator 強制兩人核准。（v0.7 後續：改為只改 G5 規則，不切換為 Full，見 02 §1.7。）
   - （N-3、N-11）
 - **保證等級**（§1.6）：職責分離依 Lite／Team／Full 而不同，定義見 [02 §1.7](02-methodology.md#17-保證等級liteteamfull)；安全底線不變。（M-G3）
 - **共享平台網域**（§2.1）：`*.supabase.co`、`*.vercel.app` 這類主機改用平台專案證明與 `platform_policies`。（H-D3）
@@ -70,7 +70,7 @@
 | ASI09 Human-Agent Trust Exploitation | 人在關卡上「照單全收」LLM 的敘事 | 關卡顯示證據（file:line、片段、工具結果），不只是敘事；可部分核准；Reporter 不能改裁決；**定期抽查已核准項目**（頻率見下） |
 | ASI10 Rogue Agents | 某個 agent 行為超出角色 | Policy Engine 白名單；最小權限；所有呼叫都寫入 audit |
 
-**ASI09 抽查頻率 [H]**（M2 起，由 Gate Service 自動抽樣；抽查人不得是原核准人。Lite 只有一個人，無法滿足這條：Lite 的抽查改為由同一人在 run 結束 7 天後重看抽中的項目，報告標示「自行抽查」[H]）。v0.4 把**沒有人看過的項目**也納入母體：v0.3 只抽已核准的決定，自動駁回與沒進 G2 的項目從來沒人看，正式使用時的漏報率因此無從量測：
+**ASI09 抽查頻率 [H]**（v0.7，審查 r9：抽查紀錄的 `item_kind` 可以是關卡 `g1`～`g5`，也可以是 `verdict`、`cluster`（自動駁回、只列報告、超出上限、G2 逾時的叢集）與 `feedback`（被抑制的項目）；抽查人不能是該 run 的發起者、該叢集 G2 的核准者或回饋的簽署者，`E-SPOT-CHECK`）（M2 起，由 Gate Service 自動抽樣；抽查人不得是原核准人。Lite 只有一個人，無法滿足這條：v0.7（審查 r9）：Lite **不做抽查**——它唯一的人核准了所有項目，「自行重看」不是抽查，`spot_check_result` 在 Lite 委任一律 `E-SPOT-CHECK`；報告首頁標示「未經獨立抽查」。`g5_escalation` 在 Lite 不會觸發（Lite 沒有 S2）[H]）。v0.4 把**沒有人看過的項目**也納入母體：v0.3 只抽已核准的決定，自動駁回與沒進 G2 的項目從來沒人看，正式使用時的漏報率因此無從量測：
 
 | 對象 | 抽樣 | 期限 | 觸發升級 |
 |---|---|---|---|
@@ -150,7 +150,7 @@
   - 所以預設關閉；要開就寫進 ROE，列出供應商，在 G0b 與所有權驗證之後從 Z3 發出並記錄（W0 一律不驗證）。建議直接輪替外洩的憑證。
   - W0 的預設 secrets 掃描器用 MIT 授權的 Betterleaks 或 gitleaks（§2.3）。W0 在 G0b 之前執行，所以要不要用 TruffleHog 只看工具包層級的法務閘門（§2.3），不看 ROE 的 `legal_review`。
 - **資料等級採 fail-closed**，送往 LLM 的端點與參數受白名單限制（[03 §8.4](03-system-architecture.md#84-資料治理)）。
-- **PII**：B4 前抽樣檢查 staging 回應；一旦偵測到個資就觸發停止條件，B5 改用自架模型。
+- **PII**：B4 前抽樣檢查 staging 回應；一旦偵測到個資就觸發 **job 級**停止條件（v0.7，審查 r9：只停止該 job，不進 `abort_handler`），B5 改用自架模型。
 - **W0 個資掃描**（v0.4）[H]：受測 repo 本身可能含真實個資（測試 fixture、種子資料 dump、提交進來的日誌）。W0 在 secrets 掃描之後，以確定性偵測器（候選為 Presidio，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）掃描所有文字檔，命中的值像 secrets 一樣替換成遮罩代號，記入遮罩對照表（`kind: pii`，只存位置與 HMAC）。偵測器有漏報，所以這只降低風險；委任設定的資料等級仍是 C。
 - **Audit Log 與 DB 快照**：加密、與原始碼同等級、設保留期限、限制存取、遮罩 secrets。
 - **重現證據**：只保存「對 ROE 目標 ID 的失敗安全斷言」；不建立通用 payload 庫；以 C 級（機密）權限保存。
@@ -238,7 +238,7 @@
 
 | 工件 | 能改它的人 | 簽章 | 錨定 | 釘選 | 推導 | 剩下的缺口 |
 |---|---|---|---|---|---|---|
-| 委任設定、ROE、金鑰登錄 | 管理層／基礎設施擁有者 | 是（多方） | G0a／G0b 的 `gate_decision` | — | — | 根金鑰外洩（§1.10 U-07） |
+| 委任設定、ROE、金鑰登錄 | 管理層／基礎設施擁有者 | 是（多方） | G0a／G0b 的 `gate_decision` | — | — | 根金鑰外洩（08 §10 U-07） |
 | models／agents／tools／licenses／calibration／crosswalk／**toolkit** | 工具包維運者 | — | — | `config_pins`（v0.7 加 toolkit） | — | 釘選值與設定一起改、再重簽委任設定 |
 | 關卡紀錄 G1～G5、GB | 核准者 | 是 | `gate_decision` | — | 結果由決定推導 | 核准者自己改主意：新一輪紀錄，不改舊的 |
 | 稽核紀錄 | Z1 寫入者 | 錨點由 Z3 副簽；人的事件自簽 | hash chain；v0.7（r9）Z3 的錨點編號跨 run 連續 | — | — | 同時握有 Z1 與 Z3 金鑰者；委任最後幾個錨點被截掉（§3 #16） |
@@ -264,6 +264,23 @@
 4. **報告撤回**：發現已交付的報告有錯（例如被推翻的確認、失效的核准）時，發新版報告（新的 `report_id`，`supersedes` 指向舊的），舊報告在 CAS 保留但標示 `withdrawn`，並以委任設定的聯絡人通知客戶；撤回事件寫入稽核紀錄（BL-54）。
 5. **備份與還原**：Z1 Postgres、CAS 與稽核檔每日備份到客戶指定的儲存，保留期限依 §2.2；還原演練每季一次，演練結果寫入 `restore_drill` 事件（BL-55）。
 6. **外洩通報**：涉及客戶資料的事件依 §2.2 的通報時限，由管理層聯絡人負責（BL-56）。
+
+### 1.10 harness 自身的多租戶與存取控制（v0.7，審查 r9）[H]
+
+這一節是契約，不是實作；對應工作是 [09 BL-58](09-backlog.md#41-第七輪2026-10-25-r7-審查留下的實作項目)。
+
+- **租戶邊界是委任（engagement）**：Z1 的 Blackboard、Postgres、CAS 與稽核檔都以 `engagement_id` 分區；一個委任的 run 不能讀另一個委任的任何產物（CAS 已依委任隔離，BL-29）。Gate Service 只對該委任金鑰登錄中的人開放關卡。
+- **CLI 與 API 的角色**：
+
+| 動作 | 誰可以做 | 記錄 |
+|---|---|---|
+| `run start`、`run resume`、`claim` | 委任的 `test_lead`／`initiators` | `run_created`、`initiator_claim` |
+| `run abort`、kill switch | `test_lead`、`infrastructure_owner` | `kill_switch`、`run_status_changed` |
+| 改 `toolkit.yaml`、`models.yaml` 等設定 | 工具包維運者；生效要重簽委任設定（`config_pins`） | `config_loaded` |
+| `keys rotate`、撤銷金鑰 | 金鑰本人或組織根金鑰持有者 | 金鑰登錄新版 |
+| 讀報告、讀裁決 | 委任的簽署人與 `security_reviewer` | 存取紀錄（CAS） |
+
+- **harness 端的事故應變**：Z1 或 Z3 被攻破時依 §1.9 第 3 點；RPO 24 小時（每日備份）、RTO 2 個工作天（每季還原演練驗證）。受測方的事故應變仍依 ROE 的 `incident_response`。
 
 ## 2. 法遵與授權
 
@@ -328,6 +345,8 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 - **白箱階段的跨境聲明在 G0a**（v0.4）[H]：W2 在 G0b 之前就把 C 級程式碼送往雲端模型，所以只在 ROE 聲明為時已晚。委任設定的 `data_transfer` 寫明 `source_jurisdiction`、聲明者（必須是委任設定的簽署人）與 `transfers[]`：每個能收 C 級資料的雲端家族一筆，區域等於 `providers[].region`（不得為 null），跨出來源法域時要有傳輸機制（`adequacy`、`contract`〔標準契約條款／標準合同〕、`certification`、`security_assessment`、`consent`、`other`）與文件參照（`E-ENG-TRANSFER`，[03 §8.4](03-system-architecture.md#84-資料治理)）。不同法域的機制不同（例如 GDPR、PIPL、台灣個資法各有規定），工具包只檢查聲明存在且一致，不判斷機制在法律上是否有效（§3 #24）。
 - **ROE 的 `cross_border`** 涵蓋 B 階段（Relay、Result Analyst 的 LLM 呼叫）；委任設定已宣告跨境傳輸時，它不能寫「不適用」（`E-ROE-TRANSFER`）。
 - **事故應變**（v0.4）[H]：ROE 的 `incident_response` 寫明測試造成意外時誰會被通知、多快通知（1–72 小時）、依哪份程序處理、依哪份條款決定責任。必須涵蓋四種情況：`data_exposure`（測試回應出現真實個資或機密）、`third_party_side_effect`（觸發真實的寄信、簡訊、金流；工具包只控制 Z3 的出站，管不到 staging 自己的出站）、`shared_platform_impact`（波及共享平台上的其他租戶）、`staging_outage`（`E-ROE-INCIDENT`）。工具包只檢查宣告，不評估程序內容。
+- **偵測到個資的擷取內容**（v0.7，審查 r9）[H]：B4 回應或請求紀錄中偵測到個資時，該 CAS 物件標記 `pii_detected`，只有自架模型與委任的 `security_reviewer` 能讀；保留期限取 §2.2.1 中最短的一項，到期即刪除，刪除寫入稽核；legal hold 由委任的管理層聯絡人書面要求才凍結刪除。
+- **校準語料的去識別化**（v0.7，審查 r9）[H]：從真實專案取用的叢集，由校準負責人（`calibration.yaml` 的 `annotation.adjudicator_id`）在入庫前去除程式碼中的識別資訊與秘密；每次重新校準（05 §5.8）時複查一次，維護責任與節奏寫在 `preregistration`。
 - **本工具包不會讓任何使用行為變得合法**。本文件只提供一般性提醒，不是法律意見。
 
 #### 2.2.1 保留期限的優先順序 [H]

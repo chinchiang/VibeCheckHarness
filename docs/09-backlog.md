@@ -75,6 +75,8 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-54 | r8 M5 | 報告撤回：新版報告的 `supersedes`、舊報告 `withdrawn` 標示、撤回事件與客戶通知 | [06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回v07審查-r8-m5h) | MVP-0 報告交付之前 | 契約已寫；schema 欄位與事件未加 |
 | BL-55 | r8 M5 | Z1 Postgres、CAS、稽核檔的備份與每季還原演練（`restore_drill` 事件） | [06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回v07審查-r8-m5h) | MVP-1 | 契約已寫；未實作 |
 | BL-57 | r8 M9 | 相依套件的 hash 鎖定：`requirements.lock` 目前只釘版本號；`--require-hashes` 需要四個 CI 平台（ubuntu／windows × py3.11／3.13）的 wheel digest，要用 `pip download --platform` 逐平台產生 | [06 §1.5](06-security-legal-limitations.md#15-供應鏈)、[CONTRIBUTING](../CONTRIBUTING.md) | MVP-0 | 版本已釘；hash 未產生 |
+| BL-58 | r9 | harness 自身的多租戶分區與 CLI／API 角色（06 §1.10 的表）、harness 端的 RPO／RTO | [06 §1.10](06-security-legal-limitations.md#110-harness-自身的多租戶與存取控制v07審查-r9h) | MVP-1 | 契約已寫；未實作 |
+| BL-59 | r9 | W4 的 MANUAL 需求在 G4 逐項核准（schema 欄位與 `E-W4-COVERAGE` 的檢查）；`sandbox_job_end.result_sha256` 改釘去掉 B5 解讀欄位的 hash | [08 §11.18](08-implementation-spec.md#1118-受測系統的準備檢核表v07審查-r9h) | MVP-1 黑箱執行之前 | 契約已寫；未實作 |
 | BL-56 | r8 M5 | 外洩通報流程與聯絡人 | [06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回v07審查-r8-m5h)、§2.2 | MVP-0 | 契約已寫；未實作 |
 | BL-51 | r7 4.1 | 共享平台的技術所有權證明（`technical_proof`）的執行期驗證：Z3 取回部署提供的 token 或回應標頭，結果由 z3_executor 簽署 | [06 §2.1](06-security-legal-limitations.md#21-授權範圍) | MVP-1 | validator 規則已有（沒有技術證明只允許 S0）；取回與簽署未實作 |
 | BL-52 | r7 1.3 | W4 測試案例的叢集桶與 oracle 引用的需求對應：需求（不變量、ASVS 條目）目前沒有 CWE 桶欄位，無法比對 | [02 W4](02-methodology.md#w4-白箱測試oracle-只取自-g1-規格) | 校準語料建立時（與 BL-42 一起） | `target_files` 的檔案綁定已實作；桶對應未實作 |

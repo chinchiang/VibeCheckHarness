@@ -2049,3 +2049,22 @@ W4 需要安裝相依並建置受測程式 [H]：
 - v0.5（審查 r7，外部審查 5）：上面兩個測試覆蓋率只代表**計畫**，所以拿掉全部測試結果仍是 1.0 與 0.8571。改名為 `planned_access_matrix_coverage`、`planned_endpoint_test_coverage`，並新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`：只算至少有一個有效執行結果的測試案例（outcome 為 PASS 或 FAIL，INVALID／ERROR／SKIPPED／STOPPED 不算；對照全部 PASS；本 run 稽核紀錄中恰好一筆已錨定的 `sandbox_job_end`，outcome 與三個 hash 相符，`checks.execution_backed`）。報告正文必須把 planned 與 executed 並列；只寫其中一個不符合報告契約。`endpoint_slice_coverage` 量的是 W3 實際審查的切片，名稱不變。
 
 **里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。
+
+### 11.18 受測系統的準備檢核表（v0.7，審查 r9）[H]
+
+新的受測系統在第一次 B 階段之前，逐項確認下面各點；任一項沒有，B 階段只做 S0 或不開始，原因寫入 `gaps`。散在 ROE 樣板（[04 §7](04-threat-to-testcase.md)）、[03 §7](03-system-architecture.md#7-黑箱執行安全) 與本章的要求集中在這裡：
+
+| 項目 | 用途 | 沒有時 |
+|---|---|---|
+| staging 環境，與正式環境分離 | 只測 staging（06 §2.1） | 不開始 B 階段 |
+| `build_identity` 標頭或端點 | B4 結果綁定 commit（`E-RESULT-BUILD`） | 列入 `build_unverified_targets` |
+| 每個測試角色的 `whoami` 端點 | 可達性對照 | 該角色的測試案例 MANUAL |
+| 所有權 token 放置（DNS TXT、well-known、DB `COMMENT ON DATABASE`、共享平台的 `technical_proof`） | B0 所有權驗證（`E-RUN-OWNERSHIP`） | 該目標排除 |
+| seed manifest 與種子帳號 | 寫入範圍綁定種子 | 只做唯讀測試 |
+| CAPTCHA／MFA 的測試繞過 | Session Provider | 該流程 MANUAL |
+| 外部整合（金流、郵件）的 sandbox | 不打到真實第三方 | 該端點列入排除 |
+| 快照與還原能力（S2） | `restore_drill` | 不核准 S2 |
+| 支援的框架與平台（§11.1 支援矩陣） | W0 盤點與切片 | 列入 `blind_spots`；主要框架不支援時不建議使用本工具包 |
+
+- **W4 的 MANUAL 需求**（v0.7，審查 r9）：`run.w4_manual_requirements` 會免除 W4 測試，所以列入的每一條要在 G4 由 `security_reviewer` 逐項核准，未核准的 MANUAL 視同沒有 W4 測試；schema 欄位與 validator 檢查尚未實作（BL-59）。
+- **執行時釘住的結果 hash**（v0.7，審查 r9）：`sandbox_job_end` 的 `result_sha256` 在 job 結束時計算，那時還沒有 B5 Result Analyst 的 `interpreted_by`／`interpretation`；實作時釘的是去掉這兩個欄位的測試結果 hash，解讀另由 `verdict_changed` 錨定。範例是事後一起簽的，所以目前兩者相同（BL-59）。
