@@ -1,0 +1,110 @@
+{
+  "tests": "tests/test_v07_r10_docs.py",
+  "mutations": [
+    {
+      "name": "current state section",
+      "file": "docs/05-bias-calibration.md",
+      "old": "## 現況\n",
+      "new": "## 第十輪審查的變更\n",
+      "k": "opens_with_change_summaries"
+    },
+    {
+      "name": "current state names the rule version",
+      "file": "docs/03-system-architecture.md",
+      "old": "後的設計，裁決規則版本 `05-v0.9`。",
+      "new": "後的設計。",
+      "k": "names_the_rule_version"
+    },
+    {
+      "name": "archive keeps the summaries",
+      "file": "docs/evidence/doc-history.md",
+      "old": "### 第九輪審查的變更（`rule_version 05-v0.8`）",
+      "new": "### 第九輪的變更",
+      "k": "kept_in_the_archive"
+    },
+    {
+      "name": "heading tag",
+      "file": "docs/06-security-legal-limitations.md",
+      "old": "### 1.8 工件完整性矩陣",
+      "new": "### 1.8 工件完整性矩陣（v0.7）",
+      "k": "headings_carry_no"
+    },
+    {
+      "name": "clause tag",
+      "file": "docs/02-methodology.md",
+      "old": "- **兼任者**在金鑰登錄中",
+      "new": "- v0.5：**兼任者**在金鑰登錄中",
+      "k": "clause_starts_with"
+    },
+    {
+      "name": "bare parenthetical",
+      "file": "docs/02-methodology.md",
+      "old": "- **兼任者**在金鑰登錄中",
+      "new": "- **兼任者**（v0.5）在金鑰登錄中",
+      "k": "bare_version"
+    },
+    {
+      "name": "README status",
+      "file": "README.md",
+      "old": "> **狀態**：設計文件，第十輪審查（2026-10-27）後；裁決規則版本 `05-v0.9`",
+      "new": "> **狀態**：設計文件，第九輪審查後；裁決規則版本 `05-v0.8`",
+      "k": "readme_status"
+    },
+    {
+      "name": "glossary",
+      "file": "README.md",
+      "old": "| `anchor_counter` | 錨點編號 |",
+      "new": "| `anchorcounter` | 錨點編號 |",
+      "k": "glossary"
+    },
+    {
+      "name": "03 G2 staffing",
+      "file": "docs/03-system-architecture.md",
+      "old": "| 5 | 1（各等級相同；",
+      "new": "| 5 | 1（Full 2）（各等級相同；",
+      "k": "g2_staffing"
+    },
+    {
+      "name": "Lite spot checks",
+      "file": "docs/00-overview.md",
+      "old": "「未經職責分離，也未經獨立抽查」",
+      "new": "「未經職責分離」",
+      "k": "lite_reports"
+    },
+    {
+      "name": "RunStatus comment",
+      "file": "docs/03-system-architecture.md",
+      "old": "、GB 逾時、ROE 在 B 階段到期",
+      "new": "、GB 逾時",
+      "k": "runstatus"
+    },
+    {
+      "name": "U-18",
+      "file": "docs/08-implementation-spec.md",
+      "old": "| U-18 | **已處理**：",
+      "new": "| U-18 | ",
+      "k": "u18"
+    },
+    {
+      "name": "whoami",
+      "file": "docs/02-methodology.md",
+      "old": "（它的 job 是 `SKIPPED`，不是 `MANUAL`：測試案例本身可以自動執行，只是這一次沒有可用的身分）",
+      "new": "",
+      "k": "whoami"
+    },
+    {
+      "name": "03 tail protection",
+      "file": "docs/03-system-architecture.md",
+      "old": "  - `run_end` 錨點之後不能再有任何行",
+      "new": "  - 終態的 run 之後不能再有任何行",
+      "k": "tail_protection"
+    },
+    {
+      "name": "CHANGELOG count",
+      "file": "CHANGELOG.md",
+      "old": "（57 個測試，含參數化；",
+      "new": "（55 個測試；",
+      "k": "r8_validator_tests"
+    }
+  ]
+}
