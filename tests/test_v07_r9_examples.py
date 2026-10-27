@@ -111,8 +111,14 @@ def test_the_readme_lists_every_review_record():
         assert f"docs/evidence/{p.name}" in row, p.name
 
 
+def review_order(name):
+    """review-YYYY-MM-DD[-rN].md by date, then round number (review r10: r10 sorts after r9 as text but is newer)."""
+    m = re.match(r"review-(\d{4}-\d{2}-\d{2})(?:-r(\d+))?\.md$", name)
+    return (m.group(1), int(m.group(2) or 0)) if m else (name, 0)
+
+
 def test_the_overview_links_the_latest_review_record():
-    newest = max(p.name for p in (ROOT / "docs" / "evidence").glob("review-*.md"))
+    newest = max((p.name for p in (ROOT / "docs" / "evidence").glob("review-*.md")), key=review_order)
     assert f"evidence/{newest}" in text("docs/00-overview.md"), newest
 
 
