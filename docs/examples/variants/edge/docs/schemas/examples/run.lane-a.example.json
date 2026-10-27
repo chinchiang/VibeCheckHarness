@@ -38,7 +38,7 @@
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
-      "sha256": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff"
+      "sha256": "sha256:8ed20e6a12c3ba23c84a6cc0215e5dba89b3b638c9e0926755fc1c5701359a26"
     },
     "seed_manifest": {
       "state": "not_applicable",

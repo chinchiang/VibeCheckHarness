@@ -561,16 +561,7 @@ flowchart TD
   4. 來自種子威脅，其來源叢集為 `CONFIRMED_*` 或 `LIKELY`，且來源叢集的 rubric 嚴重度為 `critical` 或 `high`（v0.4；v0.3 用成員自報的嚴重度）。
 
   LLM 給的 likelihood／impact 只當**下限**：程式碼計算的結果與 LLM 提議取較高者；人在 G3 可以提高，降低時必須附理由（寫入 GateRecord）。
-- **OWASP LLM Top 10 的版本**：
-  - 2025 版（LLM01–LLM10）已完整查證 [V][E:threat_modeling-31]。
-  - 2026 版已於 2026-08-03 發布 [S-01]。兩個獨立的二手來源列出一致的十項，Help Net Security 也報導了相同的變動：
-    - Excessive Agency 升到 LLM03
-    - Improper Output Handling 降到 LLM10
-    - System Prompt Leakage 擴大並改名為 Hidden Context Exposure
-
-    v0.1 時官方 PDF 未直接讀取，S-01 標 [P]。
-  - 官方 PDF（122 頁）已讀取，列出的 LLM01:2026–LLM10:2026 與上述一致 [V][E:threat_modeling-73]；S-01 已升級為 [V]（發布日的一天差異見 [01 §4](01-research-survey.md#4-撰寫文件時補做的查證)）。
-  - → 每筆威脅都存 `taxonomy: "owasp-llm@2025"` 或 `"owasp-llm@2026"`；**新的委任預設 `owasp-llm@2026`**；既有委任可沿用 2025 版，以 2025↔2026 對照表轉換（[04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照)）。
+- **OWASP LLM Top 10 的版本**：每筆威脅以 `taxonomy` 的 scheme 帶版本（`owasp-llm@2025` 或 `owasp-llm@2026`），新的委任預設 2026 版。查證、預設的理由與 2025↔2026 對照表的主頁是 [04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照)。
 - **多模型流程**：
   1. V_tm 個（2–3 個）不同家族的 Threat Modeler 各自產出（`B2_threat_fanout`）；一組只看外部視角。
   2. **確定性 merger**（`B2_merge_critic` 的第一步，程式碼）[H]：合併鍵＝DFD 元素＋STRIDE 類別＋CWE 桶。鍵相同就合併成一個威脅，保留每個 modeler 的原文與來源；鍵不同就不合併，疑似重複的由 critic 標記、在 G3 處理。

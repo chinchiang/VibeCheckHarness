@@ -1640,7 +1640,8 @@ def g_gates(R: Report, c: Ctx):
                 R.check(gate in ("G3", "G4"), "E-GATE-OUTCOME", w, "PARTIALLY_APPROVED is only allowed at G3 and G4 (D2)")
             # v0.5 (review 2026-10-25 M-4): over_cap is a G3-only, rule-based rejection written by the Gate Service
             R.check(gate == "G3" or "over_cap" not in decs, "E-GATE-OUTCOME", w, "decision over_cap is only used at G3")
-            if gate in ("G3", "G4") and decs:
+            # BL-60 (suspend variant): an EXPIRED G3 / G4 record carries only needs_info (above), so it implies no outcome
+            if gate in ("G3", "G4") and decs and rec.get("outcome") != "EXPIRED":
                 rej = [x for x in decs if x in ("reject", "over_cap")]
                 want = "APPROVED" if all(x == "accept" for x in decs) else ("REJECTED" if len(rej) == len(decs) else "PARTIALLY_APPROVED")
                 R.check(rec.get("outcome") == want, "E-GATE-OUTCOME", w, f"{gate} outcome {rec.get('outcome')} but decisions imply {want}")
@@ -3047,6 +3048,38 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
     )
 
 
+TRACE_STATUS = re.compile(r"->\s*(?:cap\s+)?(REJECTED|UNCORROBORATED|LIKELY|DISPUTED|CONFIRMED_CORROBORATED|CONFIRMED_EXECUTABLE)\b")
+TRACE_NUMBER = re.compile(r"\b(score|S|theta_confirm|theta_reject|independent_sources|independent_families|"
+                          r"weighted_support|weighted_refute|valid_votes)=(-?[0-9]+(?:\.[0-9]+)?)(?![0-9.])")
+
+
+def weighted_vote_counts(c: Ctx, v: dict, cluster: dict) -> dict[str, int]:
+    """Weighted-valid votes (recomputed, as verdict_inputs) by stance, for the counts a rule_trace text may state."""
+    stances = [x.get("stance") for x in v.get("votes", []) if derive.vote_terms(c.ix, x, cluster, v.get("calibration_version"))[2]]
+    return {"weighted_support": stances.count("SUPPORT"), "weighted_refute": stances.count("REFUTE"), "valid_votes": len(stances)}
+
+
+def trace_text_problems(items: list, out: adj.Outcome, x: adj.Inputs, counts: dict[str, int]) -> list[str]:
+    """BL-01: the free text after `R<n>:` may explain, but what it states must be true. A `->STATUS` (or `->cap STATUS`)
+    must be the status that rule leaves (adjudicate.trace_statuses), and a `name=number` for a derived quantity must
+    equal the recomputed value (to the precision written). Other text is not interpreted."""
+    actual = {"score": x.score, "S": x.score, "theta_confirm": x.theta_confirm, "theta_reject": x.theta_reject,
+              "independent_sources": out.sources, "independent_families": x.independent_families, **counts}
+    problems = []
+    for item, status in zip(items, adj.trace_statuses(out)):
+        rule, _, text = str(item).partition(":")
+        for m in TRACE_STATUS.finditer(text):
+            if m.group(1) != status:
+                problems.append(f"{rule} text says ->{m.group(1)} but {rule} leaves {status}")
+        for m in TRACE_NUMBER.finditer(text):
+            name, raw = m.group(1), m.group(2)
+            want = actual[name]
+            tol = 0.5 * 10 ** -(len(raw.split(".")[1]) if "." in raw else 0) + 1e-9
+            if want is None or abs(float(raw) - want) > tol:
+                problems.append(f"{rule} text says {name}={raw} but the recomputed value is {want}")
+    return problems
+
+
 def g_verdicts(R: Report, c: Ctx):
     for d in c.docs("cluster"):
         for field in ("sarif_refs", "tool_report_refs"):
@@ -3089,7 +3122,10 @@ def g_verdicts(R: Report, c: Ctx):
             kinds = {a.get("kind") for a in v.get("annotations", [])}
             R.check(kinds == out.annotations, "E-VERDICT-ANNOTATIONS", w, f"annotations {sorted(kinds)} != {sorted(out.annotations)}")
             rules = [str(x).split(":", 1)[0] for x in v.get("rule_trace", [])]
-            R.check(rules == out.rules, "E-VERDICT-TRACE", w, f"rule_trace rules {rules} != {out.rules}")
+            if R.check(rules == out.rules, "E-VERDICT-TRACE", w, f"rule_trace rules {rules} != {out.rules}"):
+                x = verdict_inputs(c, v, cl.data)
+                for msg in trace_text_problems(v.get("rule_trace", []), out, x, weighted_vote_counts(c, v, cl.data)):
+                    R.check(False, "E-VERDICT-TRACE", w, msg)
             if v.get("status") == "CONFIRMED_EXECUTABLE":
                 p = v.get("executable_proof") or {}
                 ib = p.get("interpretation_confirmed_by")

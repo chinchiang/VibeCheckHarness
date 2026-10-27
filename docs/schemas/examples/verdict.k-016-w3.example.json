@@ -63,7 +63,7 @@
   "decided_by": "aggregator",
   "rule_version": "05-v0.9",
   "rule_trace": [
-    "R2:weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=0 (the reporting opengrep result is a report, not a signal)",
+    "R2:weighted_support=0 (ver_1 is not weighted-valid here),score=0<theta_confirm=2.5,independent_sources=0 (the reporting opengrep result is a report, not a signal)",
     "R7:independent_sources=0 (tool-only cluster, no LLM member)->UNCORROBORATED"
   ],
   "cluster_sha256": "sha256:cff2f4d5f129283b235b96e8d2b88306e938a0ed44ebb799fc4e5a0bbe6a8c12"

@@ -1,0 +1,26 @@
+{
+  "tests": "tests/test_bl60_suspend.py",
+  "mutations": [
+    {
+      "name": "an EXPIRED G3/G4 implies no outcome",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if gate in (\"G3\", \"G4\") and decs and rec.get(\"outcome\") != \"EXPIRED\":",
+      "new": "            if gate in (\"G3\", \"G4\") and decs:",
+      "k": "implies_no_outcome or validates_cleanly"
+    },
+    {
+      "name": "the variant suspends the run",
+      "file": "docs/examples/variants/suspend/docs/schemas/examples/checkpoint-metadata.followup.example.json",
+      "old": "\"run_status\": \"SUSPENDED\"",
+      "new": "\"run_status\": \"WAITING_GATE\"",
+      "k": "suspended_not_ended"
+    },
+    {
+      "name": "the spot check is by an independent reviewer",
+      "file": "docs/examples/variants/suspend/docs/schemas/examples/audit-event.run-2026-10-07-001.example.jsonl",
+      "old": "\"actor\":{\"kind\":\"human\",\"id\":\"grace\"}",
+      "new": "\"actor\":{\"kind\":\"human\",\"id\":\"heidi\"}",
+      "k": "overturns_the_initial_g5"
+    }
+  ]
+}

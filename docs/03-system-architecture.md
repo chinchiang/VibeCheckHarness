@@ -165,7 +165,7 @@ flowchart TB
 - Content-addressed Store：SARIF、切片、報告、產生的測試與工具設定、LLM 請求與回應、請求紀錄，以 sha256 為鍵（介面見 §15）。
 - Audit Log：JSONL 檔（hash chain，§13），大型內容只存 CAS hash。
 - Audit Log、CAS 與 DB 快照：加密、套用與原始碼相同的資料等級、設保留期限、限制存取、secrets 遮罩。
-- **保留期限的優先順序** [H]：`toolkit.yaml` 的 `retention` 是組織的**上限與預設值**；engagement 的 `retention_days` 是該委任的**實際值**，必須在 1 到工具包上限之間（P 級看 `p_days`、C 級看 `c_days_after_run_end`；否則 `E-RETENTION`）；ROE 的 `data_handling.retention_days` 必須 ≤ engagement（否則 `E-ROE-RETENTION`），也 ≤ 工具包上限（否則 `E-RETENTION`）。順序為 toolkit < engagement < ROE，後者只能更短；超過時 validator 拒絕（錯誤，不是警告）。稽核檔與 checkpoint 的期限只看 `toolkit.yaml`。細節見 [08 §5.2](08-implementation-spec.md#52-優先順序)、[08 §7.5](08-implementation-spec.md#75-保留與刪除)。
+- **保留期限的優先順序** [H]：`toolkit.yaml` 的上限 → engagement 的實際值 → ROE，後者只能更短；規則與錯誤碼的主頁是 [06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)，實作見 [08 §7.5](08-implementation-spec.md#75-保留與刪除)。
 
 ## 3. 框架選型
 

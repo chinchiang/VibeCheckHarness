@@ -1,0 +1,181 @@
+{
+  "run_id": "run-2026-09-25-pr-118",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_kind": "lane_a",
+  "parent_run_id": null,
+  "baseline_run_id": null,
+  "reuse": [],
+  "trigger": "pull_request",
+  "run_owner": "alice",
+  "initiators": [
+    "alice"
+  ],
+  "status": "COMPLETED",
+  "status_reason": null,
+  "current_node": null,
+  "resume_node": null,
+  "resume_deadline": null,
+  "data_class": "C",
+  "toolkit_config_ref": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327",
+  "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
+  "engagement_ref": "sha256:25b4f81805ab44d59c47679d2a08512f8382d213af20cacb684c4a57a6ac1c39",
+  "config_refs": {
+    "models": {
+      "path": "docs/examples/models.yaml",
+      "sha256": "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+    },
+    "agents": {
+      "path": "docs/examples/agents.yaml",
+      "sha256": "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
+    },
+    "tools": {
+      "path": "docs/examples/tools.yaml",
+      "sha256": "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
+    },
+    "calibration": {
+      "path": "docs/examples/calibration.yaml",
+      "sha256": "sha256:ad3ec68e89a76fa0e0ce76ebdbeea1cd34f2ce0ad79608a753d129e0dbd4449d"
+    },
+    "invariants": {
+      "path": "docs/examples/invariants.yaml",
+      "sha256": "sha256:8ed20e6a12c3ba23c84a6cc0215e5dba89b3b638c9e0926755fc1c5701359a26"
+    },
+    "seed_manifest": {
+      "state": "not_applicable",
+      "reason": "Lane A 只有白箱的提醒式檢查，沒有 B 階段"
+    }
+  },
+  "prompt_templates": [
+    {
+      "template_id": "lane-a-review",
+      "version": "2026.09.1",
+      "sha256": "sha256:e5e612d1aa2a91a2bbd5c2866288958eaa0867fe8bc42147ab08fe56621b1456"
+    }
+  ],
+  "tool_versions": [],
+  "rule_version": "05-v0.9",
+  "roe_ref": null,
+  "repo_commit": "9b7e3d2f1a4c6e8b0d2f4a6c8e0b2d4f6a8c0e1b",
+  "owasp_llm_version": "2026",
+  "calibration_version": 3,
+  "inventory_ref": null,
+  "sbom_ref": null,
+  "tool_results_ref": null,
+  "w4_manual_requirements": [],
+  "redaction_map_ref": null,
+  "invariants_ref": null,
+  "invariants_changed": false,
+  "g1_round": 0,
+  "w1_sarif_ref": null,
+  "deps_check_ref": null,
+  "slice_refs": [
+    "sha256:17a9bc59e0dd2ed82e59d057d8b2f1531fbc008f5898ee82288235893227bb6a"
+  ],
+  "plan_ids": [],
+  "findings": [
+    "F-101"
+  ],
+  "cluster_ids": [
+    "K-101"
+  ],
+  "verdicts": [
+    "V-101-1"
+  ],
+  "missing_votes": [],
+  "diversity_flags": [],
+  "cmd2_rounds": 0,
+  "g2_queue": [],
+  "w4_iteration": 0,
+  "w4_results": [],
+  "whitebox_report_ref": null,
+  "w_sarif_ref": null,
+  "dfd_ref": null,
+  "seed_threats_ref": null,
+  "lane_a_advisories": [
+    "K-101"
+  ],
+  "disputed_after_g2": [],
+  "egress_allowlist_ref": null,
+  "ownership_results": [],
+  "b1_external_ref": null,
+  "b1_merged_ref": null,
+  "b1_diff_ref": null,
+  "taxonomy_plan_id": null,
+  "threat_model_ref": null,
+  "b1_diff_dispositions_ref": null,
+  "g3_round": 0,
+  "testplan_ref": null,
+  "testcase_ids": [],
+  "artifact_hashes": {},
+  "g4_round": 0,
+  "approved_testcase_ids": [],
+  "restore_drill_ref": null,
+  "jobs": {},
+  "executed_jobs": [],
+  "stop_events": [],
+  "kill_switch": false,
+  "testresults": [],
+  "manual_review_clusters": [],
+  "followup_drafts": [],
+  "report_manifest_ref": null,
+  "gate_records": [
+    {
+      "gate": "G0a",
+      "gate_record_id": "GR-G0a-0003",
+      "outcome": "VERIFIED",
+      "round": 1,
+      "subject_hash": "sha256:25b4f81805ab44d59c47679d2a08512f8382d213af20cacb684c4a57a6ac1c39",
+      "job_id": null,
+      "opened_at": "2026-09-25T14:00:00+08:00",
+      "decided_at": "2026-09-25T14:00:00+08:00"
+    }
+  ],
+  "budgets": {
+    "run_total": {
+      "max_input_tokens": 30000000,
+      "max_output_tokens": 3000000,
+      "max_cost_usd": 400,
+      "max_compute_minutes": 2880,
+      "spent_input_tokens": 42000,
+      "spent_output_tokens": 3100,
+      "spent_cost_usd": 0.21,
+      "compute_minutes": 3
+    },
+    "W": {
+      "max_input_tokens": 15000000,
+      "max_output_tokens": 1500000,
+      "max_cost_usd": 150,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 42000,
+      "spent_output_tokens": 3100,
+      "spent_cost_usd": 0.21,
+      "compute_minutes": 3
+    },
+    "B": {
+      "max_input_tokens": 5000000,
+      "max_output_tokens": 500000,
+      "max_cost_usd": 50,
+      "max_compute_minutes": 1440,
+      "spent_input_tokens": 0,
+      "spent_output_tokens": 0,
+      "spent_cost_usd": 0,
+      "compute_minutes": 0
+    },
+    "upstream_llm_spend_usd": 0,
+    "relay_spend_usd": 0,
+    "gb_return_node": null
+  },
+  "gaps": [],
+  "audit_anchors": [
+    {
+      "seq": 6,
+      "line_sha256": "sha256:3ac642ceff71539ae641089177fc1f34d9b26bb251ad5d6c82414f65b11fcab1"
+    },
+    {
+      "seq": 9,
+      "line_sha256": "sha256:52a0b0cd534160090e4f8f3d3e840ef77a9c2fcedc2c747fa3e956eea62deacf"
+    }
+  ],
+  "errors": [],
+  "pr_origin": "same_repo"
+}

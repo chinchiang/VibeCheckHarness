@@ -206,7 +206,7 @@
 
 #### 有序規則
 
-規則分五段（A–E），依序評估；每段的「決定規則」採**第一條成立者決定**，「修正規則」依序套用於前段結果，「註記規則」不改狀態。每條被觸發的規則都寫入 `rule_trace` [H]。每項格式為 `R<n>:<說明>`（pattern `^R([0-9]|1[0-3])(:.*)?$`），R 前綴的順序必須等於規則實際觸發的順序，例如 `["R2:S=0.73", "R5:vote branch", "R8:diversity_degraded"]`；validator 會以 `tools/vchlib/adjudicate.py` 重算並比對。R11 只在改變狀態或加註時寫入。
+規則分五段（A–E），依序評估；每段的「決定規則」採**第一條成立者決定**，「修正規則」依序套用於前段結果，「註記規則」不改狀態。每條被觸發的規則都寫入 `rule_trace` [H]。每項格式為 `R<n>:<說明>`（pattern `^R([0-9]|1[0-3])(:.*)?$`），R 前綴的順序必須等於規則實際觸發的順序，例如 `["R2:S=0.73", "R5:vote branch", "R8:diversity_degraded"]`；validator 會以 `tools/vchlib/adjudicate.py` 重算並比對。說明文字可以自由書寫，但寫出來的事實必須正確（BL-01）：`->狀態`（或 `->cap 狀態`）必須是該規則留下的狀態（決定規則與 R2 是決定時的狀態、R8 是 `LIKELY`、R11～R13 是最終狀態），`score`、`S`、`theta_confirm`、`theta_reject`、`independent_sources`、`independent_families`、`weighted_support`、`weighted_refute`、`valid_votes` 寫成 `名稱=數字` 時，必須在寫出的位數內等於重算值；不符時報 `E-VERDICT-TRACE`。R11 只在改變狀態或加註時寫入。
 
 | 段 | 規則 | 種類 | 條件 | 結果 |
 |---|---|---|---|---|
@@ -317,7 +317,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 |---|---|---|
 | 第一輪獨立回報的家族 | anthropic | anthropic（`routes/invoices.ts::updateInvoice`，桶 `authz`） |
 | SARIF | 1 筆已解析的 ref，來自 `semgrep:scan`，算工具佐證 | 同一個 ref，改由 `opengrep:scan` 1.6.0 產生（稽核 seq 13，`inv-w1-opengrep-001`；規則 `vc.authz.update-without-owner`）。`semgrep:scan` 在 `licenses.yaml` 是法務閘門，v0.3 的 `E-SARIF-REF` 不接受它（N-7）；Opengrep 的狀態是「注意」，可以執行。規則不在 `high_precision_rules`（校準前為空）→ 弱工具訊號 |
-| 票 | `ver_1`（nvidia，`nemotron_self`）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同，兩票的 `cited_evidence` 都是 `routes/invoices.ts:88`；只有 `ver_1` 是計權合格票；S＝0.6933 ＜ θ_confirm＝1.2（`calibration_version` 3，θ_reject 為 null）。目前的範例（v0.7 的對數概似比權重與先驗）：w＝1.4633、S＝1.4633 ＜ θ_confirm＝2.5 |
+| 票 | `ver_1`（nvidia，`nemotron_self`）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同，兩票的 `cited_evidence` 都是 `routes/invoices.ts:88`；只有 `ver_1` 是計權合格票；S＝0.6933 ＜ θ_confirm＝1.2（`calibration_version` 3，θ_reject 為 null）。目前的範例（r10 的權重，棄權以半對半錯計入）：w＝1.3179、S＝1.3179 ＜ θ_confirm＝2.5 |
 | 合格驗證家族 E | —（v0.2 沒有這個定義） | {nvidia, openai}；`ver_2`（`claude_sonnet`）屬 anthropic，排除 |
 | `diversity_degraded` | false（有效票有 2 個家族） | true（計權合格票只有 1 個家族 ＜ min(2, 2)）；不影響結果，因為 R8 只作用在第 11 列 |
 | 裁決欄位 | `tool_corroboration`＝[該 ref] | `tool_corroboration`＝[]、`tool_signal`＝[該 ref]、`independent_sources`＝2、`no_eligible_verifier`＝false、`provisional`＝false（E 中的 `nemotron_self` 在 `authz` 桶 w＞0） |
@@ -326,7 +326,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 範例的 `rule_trace`：
 
 ```text
-R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.4633<theta_confirm=2.5,independent_sources=2
+R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.3179<theta_confirm=2.5,independent_sources=2
 R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
 ```
 

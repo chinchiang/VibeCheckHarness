@@ -46,7 +46,7 @@
   "decided_by": "aggregator",
   "rule_version": "05-v0.9",
   "rule_trace": [
-    "R2:weighted_support=1 (anthropic),score=0.5947<theta_confirm=1.2,independent_sources=1",
+    "R2:weighted_support=1 (anthropic),score=1.2853<theta_confirm=2.5,independent_sources=1",
     "R7:independent_sources=1->UNCORROBORATED"
   ],
   "cluster_sha256": "sha256:cb9077210d30a019c8a75a713a506a3362822a20c0b7ed668337ee63a9968b44"

@@ -149,12 +149,12 @@
 ```bash
 python -m pip install -r requirements.lock      # CI 用的精確版本；requirements.txt 是版本範圍
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 1304 個測試，約 8–15 分鐘
+python -m pytest tests                 # 1509 個測試，約 8–15 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點
 python tools/build_error_table.py --check       # schemas README 的錯誤碼表與 validator 一致
-python tools/build_variants.py --check          # 變體 bundle（lite、edge）是最新的且零錯誤
+python tools/build_variants.py --check          # 變體 bundle（lite、edge、suspend）是最新的且零錯誤
 python tools/check_platform_suffixes.py --check  # 選用，需要網路：手寫的共享平台清單對照 Public Suffix List
 ```
 

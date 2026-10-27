@@ -4,6 +4,27 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.8`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
 
+## 待辦 BL-66、BL-01、BL-47、BL-05 與 `suspend` 變體（2026-10-27）
+
+### 每個錯誤碼都有測試（BL-66）
+- BL-64 的錯誤碼表列出 96 個沒有任何測試引用的錯誤碼（當時寫 97 個）。四個新測試檔（`tests/test_bl66_trust.py`、`test_bl66_run_gates.py`、`test_bl66_pipeline.py`、`test_bl66_config.py`）逐一觸發每個錯誤碼，列出的每個分支各一個測試；四份突變清單逐一停用每個檢查，147 個突變全部抓到。沒有找到 validator 缺陷。
+- `E-AGENT`、`E-MODEL` 在 `run_all` 中被 `E-INPUT-SHAPE` 先擋下，測試另外直接呼叫 `g_models`；`E-LOAD`、`E-KIND`、`E-JCS` 等載入期錯誤以暫存目錄中的壞檔案觸發。
+- `tests/test_bl66_coverage.py`：新的錯誤碼沒有測試時失敗；錯誤碼表不再有「—」。
+
+### `rule_trace` 說明文字（BL-01）
+- `R<n>:` 之後的說明可以自由書寫，但寫出的事實必須正確：`->狀態`（或 `->cap 狀態`）必須是該規則留下的狀態（`adjudicate.trace_statuses`：決定規則與 R2 是決定時的狀態、R8 是 `LIKELY`、R11～R13 是最終狀態），`score`、`theta_*`、獨立來源與家族數、計權票數寫成 `名稱=數字` 時，必須在寫出的位數內等於重算值（`E-VERDICT-TRACE`）。
+- 一上線就找到 5 份範例裁決（K-011 兩版、K-014、K-015、K-016 的 W3 版）的 R2 說明仍是 r10 之前的權重與門檻；05 §4.2 的範例 `rule_trace` 也是舊值。已更正並重簽。`tests/test_review_fixes.py` 有一個測試把唯一的計權票改成非驗證者，現在一併更正 R2 說明。
+
+### 範例 B′ 的存取矩陣（BL-47）
+- 範例 `invariants.yaml` 加入 `workspace_member`／`workspace_document` 兩列（同工作區可讀、只有上傳者可改或刪），G1 重簽；04 §6.3 不再註明缺列。報告的存取矩陣涵蓋率如實由 1.0 降為 0.5714（7 格中的 4 格：範例 B′ 沒有 testcase）；釘住 1.0 的 4 個既有測試同步更新。
+
+### `suspend` 變體（BL-60 後續）
+- 第三個變體：跟進 run 的 G4 開啟 72 小時沒有人決定，Gate Service 寫入沒有簽章、只有 `needs_info` 的 `EXPIRED` 紀錄，run 轉為 `SUSPENDED`（沒有 `run_end`）；同一個 run 的 ASI09 抽查推翻第一個 run 的 G5，由獨立的 grace 簽署。對之後 run 的 G5 升級仍只在記憶體中測試（範例沒有更晚、帶 G5 的 run）。
+- 建置時發現 validator 缺口：`EXPIRED` 的 G3／G4 紀錄只能有 `needs_info`，「結果與決定一致」的檢查卻要求 `PARTIALLY_APPROVED`，任何逾時的 G3／G4 都會被拒絕（`E-GATE-OUTCOME`）。已修正。
+
+### 一個主題一個主頁（BL-05）
+- 保留期限（06 §2.2.1）、稽核尾端保護（03 §13.1）、金鑰登錄與簽章（03 §6.1）、OWASP LLM Top 10 版本（04 §2.3）、promptfoo 的出站控制（03 §7.5）各指定一個主頁；其他文件改為一句話加連結，`tests/test_bl05_home_pages.py` 守住。
+
 ## 待辦 BL-64、BL-60（2026-10-27）
 
 ### 變體 bundle（BL-60）

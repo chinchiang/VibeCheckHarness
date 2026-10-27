@@ -279,6 +279,8 @@ def test_u2028_in_audit_payload_keeps_the_chain(b, keys):
 def test_non_verifier_vote_is_ignored_and_reported(b, keys):
     v = doc(b, V014).data
     v["votes"][0].update(voter_agent_id="rev_c")           # reviewer role, same model nemotron_self
+    # BL-01: the R2 text states the weighted support and score, which this change makes 0; keep it truthful
+    v["rule_trace"][0] = v["rule_trace"][0].replace("weighted_support=1 (nvidia),score=1.3179", "weighted_support=0,score=0")
     rederive(b, keys)
     assert v["votes"][0]["weighted_valid"] is False and v["score"] == 0.0
     R = run_all(b)

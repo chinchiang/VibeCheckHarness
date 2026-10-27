@@ -46,7 +46,7 @@
   "decided_by": "aggregator",
   "rule_version": "05-v0.9",
   "rule_trace": [
-    "R2:weighted_support=1,score=0.6222<theta_confirm=1.2",
+    "R2:weighted_support=0 (ver_1 has weight 0 in llm_specific),score=0,theta_confirm null (provisional)",
     "R7:independent_families=1->UNCORROBORATED"
   ],
   "cluster_sha256": "sha256:ebce848afb584900264b8decf79ba9e4682215ee252bd9f7ea56aaea9db54b8f"

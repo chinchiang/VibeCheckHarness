@@ -1,0 +1,19 @@
+{
+  "checkpoint_id": "ckpt-run-2026-10-07-001-0007",
+  "run_id": "run-2026-10-07-001",
+  "thread_id": "run-2026-10-07-001",
+  "parent_checkpoint_id": "ckpt-run-2026-10-07-001-0006",
+  "node": "G4",
+  "created_at": "2026-10-07T10:30:00+08:00",
+  "state_sha256": "sha256:c47ad6c271af5df1410fd2b4532284baa7a83d458c67a25946e478354edd6761",
+  "schema_version": "0.5",
+  "run_status": "SUSPENDED",
+  "pending_interrupt": {
+    "kind": "gate",
+    "gate": "G4",
+    "subject_hash": "sha256:fedf098de9d6e878229462390a339cf3b8bb6df486033b161949b48e9e7779ba",
+    "deadline": "2026-10-10T10:30:00+08:00"
+  },
+  "encrypted": true,
+  "authoritative": false
+}

@@ -145,26 +145,8 @@
 
 ### 1.6 人工關卡的完整性與簽章（D11）
 - 核准是**簽章紀錄**，綁定產物 hash；Policy Engine 驗的是紀錄，不是 checkpoint（[03 §6](03-system-architecture.md#6-人工關卡服務)）。
-- **金鑰信任根**：
-  - 核准者公鑰登錄在 `key-registry.yaml` 中，由組織根金鑰簽署；根金鑰指紋釘選在 `toolkit.yaml`。
-  - 登錄的欄位包括角色、有效期間、撤銷時間與撤銷原因。
-  - ROE 與委任設定只能引用登錄中的指紋，不能自行宣告可信金鑰（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)）。
-  - 登錄是**唯一的信任來源**：登錄本身要能以 `toolkit.yaml` 的 `org_root_key.fingerprint` 驗章，且 `version` ≥ `key_registry.min_version`（防止換回舊版登錄）；登錄的 `registry_id` 必須等於 `toolkit.yaml` 的 `key_registry.location`，也等於 engagement／ROE 的 `key_registry_ref` [H]。
-  - **撤銷語意** [H]：撤銷原因為 `compromised` 時，該金鑰的**所有**簽章都失效（不論簽署時間）；其他原因（例如離職、輪替）只讓 `revoked_at` 之後的簽章失效，之前的仍有效。
-  - 判斷「之前或之後」用的時間：關卡決定與誤報回饋用 Audit Writer 的**收件時間**（`gate_decision`／`feedback_recorded` 事件的 `ts`）；委任設定與 ROE 用首次驗章的收件時間（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)）。文件自填的 `issued_at`／`timestamp`／`signed_at` 只需與收件時間一致，不再決定撤銷前後。收件時間來自 Audit Writer 的時鐘，仍不是第三方時間戳記（§3 #25）。
-- **簽章格式** [H]（對應 `common.schema.json` 的 `signatures[]`）：
-  - 每個被簽文件帶 `signatures[]`，每筆為 `{signer, key_fingerprint, alg: "ed25519", value}`。
-  - `value` 是對「移除 `signatures` 欄位後的文件」取 RFC 8785 JCS 正規化，再以 Ed25519 簽署的結果。v0.1 的 `signature_ref`（外部簽章檔）已取消。
-  - 指紋格式：`ed25519:SHA256:` 加上「原始 32 bytes 公鑰的 SHA-256」的 base64（不補 `=`）。
-  - repo 內的測試私鑰只放在 `tests/fixtures/TEST_ONLY_private_keys/*.TEST_ONLY.pem`，只供測試驗章流程；用它們簽出的任何核准**不代表真實的人工核准**。正式登錄必須拒絕這些金鑰的指紋。
-- **簽章方案的外部事實**：
-  - Ed25519 的簽章為 64 bytes、確定性 [V][E:orchestration-43]。
-  - RFC 8785 JCS 是 Informational RFC，不是 IETF 標準。它要求無重複鍵，數字限 IEEE 754 double [V][E:orchestration-44]。
-  - 替代方案：OpenSSH 簽章內建有效期間與撤銷檔；minisign 沒有撤銷機制；cosign keyless 需要線上服務 [V][E:orchestration-47]～[E:orchestration-49]。
-- **YAML 解析的陷阱**：
-  - PyYAML 是 YAML 1.1 parser [V][E:orchestration-53]，而且會默默接受重複鍵（issue #41，至今未關）[P][E:orchestration-54]。
-  - 攻擊情境：同一份 ROE 寫兩個 `targets` 鍵。核准者用的檢視工具與驗章程式可能各取不同的值，於是簽的內容和執行的內容不同。
-  - 因此驗章前必須用**嚴格 loader**：拒絕重複鍵、anchor／alias、自訂 tag，關閉隱式型別，整數限 ±2^53。違反一律視為驗章失敗 [H]（已納入 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) 與 [08 §4.1](08-implementation-spec.md#41-共用選項與結束碼)：簽署文件 → `signature_invalid`，結束碼 4）。JSON 格式的文件（例如 GateRecord、稽核事件）同樣拒絕重複鍵、NaN／Infinity、溢位的浮點數（例如 `1e400`）、絕對值超過 2^53 的整數與整數欄位的浮點數字面值（`E-JSON-STRICT`，對應 YAML 的 `E-YAML-STRICT`；該文件連同簽章與 hash chain 一律拒絕，validator 強制）[H]。
+- **金鑰信任根、撤銷語意、簽章格式與嚴格解析**：主頁是 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)（登錄由組織根金鑰簽署、`min_version` 防回滾、`compromised` 讓該金鑰的所有簽章失效、Ed25519 over RFC 8785 JCS、驗章前以嚴格 loader 拒絕重複鍵等）。ROE 與委任設定只能引用登錄中的指紋，不能自行宣告可信金鑰。
+- repo 內的測試私鑰只放在 `tests/fixtures/TEST_ONLY_private_keys/*.TEST_ONLY.pem`，只供測試驗章流程；用它們簽出的任何核准**不代表真實的人工核准**。正式登錄必須拒絕這些金鑰的指紋。
 - G5 的核准者不能是發起者。自動觸發的 run 在任何 G1 決定或 B 階段節點之前，必須由人以 `initiator_claim` 認領（D7）。
 - **職責分離依保證等級而定** [H]（定義見 [02 §1.7](02-methodology.md#17-保證等級liteteamfull)）：
   - **Team**：ROE 的每個簽署角色必須由不同的人擔任（`E-ROE-SOD`）；G4／G5 的分離同上。
@@ -181,7 +163,7 @@
   - 即使是 Merkle tree 的透明化 log，也可能對不同客戶端呈現不一致的視圖，需要外部監看 [V][E:orchestration-50]。
 - **本設計的定位 [H]**：
   - 預設錨點寫在同一個 Postgres 的 run 紀錄中；v0.4 起每個錨點另有 Z3 Executor 金鑰的副簽（`E-AUDIT-ANCHOR-SIG`，[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)），只控制 Z1 的人無法重寫鏈。
-  - 尾端保護：run 紀錄的每個錨點是 `{seq, line_sha256}`（錨點事件自己那一行的 sha256），必須對應稽核檔中的錨點行，且與稽核檔中所有 `audit_anchor` 事件一一對應（`E-AUDIT-TRUNCATED`、`E-AUDIT-ANCHOR-MISMATCH`、`E-AUDIT-ANCHOR`）；稽核檔的寫入與讀取都只以 `\n` 分行；終態的 run（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）最後一行必須是 `run_end` 錨點（`E-AUDIT-TAIL`）；非終態的 run（含 `SUSPENDED`、`STOPPED`）在稽核檔中最後一個錨點事件之後的行只有警告 `W-AUDIT-UNANCHORED-TAIL`（這段被截斷無法偵測）。見 §3 #16。
+  - 尾端保護與錨點編號：規則與錯誤碼的主頁是 [03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)。終態的 run 以 `run_end` 錨點收尾；非終態的 run 在最後一個錨點之後的行被截斷無法偵測。見 §3 #16。
   - 若 engagement 需要防管理者竄改，必須把錨點另外寫到管理者無法修改的系統，例如：
     - 客戶方的 WORM 儲存
     - 以核准者金鑰簽署錨點並寄給客戶
@@ -376,7 +358,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | PostgreSQL | PostgreSQL License（類似 BSD／MIT）[V][E:orchestration-41] | 保留版權聲明 | Z1 資料庫 | OK |
 | LiteLLM | MIT，但 `enterprise/` 目錄另有授權 [V][E:orchestration-29][E:orchestration-39] | **不得使用 `enterprise/` 目錄的功能**；供應鏈事件，需鎖版本 | 核心 | 注意 |
 | Pydantic | MIT [V][E:orchestration-38] | — | 核心 | OK |
-| jsonschema、PyYAML | MIT [V][E:orchestration-40] | PyYAML 的解析陷阱見 §1.6 | `tools/`、驗章（`requirements.txt`） | OK |
+| jsonschema、PyYAML | MIT [V][E:orchestration-40] | PyYAML 的解析陷阱見 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) | `tools/`、驗章（`requirements.txt`） | OK |
 | tzdata | Apache-2.0 [V][E:orchestration-40] | — | `tools/`（Windows 需要） | OK |
 | cryptography | Apache-2.0 OR BSD-3-Clause [V][E:orchestration-46] | — | Ed25519 驗章（D11） | OK |
 | rfc8785 | Apache-2.0（PyPI 0.1.4 的 classifier 為 Apache Software License；metadata 的 license 欄位為空）[V][E:orchestration-45] | 發布頻率低：`requirements.txt` 固定為 `rfc8785==0.1.4`，`canonical.jcs` 以 RFC 8785 測試向量回歸測試 | JCS（D11） | 注意 |

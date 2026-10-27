@@ -566,7 +566,7 @@ class ToolAdapter(ABC):
 | 允許的工具與模式 | `tools.yaml` − `TOOLKIT_DENYLIST` − ROE 的 `denied_modes`，再 ∩ ROE 的 `allowed_tools` |
 | 保證等級 | 只由 engagement 的 `assurance_profile` 決定（G0a 驗章），ROE 不能改。`lite` → 實際可用的安全等級＝ROE `allowed_safety_classes` ∩ {S0, S1}（`E-PROFILE-SAFETY`）；ROE `relay.mode: adaptive` 只在 `full` 有效（[02 §1.7](02-methodology.md#17-保證等級liteteamfull)、§11.15） |
 | 沙箱資源 | 只看 `toolkit.yaml` 的 `sandbox`；run 不能改 |
-| 保留期限 | `toolkit.yaml` 的 `retention` 是組織的上限與預設值 → engagement 的 `retention_days` 是實際值，必須在 1 到工具包上限之間（P 級 `p_days`、C 級 `c_days_after_run_end`；`E-RETENTION`）→ ROE 的 `data_handling.retention_days` 必須 ≤ engagement（`E-ROE-RETENTION`）且 ≤ 工具包上限（`E-RETENTION`）。超過上限 → validator 拒絕（[06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)、§7.5）[H] |
+| 保留期限 | `toolkit.yaml` 的上限 → engagement 的實際值 → ROE，後者只能更短；規則與錯誤碼見 [06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)、§7.5 [H] |
 | CLI 旗標、環境變數 | 不能改上面任何一項 |
 
 ### 5.3 環境變數與 secrets
@@ -773,12 +773,12 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 - 一個 run 的檔案不輪替。run 結束時寫最後一個錨點。
 - **分行**：`AuditWriter` 與所有讀取端（`audit verify`、validator）都只以 `\n` 分行，不使用 `str.splitlines()` 之類會把 `\r`、U+2028 等也當成行界的函式 [H]。
 - **錨點格式**：`run.audit_anchors` 的每一項是 `{seq, line_sha256}`，`line_sha256` ＝ 該 `audit_anchor` 事件自己那一行原始位元組的 sha256（取代舊版的「錨點的 prev_hash」）。
-- **尾端保護（validator 強制）** [H]：錨點的 `seq` 超出稽核檔 → `E-AUDIT-TRUNCATED`；行 hash 不符 → `E-AUDIT-ANCHOR-MISMATCH`；指名的不是錨點行，或 `audit_anchors` 與稽核檔中的 `audit_anchor` 事件不是一一對應（遺漏、重複或多列）→ `E-AUDIT-ANCHOR`；非終態 run（含 `SUSPENDED`、`STOPPED`）在稽核檔中最後一個 `audit_anchor` 事件之後的行 → `W-AUDIT-UNANCHORED-TAIL`（警告；只看這一段）；終態 run（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）必須有稽核檔並以 `run_end` 錨點結尾，否則 → `E-AUDIT-TAIL`。hash chain 只能**偵測**竄改，不能防止；截斷只能偵測到最後一個錨點為止（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16）。
+- **尾端保護（validator 強制）** [H]：規則與錯誤碼的主頁是 [03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)；hash chain 只能偵測竄改，不能防止（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16）。
 - 可選擇另外寫到 WORM 儲存或外部系統；是否需要，由 engagement 決定（§10）。
 
 ### 7.5 保留與刪除
 
-- 優先順序 [H]：`toolkit.yaml` 的 `retention` 是組織的**上限與預設值**；engagement 的 `retention_days` 是實際值，必須在 1 到工具包上限之間（P 級 `p_days`、C 級 `c_days_after_run_end`），否則 `E-RETENTION`；ROE 的 `data_handling.retention_days` 必須 ≤ engagement，否則 `E-ROE-RETENTION`；也必須 ≤ 工具包上限，否則 `E-RETENTION`（§5.2、[06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)）。這些都是錯誤；舊的警告 `W-ENG-RETENTION` 已移除。寫入 CAS 物件時，meta 記的是生效值。
+- 優先順序 [H]：規則與錯誤碼見 [06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)。寫入 CAS 物件時，meta 記的是生效值。
 - 保留期限設定在 `toolkit.yaml` 的 `retention` 區塊（[toolkit-config](schemas/toolkit-config.schema.json)）。工具包的預設值 [H] 如下，**實際值需要法務決定（§10）**：
   - `p_days: 365`（P 級）；
   - `c_days_after_run_end: 90`（C 級）；
@@ -1992,8 +1992,8 @@ W4 需要安裝相依並建置受測程式 [H]：
 #### 覆蓋指標
 
 - report-manifest 的 `metrics` 由 validator 以本 run 的測試結果重算：`results_total`、`results_invalid`、`control_pass_rate`（PASS 的對照結果數 ÷ 全部對照結果數，四捨五入到小數 4 位；沒有對照時為 null）（`E-REPORT-METRICS`）。範例報告是 5 個結果（含 W4 的 R-WTC-015-01-1）、0 個 `INVALID`、`control_pass_rate` 1.0。
-- v0.5（[09 BL-20](09-backlog.md)）另有三個指標，也由 validator 重算：`access_matrix_coverage`（本 run 的 testcase 與 w4-testcase 以 `access_cells` 宣告涵蓋的 G1 矩陣格子 ÷ 總格數，每格必須在矩陣中，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`（handler 檔案在本 run 切片中的端點 ÷ 總數）、`endpoint_test_coverage`（被黑箱 testcase 的 `request_allowlist` 打到的端點，方法與路徑樣板都相同 ÷ 總數）。範例是 1.0、0.8571、0.8571；新增的排程工作沒有切片也沒有測試。
-- 上面兩個測試覆蓋率只代表**計畫**，所以拿掉全部測試結果仍是 1.0 與 0.8571。改名為 `planned_access_matrix_coverage`、`planned_endpoint_test_coverage`，並新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`：只算至少有一個有效執行結果的測試案例（outcome 為 PASS 或 FAIL，INVALID／ERROR／SKIPPED／STOPPED 不算；對照全部 PASS；本 run 稽核紀錄中恰好一筆已錨定的 `sandbox_job_end`，outcome 與三個 hash 相符，`checks.execution_backed`）。報告正文必須把 planned 與 executed 並列；只寫其中一個不符合報告契約。`endpoint_slice_coverage` 量的是 W3 實際審查的切片，名稱不變。
+- v0.5（[09 BL-20](09-backlog.md)）另有三個指標，也由 validator 重算：`access_matrix_coverage`（本 run 的 testcase 與 w4-testcase 以 `access_cells` 宣告涵蓋的 G1 矩陣格子 ÷ 總格數，每格必須在矩陣中，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`（handler 檔案在本 run 切片中的端點 ÷ 總數）、`endpoint_test_coverage`（被黑箱 testcase 的 `request_allowlist` 打到的端點，方法與路徑樣板都相同 ÷ 總數）。範例是 0.5714、0.8571、0.8571：矩陣 7 格中，範例 B′ 的工作區文件 3 格（BL-47）沒有 testcase；新增的排程工作沒有切片也沒有測試。
+- 上面兩個測試覆蓋率只代表**計畫**，所以拿掉全部測試結果仍是 0.5714 與 0.8571。改名為 `planned_access_matrix_coverage`、`planned_endpoint_test_coverage`，並新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`：只算至少有一個有效執行結果的測試案例（outcome 為 PASS 或 FAIL，INVALID／ERROR／SKIPPED／STOPPED 不算；對照全部 PASS；本 run 稽核紀錄中恰好一筆已錨定的 `sandbox_job_end`，outcome 與三個 hash 相符，`checks.execution_backed`）。報告正文必須把 planned 與 executed 並列；只寫其中一個不符合報告契約。`endpoint_slice_coverage` 量的是 W3 實際審查的切片，名稱不變。
 
 **里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。
 

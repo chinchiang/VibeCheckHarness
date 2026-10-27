@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "invariants",
-    "sha256": "sha256:7670231dce457b9d88161ebfd9389cbb752b01e9cb56e09370ba70ca367f3fb5"
+    "sha256": "sha256:63f7decc0f82688ab87a952fe705fa3f3b6a9a1ce492c81109898cc2b401edae"
   },
   "job_id": null,
   "g4_gate_record_id": null,
@@ -46,7 +46,7 @@
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "HJDa3DEvnkf2Fd2sfxHF3lSUYU4k/0d5H0fv/vDr0SsBI/AbTrSnStWfxY/y88uw5k0KMFFpjLgUGE48XBAYAA=="
+      "value": "1FYVXJOBiFfKNefNJWnyZt8nRgdWw9cildIQZhgYbiOe06UZd6MfDE3MHjfJoolKPX24Him3WToSPy0nqw4mAg=="
     }
   ]
 }

@@ -5,7 +5,7 @@
   "parent_run_id": "run-2026-09-23-001",
   "baseline_run_id": "run-2026-09-23-001",
   "reuse": [
-    "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff",
+    "sha256:8ed20e6a12c3ba23c84a6cc0215e5dba89b3b638c9e0926755fc1c5701359a26",
     "sha256:599b2fb0f02afdc8b1ba549a5f86d335f47af6d6e3203f1ba8c7e20faa8d9441"
   ],
   "trigger": "manual",
@@ -41,7 +41,7 @@
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
-      "sha256": "sha256:53710c9410b6ce98017310d5a21d4e5cb4071547e7cdd90e0e10c07f789be3ff"
+      "sha256": "sha256:8ed20e6a12c3ba23c84a6cc0215e5dba89b3b638c9e0926755fc1c5701359a26"
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
@@ -151,7 +151,7 @@
       "gate_record_id": "GR-G1-0002",
       "outcome": "APPROVED",
       "round": 1,
-      "subject_hash": "sha256:7670231dce457b9d88161ebfd9389cbb752b01e9cb56e09370ba70ca367f3fb5",
+      "subject_hash": "sha256:63f7decc0f82688ab87a952fe705fa3f3b6a9a1ce492c81109898cc2b401edae",
       "job_id": null,
       "opened_at": "2026-10-07T10:01:10+08:00",
       "decided_at": "2026-10-07T10:01:30+08:00"
@@ -220,19 +220,19 @@
     },
     {
       "seq": 10,
-      "line_sha256": "sha256:d50f6f5dc7429225b22e8f45db40b216e01d3f3ab01cc59e5d29aa9669058732"
+      "line_sha256": "sha256:5c4dc238a88cb92e33a12c6946c74f71157c516d132dfd113f693b3eaefa73e6"
     },
     {
       "seq": 13,
-      "line_sha256": "sha256:56326c4a349f9c4d1eb0800323d44729b66d09e16d72c1616a8c623d1f6eab7b"
+      "line_sha256": "sha256:690fe30af74bb867757fce6a474961d29021e87c389fcc8a7c78071a76f72feb"
     },
     {
       "seq": 18,
-      "line_sha256": "sha256:2c80cbc6cd79488734ebe3ff5ea744c545171bf1ca82a270fd0144d1b758f12b"
+      "line_sha256": "sha256:655fb18a04811bb3a01061f58eea620c654ea2bc121153d707a72871d59e2e86"
     },
     {
       "seq": 21,
-      "line_sha256": "sha256:97dde95ea8b650279ed4ef953c4059ff9d8e23f69b1e2ea99de0399a03bffc1c"
+      "line_sha256": "sha256:d3ce7e86cb8ef361074d579629f93cd9227fe7edfb74048a784d25de5e610be2"
     }
   ],
   "errors": [],

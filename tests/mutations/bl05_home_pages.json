@@ -1,0 +1,28 @@
+{
+  "tests": "tests/test_bl05_home_pages.py",
+  "mutations": [
+    {"name": "retention stated once (03)", "file": "docs/03-system-architecture.md",
+     "old": "- **保留期限的優先順序** [H]：`toolkit.yaml` 的上限 → engagement 的實際值 → ROE，後者只能更短；",
+     "new": "- **保留期限的優先順序** [H]：engagement 的 `retention_days` 必須在 1 到工具包上限之間；",
+     "k": "lives_only and retention"},
+    {"name": "tail stated once (08)", "file": "docs/08-implementation-spec.md",
+     "old": "- **尾端保護（validator 強制）** [H]：規則與錯誤碼的主頁是",
+     "new": "- **尾端保護（validator 強制）** [H]：錨點的 `seq` 超出稽核檔 → `E-AUDIT-TRUNCATED`；規則與錯誤碼的主頁是",
+     "k": "restate_the_error_codes"},
+    {"name": "signatures stated once (06)", "file": "docs/06-security-legal-limitations.md",
+     "old": "`compromised` 讓該金鑰的所有簽章失效", "new": "`revocation_reason = compromised` 讓該金鑰的所有簽章失效",
+     "k": "lives_only and signatures"},
+    {"name": "OWASP version stated once (02)", "file": "docs/02-methodology.md",
+     "old": "新的委任預設 2026 版。查證、預設的理由", "new": "新的委任預設 2026 版（官方 PDF 122 頁已讀取）。查證、預設的理由",
+     "k": "lives_only and owasp"},
+    {"name": "promptfoo stated once (04)", "file": "docs/04-threat-to-testcase.md",
+     "old": "- 一律關閉遠端生成與 telemetry；grader", "new": "- 一律關閉遠端生成（`PROMPTFOO_DISABLE_REMOTE_GENERATION=true`）與 telemetry；grader",
+     "k": "lives_only and promptfoo"},
+    {"name": "02 links to the OWASP home", "file": "docs/02-methodology.md",
+     "old": "主頁是 [04 §2.3](04-threat-to-testcase.md#23-owasp-llm-top-10-20252026-對照)", "new": "主頁是 04 §2.3",
+     "k": "link_to_the_home and owasp"},
+    {"name": "licence row points at the PyYAML home", "file": "docs/06-security-legal-limitations.md",
+     "old": "| PyYAML 的解析陷阱見 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) |", "new": "| PyYAML 的解析陷阱見 §1.6 |",
+     "k": "licence_row"}
+  ]
+}
