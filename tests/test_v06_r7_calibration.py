@@ -43,7 +43,7 @@ def test_the_weights_use_both_sides():
 
 def test_the_example_weights_are_recomputed(b):
     assert not errors(b, "E-CAL-WEIGHT")
-    assert row(b, "nemotron_self", "authz")["support"]["w"] == 1.4633           # v0.7 prior (r8): was 1.5775
+    assert row(b, "nemotron_self", "authz")["support"]["w"] == 1.3179           # r10 abstentions; r8 prior: 1.4633; was 1.5775
 
 
 def test_the_old_accuracy_weight_is_rejected(b):
@@ -120,7 +120,7 @@ def test_a_bad_rule_is_reported(b):
 def test_an_empty_valid_for_list_means_none(b):
     ix = derive.Index(b)
     run_id = doc(b, RUN).data["run_id"]
-    assert ix.weight("nemotron_self", "authz", 3, "SUPPORT", run_id) == 1.4633
+    assert ix.weight("nemotron_self", "authz", 3, "SUPPORT", run_id) == 1.3179
     doc(b, CAL).data["result"]["valid_for_model_keys"] = []
     assert derive.Index(b).weight("nemotron_self", "authz", 3, "SUPPORT", run_id) == 0
 

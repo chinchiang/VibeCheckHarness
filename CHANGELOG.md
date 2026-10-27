@@ -8,6 +8,18 @@
 
 依 2026-10-27 設計審查（第十輪）：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的 5 項由主審查者重跑 probe 確認。
 
+### 裁決與校準（PR2；`rule_version` 改為 `05-v0.9`）
+- **S 每個根取最強的一票**：同根的票立場一致時取 |w| 最大者（`derive.root_score`）；第九輪取平均，同根多一張較弱的支持票會把 S 拉到 θ 以下。
+- **棄權當作擲硬幣**：一張棄權票以半對半錯計入正確率、ā 與 Wilson 下界（`checks.effective_counts`）；`abstain_rate_max` 保留為硬上限。範例權重下降（nemotron_self authz support 1.4633 → 1.3179、claude_sonnet 1.4425 → 1.2853），兩個根的支持仍跨過 θ_confirm 2.5，範例裁決狀態不變、分數改變；engagement 的 `config_pins.calibration` 重算。
+- **θ_reject 的守衛**（`E-CAL-THETA`）：每個桶的 θ_reject 高於任何一張反駁票的權重，否則一張反駁票就自動駁回單一家族的叢集；`generalised: true` 需要保留切分 n ≥ 10。
+- **`sampled` 不能自填**（`E-TC-TRIALS`）：`trials.sampling: sampled` 不再是機率型訊號；只宣告它而沒有目標側訊號是錯誤。第八輪的 `test_sampling_sampled_is_a_signal` 改為斷言新語意。
+- **合格分析者不同意 → `E_inc`**：事先登記的解讀不再蓋過合格 Result Analyst 的 `agrees: false`。
+- **作者不明不算獨立**：W4 測試作者集合為空 → 不獨立；有 W4 結果時 agents.yaml 必須登錄 test_generator 與 test_critic（`E-AGENT-ROLES`，新）。
+- **校準汙染欄位生效**（`E-CAL-CONTAMINATION`、`W-CAL-CONTAMINATION`，新）：canary 重現的模型權重為 0；哨兵 app 在保留切分；`holdout_access_log` 不早於預先登記；有權重的模型被標示變體召回落差時警告。
+- **R8 是防禦縱深**：在 `E-CAL-THETA` 之下第 11 列一定需要兩個根，R8 不會觸發；05 §4.2 改寫並以窮舉測試證明。
+- 文件：00、03、05（第十輪摘要、§4.2 R8、§4.3、§5.4、§5.7）、08、schemas README、verdict schema。
+- 新增 `tests/test_v07_r10_verdict.py`（22 個）與 `tests/mutations/r10_verdict.json`；斷言規則版本的五個既有測試改為 `05-v0.9`；第八、九輪五個突變錨點改指新程式（`ext2 sampling signal` 因語意反轉而移除）；第八輪 `test_derived_from_names_a_registry_lineage` 與第九輪 `test_a_feasible_theta_meets_the_search_limits` 的斷言改指它們守的那一則訊息（突變檢查發現它們被其他檢查遮蔽）。
+
 ### 錨定模型的三個缺口與穩健性（PR1）
 - **已完成的 run 不能重新打開**（`E-AUDIT-TAIL`）：`run_end` 錨點之後不能再有任何行，不論 run 紀錄自填什麼狀態。第九輪的 `E-RUN-STATUS` 跟著最後一筆 `run_status_changed`，但那一筆可以是 `run_end` 之後附加的未錨定行，所以不需金鑰就能把已完成的 run 改回 RUNNING、繼續附加。
 - **報告 manifest 由事件綁住**（`E-AUDIT-REPORT`、`E-ID-DUP`）：每個 run 只有一份 manifest，它必須恰有一筆已錨定的 `report_published`（`report_id` 相同、`report_manifest_sha256` 相符）。第九輪只比對 run 的第一份 manifest；`audit_log` 產物改對照同一 `report_id` 的事件。

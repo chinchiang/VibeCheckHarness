@@ -91,7 +91,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 10. **關卡**：每關必要角色、登錄一致、G0b 之後的核准者來自 ROE、發起者、逾時、有效期間、G4 核准者 ∈ run.initiators、G5 核准者 ∉ run.initiators 且在同一 ROE 時間窗內決定、GB 核准者、outcome 與 decisions 一致、G3 決定寫回威脅、G1 決定寫回不變量。
 11. **run**：狀態／current_node／resume_deadline、jobs、S2 需要 G5＋快照＋還原驗證＋7 天內的還原演練（稽核日誌無法載入時不重複回報 `E-RUN-RESTORE-DRILL`）、測試結果在時間窗內且在 G4／G5 之後、請求數 ≤ 上限、k ≤ n、GB 延長後的預算、Lane A 與後續 run 規則。
 12. **測試案例 vs ROE**：以 docs/04 §5 演算法（`vchlib.safety`）重算安全等級、可否進入 G4、db_tables ⊆ oracle_tables、種子都在 manifest、ZAP `delayInMs`／`maxScanDurationInMins` 限制、多輪對話需要 relay、角色。
-13. **裁決重算**（rule_version `05-v0.8`）：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；自我宣告的輸入一律由 validator 推導、重算時只用推導值：
+13. **裁決重算**（rule_version `05-v0.9`）：以 docs/05 §4.2 規則（`vchlib.adjudicate`）重算 status、status_cap、advisory、annotations 與 `rule_trace` 規則序列；自我宣告的輸入一律由 validator 推導、重算時只用推導值：
     - `tool_corroboration`＝**強**工具佐證：已解析的 SARIF ref 中，(adapter, rule_id, tool_version) 列在 calibration.yaml `result.high_precision_rules`（同 CWE 桶、`precision_lower95` ≥ `result.thresholds.high_precision_min.value`，預設 0.90）者 → R5 row 10（不受 R8 限制）；`E-VERDICT-TOOLCORR`
     - `tool_signal`＝**弱**工具訊號：其他已解析的 SARIF ref ∪ E_fail_u 結果；不能單獨確認；`E-VERDICT-TOOLSIGNAL`
     - `independent_sources`＝len(叢集 independent_families) ＋（有弱 SARIF 訊號 ? 1 : 0）＋（有 E_fail_u ? 1 : 0）；R6 需 ≥ 2；`E-VERDICT-SOURCES`
@@ -174,6 +174,10 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-AUDIT-GATE`（v0.7 補充，審查 r10） | `gate_decision` 的 `payload.gate_record_sha256` 釘住所決定的關卡紀錄（去掉 `signatures` 的 content hash）。審查 r9 只釘關卡、結果與時間，核准者用自己的金鑰就能在決定被錨定之後增刪決定項目再重簽；只重簽相同內容不算變更 |
 | `E-W4-COVERAGE`、`E-W4-AUDIT`（v0.7 補充，審查 r10） | run 完成（`COMPLETED`／`COMPLETED_WITH_GAPS`）後，每份 w4-testcase 都要有 W4 結果（結果再由 `E-W4-AUDIT` 綁到已錨定的 Z2 `sandbox_job_end`），否則它引用的不變量沒有被測過、必須列為 MANUAL；每筆 W4 `sandbox_job_end` 指名本 run 的 W4 結果，完成的 run 中每個開始的 W4 job 都有結束事件 |
 | `E-RUN-OWNERSHIP`（v0.7 補充，審查 r10） | `run.ownership_results` 的每一筆都要有同一 `batch_id`、已錨定的 `ownership_check` 事件（Z3 Executor 的紀錄），事件的 `payload.results` 列出該目標、相同的方法與結果；`checked_at` 不晚於事件收件時間，事件收件早於對該目標的第一個 B4 `sandbox_job_start`。審查 r9 只比對 ROE，一個沒有任何事件、日期在所有 job 之後的批次也能通過 |
+| `E-CAL-CONTAMINATION`（v0.7，審查 r10） | 校準的汙染欄位：`canary_results` 中 `reproduced` 不是 false 的模型，所有桶的 w 必須是 0（`Index.weight` 也回傳 0）；`sentinel: true` 的語料 app 在 `split: holdout`；`holdout_access_log` 每一筆都不早於 `preregistration.registered_at`。審查 r9 只記錄這些欄位、不使用它們。有權重的模型被標示 `variant_recall_gap.flagged` → `W-CAL-CONTAMINATION` |
+| `W-CAL-CONTAMINATION`（v0.7，審查 r10） | 有非零權重的模型，其變體召回落差被標示（`flagged: true`）：可能記住了語料，依賴它的票之前要人判斷 |
+| `E-AGENT-ROLES`（v0.7，審查 r10） | bundle 有 W4 結果時，agents.yaml 必須登錄 `test_generator` 與 `test_critic`；作者不明的 W4 測試不算獨立（`derive.authors_independent`），審查 r9 把空的作者集合當成「在叢集之外」 |
+| `E-CAL-THETA`、`E-CAL-WEIGHT`、`E-TC-TRIALS`（v0.7 補充，審查 r10，`05-v0.9`） | 每個桶的 θ_reject 高於該桶任何一張反駁票的權重；`generalised: true` 的保留切分 n ≥ 10。權重與 Wilson 下界以有效計數計算：一張棄權票算半對半錯（`checks.effective_counts`）。`trials.sampling: sampled` 不是機率型訊號，只宣告它而沒有目標側訊號（LLM 威脅、LLM 測試工具、multi_turn、`target_model` 紀錄）→ `E-TC-TRIALS` |
 | `E-CLUSTER-CARRY`（v0.7，審查 r8 外部 5） | `carried_from` 只在 followup／regression run 中、指向 parent run 的叢集，fingerprint、桶、家族、血統相同；parent 有同指紋叢集而本 run 的叢集沒有 `carried_from` → 報錯。帶入的叢集沒有本 run 的成員，不做成員綁定與家族檢查；v0.7（審查 r9）：有成員 → 報錯（v0.7 第八輪允許掛成員卻不檢查證據綁定） |
 | `E-W4-OBSERVATION`（v0.7，審查 r8 外部 6） | W4 結果宣告 `observations_source`（harness／sut）；`sut` 的結果在 `classify_result` 只能是 `E_inc` |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；tool_only 叢集（v0.5，BL-13）沒有成員、`tool_report_refs` 至少一筆能解析，`sarif_refs` 不能含回報或同一工具的結果，其他 origin 的 `tool_report_refs` 為空；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |

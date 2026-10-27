@@ -214,6 +214,10 @@ class Index:
         # changed) or that the result is not valid for weighs 0 until the minimal rerun
         # v0.6 (review r7 3.6): an empty list means no model is valid (v0.5 read it as "all")
         valid_for = res.get("valid_for_model_keys") or []
+        # v0.7 (review r10): a model that reproduced a corpus canary has seen the corpus; its measured accuracy says nothing
+        if any(isinstance(x, dict) and x.get("model_key") == model_key and x.get("reproduced") is not False
+               for x in (res.get("contamination") or {}).get("canary_results") or []):
+            return 0.0
         if model_key not in valid_for or any(
                 isinstance(x, dict) and x.get("model_key") == model_key for x in res.get("invalidated_by") or []):
             return 0.0
@@ -472,8 +476,8 @@ def probabilistic_signals(ix: Index | None, tc: dict) -> list[str]:
         out.append("multi_turn")
     if "target_model" in (trials.get("record") or []):
         out.append("records target_model")
-    if trials.get("sampling") == "sampled":
-        out.append("trials.sampling sampled")
+    # v0.7 (review r10): `trials.sampling: sampled` is the author's declaration, not a property of the target; v0.7 r9
+    # counted it, so any HTTP test that declared it was exempt from the deterministic replay rule (E-TC-TRIALS checks it)
     if llm_threat(ix, tc):
         out.append("LLM threat (taxonomy / llm_specific bucket)")
     return out
@@ -577,6 +581,8 @@ def authors_independent(ix: "Index", tr: dict, cluster: dict) -> bool:
     if tr.get("phase") != "W4":
         return True
     fams, lins = test_author_families(ix, tr)
+    if not fams:
+        return False         # v0.7 (review r10): unknown authors are not independent (v0.7 r9 read an empty set as "outside")
     return not (fams & set(cluster.get("families") or [])) and \
         not (ix.lineage_roots(lins) & ix.lineage_roots(cluster.get("lineages")))
 
@@ -628,6 +634,10 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     if tr.get("phase") == "W4" and tr.get("observations_source") != "harness":   # v0.7 (review r8, external review 6)
         return "E_inc", "observations read from the SUT's own process can be forged; only harness-sourced observations are evidence"
     eligible, disagreement = analyst_check(ix, tr, cluster)
+    if disagreement:
+        # v0.7 (review r10): an eligible Result Analyst that disagrees with the interpretation makes the result
+        # inconclusive, pre-registered or not (docs/05 §4.2); v0.7 r9 let the pre-registration win over it
+        return "E_inc", disagreement
     if outcome == "FAIL":
         ok, why = fail_reproduced(tc, tr, probabilistic)
         if not ok:
@@ -720,14 +730,21 @@ def vote_terms(ix: "Index", vote: dict, cluster: dict, version) -> tuple[bool, f
 
 
 def root_score(terms) -> float:
-    """S from [(base lineage, w * stance)]: each root counts once, as the mean of its votes (v0.7, review r9). S adds
+    """S from [(base lineage, w * stance)]: each root counts once (v0.7, review r9; v0.7 r10: its strongest vote). S adds
     log likelihood ratios, which is only valid for independent observations; two verifiers of one base lineage share
     its blind spots, so they are one observation. v0.7 added them, and a claude_sonnet + claude_opus pair (1.44 each)
     passed theta_confirm 2.5 that no single vote reaches."""
     by_root: dict = {}
     for root, x in terms:
         by_root.setdefault(root, []).append(x)
-    return round(sum(sum(xs) / len(xs) for xs in by_root.values()), 4)
+    total = 0.0
+    for xs in by_root.values():
+        # v0.7 (review r10, rule_version 05-v0.9): votes of one root that agree count as its strongest vote; the mean let a
+        # weaker SUPPORT of the same root lower S below theta (adding evidence must never remove it). Votes of one root
+        # that disagree count as their mean; a SUPPORT and a REFUTE together are R3 (DISPUTED) whatever S is.
+        same = all(x >= 0 for x in xs) or all(x <= 0 for x in xs)
+        total += max(xs, key=abs) if same else sum(xs) / len(xs)
+    return round(total, 4)
 
 
 def derived_score(ix: "Index", v: dict, cluster: dict) -> float:

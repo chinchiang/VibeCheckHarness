@@ -443,7 +443,7 @@
     },
     "rule_version": {
       "type": "string",
-      "description": "docs/05 規則版本；必須等於 run.rule_version 與 vchlib.adjudicate.RULE_VERSION（目前 05-v0.8）"
+      "description": "docs/05 規則版本；必須等於 run.rule_version 與 vchlib.adjudicate.RULE_VERSION（目前 05-v0.9）"
     },
     "rule_trace": {
       "type": "array",

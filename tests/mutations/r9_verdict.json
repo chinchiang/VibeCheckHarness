@@ -4,8 +4,8 @@
     {
       "name": "roots: mean per root",
       "file": "tools/vchlib/derive.py",
-      "old": "    return round(sum(sum(xs) / len(xs) for xs in by_root.values()), 4)",
-      "new": "    return round(sum(sum(xs) for xs in by_root.values()), 4)",
+      "old": "        total += max(xs, key=abs) if same else sum(xs) / len(xs)",
+      "new": "        total += sum(xs)",
       "k": "root_score_counts"
     },
     {
@@ -116,7 +116,7 @@
     {
       "name": "rule_version",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.8\"",
+      "old": "RULE_VERSION = \"05-v0.9\"",
       "new": "RULE_VERSION = \"05-v0.7\"",
       "k": "rule_version"
     }

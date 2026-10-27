@@ -67,7 +67,7 @@
     {
       "name": "03 rule_version history",
       "file": "docs/03-system-architecture.md",
-      "old": "，第七輪 `05-v0.6`，第八輪 `05-v0.7`，第九輪 `05-v0.8`）",
+      "old": "，第七輪 `05-v0.6`，第八輪 `05-v0.7`，第九輪 `05-v0.8`，第十輪 `05-v0.9`）",
       "new": "）",
       "k": "current_rule_version"
     }

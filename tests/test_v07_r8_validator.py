@@ -237,10 +237,12 @@ def test_a_disguised_llm_pass_is_not_qualified(b, keys):
     assert derive.classify_result(Ctx(b).ix, result(b, "R-TC-031-01-1"), cl)[0] == "E_inc"
 
 
-def test_sampling_sampled_is_a_signal(b):
+def test_sampling_sampled_alone_is_not_a_signal(b):
+    """v0.7 (review r10) reversed this: sampled is the author's declaration, not a property of the target, so it no
+    longer exempts an HTTP test from the deterministic replay rule; declared alone it is E-TC-TRIALS."""
     tc = doc(b, "testcase.idor.example.json").data
     tc["trials"]["sampling"] = "sampled"
-    assert derive.probabilistic_signals(Ctx(b).ix, tc) == ["trials.sampling sampled"]
+    assert derive.probabilistic_signals(Ctx(b).ix, tc) == []
 
 
 def test_deterministic_cannot_be_declared_on_an_llm_target(b):
@@ -282,8 +284,10 @@ def test_a_lineage_cycle_is_rejected(b):
 
 
 def test_derived_from_names_a_registry_lineage(b):
-    doc(b, "models.yaml").data["claude_sonnet"]["derived_from"] = "no-such-lineage"
-    assert errors(b, "E-MODEL-LINEAGE")
+    # review r10: every model of the lineage declares it, so the r9 consistency rule does not mask this one
+    for mk in ("claude_sonnet", "claude_opus_48"):
+        doc(b, "models.yaml").data[mk]["derived_from"] = "no-such-lineage"
+    assert any("must be another lineage" in i.msg for i in errors(b, "E-MODEL-LINEAGE"))
 
 
 # ================================================================ external 4: calibration counts and thresholds

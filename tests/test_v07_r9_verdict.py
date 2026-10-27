@@ -35,7 +35,7 @@ def test_the_examples_are_clean(b):
 
 
 def test_rule_version():
-    assert adjudicate.RULE_VERSION == "05-v0.8"
+    assert adjudicate.RULE_VERSION == "05-v0.9"
 
 
 # ================================================================ roots: one observation per base lineage
@@ -142,7 +142,7 @@ def test_a_feasible_theta_meets_the_search_limits(b):
     th["holdout"] = {"precision": 0.4, "recall": 0.9, "ci_low": 0.2, "ci_high": 0.6, "n": 3}
     msgs = [i.msg for i in errors(b, "E-CAL-THETA")]
     assert any("min_clusters" in m for m in msgs) and any("confirm_precision_floor" in m for m in msgs) \
-        and any("holdout" in m for m in msgs)
+        and any("holdout precision" in m for m in msgs)      # r10: not the holdout-size message
 
 
 def test_a_feasible_reject_threshold_meets_the_reject_limits(b):
@@ -157,7 +157,7 @@ def test_a_feasible_reject_threshold_meets_the_reject_limits(b):
 
 def test_theta_confirm_is_above_any_single_vote(b):
     cal = doc(b, "calibration.yaml").data
-    cal["result"]["thresholds"]["theta_confirm"]["by_bucket"]["authz"]["value"] = 1.4
+    cal["result"]["thresholds"]["theta_confirm"]["by_bucket"]["authz"]["value"] = 1.3                 # below 1.3179 (r10 weights)
     assert any("single" in i.msg for i in errors(b, "E-CAL-THETA"))
 
 

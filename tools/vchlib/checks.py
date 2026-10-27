@@ -1291,6 +1291,13 @@ def g_models(R: Report, c: Ctx):
                 R.check(a.get("role") in NON_ADJUDICATING_ROLES, "E-AGENT-FALLBACK", where, "cross-family fallback_models only on non-adjudicating roles")
                 for fb in a["fallback_models"]:
                     R.check(fb in models and fb in allowed, "E-AGENT-FALLBACK", where, f"fallback model {fb!r} unknown or not allowed")
+    # v0.7 (review r10): a W4 FAIL is independent proof only when its test's authors are known and outside the cluster
+    # (derive.authors_independent); without the author roles in agents.yaml nobody can tell who wrote the tests
+    if any(t.data.get("phase") == "W4" for t in c.docs("testresult")):
+        roles = {a.get("role") for a in agents.values() if isinstance(a, dict)}
+        for role in derive.TEST_AUTHOR_ROLES["W4"]:
+            R.check(role in roles, "E-AGENT-ROLES", "agents.yaml",
+                    f"the bundle has W4 results but agents.yaml registers no {role}: the authors of the W4 tests are unknown")
     lane = agents.get("lane_a") or {}
     R.check(lane.get("model") == e.get("lane_a_model"), "E-AGENT-LANE-A", "agents.yaml lane_a", "lane_a model must equal engagement lane_a_model")
     for name, a in agents.items():
@@ -2296,6 +2303,11 @@ def g_testcases(R: Report, c: Ctx):
                 R.check(tr.get("sampling") == "sampled", "E-TC-TRIALS", w,
                         f"trials.sampling {tr.get('sampling')!r} contradicts the target: a test with probabilistic signals "
                         f"({'; '.join(signals)}) declares sampling sampled (an LLM feature is sampled whatever tool drives it)")
+            # v0.7 (review r10): sampled is a declaration about the target; without a target-side signal it only bought the
+            # exemption from the deterministic replay rule
+            R.check(tr.get("sampling") != "sampled" or bool(signals), "E-TC-TRIALS", w,
+                    "trials.sampling sampled, but the test has no target-side probabilistic signal (LLM threat, LLM adapter, "
+                    "multi_turn, target_model record): a deterministic target is replayed deterministically")
             # v0.7 (review r8, external review 1): the per-trial cap the Scope Proxy enforces, so the replay budget is a bound
             trl = tc.get("rate_limit") or {}
             per = trl.get("max_requests_per_trial")
@@ -4494,9 +4506,55 @@ def lr_weights(tpr: float, tnr: float) -> dict:
     return {"support": ln_ratio(tpr, 1 - tnr), "refute": ln_ratio(tnr, 1 - tpr)}
 
 
+def effective_counts(side: dict) -> tuple:
+    """v0.7 (review r10, rule_version 05-v0.9): (correct, n) with every abstention counted as a coin flip, half right and
+    half wrong: an abstention carries no information, so it is scored as a guess. The rates and the Wilson bound use
+    these counts; v0.7 r9 used the answered cases only, so abstaining on the hard cases kept the accuracy and the weight
+    (abstain_rate_max stays as a hard cap)."""
+    na = side.get("n_abstain", 0)
+    na = na if type(na) is int and na > 0 else 0
+    return side.get("correct", 0) + na / 2 if na else side.get("correct", 0), side.get("n", 0) + na
+
+
 def abstain_rate(side: dict) -> float:
     na, n = side.get("n_abstain", 0), side.get("n", 0)
     return na / (n + na) if isinstance(na, int) and isinstance(n, int) and n + na > 0 else 0.0
+
+
+def contamination_problems(R: Report, c: Ctx, cfg: dict, res: dict, w: str):
+    """v0.7 (review r10, E-CAL-CONTAMINATION; docs/05 §5.4): the contamination fields have consequences. v0.7 r9 recorded
+    them and used none: a model that reproduced a canary kept its weights, a sentinel app could sit in the calibration
+    split, and the holdout could be read before the preregistration.
+    - a model whose canary was reproduced has weight 0 everywhere (derive.Index.weight returns 0 for it);
+    - every sentinel app of the corpus is in the holdout split;
+    - no holdout_access_log entry is before config.preregistration.registered_at;
+    - a flagged variant recall gap on a model with a non-zero weight is a warning (W-CAL-CONTAMINATION)."""
+    cont = res.get("contamination") or {}
+    weighted = {r.get("model_key") for r in res.get("weights") or [] if isinstance(r, dict)
+                and any(((r.get(sk) or {}).get("w") or 0) > 0 for sk in ("support", "refute"))}
+    for x in cont.get("canary_results") or []:
+        if isinstance(x, dict) and x.get("reproduced") is not False:
+            R.check(x.get("model_key") not in weighted, "E-CAL-CONTAMINATION", w,
+                    f"{x.get('model_key')} reproduced a corpus canary (reproduced {x.get('reproduced')!r}): its weights must be 0")
+    for app in cfg.get("corpus") or []:
+        if isinstance(app, dict) and app.get("sentinel") is True:
+            R.check(app.get("split") == "holdout", "E-CAL-CONTAMINATION", w,
+                    f"sentinel app {app.get('app_id')} is in split {app.get('split')!r}: sentinels belong to the holdout")
+    def when(v):
+        try:
+            return timeutil.parse_dt(v)
+        except timeutil.TimeError:
+            return None
+    reg = when((cfg.get("preregistration") or {}).get("registered_at"))
+    for h in res.get("holdout_access_log") or []:
+        at = when(h.get("at")) if isinstance(h, dict) else None
+        R.check(reg is not None and at is not None and at >= reg, "E-CAL-CONTAMINATION", w,
+                f"holdout_access_log: {h.get('person_id') if isinstance(h, dict) else h} read the holdout at "
+                f"{h.get('at') if isinstance(h, dict) else None}, before the preregistration (registered_at {reg})")
+    for x in cont.get("variant_recall_gap") or []:
+        if isinstance(x, dict) and x.get("flagged") is True and x.get("model_key") in weighted:
+            R.warn("W-CAL-CONTAMINATION", w, f"{x.get('model_key')}: flagged variant recall gap {x.get('gap')} on a model "
+                   "with a non-zero weight (possible memorisation; review before relying on its votes)")
 
 
 def theta_problems(cal: dict) -> list[tuple[str, str]]:
@@ -4518,6 +4576,10 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
             if not isinstance(t, dict) or t.get("feasible") is not True:
                 continue
             cs, ho = t.get("calibration") or {}, t.get("holdout") or {}
+            # v0.7 (review r10): a holdout of one cluster says nothing about generalising (the same floor as the
+            # high-precision rules' holdout)
+            if t.get("generalised") is True and not (num(ho.get("n")) and ho["n"] >= HOLDOUT_MIN_N):
+                out.append((label, f"generalised on a holdout of {ho.get('n')} clusters: needs n >= {HOLDOUT_MIN_N}"))
             if not (num(cs.get("n")) and cs["n"] >= ts.get("min_clusters", 0)):
                 out.append((label, f"feasible on {cs.get('n')} clusters: the search needs min_clusters {ts.get('min_clusters')}"))
             if name == "theta_confirm":
@@ -4539,14 +4601,17 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
                                        f"above reject_wilson_upper_max {ts.get('reject_wilson_upper_max')}"))
                 if t.get("generalised") is True and not (num(ho.get("precision")) and 1 - ho["precision"] <= cap + 0.05 + 1e-9):
                     out.append((label, f"generalised with holdout true-defect share above {cap} + 0.05"))
-    for b, t in (((res.get("thresholds") or {}).get("theta_confirm") or {}).get("by_bucket") or {}).items():
-        val = t.get("value") if isinstance(t, dict) else None
-        if not num(val):
-            continue
-        top = max((((r.get("support") or {}).get("w") or 0) for r in res.get("weights") or []
-                   if isinstance(r, dict) and r.get("cwe_bucket") == b), default=0)
-        if num(top) and val <= top:
-            out.append((f"theta_confirm/{b}", f"value {val} <= {top}, the largest single support weight of the bucket: a single vote confirms"))
+    # v0.7 (review r10): theta_reject too; row 8 rejects a single-family cluster on S <= -theta_reject, so a theta_reject
+    # at or below one refute weight let a single REFUTE vote reject it automatically
+    for name, side, verb in (("theta_confirm", "support", "confirms"), ("theta_reject", "refute", "rejects")):
+        for b, t in (((res.get("thresholds") or {}).get(name) or {}).get("by_bucket") or {}).items():
+            val = t.get("value") if isinstance(t, dict) else None
+            if not num(val):
+                continue
+            top = max((((r.get(side) or {}).get("w") or 0) for r in res.get("weights") or []
+                       if isinstance(r, dict) and r.get("cwe_bucket") == b), default=0)
+            if num(top) and val <= top:
+                out.append((f"{name}/{b}", f"value {val} <= {top}, the largest single {side} weight of the bucket: a single vote {verb}"))
     return out
 
 
@@ -4567,8 +4632,8 @@ def g_calibration(R: Report, c: Ctx):
     for mk, side_key in {(r.get("model_key"), sk) for r in rows for sk in ("support", "refute")}:
         # v0.4: the support side (true defects) and the refute side (known non-defects) are computed separately
         mine = [r.get(side_key) or {} for r in rows if r.get("model_key") == mk]
-        tn = sum(x.get("n", 0) for x in mine)
-        abar[(mk, side_key)] = sum(x.get("correct", 0) for x in mine) / tn if tn else 0
+        tn = sum(effective_counts(x)[1] for x in mine)
+        abar[(mk, side_key)] = sum(effective_counts(x)[0] for x in mine) / tn if tn else 0
     for row in rows:
         mk = row.get("model_key")
         R.check(mk in keys, "E-CAL-MODEL", f"{w} weights {mk}/{row.get('cwe_bucket')}", "model not in config.models")
@@ -4580,13 +4645,13 @@ def g_calibration(R: Report, c: Ctx):
         # v0.7 (review r8): a = (C + k*abar + 1) / (n + k + 2), a non-degenerate prior. v0.6 smoothed toward the model's own
         # cross-bucket rate, so a model perfect on one side in every bucket had a = 1, ln(a / (1 - a)) divided by zero and
         # lr_weights floored its weight to 0: the most accurate verifier got no say
-        a = {sk: smoothed_rate(x.get("correct", 0), x.get("n", 0), k, abar[(mk, sk)]) for sk, x in sides.items()}
+        a = {sk: smoothed_rate(*effective_counts(x), k, abar[(mk, sk)]) for sk, x in sides.items()}
         lr = lr_weights(a["support"], a["refute"])
         reasons = {}
         for sk, x in sides.items():
-            n, cc = x.get("n", 0), x.get("correct", 0)
+            n = x.get("n", 0)
             reasons[sk] = [r for r, hit in (("w_below_min", lr[sk] < nz.get("w_min", 0)),
-                                            ("wilson_lower_le_max", wilson_lower(cc, n) <= nz.get("wilson_lower_max", 0)),
+                                            ("wilson_lower_le_max", wilson_lower(*effective_counts(x)) <= nz.get("wilson_lower_max", 0)),
                                             ("n_below_min", n < nz.get("n_min", 0)),
                                             # v0.7 (review r9): abstaining on the hard cases kept the accuracy, and the weight, high
                                             ("abstain_rate_gt_max", abstain_rate(x) > nz.get("abstain_rate_max", 1))) if hit]
@@ -4600,6 +4665,7 @@ def g_calibration(R: Report, c: Ctx):
                     f"w={x.get('w')} but recomputed {want_w} (log likelihood ratio of both sides; 0 when either side is near zero)")
             R.check(x.get("near_zero") is near and sorted(x.get("near_zero_reasons", [])) == sorted(reasons[sk]), "E-CAL-WEIGHT", where,
                     f"near_zero/near_zero_reasons must be {near} {reasons[sk]}")
+    contamination_problems(R, c, cfg, res, w)
     for name, th in (res.get("thresholds") or {}).items():
         # v0.6 (review r7 3.5): theta_confirm / theta_reject are searched per CWE bucket; the pooled entry is a summary
         per = [(f"{name}/{b}", t) for b, t in (th.get("by_bucket") or {}).items()]

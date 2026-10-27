@@ -24,6 +24,15 @@ v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a rea
     positive control (an oracle_can_fail control that PASSed). A PASS without one only adds
     test_not_reproduced: a test that was never shown able to fail cannot refute.
 
+v0.7 (rule_version 05-v0.9, review r10 PR2):
+  - S counts each base lineage as its strongest vote when its votes agree (derive.root_score): the mean let a weaker
+    SUPPORT of the same root lower S, so adding evidence could remove a confirmation.
+  - An eligible Result Analyst that disagrees makes a pre-registered result E_inc; unknown W4 test authors are not
+    independent; `trials.sampling: sampled` is a declaration, not a probabilistic signal.
+  - Calibration: an abstention counts as a coin flip (half right, half wrong) in the rates and the Wilson bound;
+    theta_reject is above every single refute weight of its bucket; a threshold generalises only on a holdout of
+    n >= 10; a reproduced canary zeroes the model's weights. The example weights and scores changed, statuses did not.
+
 v0.7 (rule_version 05-v0.8, review r9 PR2):
   - S counts each base lineage once, as the mean of its weighted-valid votes (derive.root_score): log likelihood ratios
     add only for independent observations, and two verifiers of one root share its blind spots.
@@ -51,7 +60,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.8"
+RULE_VERSION = "05-v0.9"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
