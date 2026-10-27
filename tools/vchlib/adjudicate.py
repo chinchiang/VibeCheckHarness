@@ -24,6 +24,14 @@ v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a rea
     positive control (an oracle_can_fail control that PASSed). A PASS without one only adds
     test_not_reproduced: a test that was never shown able to fail cannot refute.
 
+v0.7 (rule_version 05-v0.8, review r9 PR2):
+  - S counts each base lineage once, as the mean of its weighted-valid votes (derive.root_score): log likelihood ratios
+    add only for independent observations, and two verifiers of one root share its blind spots.
+  - A W4 FAIL is pre-registered proof only when the test's authors are outside the cluster's families and roots; the
+    FAIL replay rule uses the same probabilistic judgement as the rest of the classification.
+  - Calibration: abstention rate near-zero rule; the theta limits of docs/05 §5.7 recomputed; theta_confirm above any
+    single support weight of its bucket.
+
 v0.7 (rule_version 05-v0.7, review r8 group 3):
   - R6 / R2 sources: an E_fail_u result is an independent source only when the agents that wrote or shaped its test
     are outside the cluster's families and base lineages (Inputs.fail_u_independent, derived by the validator); v0.6
@@ -43,7 +51,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.7"
+RULE_VERSION = "05-v0.8"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 

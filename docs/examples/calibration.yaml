@@ -3,9 +3,10 @@
 # 驗證程式重算 [H]：
 #   - weights[]（v0.4：support 與 refute 兩邊分開計算；v0.6：權重是兩邊合起來的對數概似比）：
 #     support＝真缺陷上的票（支持＝答對）；refute＝已知非缺陷上的票（反駁＝答對）
-#     每一邊各自：ā(m)＝該邊 Σ_b C ／ Σ_b n；a＝(C＋k·ā)／(n＋k)，k＝smoothing_k
+#     每一邊各自：ā(m)＝該邊 Σ_b C ／ Σ_b n；a＝(C＋k·ā＋1)／(n＋k＋2)，k＝smoothing_k（v0.7）
 #     TPR＝a_support、TNR＝a_refute；w_support＝max(0, ln(TPR／(1−TNR)))、w_refute＝max(0, ln(TNR／(1−TPR)))
-#     near_zero（每邊）⇔ 該邊 w＜w_min 或 Wilson 95% 下界(C／n) ≤ wilson_lower_max 或 n＜n_min；
+#     near_zero（每邊）⇔ 該邊 w＜w_min 或 Wilson 95% 下界(C／n) ≤ wilson_lower_max 或 n＜n_min
+#     或棄權率 n_abstain／(n＋n_abstain)＞abstain_rate_max（v0.7，審查 r9）；
 #     任一邊 near_zero → 兩邊的 w 都是 0（一個權重要用到兩邊的比率）
 #     near_zero_reasons 必須與重算結果一致；a、w 容許 ±0.0005（四捨五入到 4 位）
 #   - 每個裁決的 votes[].weight：SUPPORT 票等於 support.w，REFUTE 票等於 refute.w（calibration_version 相同；沒有列出的組合＝0）
@@ -58,7 +59,7 @@ config:
     reject_wilson_upper_max: 0.08
     min_clusters: 40
   smoothing_k: 10
-  near_zero_rules: {w_min: 0.2, wilson_lower_max: 0.5, n_min: 10}
+  near_zero_rules: {w_min: 0.2, wilson_lower_max: 0.5, n_min: 10, abstain_rate_max: 0.3}   # v0.7（審查 r9）：棄權率上限
   annotation:
     annotator_ids: [ivan, judy]
     adjudicator_id: alice
@@ -71,28 +72,28 @@ result:
   weights:
     - model_key: nemotron_self
       cwe_bucket: authz
-      support: {n: 40, correct: 34, a: 0.8333, w: 1.4633, near_zero: false, near_zero_reasons: []}
-      refute: {n: 24, correct: 20, a: 0.8071, w: 1.5775, near_zero: false, near_zero_reasons: []}
+      support: {n: 40, correct: 34, a: 0.8333, w: 1.4633, near_zero: false, near_zero_reasons: [], n_abstain: 4}
+      refute: {n: 24, correct: 20, a: 0.8071, w: 1.5775, near_zero: false, near_zero_reasons: [], n_abstain: 2}
     - model_key: nemotron_self
       cwe_bucket: llm_specific
-      support: {n: 20, correct: 16, a: 0.7917, w: 0, near_zero: false, near_zero_reasons: []}
-      refute: {n: 12, correct: 9, a: 0.7523, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max]}
+      support: {n: 20, correct: 16, a: 0.7917, w: 0, near_zero: false, near_zero_reasons: [], n_abstain: 2}
+      refute: {n: 12, correct: 9, a: 0.7523, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
     - model_key: claude_sonnet
       cwe_bucket: authz
-      support: {n: 30, correct: 24, a: 0.7832, w: 1.4425, near_zero: false, near_zero_reasons: []}
-      refute: {n: 20, correct: 17, a: 0.8149, w: 1.3241, near_zero: false, near_zero_reasons: []}
+      support: {n: 30, correct: 24, a: 0.7832, w: 1.4425, near_zero: false, near_zero_reasons: [], n_abstain: 3}
+      refute: {n: 20, correct: 17, a: 0.8149, w: 1.3241, near_zero: false, near_zero_reasons: [], n_abstain: 2}
     - model_key: claude_sonnet
       cwe_bucket: llm_specific
-      support: {n: 8, correct: 6, a: 0.7447, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min]}
-      refute: {n: 6, correct: 4, a: 0.7265, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min]}
+      support: {n: 8, correct: 6, a: 0.7447, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
+      refute: {n: 6, correct: 4, a: 0.7265, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
     - model_key: gpt_oss_self
       cwe_bucket: authz
-      support: {n: 25, correct: 15, a: 0.6077, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max]}
-      refute: {n: 15, correct: 8, a: 0.5427, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max]}
+      support: {n: 25, correct: 15, a: 0.6077, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 2}
+      refute: {n: 15, correct: 8, a: 0.5427, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
     - model_key: gpt_oss_self
       cwe_bucket: llm_specific
-      support: {n: 12, correct: 9, a: 0.6869, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max]}
-      refute: {n: 8, correct: 5, a: 0.5826, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min]}
+      support: {n: 12, correct: 9, a: 0.6869, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
+      refute: {n: 8, correct: 5, a: 0.5826, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
   high_precision_rules: []       # 還沒有語料量到的高精準度 SARIF 規則 → 所有 SARIF 結果都只是弱訊號（R6 的獨立來源）
   thresholds:
     theta_confirm:

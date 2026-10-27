@@ -95,7 +95,7 @@
     {
       "name": "ext2 deterministic contradiction",
       "file": "tools/vchlib/checks.py",
-      "old": "                R.check(tr.get(\"sampling\") != \"deterministic\", \"E-TC-TRIALS\", w,",
+      "old": "                R.check(tr.get(\"sampling\") == \"sampled\", \"E-TC-TRIALS\", w,",
       "new": "                R.check(True, \"E-TC-TRIALS\", w,",
       "k": "deterministic_cannot_be_declared"
     },

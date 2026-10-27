@@ -125,12 +125,28 @@ class Index:
         m = self.models.get(a["model"])
         return m if isinstance(m, dict) else None
 
+    def lineage_declarations(self) -> dict:
+        """v0.7 (review r9, external review 2): lineage -> the set of derived_from values its models declare (None for a
+        model without one). Every model of a lineage must declare the same value (E-MODEL-LINEAGE)."""
+        out: dict = {}
+        for m in self.models.values():
+            if isinstance(m, dict) and isinstance(m.get("lineage"), str):
+                df = m.get("derived_from")
+                out.setdefault(m["lineage"], set()).add(df if isinstance(df, str) else None)
+        return out
+
+    def lineage_parents(self) -> dict:
+        """lineage -> derived_from, independent of the order of models.yaml. v0.7 built {lineage: derived_from} model by
+        model, so of two contradicting models of one lineage the later one won and reordering the file changed the root;
+        a contradiction is rejected (E-MODEL-LINEAGE), and until then the smallest declared parent is used."""
+        return {lin: min(x for x in decl if x is not None) for lin, decl in self.lineage_declarations().items()
+                if any(x is not None for x in decl)}
+
     def lineage_root(self, lineage):
         """v0.6 (review r7 3.9): the base lineage a lineage was derived from (models.yaml `derived_from`, followed to
         the end; a cycle stops where it closes). A fine-tune or distillation shares its base's blind spots, so
         independence is judged on the root: a verifier derived from the reporter's lineage is not independent."""
-        parent = {m.get("lineage"): m.get("derived_from") for m in self.models.values()
-                  if isinstance(m, dict) and isinstance(m.get("derived_from"), str)}
+        parent = self.lineage_parents()
         seen = set()
         while lineage in parent and lineage not in seen:
             seen.add(lineage)
@@ -144,8 +160,7 @@ class Index:
         """v0.7 (review r8, external review 3): the derived_from cycles of models.yaml (A -> B -> A). lineage_root stops
         where a cycle closes, so two mutually derived lineages got two different roots and verified each other;
         E-MODEL-LINEAGE rejects the registry instead."""
-        parent = {m.get("lineage"): m.get("derived_from") for m in self.models.values()
-                  if isinstance(m, dict) and isinstance(m.get("derived_from"), str)}
+        parent = self.lineage_parents()
         cycles, done = [], set()
         for start in parent:
             path, cur = [], start
@@ -478,13 +493,17 @@ def pass_min_effective(ix: "Index", tc: dict) -> int:
     return 60 if t is not None and t.data.get("attack_tree_ref") else 30
 
 
-def fail_reproduced(tc: dict, tr: dict) -> tuple[bool, str]:
+def fail_reproduced(tc: dict, tr: dict, probabilistic: bool | None = None) -> tuple[bool, str]:
     """docs/04 §4.4: the first batch reaches fail_k_min and a separate replay job ran: a deterministic test fails on
     every replay (k_r = n_r). v0.5 (review 2026-10-25 M-3): for a probabilistic test the replay is a reproducibility
     record, not a second verdict: one confirmed violation already breaks the requirement, and a real 5% rate stays
-    silent in all 20 replays about 36% of the time, so k_r is reported but does not demote the FAIL."""
+    silent in all 20 replays about 36% of the time, so k_r is reported but does not demote the FAIL.
+    v0.7 (review r9, external review 1): classify_result passes its own judgement (made with the Index, which sees the
+    LLM threat); v0.7 re-judged here without it, so an LLM test behind an HTTP adapter was probabilistic for the PASS rule
+    and deterministic for the replay rule, and one silent replay demoted a confirmed violation to E_inc."""
     trials = tc.get("trials") or {}
-    probabilistic = is_probabilistic(tc)
+    if probabilistic is None:
+        probabilistic = is_probabilistic(tc)
     k = (tr.get("trials") or {}).get("k", 0)
     fail_k_min = trials.get("fail_k_min", 1)
     n_r, k_r = tr.get("replays", 0), tr.get("replay_k", 0)
@@ -549,6 +568,18 @@ def test_author_families(ix: "Index", tr: dict) -> tuple[set, set]:
     return fams - {None}, lins - {None}
 
 
+def authors_independent(ix: "Index", tr: dict, cluster: dict) -> bool:
+    """v0.7 (review r9): a W4 FAIL is pre-registered proof only when the agents that wrote and critiqued the W4 test are
+    outside the cluster's families and base lineages. G1 signs the requirement, not the test code, so a reporting family
+    that writes and critiques its own test confirms its own finding; such a FAIL needs an eligible Result Analyst
+    (E_proof) or stays E_fail_u. B4 tests are pre-registered by the humans at G4, who review the test and its oracle."""
+    if tr.get("phase") != "W4":
+        return True
+    fams, lins = test_author_families(ix, tr)
+    return not (fams & set(cluster.get("families") or [])) and \
+        not (ix.lineage_roots(lins) & ix.lineage_roots(cluster.get("lineages")))
+
+
 def analyst_check(ix: "Index", tr: dict, cluster: dict) -> tuple[bool, str | None]:
     """(eligible, disagreement): the Result Analyst is an agents.yaml result_analyst whose registry
     family and lineage are not in the cluster; eligible only when its interpretation agrees.
@@ -597,12 +628,12 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
         return "E_inc", "observations read from the SUT's own process can be forged; only harness-sourced observations are evidence"
     eligible, disagreement = analyst_check(ix, tr, cluster)
     if outcome == "FAIL":
-        ok, why = fail_reproduced(tc, tr)
+        ok, why = fail_reproduced(tc, tr, probabilistic)
         if not ok:
             return "E_inc", why
         if not (set(tr.get("fail_oracles") or []) & DETERMINISTIC_ORACLES):
             return "E_inc", "violation judged only by a non-deterministic oracle"
-        if preregistered(ix, tc, tr, "oracle_can_pass"):
+        if preregistered(ix, tc, tr, "oracle_can_pass") and authors_independent(ix, tr, cluster):
             return "E_proof", "reproduced FAIL, deterministic oracle, pre-registered interpretation"
         if eligible:
             return "E_proof", "reproduced FAIL, cross-family analyst"
@@ -687,15 +718,29 @@ def vote_terms(ix: "Index", vote: dict, cluster: dict, version) -> tuple[bool, f
     return valid, wgt, counts
 
 
+def root_score(terms) -> float:
+    """S from [(base lineage, w * stance)]: each root counts once, as the mean of its votes (v0.7, review r9). S adds
+    log likelihood ratios, which is only valid for independent observations; two verifiers of one base lineage share
+    its blind spots, so they are one observation. v0.7 added them, and a claude_sonnet + claude_opus pair (1.44 each)
+    passed theta_confirm 2.5 that no single vote reaches."""
+    by_root: dict = {}
+    for root, x in terms:
+        by_root.setdefault(root, []).append(x)
+    return round(sum(sum(xs) / len(xs) for xs in by_root.values()), 4)
+
+
 def derived_score(ix: "Index", v: dict, cluster: dict) -> float:
-    """S = sum(w * stance) over weighted-valid votes, recomputed (v0.5, review r7 1.7: the rules use this value, not the
-    verdict's own score, which E-DERIVED compares only within rounding)."""
-    score = 0.0
+    """S = sum over base lineages of the mean w * stance of their weighted-valid votes, recomputed (v0.5, review r7 1.7:
+    the rules use this value, not the verdict's own score, which E-DERIVED compares only within rounding; v0.7, review
+    r9: one observation per root, root_score)."""
+    terms = []
     for vote in v.get("votes", []):
         _, wgt, counts = vote_terms(ix, vote, cluster, v.get("calibration_version"))
         if counts:
-            score += wgt * STANCE.get(vote.get("stance"), 0)
-    return round(score, 4)
+            m = ix.models.get(vote.get("voter_model_key")) if isinstance(vote.get("voter_model_key"), str) else None
+            root = ix.lineage_root(m.get("lineage")) if isinstance(m, dict) else vote.get("voter_model_key")
+            terms.append((root, wgt * STANCE.get(vote.get("stance"), 0)))
+    return root_score(terms)
 
 
 def strongest(classes) -> str | None:
@@ -1046,7 +1091,7 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
                 exp(d, ["votes", i, "valid"], valid, "family/lineage not in cluster, anonymized, order randomized")
                 exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket, side of the stance)")
                 exp(d, ["votes", i, "weighted_valid"], counts, "valid, w > 0, a verifier-role voter, stance SUPPORT or REFUTE")
-            exp(d, ["score"], derived_score(ix, v, cluster), "sum(w * stance) over weighted-valid votes")
+            exp(d, ["score"], derived_score(ix, v, cluster), "sum over base lineages of the mean w * stance of their weighted-valid votes")
             if version is not None and ix.calibration.get("calibration_version") == version:
                 exp(d, ["theta_confirm"], t_conf, "calibration theta_confirm")
                 exp(d, ["theta_reject"], t_rej, "calibration theta_reject")
