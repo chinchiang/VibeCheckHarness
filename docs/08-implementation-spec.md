@@ -3,69 +3,16 @@
 > 本文件的讀者是要動手寫程式的工程師。讀完之後，應該不需要再做任何設計決定就能開始 M1。
 >
 > - [§10](#10-尚未決定需使用者決定) 只列**需要使用者決定**的事項，各附未決定時的預設做法。
-> - [§11](#11-元件規格補充v03) 補上 v0.3 的元件規格（W0 抽取器、工具結果合併、Slicer、Scope Proxy、Session Provider、SARIF 等）。
+> - [§11](#11-元件規格補充) 補上 v0.3 的元件規格（W0 抽取器、工具結果合併、Slicer、Scope Proxy、Session Provider、SARIF 等）。
 > - 其他還沒寫到的細節（不需要使用者決定，但本版尚未規定的部分）列在 [09 待辦清單](09-backlog.md)。不在本文件、03 或 09 的設計，視為遺漏，請回報。
 > - 本文件的內容幾乎全部是設計選擇，標為 **[H]**。
 > - 引用的外部事實沿用 01–06 的證據 ID。本文件新增的外部事實只有套件的授權與版本，以及 §11 引用的 SARIF 2.1.0 列舉值與 `kind`／`level` 規則、Schemathesis 的行為；都已獨立查核並併入證據帳本（依查核結果標 V／P）。
 > - 元件名稱與介面沿用 [03 §15](03-system-architecture.md#15-元件介面h)。03 §15 沒有的介面，本文件標為「**擴充**」。
 > - 依 03 §15 的約定，**模組配置、錯誤分類與 CLI 細節以本文件為準**。兩份文件不一致時，應改 03。
 
-## v0.3 變更摘要
+## 現況
 
-- **新增 [§11 元件規格補充](#11-元件規格補充v03)**，共 17 小節；小節標題固定，其他文件直接連到它們：
-  - W0 抽取器外掛與支援矩陣、瀏覽器直連 BaaS 的入口、只在平台後台的設定、W0 與 B1 的端點差異（§11.1）（H-E1）
-  - `ToolResult`、正規化與合併、tool-only 叢集、SCA／secrets／套件存在性的去向、強與弱工具佐證（§11.2）（H-E2）
-  - Slicer 的呼叫圖來源與限制、錨點、focus 與 context、monorepo、多語言、token 預算、新的 `slice_id`（§11.3）（H-E3）
-  - G1 的白話問卷、invariants 新欄位、依功能提高 ASVS／AISVS 等級（§11.4）（H-E4）
-  - DFD 元素的出處、邊界種類、browser → BaaS 資料流（§11.5）（H-E5）
-  - 種子資料的建立、解析、重置與清理，以及 STATE_DIFF 怎麼觀察狀態（§11.6）（H-E6）
-  - Scope Proxy 的 per-job 身分、TLS 終結、HTTP/2／WebSocket／SSE、DNS 固定與 CDN、路徑正規化、萬用字元主機、只允許 HTTPS、B1 爬行的預設規則（§11.7）（H-E7、L-17、C-1、C-2、C-3）
-  - Session Provider 的登入方式、第三方 IdP、MFA、CAPTCHA、每批 whoami、加密的 storageState（§11.8）（H-E8）
-  - 共享平台網域的 `platform_project` 證明與 `platform_policies`（§11.9）（H-D3）
-  - 沒有 OpenAPI 時由 inventory 起草、`security` 取自 G1、在 G4 審（§11.10）（H-E10）
-  - 校準前的預設值與 `provisional`（§11.11）（H-E11）
-  - 成本模型涵蓋全部節點、價格欄位、執行前估算、錯誤預算、超支處理（§11.12）（H-E12）
-  - run manifest 與 prompt 範本登錄（§11.13）（H-E13、N-5）
-  - 供應商的 ZDR／DPA 宣告與 C 級路由（§11.14）（H-E14）
-  - 預設為 G4 核准的腳本式多輪，adaptive 只限 Full（§11.15）（H-E15）
-  - SARIF 對應表、指紋與基準狀態、追溯矩陣樣板、PR／issue 回饋、誤報回饋、修正說明、發布權杖的權限（§11.16）（M-G6、H-B5）
-  - 確定性輔助規則：嚴重度 rubric、敘事 linter、B2 merger 鍵、W4 防護測試、Z2 本地 RLS 測試、Z2 建置政策、公開前綴 secret、具名 PII 偵測器、覆蓋指標（§11.17）（M-G5）
-- **開頭的說明改正**：§10 只列需要使用者決定的事項，§11 補元件規格，其他未定的細節列在 [09 待辦清單](09-backlog.md)（N-10）。
-- **§2.3 介面**：
-  - `AdjudicationInputs` 以 `strong_tool`／`weak_sarif` 取代 `sarif_corroboration`，與參考實作一致；`E_fail_u` 留在 `evidence`，是弱訊號（N-11、H-A1）。
-  - `diversity_degraded` 改用合格驗證家族 E 的定義，並加上 `no_eligible_verifier`（N-1）。
-  - `Clusterer.cluster(findings, tool_results)`；`Slicer.slice` 不再接收任何工具結果（H-E2、H-E3、H-A1）。
-  - `ResolvedTarget` 加入 `platform_project`（H-D3）；`JobAllowlist` 加入協定、per-job 身分與 CDN 範圍（H-E7）。
-- **§1 模組**：新增 `toolresult`、`apispec`、`pii`；publisher 是 Z1 中另一個可以對外連線的元件，只連程式碼託管平台（§1.2 規則 5）；說明「同等性單位」（H-E2、H-E10、M-G5、M-G6、L-06）。
-- **§4.2 CLI**：新增 `run estimate`、`report publish`、`feedback add`（H-E12、M-G6）。
-- **§5 設定**：新增 §5.4，列出 v0.3 的設定與產物欄位；§5.2 加入保證等級；§5.3 加入 publisher 權杖、Z3 CA 私鑰與 session 加密金鑰的參照（M-G3、H-D2、H-B4、H-D3、H-E8、H-E14、H-E15、N-5）。
-- **§6.1 錯誤**：新增 `BuildMismatch`、`SessionUnavailable`、`SeedSetupFailed`、`TeardownFailed`（H-B4、H-E8、H-E6）。
-- **§8.2 必須拒絕清單**：新增 N-32–N-43：路徑正規化繞過、萬用字元主機、非 HTTPS 的 base URL、沒有綁定種子的寫入、build 不一致、共享平台網域、Lite＋S2、Team 中一人簽兩個 ROE 角色、Full 的 G5 只有一人、角色不對的分析者、借用別的 run 的關卡紀錄、測試 G1 駁回的需求（C-1、C-2、C-3、H-B3、C-11、H-B4、H-D3、M-G3、L-13、N-11、C-12、C-8、C-10）。
-- **§8.3 範例應用**：`notes-rls-app` 明定為 Next.js＋Supabase 型，植入沒有 RLS 的資料表、bundle 中的公開前綴 secret 與幻覺套件，是 MVP-0 的目標（M-G2、M-G5）。
-- **§7.2、§8.5、§9**：run 紀錄改存 run manifest；列出 v0.3 追加的測試；§9.2 的 T-08、T-13–T-15 同步更新；完成定義加上分段 MVP（N-5、M-G2）。
-- **§10**：U-01–U-14 不變；新增 U-15–U-23，都是 §11 帶出的新事項，各附預設做法（N-10）。
-
-## v0.2 變更摘要
-
-- **新文件**（D16）：
-  - 套件配置與依賴方向；
-  - 03 §15 的介面，以及 8 個擴充介面；
-  - 從 JSON Schema 產生 Pydantic 模型的做法；
-  - CLI 與結束碼；
-  - 設定檔的優先順序；
-  - 錯誤分類、重試與冪等；
-  - 持久化；
-  - 各里程碑的測試與完成定義；
-  - M1 前兩週的工單；
-  - 待決事項。
-- 里程碑的出口準則寫在 [07](07-roadmap.md)。本文件 §8 與 §9 的測試項目，以 07 的準則編號（例如 `M1-X2`）互相對應。
-- **後續對齊（一致性）** [H]：
-  - 保留期限的優先順序（§5.2、§7.5）：`toolkit.yaml` 是上限與預設值，engagement 是實際值，只能收緊；
-  - ROE 或 `legal_review` 執行中到期 → `SUSPENDED`（§6.1 `OutsideWindow`、N-25），驗章失效才 `ABORTED`；
-  - L-6 過濾後的允許工具清單寫入 G0b GateRecord（§2 `RoeCheck`）；
-  - validator 強制的規則（§5.1、§7.4）：推導 `diversity_degraded` 與工具佐證、JSON 簽署文件拒絕重複鍵、稽核尾端保護、DB 目標對照 ROE 排除清單、`W-MODEL-PLACEHOLDER`。
-  - 與 validator 實作對齊：錨點改為 `{seq, line_sha256}`（§7.4、N-22）；保留期限的錯誤碼 `E-RETENTION`／`E-ROE-RETENTION`（§7.5）；`E-ROE-DB-SCOPE`、`E-JSON-STRICT`、`E-MODEL-PLACEHOLDER`（§5.1）；`tests/test_v02_hardening.py`（§8.1）。
-  - **v0.2 強化第二輪（2026-09-25）**：保留期限錯誤碼更正為 ROE > engagement → `E-ROE-RETENTION`、ROE 或 engagement 超過工具包上限 → `E-RETENTION`（§5.2、§7.5）；錯誤表新增 `StrictJSONError`（`E-JSON-STRICT`：重複鍵、NaN／Infinity、溢位浮點數、|n| > 2^53、整數欄位的浮點數字面值；簽署文件視為簽章無效）（§5.1、§6.1）；關卡逾時在 G0b 之前只受 engagement `not_after` 限制（§5.2、[03 §6.2](03-system-architecture.md#62-關卡逾時預設值)）；`B4_preflight` 全部目標失去所有權 → `abort_handler` → `STOPPED`（§6.1）；`sarif_refs` 必須對應同一 run 的 `tool_invocation_end` 事件（`E-SARIF-REF`）、`sarif_refs`／`tool_corroboration` 不得重複；家族多樣性只計 verifier 的票（§2.3）；佔位模型的啟發式擴大，真實 run（`--real-run`、G0a）中可達的佔位模型 → `E-MODEL-PLACEHOLDER`（§5.1）；DB endpoint 主機正規化、無法解析 → `E-ROE-DB-SCOPE`（§5.1）；`audit_anchors` 與錨點事件一一對應、未錨定尾端只看最後一個錨點事件之後、JSONL 只以 `\n` 分行（§7.4）。
+第十輪審查（2026-10-27）後的設計，裁決規則版本 `05-v0.9`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#08-實作規格)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 套件配置
 
@@ -122,7 +69,7 @@ L1  keys, config, store, audit
 L0  errors, models
 ```
 
-- `lgapi`（v0.5，審查 2026-10-25 C-3）：唯一 import `langgraph` 的模組，只重新匯出 `interrupt`、`Send`、`Command` 與 checkpointer 的型別。v0.4 讓 `nodes`（L5）從 `graph`（L6）匯入這三個名字，違反「上層 import 下層」的方向；現在 `nodes` 與 `graph` 都從 L3 的 `lgapi` 匯入。
+- `lgapi`：唯一 import `langgraph` 的模組，只重新匯出 `interrupt`、`Send`、`Command` 與 checkpointer 的型別。v0.4 讓 `nodes`（L5）從 `graph`（L6）匯入這三個名字，違反「上層 import 下層」的方向；現在 `nodes` 與 `graph` 都從 L3 的 `lgapi` 匯入。
 
 - `adapters` 放在 L2（`executor`、`sandbox` 之下），因為 Z2／Z3 的執行器要呼叫 adapter 的 `render()`／`parse()`；`adapters` 本身只 import L0–L1（`errors`、`models`、`config`、`keys`），不 import 任何 L3 以上的模組，所以規則 4 不需要例外 [H]。
 - `pii` 也放在 L2：Z2（W0 的個資掃描，v0.5）、Z1（報告與發布前的掃描）與 Z3（回應的 PII 停止條件）都要用它，它只 import L0–L1 [H]。
@@ -504,7 +451,7 @@ class ToolAdapter(ABC):
    - **行為**：例如 `Verdict.latest()`；
    - **跨欄位檢查**：以 Pydantic validator 實作，而且 validator 必須與 `tools/validate_schemas.py` 的檢查一一對應（在測試中列出對照）。
 5. **契約測試**（`tests/contract/`）：
-   - (a) `docs/schemas/examples/` 的每個範例，都要能「解析 → Pydantic → `model_dump(mode="json", exclude_unset=True)` → 以 jsonschema 驗證 → JCS」，並且與原檔的 JCS **逐位元組相同**。v0.5（審查 2026-10-25 C-4）：v0.4 寫的 `exclude_none=False` 會替範例中省略的選填欄位補出 `null`（目前有 8 個範例省略選填欄位，例如叢集的 `canonical_location.endpoint`），`exclude_none=True` 又會刪掉範例中明寫的 `null`，兩者都做不到逐位元組相同；`exclude_unset=True` 只輸出原檔有的欄位，省略的與明寫 `null` 的都保留原樣。
+   - (a) `docs/schemas/examples/` 的每個範例，都要能「解析 → Pydantic → `model_dump(mode="json", exclude_unset=True)` → 以 jsonschema 驗證 → JCS」，並且與原檔的 JCS **逐位元組相同**。v0.4 寫的 `exclude_none=False` 會替範例中省略的選填欄位補出 `null`（目前有 8 個範例省略選填欄位，例如叢集的 `canonical_location.endpoint`），`exclude_none=True` 又會刪掉範例中明寫的 `null`，兩者都做不到逐位元組相同；`exclude_unset=True` 只輸出原檔有的欄位，省略的與明寫 `null` 的都保留原樣。
    - (b) 以 Hypothesis 從 schema 產生隨機實例（Hypothesis 6.168.1，MPL-2.0 [V][E:orchestration-56][V][E:whitebox-47]），做同樣的往返檢查。
    - (c) 每個 schema 都要有至少一個應該被拒絕的反例。
 6. **送給 LLM 的 schema**：
@@ -644,7 +591,7 @@ class ToolAdapter(ABC):
 - 例外訊息與 log 一律經過遮罩函式，遮罩範圍包含上表所有值。
 - **Z2 的 job 不繼承任何環境變數**。`AdapterPlan.env` 中含有 secret 樣式的值 → 拒絕。
 
-### 5.4 v0.3 新增的設定與產物欄位
+### 5.4 其他設定與產物欄位
 
 欄位的完整語意在各自連到的小節；這裡只列出在哪個檔案、由什麼檢查 [H]。欄位名稱以 [docs/schemas/](schemas/) 為準，錯誤碼以 `tools/vchlib/checks.py` 為準。
 
@@ -759,7 +706,7 @@ class ToolAdapter(ABC):
 | B4 job | Z3 的 job 帳本（權威，v0.4）；`executed_jobs` 與 `JobStatus` 只是快取 | 帳本已有紀錄 → Executor 拒絕執行並回傳原結果，即使 checkpoint 回溯過；`EXECUTING` 但沒有結果 → `INTERRUPTED`（[03 §5.6](03-system-architecture.md#56-中止補償與-resume)） |
 | 開關卡 | `(run_id, gate, round)` | 不重複開啟、不重複通知 |
 | GateRecord | `approval_hash` | 同一份 → 成功；不同 → 7 |
-| 稽核事件 | `idempotency_key` ＝ `run_id:node:<上列鍵>` | v0.5：Audit Writer 寫入端去重，不寫新行，回傳原本那一行的 `seq`；稽核檔中同一 run 的鍵唯一（`E-AUDIT-IDEMPOTENCY`，[03 §5.8](03-system-architecture.md#58-節點邊界規則)） |
+| 稽核事件 | `idempotency_key` ＝ `run_id:node:<上列鍵>` | Audit Writer 寫入端去重，不寫新行，回傳原本那一行的 `seq`；稽核檔中同一 run 的鍵唯一（`E-AUDIT-IDEMPOTENCY`，[03 §5.8](03-system-architecture.md#58-節點邊界規則)） |
 
 ## 7. 持久化
 
@@ -793,8 +740,8 @@ class ToolAdapter(ABC):
 | `sandbox_jobs` | job ID → `SandboxResult` ref |
 | `budget_ledger` | 每次 reserve 與 record（M2） |
 | `key_registry_state` | 上次接受的版本與 hash（防回滾） |
-| `run_locks` | v0.4：不是資料表，而是以 `run_id` 為鍵的 PostgreSQL advisory lock；Run Controller、Gate Service、`run abort` 修改 run 之前取得（[03 §5.8](03-system-architecture.md#58-節點邊界規則)） |
-| Z3 `job_ledger` | v0.4：在 Z3（不在 Z1 的資料庫），append-only：`run_id`、`job_id`、`g5_gate_record_id`、開始與結束時間、結果 ref；每筆以 z3_executor 金鑰簽署。不受 checkpoint 回溯影響 |
+| `run_locks` | 不是資料表，而是以 `run_id` 為鍵的 PostgreSQL advisory lock；Run Controller、Gate Service、`run abort` 修改 run 之前取得（[03 §5.8](03-system-architecture.md#58-節點邊界規則)） |
+| Z3 `job_ledger` | 在 Z3（不在 Z1 的資料庫），append-only：`run_id`、`job_id`、`g5_gate_record_id`、開始與結束時間、結果 ref；每筆以 z3_executor 金鑰簽署。不受 checkpoint 回溯影響 |
 | LangGraph 的資料表 | 由 checkpointer 自己建立；本工具包的遷移**不修改**這些資料表 |
 
 ### 7.3 CAS 配置
@@ -808,8 +755,8 @@ $VIBECHECK_CAS_ROOT/<engagement_id>/            # v0.5：每個委任一個儲�
 ```
 
 - ref ＝ 明文的 sha256。`get()` 先解密，再重算 hash。
-- **hash 不是授權**（v0.5）[H]：讀取要檢查呼叫者、委任與一筆仍有效的生命週期參照；知道 hash 不代表有權讀。儲存根依委任隔離，金鑰（KEK）也依委任分開；跨委任去重要先完成授權與金鑰隔離設計，MVP 不啟用。LLM 快取（03 §5.8）的鍵已含 `engagement_id`，與此一致。
-- 寫入的方式：先寫暫存檔，再原子性地 rename。內容已存在 → 不覆寫內容，但**新增一筆自己的生命週期參照**；同 hash 的第二次寫入不能沿用第一筆的資料等級、起算點或保留期限（v0.5）。
+- **hash 不是授權**[H]：讀取要檢查呼叫者、委任與一筆仍有效的生命週期參照；知道 hash 不代表有權讀。儲存根依委任隔離，金鑰（KEK）也依委任分開；跨委任去重要先完成授權與金鑰隔離設計，MVP 不啟用。LLM 快取（03 §5.8）的鍵已含 `engagement_id`，與此一致。
+- 寫入的方式：先寫暫存檔，再原子性地 rename。內容已存在 → 不覆寫內容，但**新增一筆自己的生命週期參照**；同 hash 的第二次寫入不能沿用第一筆的資料等級、起算點或保留期限。
 - **Z3 有自己的儲存區**，不同步到 Z1：`oracle_capture` 的 before 內容、session 狀態。Z1 只收到 hash 與比對結果（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）。
 
 ### 7.4 稽核檔配置
@@ -838,7 +785,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
   - `audit_days: 1095`（稽核檔與 GateRecord；必須 ≥ 兩個內容期限）；
   - `checkpoint_days_after_run_end: 30`、`checkpoint_keep_last: 1`；
   - `legal_hold: []`（列入的範圍一律不刪）。
-- `ContentStore.gc(now)`（v0.5）：每筆生命週期參照各自到期，到期即撤銷**該參照**的讀取權；實體內容只有在**所有**參照都到期、而且都沒有 `legal_hold` 時才刪除。較晚的新參照不能替已到期的舊參照延長存取；legal hold 期間的讀取權限由獨立政策決定。每次撤銷與刪除都寫稽核事件。驗收：相同內容的不同期限、不同資料等級、legal hold、多 run 共用、刪除後的稽核驗證。
+- `ContentStore.gc(now)`：每筆生命週期參照各自到期，到期即撤銷**該參照**的讀取權；實體內容只有在**所有**參照都到期、而且都沒有 `legal_hold` 時才刪除。較晚的新參照不能替已到期的舊參照延長存取；legal hold 期間的讀取權限由獨立政策決定。每次撤銷與刪除都寫稽核事件。驗收：相同內容的不同期限、不同資料等級、legal hold、多 run 共用、刪除後的稽核驗證。
 - 刪除 C 級內容之後，稽核檔中的 hash 仍然保留，所以 `audit verify` 不受影響。
 
 ## 8. 測試
@@ -847,7 +794,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 
 | 層級 | 目錄 | 內容 | CI 線（§8.4） |
 |---|---|---|---|
-| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/test_review_fixes.py`、`tests/test_doc_tools.py`，以及各輪審查的回歸測試 `tests/test_v0<版本>_*.py`（v0.2 起每一輪一組，例如 `test_v04_*.py`、`test_v05_round6_group*.py`；完整清單以目錄為準，不在這裡逐檔列舉）、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R13 決定表與註記（`annotations`）；`test_v02_hardening.py`：v0.2 強化規則（推導 `diversity_degraded`／工具訊號、稽核錨點與尾端、保留期限、DB 範圍、佔位模型 ID、嚴格 JSON）；`test_review_fixes.py`：v0.2.1 的審查修正；`test_v03_adjudication.py`、`test_v03_datamodel.py`、`test_v03_scope.py`、`test_v03_gates.py`、`test_v03_manifest.py`、`test_v03_llm_schema.py`、`test_v03_robustness.py`：v0.3 的規則，每條都有正反案例；`test_doc_tools.py`：文件工具（兩個產生器、連結檢查、外部連結檢查） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
+| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/test_review_fixes.py`、`tests/test_doc_tools.py`，以及各輪審查的回歸測試 `tests/test_v0<版本>_*.py`、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R13 決定表與註記（`annotations`）；`test_v02_hardening.py`：v0.2 強化規則（推導 `diversity_degraded`／工具訊號、稽核錨點與尾端、保留期限、DB 範圍、佔位模型 ID、嚴格 JSON）；`test_review_fixes.py`：v0.2.1 的審查修正；`test_v03_adjudication.py`、`test_v03_datamodel.py`、`test_v03_scope.py`、`test_v03_gates.py`、`test_v03_manifest.py`、`test_v03_llm_schema.py`、`test_v03_robustness.py`：v0.3 的規則，每條都有正反案例；`test_doc_tools.py`：文件工具（兩個產生器、連結檢查、外部連結檢查） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
 | 單元 | `tests/unit/` | 每個模組各自測試；外部相依以 Protocol 的假物件取代 | `fast` |
 | 性質 | `tests/property/` | Hypothesis：JCS 的穩定性、嚴格 YAML、稽核竄改偵測、Clusterer 與順序無關、Aggregator 的規則性質（例如 Lane A 的結果永遠不會是 `CONFIRMED_*`；R1 一定勝過投票） | `fast` |
 | 契約 | `tests/contract/` | schema 往返（§3）、adapter 註冊（§2.3）、`vchlib` 與 `vibecheck` 同一組測試向量的結果相同、RFC 8785 附錄的測試向量 | `fast` |
@@ -1044,14 +991,14 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | U-15 | `high_precision_min` 的值：掃描器規則要多準，才能單獨當強工具佐證（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)、§11.2） | `toolkit_maintainer`＋校準負責人 | 0.90。校準前名單是空的，所以暫時不影響任何裁決 | M2 |
 | U-16 | 具名的 PII 偵測器：Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]；相依的語言模型另有授權，未查證）或其他 | `toolkit_maintainer`、`legal_reviewer` | 工具包自己的規則式偵測器：email、電話、信用卡號（Luhn）、常見身分證號格式（檢查碼）（§11.17） | M4 |
 | U-17 | JS／TS 解析器是否採用 tree-sitter（Python binding 0.26.0，MIT [V][E:whitebox-58]；各 grammar 另有授權） | `toolkit_maintainer`、`legal_reviewer` | MVP-0 以 tree-sitter 做暫定實作，只使用已在 `licenses.yaml` 登錄的 grammar；決定不採用時換解析器，並重跑抽取器與 Slicer 的契約測試（§11.1、§11.3） | M1–M2 |
-| U-18 | CDN 目標是否必須在 ROE 宣告邊緣 IP 範圍（ROE 欄位也要一併決定；目前 schema 沒有，見 [09 BL-15](09-backlog.md)） | `toolkit_maintainer`、ROE 簽署人 | 選填：未宣告時每個 job 固定一次解析結果，並擋下非公開位址（§11.7） | M4 |
-| U-19 | 是否開啟 PR／issue 回饋；使用哪個程式碼託管平台與哪種權杖（v0.5：engagement 的 `publishing`，見 [09 BL-17](09-backlog.md)） | 使用者、`app_owner` | 關閉：只產出報告檔與 SARIF（§11.16） | M4 |
-| U-20 | 每個家族的 USD 上限是否成為委任設定的欄位（v0.5：engagement 的 `budgets.families`，見 [09 BL-14](09-backlog.md)） | 使用者 | 家族上限等於所在階段的上限（§11.12） | M2 |
+| U-18 | **已處理**：ROE 的 `targets[].edge_ip_ranges` 為選填；宣告時每個解析出的 IP 都必須在範圍內（§11.7、`safety.ip_in_ranges`）。原問題：CDN 目標是否必須在 ROE 宣告邊緣 IP 範圍 | `toolkit_maintainer`、ROE 簽署人 | 選填：未宣告時每個 job 固定一次解析結果，並擋下非公開位址（§11.7） | M4 |
+| U-19 | 是否開啟 PR／issue 回饋；使用哪個程式碼託管平台與哪種權杖（engagement 的 `publishing`，見 [09 BL-17](09-backlog.md)） | 使用者、`app_owner` | 關閉：只產出報告檔與 SARIF（§11.16） | M4 |
+| U-20 | 每個家族的 USD 上限是否成為委任設定的欄位（engagement 的 `budgets.families`，見 [09 BL-14](09-backlog.md)） | 使用者 | 家族上限等於所在階段的上限（§11.12） | M2 |
 | U-21 | Z2 本地 RLS 測試用的 PostgreSQL 版本，以及 BaaS 認證函式的替身 | `toolkit_maintainer` | 與 migrations 相容的 PostgreSQL 主版本，鎖 digest；替身只實作「取得目前使用者 ID」一類的函式（§11.17） | M2 |
 | U-22 | 校準前 W3 每個叢集派幾位驗證者（M） | 使用者（成本）、`toolkit_maintainer` | M＝1；票只當參考意見（§11.11） | M2 |
 | U-23 | staging 使用自簽憑證時，Scope Proxy 如何信任目標（例如 ROE 宣告目標的 CA） | 資安團隊、ROE 簽署人 | 不支援：TLS 驗證失敗 → 該目標的 job `ERROR` 並列入缺口；不提供略過驗證的選項（§11.7） | M4 |
 
-## 11. 元件規格補充（v0.3）
+## 11. 元件規格補充
 
 §1–§9 定了模組、介面與測試。2026-09-26 的[深度審查](evidence/review-2026-09-26.md)找出一批「元件存在，但沒寫怎麼做」的缺口。本節逐一補上，寫法與前面各節相同：輸入、輸出、規則、失敗時怎麼辦、設定欄位、由哪個 validator 錯誤碼強制、屬於哪個里程碑與 MVP 階段。
 
@@ -1187,7 +1134,7 @@ class InventoryExtractor(ABC):
 **validator**：
 - threat 與 finding 引用的 inventory 事實必須能解析（`E-INVENTORY-REF`）。
 - inventory 內部的一致性（`E-INVENTORY`）：`middleware_refs` 要對到 `auth.middleware[].middleware_id`；每個來源檔都要在 `files` 中；`table_id` 不重複；`public_prefix` 必須等於「名稱以 `NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_` 開頭」。
-- 必要面向（`E-PLAN-FACETS`）由 `vchlib/facets.py` 的 `mandatory_facets` 計算：固定的 6 個（`authz`、`authn_session`、`injection`、`data_access`、`secrets_config`、`business_logic`）；`llm_integrations` 不是空的 → 加 `llm_integration`；`file_upload` → `file_handling`、`outbound_http` → `ssrf_outbound`、`webhook_inbound` → `webhooks_integrations`、`frontend_bundle` 或任何 `public_prefix: true` 的變數 → `frontend_client`、`crypto` → `crypto`、`ci_workflows` 或 `iac` → `cicd_iac`（v0.4）。`payments`、`oauth`、`llm_tools` 不增加面向，只影響 G1 問卷與 `level_triggers`（§11.4）。
+- 必要面向（`E-PLAN-FACETS`）由 `vchlib/facets.py` 的 `mandatory_facets` 計算：固定的 6 個（`authz`、`authn_session`、`injection`、`data_access`、`secrets_config`、`business_logic`）；`llm_integrations` 不是空的 → 加 `llm_integration`；`file_upload` → `file_handling`、`outbound_http` → `ssrf_outbound`、`webhook_inbound` → `webhooks_integrations`、`frontend_bundle` 或任何 `public_prefix: true` 的變數 → `frontend_client`、`crypto` → `crypto`、`ci_workflows` 或 `iac` → `cicd_iac`。`payments`、`oauth`、`llm_tools` 不增加面向，只影響 G1 問卷與 `level_triggers`（§11.4）。
 
 ### 11.2 工具結果正規化與合併
 
@@ -1196,7 +1143,7 @@ class InventoryExtractor(ABC):
 **最重要的一條**：W2 reviewer（含 CMD-2 加派的輪次）與 W3 verifier **都不會收到** `ToolResult`、SARIF 或它們的摘要。工具結果只經由確定性的 Clusterer 與 Aggregator 進入裁決（[05 §3](05-bias-calibration.md#3-設計規則) 規則 5）[H]。
 
 **輸入**：W1 各 adapter 的輸出（CAS ref）、對應的 `tool_invocation_end` 稽核事件、W0 的符號索引（§11.3）、CWE → 桶的對照表。
-**輸出**：ToolResult 清單，RunState 以 `tool_results_ref` 參照（[03 §5.1](03-system-architecture.md#51-statepydantic示意)）；保存用的 run 紀錄也有 `tool_results_ref`（v0.5，BL-13）＝sha256(JCS(本 run 中 W1、Z2 的 `tool_invocation_end` 事件之 `payload_refs`，去重排序))，沒有工具結果時為 null，由 writer 導出（`E-DERIVED`）；只交給 `W3_cluster` 與 `W3_adjudicate`。
+**輸出**：ToolResult 清單，RunState 以 `tool_results_ref` 參照（[03 §5.1](03-system-architecture.md#51-statepydantic示意)）；保存用的 run 紀錄也有 `tool_results_ref`＝sha256(JCS(本 run 中 W1、Z2 的 `tool_invocation_end` 事件之 `payload_refs`，去重排序))，沒有工具結果時為 null，由 writer 導出（`E-DERIVED`）；只交給 `W3_cluster` 與 `W3_adjudicate`。
 
 ```python
 class ToolLocation(BaseModel):
@@ -1254,7 +1201,7 @@ class ToolResult(BaseModel):
   - 驗證用的切片：沿用涵蓋該位置的既有切片；沒有的話，由 Slicer 以該位置為錨建立一個（§11.3）。切片只含程式碼。
   - **引發這個叢集的工具結果是「回報」，不是佐證**：它不計入 `tool_corroboration`、`tool_signal` 或 `independent_sources`。否則同一次命中會同時算成「回報」與「佐證」。同一位置上**其他**工具的結果照常算佐證或訊號。
   - 結果：校準前，tool-only 叢集最多是 `UNCORROBORATED`（R7），照一般的 CMD-2 與 G2 路由；有了校準權重之後，可以經投票確認。
-  - **schema**（v0.5）：`origin: tool_only`；`member_finding_ids`、`families`、`lineages`、`independent_families` 都是空的，`threat_id` 為 null，`canonical_location` 有 `file` 與 `symbol`。引發叢集的工具結果記在 `tool_report_refs`（至少一筆，解析規則同 `sarif_refs`，所以位置與桶必須等於這些結果，`E-SARIF-REF`）；`sarif_refs` 只能放**其他工具**在同一位置的結果。validator（`E-CLUSTER-ORIGIN`）檢查以上各點，並拒絕把回報再放進 `sarif_refs`、或在其他 origin 的叢集填 `tool_report_refs`。成員證據的位置綁定（`E-CLUSTER-BINDING`）不適用，因為沒有成員；同一 run 指紋不得重複仍然適用。
+  - **schema**：`origin: tool_only`；`member_finding_ids`、`families`、`lineages`、`independent_families` 都是空的，`threat_id` 為 null，`canonical_location` 有 `file` 與 `symbol`。引發叢集的工具結果記在 `tool_report_refs`（至少一筆，解析規則同 `sarif_refs`，所以位置與桶必須等於這些結果，`E-SARIF-REF`）；`sarif_refs` 只能放**其他工具**在同一位置的結果。validator（`E-CLUSTER-ORIGIN`）檢查以上各點，並拒絕把回報再放進 `sarif_refs`、或在其他 origin 的叢集填 `tool_report_refs`。成員證據的位置綁定（`E-CLUSTER-BINDING`）不適用，因為沒有成員；同一 run 指紋不得重複仍然適用。
   - 範例：K-016 是 opengrep `vc.authz.delete-without-owner` 在 `routes/invoices.ts::deleteInvoice` 的結果，該位置沒有 LLM 發現項。它的 `tool_report_refs` 是 W1 稽核事件（seq 13）中的那筆結果，`sarif_refs` 是空的，所以獨立來源是 0、裁決 V-016-1 是 `UNCORROBORATED`（R7），沒有捏造的成員或投票；報告清單把它列在 `report_only_clusters`，工具發現因此追溯得到報告。測試（`tests/test_v05_backlog_high.py`）另把 K-014 改成 tool-only，驗證回報不能再放進 `sarif_refs`。
   - 尚未涵蓋：「沒有任何發現」的 run 範例；validator 也還不檢查 tool-only 叢集是否出現在 W5 的 SARIF 輸出（範例沒有 SARIF 輸出檔）。
 - **強與弱**：`sarif_refs` 的每一項，以稽核事件的 (adapter, rule_id, tool_version) 加上叢集的桶，查 `calibration.yaml` 的 `result.high_precision_rules`：
@@ -1264,12 +1211,12 @@ class ToolResult(BaseModel):
   - 範例：K-014 的 `opengrep:scan` 結果不在名單中（範例的 `high_precision_rules` 是空的），所以是弱訊號：裁決 V-014-1 的 `tool_signal` 列出它、`tool_corroboration` 是空的、`independent_sources` 是 2（anthropic＋弱 SARIF），經 R6 為 `LIKELY`。
 
 **validator**：
-- `E-SARIF-REF`：每個 `sarif_refs` 與 `tool_report_refs` 項目都要對到同一 run 的 `tool_invocation_end` 事件（`payload_refs` 含這個 ref、事件是 W1 節點（v0.5：ToolResult 是 W1 的輸出，與 run 的 `tool_results_ref` 一致）、`zone` 為 Z2、`payload.ok` 為 true），它的 adapter 是 `tools.yaml` 中已登錄的白箱模式（工具 zone Z2、`b4_executable: false`），而且 `licenses.yaml` 的狀態是 `OK` 或「注意」（法務閘門未結案的工具不算，N-7）。v0.4：該 ref 的 `sarif_results[]` 項目的 `file`、`symbol`、`cwe_bucket` 必須等於叢集的 `canonical_location.file`、`canonical_location.symbol` 與 `cwe_bucket`；`origin: black_box` 的叢集不收 SARIF。v0.3 沒有這條，任何叢集都能借用同一 run 中無關的 SARIF 結果當弱訊號。
+- `E-SARIF-REF`：每個 `sarif_refs` 與 `tool_report_refs` 項目都要對到同一 run 的 `tool_invocation_end` 事件（`payload_refs` 含這個 ref、事件是 W1 節點（ToolResult 是 W1 的輸出，與 run 的 `tool_results_ref` 一致）、`zone` 為 Z2、`payload.ok` 為 true），它的 adapter 是 `tools.yaml` 中已登錄的白箱模式（工具 zone Z2、`b4_executable: false`），而且 `licenses.yaml` 的狀態是 `OK` 或「注意」（法務閘門未結案的工具不算，N-7）。該 ref 的 `sarif_results[]` 項目的 `file`、`symbol`、`cwe_bucket` 必須等於叢集的 `canonical_location.file`、`canonical_location.symbol` 與 `cwe_bucket`；`origin: black_box` 的叢集不收 SARIF。v0.3 沒有這條，任何叢集都能借用同一 run 中無關的 SARIF 結果當弱訊號。
 - `E-VERDICT-TOOLCORR`：裁決的 `tool_corroboration` 必須等於推導出的強佐證。
 - `E-VERDICT-TOOLSIGNAL`：`tool_signal` 必須等於「弱 SARIF ∪ `E_fail_u` 測試結果的 `result_ref`」。
 - `E-VERDICT-SOURCES`：`independent_sources` 必須等於推導值。
 
-**沒有 LLM 發現項的路徑**（v0.5，[09 BL-13](09-backlog.md)，MVP-0 前）[H]：MVP-0 必須有 `W1 → ToolResult 正規化 → 純工具叢集 → 裁決 → W5 報告／SARIF` 的完整路徑。run 要能參照 ToolResult 清單，叢集要能表示零個 LLM 成員，並追溯工具版本、規則、位置與證據（v0.5 的 schema 以 run 的 `tool_results_ref` 與 `origin: tool_only` 叢集的 `tool_report_refs` 表示，見上）。沿用本節的去重與裁決規則：工具自己的回報不能再算成自己的獨立佐證；校準前不能因為沒有 LLM 成員就套用「所有成員都沒有證據」的 R0，也不能憑空產生合格票；強弱證據、暫定標示與報告覆蓋限制都保留。驗收要包含「只有工具發現」「工具與 LLM 合併」「沒有任何發現」三種輸入，不能靠捏造 LLM 發現項讓流程通過。
+**沒有 LLM 發現項的路徑**[H]：MVP-0 必須有 `W1 → ToolResult 正規化 → 純工具叢集 → 裁決 → W5 報告／SARIF` 的完整路徑。run 要能參照 ToolResult 清單，叢集要能表示零個 LLM 成員，並追溯工具版本、規則、位置與證據（v0.5 的 schema 以 run 的 `tool_results_ref` 與 `origin: tool_only` 叢集的 `tool_report_refs` 表示，見上）。沿用本節的去重與裁決規則：工具自己的回報不能再算成自己的獨立佐證；校準前不能因為沒有 LLM 成員就套用「所有成員都沒有證據」的 R0，也不能憑空產生合格票；強弱證據、暫定標示與報告覆蓋限制都保留。驗收要包含「只有工具發現」「工具與 LLM 合併」「沒有任何發現」三種輸入，不能靠捏造 LLM 發現項讓流程通過。
 
 **失敗**：單一工具失敗 → 列為缺口，其他工具繼續；全部 W1 工具失敗 → `FAILED`（[02 W1](02-methodology.md#w1-確定性掃描建立基準不用-llm)）。正規化本身失敗（例如 SARIF 不合 schema）→ 該工具視同失敗。
 
@@ -1474,13 +1421,13 @@ class SeedService(Protocol):
 - ID 在 Z3 內解析，所以 Z1 不需要知道實際 ID。
 - 計數型 oracle（`oracle_count`）的參數仍只能是 `seed:` 或 `const:`（seed manifest 的 `oracle_queries`）。
 
-**validator**：寫入範圍規則（`E-TC-MUTATION-SCOPE`，該測試案例同時成為 S3 → `E-TC-ADMISSIBLE`）；`{seed:}` 的路徑樣板必須屬於該種子（D11，同樣是 `E-TC-MUTATION-SCOPE`）；`create_only_endpoints` 的目標與 `created_resource` 宣告（`E-SEED-MANIFEST`）；`{created:}` 必須用在宣告的路徑、建立的 `step_id` 不重複、GraphQL mutation 只用 POST（v0.5，`E-TC-MUTATION-SCOPE`）；其他新欄位由 schema 檢查形狀（例如 `namespace` 不含 `{run_id}`、`seeding.idempotent` 不是 true → `E-SCHEMA`）。
+**validator**：寫入範圍規則（`E-TC-MUTATION-SCOPE`，該測試案例同時成為 S3 → `E-TC-ADMISSIBLE`）；`{seed:}` 的路徑樣板必須屬於該種子（D11，同樣是 `E-TC-MUTATION-SCOPE`）；`create_only_endpoints` 的目標與 `created_resource` 宣告（`E-SEED-MANIFEST`）；`{created:}` 必須用在宣告的路徑、建立的 `step_id` 不重複、GraphQL mutation 只用 POST；其他新欄位由 schema 檢查形狀（例如 `namespace` 不含 `{run_id}`、`seeding.idempotent` 不是 true → `E-SCHEMA`）。
 
 ### 11.7 Scope Proxy 實作
 
 **目的**：Scope Proxy 是 Z3 唯一的出口，也是請求白名單真正的強制點（[03 §2](03-system-architecture.md#2-部署與信任區)）。v0.2 只寫了 DNS 固定與擋 redirect。要逐一檢查 HTTPS 請求的方法與路徑，需要 TLS 終結；長連線協定、CDN、B1 爬行也都還沒有規則。
 
-**白名單比對的參考實作**（v0.5，審查 2026-10-25 §4.3）：`safety.allowlist_match(target_id, method, path, allowlist, resolve)` 回傳具體請求對應的白名單項目，對不到就擋。路徑必須已是正規形式（含 `%` 編碼或 `.`／`..` 段的請求一律擋，不做解碼後再比對）；逐段比對同一目標、同一方法的項目：字面段要相等；`{seed:k}`／`{created:s}` 段要等於代換後的值（`resolve` 來自 seed manifest 與本 run 的建立回應）；一般 `{name}` 段只在讀取請求上可對到任一非空段，寫入請求一律不行。body 與 query 的物件綁定見下方 `request_binding_problem`。parity 測試以這個函式為準。
+**白名單比對的參考實作**：`safety.allowlist_match(target_id, method, path, allowlist, resolve)` 回傳具體請求對應的白名單項目，對不到就擋。路徑必須已是正規形式（含 `%` 編碼或 `.`／`..` 段的請求一律擋，不做解碼後再比對）；逐段比對同一目標、同一方法的項目：字面段要相等；`{seed:k}`／`{created:s}` 段要等於代換後的值（`resolve` 來自 seed manifest 與本 run 的建立回應）；一般 `{name}` 段只在讀取請求上可對到任一非空段，寫入請求一律不行。body 與 query 的物件綁定見下方 `request_binding_problem`。parity 測試以這個函式為準。
 
 **per-job 身分** [H]：
 - `open_job` 為每個 job 產生一個隨機的 proxy 認證權杖（256 位元），只在該 job 期間有效；回傳的 proxy 端點只接受帶這個權杖的連線。
@@ -1509,8 +1456,8 @@ class SeedService(Protocol):
 **DNS 固定與 CDN** [H]：
 - 每個 job 開始時（`open_job`）解析一次主機（dnspython [V][E:orchestration-58]），答案固定在該 job 的 `pinned_ips`。job 期間不再解析，也不理會 TTL；連不上固定的 IP → 該請求失敗，不重新解析。
 - 下一個 job 重新解析。這樣 CDN 輪替 IP 時，每個 job 仍有一組固定、可以稽核的位址。
-- 解析到的每個 IP 都必須是公開位址；私有、loopback、link-local 與雲端 metadata 位址一律擋下。v0.4：判定以參考實作 `vchlib.safety.ip_problem` 為準（Scope Proxy 以 parity 測試對齊），除了 `not is_global` 之外，另外擋下 `DENIED_NETWORKS`：NAT64（`64:ff9b::/96`、`64:ff9b:1::/48`）、IPv4-mapped（`::ffff:0:0/96`，改以 IPv4 連線才套用 IPv4 規則）、6to4（`2002::/16`）、Teredo（`2001::/32`）、`fec0::/10`、`fc00::/7` 與 multicast。Python 的 `is_global` 對 `64:ff9b::a9fe:a9fe`（經 NAT64 到達 169.254.169.254）與 `fec0::1` 都回傳 True，所以不能只用它。
-- **DNS 解析器**（v0.4）[H]：Scope Proxy 使用 Z3 自己的遞迴解析器，不使用目標或工具容器提供的解析器；工具容器沒有 DNS。DNSSEC 驗證在可用時開啟；解析結果與 TTL 記入請求紀錄。唯一的例外是 MVP-1 的本地目標（`localhost`、`127.0.0.1`、`[::1]`），而且只限 Z3 與目標在同一台隔離主機上。
+- 解析到的每個 IP 都必須是公開位址；私有、loopback、link-local 與雲端 metadata 位址一律擋下。判定以參考實作 `vchlib.safety.ip_problem` 為準（Scope Proxy 以 parity 測試對齊），除了 `not is_global` 之外，另外擋下 `DENIED_NETWORKS`：NAT64（`64:ff9b::/96`、`64:ff9b:1::/48`）、IPv4-mapped（`::ffff:0:0/96`，改以 IPv4 連線才套用 IPv4 規則）、6to4（`2002::/16`）、Teredo（`2001::/32`）、`fec0::/10`、`fc00::/7` 與 multicast。Python 的 `is_global` 對 `64:ff9b::a9fe:a9fe`（經 NAT64 到達 169.254.169.254）與 `fec0::1` 都回傳 True，所以不能只用它。
+- **DNS 解析器**[H]：Scope Proxy 使用 Z3 自己的遞迴解析器，不使用目標或工具容器提供的解析器；工具容器沒有 DNS。DNSSEC 驗證在可用時開啟；解析結果與 TTL 記入請求紀錄。唯一的例外是 MVP-1 的本地目標（`localhost`、`127.0.0.1`、`[::1]`），而且只限 Z3 與目標在同一台隔離主機上。
 - ROE 為目標宣告了 CDN 邊緣 IP 範圍（`targets[].edge_ip_ranges`，v0.4）時，每個解析出的 IP 都必須在範圍內，否則該 job 不開始（參考實作 `safety.ip_in_ranges`；範圍本身必須是公開位址空間的 CIDR，`E-ROE-EDGE-RANGE`）。沒有宣告時照 §10 U-18 的預設：只套用上面的規則（每個 job 固定一次解析結果，並擋下非公開位址）。
 - 每批開始時的所有權重驗（`B4_preflight`）照舊。
 
@@ -1522,23 +1469,23 @@ class SeedService(Protocol):
 5. 轉成小寫，再與同樣轉成小寫的樣板比對。
 - 正規化後符合任何排除樣板 → 擋下（fail-closed）。例如排除 `/admin/billing/*` 時，`/Admin/billing/x`、`/admin;jsessionid=1/billing/x`、`/admin/%62illing/x` 都會被擋下。
 - 解碼一次之後仍含「`%`＋兩個十六進位字元」（雙重編碼）→ 擋下 [H]。
-- **反斜線**（v0.4）：解碼後的 `\` 一律視為 `/`（部分伺服器把 `\` 當成路徑分隔，例如 IIS 與部分 Node 路由器）；`/admin%5Cbilling/x` 正規化為 `/admin/billing/x`，會被 `/admin/billing/*` 擋下。
-- **method override**（v0.4）[H]：請求中的 `X-HTTP-Method-Override`、`X-HTTP-Method`、`X-Method-Override` 標頭一律移除並記錄，query 或表單 body 中的 `_method` 參數 → 擋下（`safety.METHOD_OVERRIDE_HEADERS`／`METHOD_OVERRIDE_PARAMS`）。否則一個核准為 GET 或 POST 的請求可以在伺服器端變成 DELETE。
-- **body 與 query 的物件 ID 綁定**（v0.4）[H]：白名單只約束目標、方法與路徑；寫入請求的 body 或 query 若含 ID 類欄位（鍵名為 `id`、`*_id`、`*Id`、`*ID`，任何巢狀層級），值必須是本請求路徑上的 `{seed:}`／`{created:}` 或 `object_refs` 解析後的值之一，否則擋下（參考實作 `safety.body_id_problem`，parity 測試對齊）。v0.4 宣稱這也涵蓋 Server Action 參數與 PostgREST 過濾條件，實際上擋不住（審查 2026-10-25 H-6）：參考實作沒有看 query，`id=eq.X` 反而因為值帶運算子前綴被擋；沒有過濾條件的整表 `PATCH`、`or=(...)`、`ids: [...]`、`{"invoice_id": [999]}`、`where: {id: {eq: ...}}` 與 Server Action 的位置參數全部放行。
+- **反斜線**：解碼後的 `\` 一律視為 `/`（部分伺服器把 `\` 當成路徑分隔，例如 IIS 與部分 Node 路由器）；`/admin%5Cbilling/x` 正規化為 `/admin/billing/x`，會被 `/admin/billing/*` 擋下。
+- **method override**[H]：請求中的 `X-HTTP-Method-Override`、`X-HTTP-Method`、`X-Method-Override` 標頭一律移除並記錄，query 或表單 body 中的 `_method` 參數 → 擋下（`safety.METHOD_OVERRIDE_HEADERS`／`METHOD_OVERRIDE_PARAMS`）。否則一個核准為 GET 或 POST 的請求可以在伺服器端變成 DELETE。
+- **body 與 query 的物件 ID 綁定**[H]：白名單只約束目標、方法與路徑；寫入請求的 body 或 query 若含 ID 類欄位（鍵名為 `id`、`*_id`、`*Id`、`*ID`，任何巢狀層級），值必須是本請求路徑上的 `{seed:}`／`{created:}` 或 `object_refs` 解析後的值之一，否則擋下（參考實作 `safety.body_id_problem`，parity 測試對齊）。v0.4 宣稱這也涵蓋 Server Action 參數與 PostgREST 過濾條件，實際上擋不住（審查 2026-10-25 H-6）：參考實作沒有看 query，`id=eq.X` 反而因為值帶運算子前綴被擋；沒有過濾條件的整表 `PATCH`、`or=(...)`、`ids: [...]`、`{"invoice_id": [999]}`、`where: {id: {eq: ...}}` 與 Server Action 的位置參數全部放行。
   - **v0.5 規則**（參考實作 `safety.request_binding_problem`，parity 測試對齊）：
     - query：ID 類參數只接受原值或 PostgREST 的 `eq.<值>`；其他運算子（`in.`、`neq.`、`gt.`、`like.`、`is.`、`not.` 等）與邏輯參數 `or=`／`and=` 一律擋下，因為它們能選到綁定物件以外的資料列。
     - body：ID 類鍵下的陣列或物件、複數 ID 鍵（`ids`、`*_ids`、`*Ids`、`*IDs`）一律擋下；頂層是陣列的 body（位置參數）不以鍵名綁定，見下一點。
     - 路徑沒有變數段的寫入，query 或 body 中至少要有一個已綁定的 ID，否則擋下（整表 `PATCH`／`DELETE`）。
-    - v0.5（審查 r7 1.8，外部審查 1）：區分「選哪些列」與「寫什麼值」。PostgREST 的 `PATCH`／`PUT`／`DELETE` 會作用於 query 選到的每一列，body 是新的內容，不是篩選條件，所以 `PATCH /rest/v1/invoices` 加上 body `{"invoice_id": <已綁定值>}` 仍是整表寫入。路徑沒有變數段的這三種方法，選取條件只能來自 query 的 `<id>=eq.<已綁定值>`；body 中 ID 類鍵的值仍必須是已綁定的值（不能把資料寫到別人名下）。只有 POST（RPC、action 呼叫、建立）可以由 body 綁定。Scope Proxy 必須把請求方法傳給參考實作；沒有方法時視為會選取列的寫入（fail closed）。
-  - **Server Action**：位置參數沒有鍵名可比對。測試案例的 `request_allowlist[].server_action` 宣告 `{action_id, args}`；Scope Proxy 只在 `Next-Action` 標頭等於 `action_id`、body 等於把 `{seed:}`／`{created:}` 代換成解析值後的 `args` 時放行（`safety.server_action_problem`）。v0.5（審查 r7 1.9，外部審查 4）：任何參照解析不到就拒絕（不再代換成 null 後拿去比對）；比對區分 JSON 型別，遞迴比較型別與值（`true` ≠ `1`，`1` ≠ `1.0`）。validator 檢查：只能用在 POST、沒有變數段的路徑，`args` 用到的參照都要列在 `object_refs`（`E-TC-MUTATION-SCOPE`）。
-  - **GraphQL document**（v0.6，審查 r7 3.8）：Scope Proxy 只放行 POST，且 body 中 `query` 文字的 sha256 必須等於白名單的 `graphql_document_sha256`；GET 一律拒絕（[04 §5](04-threat-to-testcase.md#5-安全等級計算規則)，BL-35 完成解析前）。
+    - 區分「選哪些列」與「寫什麼值」。PostgREST 的 `PATCH`／`PUT`／`DELETE` 會作用於 query 選到的每一列，body 是新的內容，不是篩選條件，所以 `PATCH /rest/v1/invoices` 加上 body `{"invoice_id": <已綁定值>}` 仍是整表寫入。路徑沒有變數段的這三種方法，選取條件只能來自 query 的 `<id>=eq.<已綁定值>`；body 中 ID 類鍵的值仍必須是已綁定的值（不能把資料寫到別人名下）。只有 POST（RPC、action 呼叫、建立）可以由 body 綁定。Scope Proxy 必須把請求方法傳給參考實作；沒有方法時視為會選取列的寫入（fail closed）。
+  - **Server Action**：位置參數沒有鍵名可比對。測試案例的 `request_allowlist[].server_action` 宣告 `{action_id, args}`；Scope Proxy 只在 `Next-Action` 標頭等於 `action_id`、body 等於把 `{seed:}`／`{created:}` 代換成解析值後的 `args` 時放行（`safety.server_action_problem`）。任何參照解析不到就拒絕（不再代換成 null 後拿去比對）；比對區分 JSON 型別，遞迴比較型別與值（`true` ≠ `1`，`1` ≠ `1.0`）。validator 檢查：只能用在 POST、沒有變數段的路徑，`args` 用到的參照都要列在 `object_refs`（`E-TC-MUTATION-SCOPE`）。
+  - **GraphQL document**：Scope Proxy 只放行 POST，且 body 中 `query` 文字的 sha256 必須等於白名單的 `graphql_document_sha256`；GET 一律拒絕（[04 §5](04-threat-to-testcase.md#5-安全等級計算規則)，BL-35 完成解析前）。
   - 限制：不是 ID 類鍵名的欄位（例如 `invoice` 物件裡的 `ref`）仍無法用鍵名辨識，靠 G4 審查產物 [H]。
-- **協定**（v0.4）[H]：請求帶 `Upgrade: h2c` → 拒絕（h2c smuggling）；回應的 `Alt-Svc` 標頭被移除，UDP 443 在 job 的網路命名空間中封鎖（HTTP/3／QUIC 不經 TCP proxy）；CONNECT 之後的第一個位元組不是 TLS ClientHello → 斷線。
+- **協定**[H]：請求帶 `Upgrade: h2c` → 拒絕（h2c smuggling）；回應的 `Alt-Svc` 標頭被移除，UDP 443 在 job 的網路命名空間中封鎖（HTTP/3／QUIC 不經 TCP proxy）；CONNECT 之後的第一個位元組不是 TLS ClientHello → 斷線。
 - Scope Proxy 與 `policy/safety.py`（移植自 `vchlib/safety.py`）使用**同一個**正規化函式，由 parity 測試比對（§2.4）。
 
 **主機**：
 - `exclusions.hosts` 支援開頭的萬用字元：`*.example.com` 符合任何子網域，但不符合 `example.com` 本身（C-2）。比較前先正規化主機：去掉結尾的 `.`、大小寫摺疊、IDNA 轉換，與 DB 主機相同（§5.1）。
-- **只允許 HTTPS**（C-3）：ROE 的 `targets[].base_url` 與 `stop_conditions.health_url` 必須是 `https://`；`http://` 只允許 `localhost`、`127.0.0.1`、`[::1]`（MVP-1）。v0.6（審查 r7 4.5）：這個例外同時是 IP 規則的例外——Scope Proxy 對 loopback 位址的封鎖（`safety.ip_problem`）只在目標 `environment: local`、主機正是 ROE 宣告的 loopback 名稱、且 job 在同一台主機上執行時放行；其他目標解析到 loopback 一律擋下（DNS rebinding 到 127.0.0.1 不會因此變成合法目標）。不符，或根本不是絕對 URI → `E-ROE-URL`。Scope Proxy 也不會以明文連到其他主機。
+- **只允許 HTTPS**（C-3）：ROE 的 `targets[].base_url` 與 `stop_conditions.health_url` 必須是 `https://`；`http://` 只允許 `localhost`、`127.0.0.1`、`[::1]`（MVP-1）。這個例外同時是 IP 規則的例外——Scope Proxy 對 loopback 位址的封鎖（`safety.ip_problem`）只在目標 `environment: local`、主機正是 ROE 宣告的 loopback 名稱、且 job 在同一台主機上執行時放行；其他目標解析到 loopback 一律擋下（DNS rebinding 到 127.0.0.1 不會因此變成合法目標）。不符，或根本不是絕對 URI → `E-ROE-URL`。Scope Proxy 也不會以明文連到其他主機。
 
 **build 識別**（H-B4）：
 - `build_identity.method: header`：Scope Proxy 從回應讀取 ROE 指定的標頭，記入請求紀錄；Executor 以它填 testresult 的 `observed_build_id`。
@@ -1559,13 +1506,13 @@ class SeedService(Protocol):
 | 速率 | ≤ ROE 的 `per_host_rps` |
 
 - 被擋下的請求照 [03 §7.3](03-system-architecture.md#73-限速與停止條件) 計數。觸發停止條件時，外部視角退回「只用 schema」，並列為缺口（[02 B1](02-methodology.md#b1-系統建模兩個獨立視角)）。
-- 預設值放在 `toolkit.yaml` 的 `b1_crawl`（v0.5，[09 BL-16](09-backlog.md)）：schema 只允許 GET／HEAD／OPTIONS、`submit_forms: false`、`same_origin_only: true`、每個目標最多 200 個請求、深度最多 5；`skip_keywords` 必須包含上表的基本清單，可以再加不能刪（`E-TOOLKIT-B1`）。
+- 預設值放在 `toolkit.yaml` 的 `b1_crawl`：schema 只允許 GET／HEAD／OPTIONS、`submit_forms: false`、`same_origin_only: true`、每個目標最多 200 個請求、深度最多 5；`skip_keywords` 必須包含上表的基本清單，可以再加不能刪（`E-TOOLKIT-B1`）。
 
 **攔截式 proxy 的選型**仍未決定（§10 U-13）。mitmproxy 12.2.3 的 PyPI classifier 為 MIT [V][E:blackbox-67]，是候選之一，**尚未選定**。不論選哪一個，本節的規則都由工具包自己的程式碼強制，並以 §8.2 的 N-17、N-18、N-32、N-33 驗證。
 
-**`JobAllowlist` 的擴充欄位**（§2.3）：`protocols`、`job_token_id`、`fencing_token`（v0.5，[03 §5.8](03-system-architecture.md#58-節點邊界規則)）、`edge_ip_ranges`（v0.4 起取自 ROE `targets[].edge_ip_ranges`）。
+**`JobAllowlist` 的擴充欄位**（§2.3）：`protocols`、`job_token_id`、`fencing_token`、`edge_ip_ranges`（取自 ROE `targets[].edge_ip_ranges`）。
 
-**選型前的原型關卡**（v0.5，[09 BL-32](09-backlog.md)，MVP-2 前）[H]：以本地拋棄式 HTTPS 目標與「越界接收器」驗證候選代理；本輪不選定產品，也不宣稱原型已通過。依上面的協定矩陣測試 Executor、ZAP、Playwright 的代理認證與信任根配置，記錄實際版本、支援與拒絕情況。必要案例：SNI／Host／`:authority` 不一致、路徑編碼與正規化差異、重複或衝突的長度標頭、越界轉址、DNS 改變、HTTP/2 多 stream 的預算、WebSocket 的核准腳本與上限、SSE 上限、租約失效與代理中斷。每個允許的案例要收到預期回應；每個禁止的案例要有拒絕紀錄，且越界接收器零命中；直接繞過出口也必須失敗。代理不支援的工具或協定標為不支援或 `MANUAL`，禁止改用直連或關閉 TLS 驗證。Executor 的必要 HTTP 工作流沒有通過就不能進 MVP-2；選用的 adapter 只在通過後啟用。U-13 依這份證據結案，之後才能宣稱實際的相容範圍。
+**選型前的原型關卡**[H]：以本地拋棄式 HTTPS 目標與「越界接收器」驗證候選代理；本輪不選定產品，也不宣稱原型已通過。依上面的協定矩陣測試 Executor、ZAP、Playwright 的代理認證與信任根配置，記錄實際版本、支援與拒絕情況。必要案例：SNI／Host／`:authority` 不一致、路徑編碼與正規化差異、重複或衝突的長度標頭、越界轉址、DNS 改變、HTTP/2 多 stream 的預算、WebSocket 的核准腳本與上限、SSE 上限、租約失效與代理中斷。每個允許的案例要收到預期回應；每個禁止的案例要有拒絕紀錄，且越界接收器零命中；直接繞過出口也必須失敗。代理不支援的工具或協定標為不支援或 `MANUAL`，禁止改用直連或關閉 TLS 驗證。Executor 的必要 HTTP 工作流沒有通過就不能進 MVP-2；選用的 adapter 只在通過後啟用。U-13 依這份證據結案，之後才能宣稱實際的相容範圍。
 
 ### 11.8 Session Provider
 
@@ -1689,7 +1636,7 @@ class SessionProvider(Protocol):
 | 投票權重 w(m,b) | 所有模型、所有桶都是 0 | 沒有計權合格票，S＝0；R3、R4 與 R5 的投票分支都不會成立 |
 | θ_confirm、θ_reject | null（視為 +∞） | 沒有靠投票得到的 `CONFIRMED_CORROBORATED`，也沒有靠權重得到的 `REJECTED` |
 | `high_precision_rules` | 空陣列 | 沒有強工具佐證，所有 SARIF 都是弱訊號 |
-| `provisional` | 每個可能由投票決定的裁決都是 true；R0／R1／R9／R10 決定的裁決（第 1–5 列）、強工具佐證決定的裁決（第 10 列，v0.5）與黑箱叢集是 false（v0.4） | 報告標示「暫定（校準前）」（`E-VERDICT-PROVISIONAL`） |
+| `provisional` | 每個可能由投票決定的裁決都是 true；R0／R1／R9／R10 決定的裁決（第 1–5 列）、強工具佐證決定的裁決（第 10 列，v0.5）與黑箱叢集是 false | 報告標示「暫定（校準前）」（`E-VERDICT-PROVISIONAL`） |
 | reviewer | 不加權 | reviewer 的貢獻只經由獨立來源數（R6）。Calibration Lab 另外量測 reviewer 的精準度，但 v0.3 不把它變成權重 |
 
 **校準前仍然會產出**：
@@ -1734,7 +1681,7 @@ class SessionProvider(Protocol):
 
 - **推理 token**：有推理模式的模型，推理 token 依該模型 `pricing.source` 所寫的計價方式計入；估算時另外預留一份與輸出上限相同的量 [H]。
 
-**`models.yaml` 的價格欄位**（v0.3）：
+**`models.yaml` 的價格欄位**：
 - `pricing`：`{input_usd_per_mtok, output_usd_per_mtok, as_of, source}`，可以是 null。**null＝價格未知**，不是免費。
 - `rate_limits`：`{rpm, tpm}`，各自可以是 null。
 - `tokenizer`：字串或 null（§11.3）。
@@ -1753,7 +1700,7 @@ class SessionProvider(Protocol):
 |---|---|---|
 | run 總額 | `budgets.run_total.max_cost_usd` 等 | 委任設定；必填，沒有就 fail-closed |
 | 階段 | `budgets.W`、`budgets.B` | 委任設定 |
-| 家族 | 每個家族的 USD 上限 | engagement 的 `budgets.families`（v0.5，[09 BL-14](09-backlog.md)）：家族名稱必須是 `models.yaml` 的家族，上限不能超過 `run_total.max_cost_usd`（`E-ENG-BUDGET`）；沒有列出的家族，上限等於所在階段的上限 |
+| 家族 | 每個家族的 USD 上限 | engagement 的 `budgets.families`：家族名稱必須是 `models.yaml` 的家族，上限不能超過 `run_total.max_cost_usd`（`E-ENG-BUDGET`）；沒有列出的家族，上限等於所在階段的上限 |
 | relay | ROE 的 `relay.max_spend_usd_per_job`、`relay.max_spend_usd_per_run` | ROE |
 | 受測應用的上游 LLM | ROE 的 `upstream_llm_providers[].spend_cap_usd` | ROE |
 
@@ -1776,19 +1723,19 @@ class SessionProvider(Protocol):
 
 | 欄位 | 內容 | 何時寫入 |
 |---|---|---|
-| `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`；已產生的是 `{path, sha256}`，`invariants` 與 `seed_manifest` 另可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}`（v0.5，見表下） | `run_init`（`invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之前才有內容） |
+| `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`；已產生的是 `{path, sha256}`，`invariants` 與 `seed_manifest` 另可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}` | `run_init`（`invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之前才有內容） |
 | `prompt_templates[]` | `{template_id, version, sha256}` | `run_init`：列出本 run 的 agent 會用到的全部範本 |
 | `tool_versions[]` | `{adapter, version, image_digest}`；工具包自有程式碼的 adapter 填 Z2 映像的 digest | 每個工具第一次執行時 |
 | `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.9`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
 | `baseline_run_id` | 計算 `baseline_state` 用的基準 run（§11.16）；null＝沒有基準 | `run start` 的選項；`followup`、`regression` 預設為 `parent_run_id`（範例跟進 run 的基準是 `run-2026-09-23-001`） |
 
-**schema 與 validator**（v0.5，[09 BL-22／BL-23](09-backlog.md)）：`config_refs` 的六個鍵都必填，不能是沒有說明的 null（`E-RUN-CONFIG`）。
+**schema 與 validator**：`config_refs` 的六個鍵都必填，不能是沒有說明的 null（`E-RUN-CONFIG`）。
 - `models`、`agents`、`tools`、`calibration` 在 `run_init` 就必須是 `{path, sha256}`。`calibration` 也一樣：校準前仍要有一份 `calibration.yaml`，`calibration.schema.json` 允許它的 `result` 是 null（Calibration Lab 還沒有結果）。
 - 尚未產生＝`{state: pending, expected_node}`：`expected_node` 必須是產生節點（`invariants` → `G1`，`seed_manifest` → `G0b`）。run 已經到達該節點或下游（`invariants`：G1 已核准或已有 W2 的切片／發現項；`seed_manifest`：已有 G0b、job 或 G3–G5 紀錄），或 run 已正常完成（`COMPLETED`、`COMPLETED_WITH_GAPS`），卻仍是 pending → 「應存在但遺失」（`E-RUN-CONFIG`）。中途結束（`ABORTED`、`FAILED`）的 run 只看它到達的節點：G1 前就中止的 run，`invariants` 可以維持 pending。
 - 不適用＝`{state: not_applicable, reason}`：`invariants` 只有 Lane A run 可以不適用；`seed_manifest` 只要 run 沒有任何 B 階段內容（G0b、job、G3–G5）就可以不適用，Lane A 與純白箱的 Lane B run 都一樣（範例的 Lane A run 就是這樣填）。
 - 已產生的項目照舊重算 hash（`E-DERIVED`）並檢查檔案種類（`E-RUN-CONFIG`）。
 
-**run 產物的生命週期**（v0.5）[H]：每個預期產物都要能區分四種狀態，不能用一個沒有說明的 null 混合表示：
+**run 產物的生命週期**[H]：每個預期產物都要能區分四種狀態，不能用一個沒有說明的 null 混合表示：
 
 | 狀態 | 要求 | 消費端 |
 |---|---|---|
@@ -1832,7 +1779,7 @@ class SessionProvider(Protocol):
 | `zdr_evidence_ref` | 文件參照或 null | 例如合約或供應商確認信的內部參照 |
 | `dpa_signed` | true 或 false | 是否已簽資料處理協議 |
 | `retention_days` | 整數或 null | 宣告的保留天數 |
-| `region` | 字串或 null | 資料處理的區域（ISO 3166-1 alpha-2）。v0.4：能收 C 級資料的雲端家族不得為 null，且要有同區域的 `data_transfer.transfers[]`（`E-ENG-TRANSFER`，[03 §8.4](03-system-architecture.md#84-資料治理)） |
+| `region` | 字串或 null | 資料處理的區域（ISO 3166-1 alpha-2）。能收 C 級資料的雲端家族不得為 null，且要有同區域的 `data_transfer.transfers[]`（`E-ENG-TRANSFER`，[03 §8.4](03-system-architecture.md#84-資料治理)） |
 
 **C 級路由規則**（`E-ENG-PROVIDER`）[H]：可能收到 C 級資料的 agent，它的模型必須符合下列其一：
 - 自架：`api_base` 的主機**完全等於** `toolkit.yaml` 的 `z4_model_hosts` 中的一項（v0.4；v0.3 只看主機名稱是否以 `z4-` 開頭，`https://z4-evil.attacker.example` 也會被當成自架）；或
@@ -1926,7 +1873,7 @@ class SessionProvider(Protocol):
 | `gap_kind`、`gap_reason` | 未能測試清單 | 有測試結果時為空 |
 
 **PR 與 issue 回饋** [H]：
-- **只由程式碼發布**：`reporter` 的 publisher 在 W5（白箱）或 B6 之後執行。預設**關閉**，由委任設定開啟（§10 U-19）。開關是 engagement 的 `publishing`（v0.5，[09 BL-17](09-backlog.md)）：`enabled: false` 時 `platform` 必須是 null、`token_scopes` 必須是空的；開啟時必須宣告平台（目前只有 `github`）與最小權限的權杖範圍，只能是 `metadata:read`、`issues:write`、`pull_requests:write`，不能有程式碼存取權（`E-ENG-PUBLISH`）。範例是關閉的。
+- **只由程式碼發布**：`reporter` 的 publisher 在 W5（白箱）或 B6 之後執行。預設**關閉**，由委任設定開啟（§10 U-19）。開關是 engagement 的 `publishing`：`enabled: false` 時 `platform` 必須是 null、`token_scopes` 必須是空的；開啟時必須宣告平台（目前只有 `github`）與最小權限的權杖範圍，只能是 `metadata:read`、`issues:write`、`pull_requests:write`，不能有程式碼存取權（`E-ENG-PUBLISH`）。範例是關閉的。
 - **每個 run 一則摘要留言**：放在 PR 上；以隱藏標記找到同一系列 run 的舊留言並更新，不重複張貼。
 - **每個問題一個 issue 或逐行留言，以指紋去重**：同一 repo 已有相同 `fingerprint` 的未關閉 issue → 更新它（加上本次 run ID 與 `baseline_state`），不開新的。`absent` → 在 issue 留言「本次未出現」，但**不自動關閉**，由人關閉。
 - **只發布**：`CONFIRMED_*`、`LIKELY`，以及嚴重度 high 以上的 `UNCORROBORATED`；其他只出現在摘要與報告中。每一則都標示是否為暫定裁決。
@@ -1939,9 +1886,9 @@ class SessionProvider(Protocol):
 - 去向：
   - 下一個 run 的 SARIF `suppressions`：`false_positive` → `accepted`；`needs_info` → `underReview`；
   - Calibration Lab 的**候選**語料，來源標為 `developer_feedback`。它不是真值，要照 [05 §5.1](05-bias-calibration.md#51-語料) 的雙標註流程確認後才能使用；確認為誤報的，也用來重新檢查 `high_precision_rules`（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)）。
-- v0.7（審查 r8 M4）：`app_owner` 是利益衝突方，所以它單獨簽署的 `false_positive` 的 `sarif_suppression` 是 `underReview`，直到一位 `security_reviewer` 以 `co_signed_by` 副簽才是 `accepted`；叢集在採用回饋的 run 中 `baseline_state: updated`（程式碼改了）時抑制失效，回到 `underReview`；被抑制的項目列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。範例 FB-001 因此是 `underReview`。
-- v0.7（審查 r9）：`false_positive` 一律要兩個人（`signed_by` 與 `co_signed_by` 不同人），其中一位是**沒有**核准該叢集 G2 決定的 `security_reviewer`；單獨一位資安審查者、或推翻自己 G2 決定的審查者，都不能單獨抑制。
-- 回饋紀錄是 `feedback.schema.json`（v0.5，[09 BL-18](09-backlog.md)；`E-FEEDBACK`）：指紋必須是所指叢集的指紋，該叢集要屬於同一委任的 run；`duplicate` 必須指向同一委任另一個叢集的指紋；`sarif_suppression` 依標籤決定（`false_positive` → `accepted`、`needs_info` → `underReview`、其他 null）；紀錄恰好有一個簽章，由 `signed_by` 的人以登錄金鑰簽署，而且這個人要有 `security_reviewer` 或 `app_owner` 角色。範例 FB-001：app_owner 把純工具叢集 K-016 標為誤報。v0.5（審查 r7 1.11）：採用回饋的 run 以一筆已錨定的 `feedback_recorded` 稽核事件記錄它（payload 釘住 `feedback_id` 與 `feedback_sha256`），簽章以該事件的收件時間驗證；範例 FB-001 由跟進 run `run-2026-10-07-001` 記錄。
+- `app_owner` 是利益衝突方，所以它單獨簽署的 `false_positive` 的 `sarif_suppression` 是 `underReview`，直到一位 `security_reviewer` 以 `co_signed_by` 副簽才是 `accepted`；叢集在採用回饋的 run 中 `baseline_state: updated`（程式碼改了）時抑制失效，回到 `underReview`；被抑制的項目列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。範例 FB-001 因此是 `underReview`。
+- `false_positive` 一律要兩個人（`signed_by` 與 `co_signed_by` 不同人），其中一位是**沒有**核准該叢集 G2 決定的 `security_reviewer`；單獨一位資安審查者、或推翻自己 G2 決定的審查者，都不能單獨抑制。
+- 回饋紀錄是 `feedback.schema.json`：指紋必須是所指叢集的指紋，該叢集要屬於同一委任的 run；`duplicate` 必須指向同一委任另一個叢集的指紋；`sarif_suppression` 依標籤決定（`false_positive` → `accepted`、`needs_info` → `underReview`、其他 null）；紀錄恰好有一個簽章，由 `signed_by` 的人以登錄金鑰簽署，而且這個人要有 `security_reviewer` 或 `app_owner` 角色。範例 FB-001：app_owner 把純工具叢集 K-016 標為誤報。採用回饋的 run 以一筆已錨定的 `feedback_recorded` 稽核事件記錄它（payload 釘住 `feedback_id` 與 `feedback_sha256`），簽章以該事件的收件時間驗證；範例 FB-001 由跟進 run `run-2026-10-07-001` 記錄。
 
 **給開發者 AI 助手的修正說明**（fix brief）[H]：每個發布的問題附一份，以確定性範本產生。
 - **內容**：桶與 CWE；位置（檔案、行、符號）；違反的 G1 不變量（原文）；證據（測試 ID、oracle 類型、請求摘要）；預期行為（取自不變量）；驗收方式（必須通過的 W4 或黑箱測試 ID）；限制（不得刪除或停用該測試，要保留回歸測試）。
@@ -1977,10 +1924,10 @@ class SessionProvider(Protocol):
 3. **可達性**：`internal` → −1；`unknown` 視同 `internet`（fail-safe），不加減。
 4. **認證需求**：`none` → ＋1；`privileged` → −1。
 5. 結果夾在 0 到 4 之間：4＝`critical`、3＝`high`、2＝`medium`、1＝`low`、0＝`info`。
-6. **無法解析的輸入**（v0.7，審查 r8 F5）：可達性未知視同 `internet`；資料等級無法對應（位置所在的 process 沒有流向任何能對應到 inventory 資料表的 data store）不加減；位置沒有對應的端點（例如 migration 檔）認證需求不加減。無法解析的輸入永遠不會降低分數。
+6. **無法解析的輸入**：可達性未知視同 `internet`；資料等級無法對應（位置所在的 process 沒有流向任何能對應到 inventory 資料表的 data store）不加減；位置沒有對應的端點（例如 migration 檔）認證需求不加減。無法解析的輸入永遠不會降低分數。
 
 - reviewer 提議的嚴重度照樣保存，報告同時列出兩者。人在 G2 或 G3 可以改，調低要附理由。
-- rubric 不改變裁決，但 v0.4 起**決定路由**：G2 佇列、W4 輸入、B2 高風險條件 4 與「只列報告的叢集」都用 rubric 嚴重度（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅)）。v0.3 用成員自報的最高嚴重度，等於讓單一家族的 LLM 決定哪些項目給人看。W3 時 DFD 只有確定性骨幹，可達性無法判定就視同 `internet`。v0.7：validator 以同一套規則推導每個叢集的 `severity`（`derive.rubric_severity`：端點由 inventory 依 `canonical_location.file` 或黑箱端點對應，process 由 DFD 的 `evidence_refs`（`endpoint:`／`code:`）對應，data store 經 `inventory:/db/tables/<i>` 對應到資料表再對應 G1 `data_classification` 的欄位前綴；`E-CLUSTER-SEVERITY`），G2 路由檢查用它（`E-PIPELINE`）。
+- rubric 不改變裁決，但 v0.4 起**決定路由**：G2 佇列、W4 輸入、B2 高風險條件 4 與「只列報告的叢集」都用 rubric 嚴重度（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)、[02 W5](02-methodology.md#w5-白箱報告dfd種子威脅)）。v0.3 用成員自報的最高嚴重度，等於讓單一家族的 LLM 決定哪些項目給人看。W3 時 DFD 只有確定性骨幹，可達性無法判定就視同 `internet`。validator 以同一套規則推導每個叢集的 `severity`（`derive.rubric_severity`：端點由 inventory 依 `canonical_location.file` 或黑箱端點對應，process 由 DFD 的 `evidence_refs`（`endpoint:`／`code:`）對應，data store 經 `inventory:/db/tables/<i>` 對應到資料表再對應 G1 `data_classification` 的欄位前綴；`E-CLUSTER-SEVERITY`），G2 路由檢查用它（`E-PIPELINE`）。
 
 #### 報告敘事 linter
 
@@ -2023,10 +1970,10 @@ W4 需要安裝相依並建置受測程式 [H]：
 - **只安裝鎖檔中的套件**，加上預先核准的測試相依（例如 Hypothesis、fast-check、pytest）。鏡像只提供通過套件存在性檢查的套件，所以幻覺套件裝不起來。
 - **停用安裝腳本**：以各套件管理器的對應選項關閉，與 [03 §2](03-system-architecture.md#2-部署與信任區) 的「預設關閉 lifecycle scripts」一致。
 - 資源上限與輸出遮罩照 Z2 的規則。
-- **測試與受測程式隔離**（v0.6，審查 r7 4.4）[H]：受測 repo 可以帶自己的 `conftest.py`、pytest 外掛、`vitest.config`／`setupFiles` 或 `sitecustomize`，在測試行程內改寫 assertion 或結果。所以：
+- **測試與受測程式隔離**[H]：受測 repo 可以帶自己的 `conftest.py`、pytest 外掛、`vitest.config`／`setupFiles` 或 `sitecustomize`，在測試行程內改寫 assertion 或結果。所以：
   - 以乾淨的設定執行：pytest 用 `-p no:cacheprovider --noconftest`、`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` 與 harness 自己的 `-c` 設定檔；vitest／jest 以 harness 的設定檔執行，忽略 repo 的 setup 檔；`PYTHONNOUSERSITE=1`，不載入 repo 的 `sitecustomize`。
   - outcome 與對照的結果**不在**受測程式的行程中判定：測試只輸出結構化的觀察結果（例如本地 Postgres 的資料列 hash、假模型的工具呼叫紀錄），由 Z2 的另一個行程依 w4-testcase 的 oracle 計算 PASS／FAIL，再寫入 `sandbox_job_end`（連同 PR1 的三個 hash）。
-  - **觀察資料的可信來源**（v0.7，審查 r8 外部 6）[H]：受測行程輸出的觀察資料仍可能被受測程式偽造，所以 oracle 只能用 harness 行程**自己取得**的觀察：本地 Postgres 由 harness 以唯讀連線直接讀（不是測試回傳的列）；假模型的工具呼叫紀錄由 harness 端的假模型伺服器寫入（受測行程只持有用戶端）；檔案系統觀察在受測行程**結束後**由 harness 讀取；受測行程對觀察資料目錄沒有寫入權限（只讀掛載）。測試結果以 `observations_source: harness | sut` 宣告來源；`sut` 的觀察只能支持 `E_inc`，不能成為 `E_proof`／`E_pass`（`derive.classify_result`），W4 結果必填（`E-W4-OBSERVATION`）。執行器的實作列在 [09 BL-50](09-backlog.md)。
+  - **觀察資料的可信來源**[H]：受測行程輸出的觀察資料仍可能被受測程式偽造，所以 oracle 只能用 harness 行程**自己取得**的觀察：本地 Postgres 由 harness 以唯讀連線直接讀（不是測試回傳的列）；假模型的工具呼叫紀錄由 harness 端的假模型伺服器寫入（受測行程只持有用戶端）；檔案系統觀察在受測行程**結束後**由 harness 讀取；受測行程對觀察資料目錄沒有寫入權限（只讀掛載）。測試結果以 `observations_source: harness | sut` 宣告來源；`sut` 的觀察只能支持 `E_inc`，不能成為 `E_proof`／`E_pass`（`derive.classify_result`），W4 結果必填（`E-W4-OBSERVATION`）。執行器的實作列在 [09 BL-50](09-backlog.md)。
   - 受測程式寫入結果目錄以外的檔案一律丟棄。
 
 #### 前端 bundle 中的公開前綴 secret
@@ -2037,7 +1984,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 
 #### 具名的 PII 偵測器
 
-- **用在**：W0 的個資掃描（v0.5，審查 2026-10-25 C-10：[02 W0](02-methodology.md#w0-盤點與-secrets-遮罩確定性無-llm) 第 2a 步要求，v0.4 的本節與里程碑都沒有列入；命中的值與 secrets 一樣進遮罩對照表，只存位置與 HMAC）、黑箱回應的 PII 停止條件（[03 §7.3](03-system-architecture.md#73-限速與停止條件)）、relay 與 scripted 多輪的目標回應、fix brief 與 PR 發布前的掃描、報告輸出前的掃描。
+- **用在**：W0 的個資掃描、黑箱回應的 PII 停止條件（[03 §7.3](03-system-architecture.md#73-限速與停止條件)）、relay 與 scripted 多輪的目標回應、fix brief 與 PR 發布前的掃描、報告輸出前的掃描。
 - **候選**：Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]）。它依賴的語言模型等套件另有授權，採用前要逐一登錄（未查證）。**尚未選定**（§10 U-16）。
 - **未決定前的預設** [H]：工具包自己的規則式偵測器，涵蓋 email、電話號碼、信用卡號（加 Luhn 檢查）、常見的身分證號格式（加檢查碼）。「高信心命中」＝樣式符合，而且檢查碼正確。
 - 偵測器在 Z1 與 Z3 都要能用，所以放在 `pii` 模組（L2，不依賴 Z1 的模組；§1.2）。偵測器本身不連網。
@@ -2046,11 +1993,11 @@ W4 需要安裝相依並建置受測程式 [H]：
 
 - report-manifest 的 `metrics` 由 validator 以本 run 的測試結果重算：`results_total`、`results_invalid`、`control_pass_rate`（PASS 的對照結果數 ÷ 全部對照結果數，四捨五入到小數 4 位；沒有對照時為 null）（`E-REPORT-METRICS`）。範例報告是 5 個結果（含 W4 的 R-WTC-015-01-1）、0 個 `INVALID`、`control_pass_rate` 1.0。
 - v0.5（[09 BL-20](09-backlog.md)）另有三個指標，也由 validator 重算：`access_matrix_coverage`（本 run 的 testcase 與 w4-testcase 以 `access_cells` 宣告涵蓋的 G1 矩陣格子 ÷ 總格數，每格必須在矩陣中，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`（handler 檔案在本 run 切片中的端點 ÷ 總數）、`endpoint_test_coverage`（被黑箱 testcase 的 `request_allowlist` 打到的端點，方法與路徑樣板都相同 ÷ 總數）。範例是 1.0、0.8571、0.8571；新增的排程工作沒有切片也沒有測試。
-- v0.5（審查 r7，外部審查 5）：上面兩個測試覆蓋率只代表**計畫**，所以拿掉全部測試結果仍是 1.0 與 0.8571。改名為 `planned_access_matrix_coverage`、`planned_endpoint_test_coverage`，並新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`：只算至少有一個有效執行結果的測試案例（outcome 為 PASS 或 FAIL，INVALID／ERROR／SKIPPED／STOPPED 不算；對照全部 PASS；本 run 稽核紀錄中恰好一筆已錨定的 `sandbox_job_end`，outcome 與三個 hash 相符，`checks.execution_backed`）。報告正文必須把 planned 與 executed 並列；只寫其中一個不符合報告契約。`endpoint_slice_coverage` 量的是 W3 實際審查的切片，名稱不變。
+- 上面兩個測試覆蓋率只代表**計畫**，所以拿掉全部測試結果仍是 1.0 與 0.8571。改名為 `planned_access_matrix_coverage`、`planned_endpoint_test_coverage`，並新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`：只算至少有一個有效執行結果的測試案例（outcome 為 PASS 或 FAIL，INVALID／ERROR／SKIPPED／STOPPED 不算；對照全部 PASS；本 run 稽核紀錄中恰好一筆已錨定的 `sandbox_job_end`，outcome 與三個 hash 相符，`checks.execution_backed`）。報告正文必須把 planned 與 executed 並列；只寫其中一個不符合報告契約。`endpoint_slice_coverage` 量的是 W3 實際審查的切片，名稱不變。
 
 **里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。
 
-### 11.18 受測系統的準備檢核表（v0.7，審查 r9）[H]
+### 11.18 受測系統的準備檢核表[H]
 
 新的受測系統在第一次 B 階段之前，逐項確認下面各點；任一項沒有，B 階段只做 S0 或不開始，原因寫入 `gaps`。散在 ROE 樣板（[04 §7](04-threat-to-testcase.md)）、[03 §7](03-system-architecture.md#7-黑箱執行安全) 與本章的要求集中在這裡：
 
@@ -2066,5 +2013,5 @@ W4 需要安裝相依並建置受測程式 [H]：
 | 快照與還原能力（S2） | `restore_drill` | 不核准 S2 |
 | 支援的框架與平台（§11.1 支援矩陣） | W0 盤點與切片 | 列入 `blind_spots`；主要框架不支援時不建議使用本工具包 |
 
-- **W4 的 MANUAL 需求**（v0.7，審查 r9）：`run.w4_manual_requirements` 會免除 W4 測試，所以列入的每一條要在 G4 由 `security_reviewer` 逐項核准，未核准的 MANUAL 視同沒有 W4 測試；schema 欄位與 validator 檢查尚未實作（BL-59）。
-- **執行時釘住的結果 hash**（v0.7，審查 r9）：`sandbox_job_end` 的 `result_sha256` 在 job 結束時計算，那時還沒有 B5 Result Analyst 的 `interpreted_by`／`interpretation`；實作時釘的是去掉這兩個欄位的測試結果 hash，解讀另由 `verdict_changed` 錨定。範例是事後一起簽的，所以目前兩者相同（BL-59）。
+- **W4 的 MANUAL 需求**：`run.w4_manual_requirements` 會免除 W4 測試，所以列入的每一條要在 G4 由 `security_reviewer` 逐項核准，未核准的 MANUAL 視同沒有 W4 測試；schema 欄位與 validator 檢查尚未實作（BL-59）。
+- **執行時釘住的結果 hash**：`sandbox_job_end` 的 `result_sha256` 在 job 結束時計算，那時還沒有 B5 Result Analyst 的 `interpreted_by`／`interpretation`；實作時釘的是去掉這兩個欄位的測試結果 hash，解讀另由 `verdict_changed` 錨定。範例是事後一起簽的，所以目前兩者相同（BL-59）。

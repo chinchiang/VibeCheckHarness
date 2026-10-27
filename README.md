@@ -1,6 +1,6 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
-> **狀態**：設計文件 v0.5（2026-10-25，依[設計審查](docs/evidence/review-2026-10-25.md)把 v0.5 分支的寫入範圍收緊與執行期契約併入 v0.4）；之後的[第七輪](docs/evidence/review-2026-10-25-r7.md)與[第八輪](docs/evidence/review-2026-10-26-r8.md)審查（2026-10-25／26）只改 validator、schema 與個別章節，文件版本不變，裁決規則版本升到 `05-v0.7`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。v0.4（2026-10-24，依[設計審查](docs/evidence/review-2026-10-24.md)分五輪修正 v0.3：裁決規則與 validator、資料出境與信任錨、路線圖與人工關卡負擔、寫入範圍、威脅對照表與範例；v0.3 於 2026-09-26 依[深度審查](docs/evidence/review-2026-09-26.md)修正 v0.2；變更見 [CHANGELOG](CHANGELOG.md)）。v0.2（2026-09-24）起可據以實作：每個階段／關卡／元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。工具包本身**尚未實作**；本 repo 另附可執行的資料模型驗證器與參考演算法（`tools/`）。v0.1：2026-09-23。
+> **狀態**：設計文件，第十輪審查（2026-10-27）後；裁決規則版本 `05-v0.9`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十輪；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
 > **第一次讀**：先看 [docs/00 總覽](docs/00-overview.md)（端到端流程、自動與人工的分界、依角色的閱讀路徑）。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
 > **語言**：正體中文；證據原文保留英文（見 [`docs/evidence/ledger.md`](docs/evidence/ledger.md)）。
@@ -126,13 +126,30 @@
 | `config_pins` | 設定檔釘選 | 委任設定記錄 `models／agents／tools／licenses／calibration／crosswalk／toolkit.yaml` 七份設定的內容 hash；改設定就要重簽（`E-ENG-CONFIG-PIN`） |
 | Lite／Team／Full | 保證等級 | 單人、團隊、完整三種模式；職責分離與允許的安全等級不同，安全底線相同，見 [02 §1.7](docs/02-methodology.md#17-保證等級liteteamfull) |
 | P／C 級 | 資料等級 | P＝公開或合成資料；C＝機密資料（未標記即視為 C；只能送到委任設定允許的模型，見 [03 §8](docs/03-system-architecture.md)） |
+| Audit Writer | 稽核寫入者 | Z1 中唯一寫稽核紀錄的服務；關卡、金鑰與時間窗都以它的收件時間判定 |
+| `anchor_counter` | 錨點編號 | Z3 對本委任每個副簽錨點的遞增編號（跨所有 run）；缺號代表有錨點被刪掉（`E-AUDIT-ANCHOR-GAP`），見 [03 §13.1](docs/03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh) |
+| `run_end` 錨點 | 結束錨點 | run 結束時的最後一個錨點；之後不能再有任何行（`E-AUDIT-TAIL`） |
+| base lineage／root | 基底血統／根 | 依 models.yaml 的 `derived_from` 追到底的血統；獨立性、多樣性與分數 S 都以根計算 |
+| `root_score` | 根分數 | S＝各根一個觀察的加總；根內票立場一致時取最強的一票，見 [05 §4.3](docs/05-bias-calibration.md#43-投票加權) |
+| abstention | 棄權 | 驗證者不表態；校準時當作擲硬幣（半對半錯）計入，棄權率超過 `abstain_rate_max` 時該邊權重為 0 |
+| Calibration Lab | 校準實驗室 | 以人標註語料估計每個模型在每個 CWE 桶的權重與門檻的流程，見 [05 §5](docs/05-bias-calibration.md#5-calibration--bias-lab) |
+| `carried_from` | 沿用來源 | 跟進或回歸 run 沿用祖先 run 的叢集或關卡決定時，指回來源的欄位（`E-CLUSTER-CARRY`、`E-RUN-G1`） |
+| followup／regression run | 跟進／回歸 run | 由上一個 run 的跟進草稿建立、帶 `parent_run_id` 的 run；回歸 run 重測已修正的問題 |
+| `cluster_sha256`／`gate_record_sha256` | 內容釘選 | 裁決釘住叢集、`gate_decision` 釘住關卡紀錄的 content hash；之後改內容就對不上 |
+| `observations_source` | 觀察來源 | W4 結果的觀察從哪裡讀：`harness`（可信）或 `sut`（受測程式自己的輸出，只能是 `E_inc`） |
+| `pr_origin` | PR 來源 | Lane A run 的 PR 來自本 repo（`same_repo`）或 fork；fork 不做 LLM 審查 |
+| spot check（`item_kind`） | 抽查（項目種類） | ASI09 的獨立重看：關卡紀錄（g1～g5）、裁決、叢集或回饋；Lite 沒有抽查 |
+| checkpoint | 檢查點 | Run Controller 在關卡等待時保存的狀態，續跑時從這裡開始 |
+| `technical_proof` | 技術證明 | 共享平台目標除了平台專案證明之外，部署提供的 token 或回應標頭 |
+| `db_comment` | 資料庫註解證明 | DB 目標的所有權證明：token 放在 `COMMENT ON DATABASE`，Z3 以唯讀憑證讀出 |
+| infrastructure_owner | 基礎設施擁有者 | ROE 的必要簽署角色，證明對受測環境有權限 |
 
 ## 快速驗證本 repo 的資料模型
 
 ```bash
 python -m pip install -r requirements.lock      # CI 用的精確版本；requirements.txt 是版本範圍
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 1256 個測試，約 8–15 分鐘
+python -m pytest tests                 # 1271 個測試，約 8–15 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點

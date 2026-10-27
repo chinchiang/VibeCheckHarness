@@ -8,6 +8,13 @@
 
 依 2026-10-27 設計審查（第十輪）：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的 5 項由主審查者重跑 probe 確認。
 
+### 文件整併（PR3）
+- **02～08 開頭的變更摘要**（共 432 行，九輪累積）原文移到 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)（標題降一級、相對連結改寫）；每份文件改以一段「現況」開頭，寫明目前的裁決規則版本。
+- **版本標籤**：規範性文字中「v0.x：」「v0.x（審查 rN …）：」與「（v0.x）」之類的前綴與括號標籤拿掉（02～08 與 schemas README，約 400 處）；說明「為什麼這樣規定」的句子仍可提到舊版本的行為。帶標籤的標題改名（06 §1.8～1.10、03 §6.5、04 §6.3、07 §1.4、08 §5.4、§11、§11.18、schemas README 三個小節），所有連結跟著改。
+- **README**：狀態列改寫（停在第八輪、`05-v0.7`）；術語表補上第八～十輪的詞彙（Audit Writer、`anchor_counter`、`run_end` 錨點、基底血統、`root_score`、棄權、Calibration Lab、`carried_from`、跟進／回歸 run、內容釘選、`observations_source`、`pr_origin`、抽查、checkpoint、`technical_proof`、`db_comment`、infrastructure_owner）。
+- **零散修正**：03 §6.5 的 G2 人數與 02 §1.7 一致（兩人規則只在 G5）；Lite 報告標示「未經獨立抽查」（00、02 §1.7）；`RunStatus.SUSPENDED` 的註解加上 ROE 在 B 階段到期；08 U-18 標為已處理；whoami 失敗的 job 是 `SKIPPED` 不是 `MANUAL`；03 §13.1 的尾端保護寫進 `run_end` 規則與錨點編號；04 §7 樣板補上 `db_comment` 與 `technical_proof`；Haiku 4.5 的退役日改為已過；09 §4.1 的標題層級；第八輪 validator 測試數更正為 57。
+- 新增 `tests/test_v07_r10_docs.py`（15 個）與 `tests/mutations/r10_docs.json`；第九輪 `03 rule_version history` 突變錨點改指新的歷程寫法。
+
 ### 裁決與校準（PR2；`rule_version` 改為 `05-v0.9`）
 - **S 每個根取最強的一票**：同根的票立場一致時取 |w| 最大者（`derive.root_score`）；第九輪取平均，同根多一張較弱的支持票會把 S 拉到 θ 以下。
 - **棄權當作擲硬幣**：一張棄權票以半對半錯計入正確率、ā 與 Wilson 下界（`checks.effective_counts`）；`abstain_rate_max` 保留為硬上限。範例權重下降（nemotron_self authz support 1.4633 → 1.3179、claude_sonnet 1.4425 → 1.2853），兩個根的支持仍跨過 θ_confirm 2.5，範例裁決狀態不變、分數改變；engagement 的 `config_pins.calibration` 重算。
@@ -122,7 +129,7 @@
   - Lane A run 必填 `pr_origin`；fork 的 PR 沒有裁決、叢集與 advisories，其他 run 的 `lane_a_advisories` 只能引用 same_repo 的 Lane A 叢集（`E-RUN-LANE-A`；M6）。
 - schema：testcase `rate_limit.max_requests_per_trial`、`trials.sampling`；cluster `severity`；run `pr_origin`。
 - 文件：02 §1.5、§1.6、W3；03 §12；04 §5；05 §4；06 §1.1；08 §11.7、§11.17；schemas README 的錯誤碼表。
-- 新增 `tests/test_v07_r8_validator.py`（55 個測試，48 個在 `e5fa57d` 上失敗）。
+- 新增 `tests/test_v07_r8_validator.py`（57 個測試，含參數化；48 個在 `e5fa57d` 上失敗。第十輪更正：原寫 55 個）。
 
 ## 第七輪審查（2026-10-25）
 
