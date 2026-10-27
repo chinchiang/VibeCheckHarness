@@ -30,13 +30,6 @@
       "k": "zero_queue_cap"
     },
     {
-      "name": "M4 owner needs cosign",
-      "file": "tools/vchlib/checks.py",
-      "old": "    if \"security_reviewer\" not in roles:\n        return \"underReview\"",
-      "new": "    if False:\n        return \"underReview\"",
-      "k": "owners_false_positive_is_under_review"
-    },
-    {
       "name": "M4 cosigner role",
       "file": "tools/vchlib/checks.py",
       "old": "                R.check(cs.get(\"role\") == \"security_reviewer\" and cs.get(\"person_id\") != sb.get(\"person_id\"), \"E-FEEDBACK\", w,",

@@ -21,7 +21,7 @@ V014 = "verdict.k-014-w3.example.json"
 
 
 def test_rule_version():
-    assert adj.RULE_VERSION == "05-v0.7"           # bumped again by review r7 group 3
+    assert adj.RULE_VERSION == "05-v0.8"           # bumped again by review r9 PR2
 
 
 # ================================================================ R4 diversity floor

@@ -2,11 +2,22 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.7`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.8`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
 
 ## 第九輪審查（2026-10-27）
 
 依第九輪設計審查：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（2 項，都重現）。審查紀錄在本輪最後一個 PR 加入。
+
+### 投票的獨立性與校準（PR2；`rule_version` 改為 `05-v0.8`）
+- **S 以基底血統計**：同一個根的計權合格票取平均（`derive.root_score`）；v0.7 讓 claude_sonnet＋claude_opus 兩張同根支持票相加跨過 θ_confirm，單一血統就能確認。
+- **血統宣告一致**（外部審查 2）：同一血統的模型宣告相同的 `derived_from`（`E-MODEL-LINEAGE`）；根不再依 models.yaml 的順序而變。
+- **機率型只判定一次**（外部審查 1）：FAIL 的重播規則用分類時的判定；有機率型訊號的測試必須宣告 `trials.sampling: sampled`（`E-TC-TRIALS`）。
+- **W4 事先登記證明要求作者獨立**：回報家族自己寫、自己審的 W4 測試，FAIL 需要合格的 Result Analyst，否則是 `E_fail_u`。
+- **θ 的 §5.7 限制重算**（`checks.theta_problems`，`E-CAL-THETA`）；θ_confirm 高於該桶任何單張支持票的權重。
+- **棄權率**：校準的每一邊記 `n_abstain`，棄權率 ＞ `abstain_rate_max`（0.3）→ near_zero（`E-CAL-WEIGHT`）。範例每邊約 9% 棄權，權重不變；engagement 的 `config_pins.calibration` 重算。
+- **誤報抑制要兩個人**：其中一位是沒有在 G2 決定該叢集的 security_reviewer。
+- 文件：00、03、04 §4.4、05（摘要、§4.3、§5.7、§5.10、R2 說明與舊的平滑公式）、08、schemas README、verdict schema。
+- 新增 `tests/test_v07_r9_verdict.py`（20 個）與 `tests/mutations/r9_verdict.json`；斷言目前規則版本的四個既有測試改為 `05-v0.8`；第八輪兩份突變清單的錨點跟著改（`ext2` 改指新的 sampling 檢查，`M4` 由本輪的兩個 FP 突變取代）。
 
 ### 錨定的根因（PR1）
 - **回捲已完成的 run**（致命，不需金鑰）：Z3 對每個副簽的錨點編上本委任的遞增編號 `payload.anchor_counter`（在副簽範圍內）；所有 run 的編號必須連續、依收件時間遞增（`E-AUDIT-ANCHOR-GAP`）。v0.7 第八輪的錨點清單是從稽核檔推回 run 紀錄的，只控制 Z1 的人能把已完成的 run 截回較早的錨點、刪掉 B4 證據、G5、B5 裁決與報告，validator 零錯誤。06 §3 #16「尾端截斷只能截到最後一個錨點」的說法更正。

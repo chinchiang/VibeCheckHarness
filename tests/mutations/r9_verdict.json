@@ -1,0 +1,124 @@
+{
+  "tests": "tests/test_v07_r9_verdict.py",
+  "mutations": [
+    {
+      "name": "roots: mean per root",
+      "file": "tools/vchlib/derive.py",
+      "old": "    return round(sum(sum(xs) / len(xs) for xs in by_root.values()), 4)",
+      "new": "    return round(sum(sum(xs) for xs in by_root.values()), 4)",
+      "k": "root_score_counts"
+    },
+    {
+      "name": "roots: votes grouped by base lineage",
+      "file": "tools/vchlib/derive.py",
+      "old": "            terms.append((root, wgt * STANCE.get(vote.get(\"stance\"), 0)))",
+      "new": "            terms.append((vote.get(\"voter_agent_id\"), wgt * STANCE.get(vote.get(\"stance\"), 0)))",
+      "k": "two_votes_of_one_root"
+    },
+    {
+      "name": "lineage: one derived_from per lineage",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(len(decl) == 1, \"E-MODEL-LINEAGE\", \"models.yaml\",",
+      "new": "        R.check(True, \"E-MODEL-LINEAGE\", \"models.yaml\",",
+      "k": "contradictory_derived_from"
+    },
+    {
+      "name": "lineage: order-independent parents",
+      "file": "tools/vchlib/derive.py",
+      "old": "        parent = self.lineage_parents()\n        seen = set()",
+      "new": "        parent = {m.get(\"lineage\"): m.get(\"derived_from\") for m in self.models.values()\n                  if isinstance(m, dict) and isinstance(m.get(\"derived_from\"), str)}\n        seen = set()",
+      "k": "root_does_not_depend"
+    },
+    {
+      "name": "probabilistic: one judgement for the replay rule",
+      "file": "tools/vchlib/derive.py",
+      "old": "        ok, why = fail_reproduced(tc, tr, probabilistic)",
+      "new": "        ok, why = fail_reproduced(tc, tr)",
+      "k": "silent_replay"
+    },
+    {
+      "name": "probabilistic: signals declare sampled",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(tr.get(\"sampling\") == \"sampled\", \"E-TC-TRIALS\", w,",
+      "new": "                R.check(tr.get(\"sampling\") != \"deterministic\", \"E-TC-TRIALS\", w,",
+      "k": "declares_sampled"
+    },
+    {
+      "name": "theta: min_clusters",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if not (num(cs.get(\"n\")) and cs[\"n\"] >= ts.get(\"min_clusters\", 0)):",
+      "new": "            if False:",
+      "k": "search_limits"
+    },
+    {
+      "name": "theta: confirm precision floor",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if not (num(cs.get(\"precision\")) and cs[\"precision\"] >= floor):",
+      "new": "                if False:",
+      "k": "search_limits"
+    },
+    {
+      "name": "theta: confirm holdout",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if t.get(\"generalised\") is True and not (num(ho.get(\"precision\")) and ho[\"precision\"] >= floor - 0.05):",
+      "new": "                if False:",
+      "k": "search_limits"
+    },
+    {
+      "name": "theta: reject true-defect share",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if not (num(cs.get(\"precision\")) and 1 - cs[\"precision\"] <= cap + 1e-9):",
+      "new": "                if False:",
+      "k": "reject_limits"
+    },
+    {
+      "name": "theta: reject Wilson upper",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if not (num(cs.get(\"ci_low\")) and 1 - cs[\"ci_low\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
+      "new": "                if False:",
+      "k": "reject_limits"
+    },
+    {
+      "name": "theta: above any single vote",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if num(top) and val <= top:",
+      "new": "        if False:",
+      "k": "above_any_single_vote"
+    },
+    {
+      "name": "W4 author independence",
+      "file": "tools/vchlib/derive.py",
+      "old": "        if preregistered(ix, tc, tr, \"oracle_can_pass\") and authors_independent(ix, tr, cluster):",
+      "new": "        if preregistered(ix, tc, tr, \"oracle_can_pass\"):",
+      "k": "reporting_family"
+    },
+    {
+      "name": "abstention rate",
+      "file": "tools/vchlib/checks.py",
+      "old": "                                            (\"abstain_rate_gt_max\", abstain_rate(x) > nz.get(\"abstain_rate_max\", 1))) if hit]",
+      "new": "                                            (\"abstain_rate_gt_max\", False)) if hit]",
+      "k": "abstains_too_often"
+    },
+    {
+      "name": "FP: two people",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if len({x.get(\"person_id\") for x in people}) < 2:",
+      "new": "    if False:",
+      "k": "single_security_reviewer"
+    },
+    {
+      "name": "FP: reviewer did not decide at G2",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if not any(x.get(\"role\") == \"security_reviewer\" and x.get(\"person_id\") not in deciders for x in people):",
+      "new": "    if not any(x.get(\"role\") == \"security_reviewer\" for x in people):",
+      "k": "g2_approver_of_the_cluster"
+    },
+    {
+      "name": "rule_version",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "RULE_VERSION = \"05-v0.8\"",
+      "new": "RULE_VERSION = \"05-v0.7\"",
+      "k": "rule_version"
+    }
+  ]
+}

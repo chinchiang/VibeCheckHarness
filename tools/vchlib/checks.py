@@ -1261,6 +1261,11 @@ def g_models(R: Report, c: Ctx):
     # stops where the cycle closes), so two mutually derived lineages counted as independent and verified each other
     for cyc in c.ix.lineage_cycles():
         R.error("E-MODEL-LINEAGE", "models.yaml", f"derived_from cycle {' -> '.join(cyc + cyc[:1])}: a lineage cannot derive from itself")
+    # v0.7 (review r9, external review 2): derived_from describes the lineage, so all its models declare the same parent;
+    # v0.7 kept the last declaration in file order, and reordering models.yaml changed the root (and with it who may verify whom)
+    for lin, decl in sorted(c.ix.lineage_declarations().items()):
+        R.check(len(decl) == 1, "E-MODEL-LINEAGE", "models.yaml",
+                f"lineage {lin!r}: its models declare different derived_from {sorted(decl, key=str)}; every model of a lineage declares the same one")
     lineages = {m.get("lineage") for m in models.values() if isinstance(m, dict)}
     for mk, m in models.items():
         if isinstance(m, dict) and isinstance(m.get("derived_from"), str):
@@ -2254,8 +2259,10 @@ def g_testcases(R: Report, c: Ctx):
                 R.check(isinstance(tr.get("n"), int) and tr.get("n") >= need, "E-TC-TRIALS", w,
                         f"a probabilistic test ({'; '.join(signals)}) declares n {tr.get('n')}: it needs "
                         f"n >= {need}, the effective trials a PASS requires")
-                R.check(tr.get("sampling") != "deterministic", "E-TC-TRIALS", w,
-                        f"trials.sampling deterministic contradicts the target ({'; '.join(signals)}): an LLM feature is sampled whatever tool drives it")
+                # v0.7 (review r9, external review 1): and declares it; an unset sampling hid the contract from the reader
+                R.check(tr.get("sampling") == "sampled", "E-TC-TRIALS", w,
+                        f"trials.sampling {tr.get('sampling')!r} contradicts the target: a test with probabilistic signals "
+                        f"({'; '.join(signals)}) declares sampling sampled (an LLM feature is sampled whatever tool drives it)")
             # v0.7 (review r8, external review 1): the per-trial cap the Scope Proxy enforces, so the replay budget is a bound
             trl = tc.get("rate_limit") or {}
             per = trl.get("max_requests_per_trial")
@@ -2286,8 +2293,8 @@ FEEDBACK_SUPPRESSION = {"false_positive": "accepted", "needs_info": "underReview
 
 
 def feedback_suppression(c: Ctx, f: dict) -> str | None:
-    """v0.7 (review r8 M4): the SARIF suppression a feedback record earns. false_positive -> accepted only when a
-    security_reviewer signed or co-signed it: an app_owner is the party with the conflict of interest, so its own
+    """v0.7 (review r8 M4; r9): the SARIF suppression a feedback record earns. false_positive -> accepted only when two
+    people signed it (signer and co_signed_by), one a security_reviewer who did not approve the cluster's G2 decision: an app_owner is the party with the conflict of interest, so its own
     false_positive stays underReview until a reviewer co-signs (co_signed_by). The suppression also lapses (underReview)
     when the adopting run's cluster with the same fingerprint is baseline_state updated: the code changed, review again."""
     label = f.get("label")
@@ -2295,8 +2302,18 @@ def feedback_suppression(c: Ctx, f: dict) -> str | None:
         return "underReview"
     if label != "false_positive":
         return None
-    roles = {(f.get("signed_by") or {}).get("role"), (f.get("co_signed_by") or {}).get("role")}
-    if "security_reviewer" not in roles:
+    # v0.7 (review r9): two people, one of them a security_reviewer who did not decide this cluster at G2. v0.7 let a single
+    # security_reviewer suppress alone, including the one whose G2 decision the false positive overturns
+    people = [x for x in (f.get("signed_by"), f.get("co_signed_by")) if isinstance(x, dict)]
+    if len({x.get("person_id") for x in people}) < 2:
+        return "underReview"
+    cl = c.ix.first("cluster", cluster_id=f.get("cluster_id"), run_id=f.get("run_id"))
+    deciders = set()
+    if cl is not None:
+        for g in c.ix.gate_records(cl.data.get("run_id"), "G2"):
+            if any(x.get("item_id") == f.get("cluster_id") for x in g.data.get("decisions") or []):
+                deciders |= {a.get("person_id") for a in g.data.get("approvers") or []}
+    if not any(x.get("role") == "security_reviewer" and x.get("person_id") not in deciders for x in people):
         return "underReview"
     rec = feedback_record_event(c, f)
     if not isinstance(rec, str):
@@ -4287,6 +4304,62 @@ def lr_weights(tpr: float, tnr: float) -> dict:
     return {"support": ln_ratio(tpr, 1 - tnr), "refute": ln_ratio(tnr, 1 - tpr)}
 
 
+def abstain_rate(side: dict) -> float:
+    na, n = side.get("n_abstain", 0), side.get("n", 0)
+    return na / (n + na) if isinstance(na, int) and isinstance(n, int) and n + na > 0 else 0.0
+
+
+def theta_problems(cal: dict) -> list[tuple[str, str]]:
+    """v0.7 (review r9): the docs/05 §5.7 limits, recomputed from each feasible threshold's split statistics. v0.7 read
+    `feasible` and `generalised` as declared, so two booleans on a threshold measured on 5 clusters at precision 0.5 switched
+    on the confirm branch. Confirm: n >= min_clusters, precision >= confirm_precision_floor, Wilson lower >=
+    confirm_wilson_lower_floor, and generalised only when the holdout precision is within 0.05 of the floor. Reject (the
+    statistics describe the rejected clusters: 1 - precision is the true-defect share, 1 - ci_low its Wilson upper):
+    n >= min_clusters, 1 - precision <= reject_true_defect_max, 1 - ci_low <= reject_wilson_upper_max, and generalised only
+    when the holdout share is within 0.05. And a bucket's theta_confirm is above every single vote's support weight in
+    that bucket, or one vote confirms (docs/05 §4.3: "one vote is not enough")."""
+    cfg, res = cal.get("config") or {}, cal.get("result") or {}
+    ts = cfg.get("threshold_search") or {}
+    out = []
+    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
+    for name in ("theta_confirm", "theta_reject"):
+        th = (res.get("thresholds") or {}).get(name) or {}
+        for label, t in [(name, th)] + [(f"{name}/{b}", x) for b, x in (th.get("by_bucket") or {}).items()]:
+            if not isinstance(t, dict) or t.get("feasible") is not True:
+                continue
+            cs, ho = t.get("calibration") or {}, t.get("holdout") or {}
+            if not (num(cs.get("n")) and cs["n"] >= ts.get("min_clusters", 0)):
+                out.append((label, f"feasible on {cs.get('n')} clusters: the search needs min_clusters {ts.get('min_clusters')}"))
+            if name == "theta_confirm":
+                floor = ts.get("confirm_precision_floor", 0)
+                if not (num(cs.get("precision")) and cs["precision"] >= floor):
+                    out.append((label, f"feasible at precision {cs.get('precision')}: below confirm_precision_floor {floor}"))
+                if not (num(cs.get("ci_low")) and cs["ci_low"] >= ts.get("confirm_wilson_lower_floor", 0)):
+                    out.append((label, f"feasible with Wilson lower {cs.get('ci_low')}: below confirm_wilson_lower_floor "
+                                       f"{ts.get('confirm_wilson_lower_floor')}"))
+                if t.get("generalised") is True and not (num(ho.get("precision")) and ho["precision"] >= floor - 0.05):
+                    out.append((label, f"generalised with holdout precision {ho.get('precision')}: below {floor} - 0.05"))
+            else:
+                cap = ts.get("reject_true_defect_max", 0)
+                if not (num(cs.get("precision")) and 1 - cs["precision"] <= cap + 1e-9):
+                    out.append((label, f"feasible with true-defect share {None if not num(cs.get('precision')) else round(1 - cs['precision'], 4)}: "
+                                       f"above reject_true_defect_max {cap}"))
+                if not (num(cs.get("ci_low")) and 1 - cs["ci_low"] <= ts.get("reject_wilson_upper_max", 0) + 1e-9):
+                    out.append((label, f"feasible with Wilson upper {None if not num(cs.get('ci_low')) else round(1 - cs['ci_low'], 4)}: "
+                                       f"above reject_wilson_upper_max {ts.get('reject_wilson_upper_max')}"))
+                if t.get("generalised") is True and not (num(ho.get("precision")) and 1 - ho["precision"] <= cap + 0.05 + 1e-9):
+                    out.append((label, f"generalised with holdout true-defect share above {cap} + 0.05"))
+    for b, t in (((res.get("thresholds") or {}).get("theta_confirm") or {}).get("by_bucket") or {}).items():
+        val = t.get("value") if isinstance(t, dict) else None
+        if not num(val):
+            continue
+        top = max((((r.get("support") or {}).get("w") or 0) for r in res.get("weights") or []
+                   if isinstance(r, dict) and r.get("cwe_bucket") == b), default=0)
+        if num(top) and val <= top:
+            out.append((f"theta_confirm/{b}", f"value {val} <= {top}, the largest single support weight of the bucket: a single vote confirms"))
+    return out
+
+
 def g_calibration(R: Report, c: Ctx):
     cal, w = c.calibration, "calibration.yaml"
     if not cal:
@@ -4324,7 +4397,9 @@ def g_calibration(R: Report, c: Ctx):
             n, cc = x.get("n", 0), x.get("correct", 0)
             reasons[sk] = [r for r, hit in (("w_below_min", lr[sk] < nz.get("w_min", 0)),
                                             ("wilson_lower_le_max", wilson_lower(cc, n) <= nz.get("wilson_lower_max", 0)),
-                                            ("n_below_min", n < nz.get("n_min", 0))) if hit]
+                                            ("n_below_min", n < nz.get("n_min", 0)),
+                                            # v0.7 (review r9): abstaining on the hard cases kept the accuracy, and the weight, high
+                                            ("abstain_rate_gt_max", abstain_rate(x) > nz.get("abstain_rate_max", 1))) if hit]
         both_ok = not any(reasons.values())       # v0.6: each weight needs both rates, so an unreliable side zeroes both
         for sk, x in sides.items():
             where = f"{w} weights {mk}/{row.get('cwe_bucket')}/{sk}"
@@ -4352,6 +4427,8 @@ def g_calibration(R: Report, c: Ctx):
                     "E-CAL-THETA", w, f"{label}: value {val!r} must be a finite number >= {THETA_MIN}")
         for label, t in per:
             R.check(t.get("by_bucket") is None, "E-CAL-THETA", w, f"{label}: a bucket threshold has no by_bucket of its own")
+    for label, msg in theta_problems(cal):
+        R.error("E-CAL-THETA", w, f"{label}: {msg}")
     for arm in cfg.get("arms", []):
         R.check(arm.get("exploratory") is (arm.get("arm") == "5"), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: only arm 5 is exploratory")
         R.check(set(arm.get("model_keys", [])) <= set(keys), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: unknown model keys")
