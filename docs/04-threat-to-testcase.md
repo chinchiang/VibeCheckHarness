@@ -472,6 +472,10 @@ SHARED_PLATFORM_SUFFIXES = {
     "supabase.co": "supabase", "vercel.app": "vercel", "netlify.app": "netlify",
     "firebaseapp.com": "firebase", "web.app": "firebase", "onrender.com": "render",
     "pages.dev": "other", "fly.dev": "other", "herokuapp.com": "other",
+    "lovable.app": "other", "replit.app": "other", "repl.co": "other",
+    "workers.dev": "other", "github.io": "other", "gitlab.io": "other",
+    "amplifyapp.com": "other", "azurewebsites.net": "other", "azurestaticapps.net": "other",
+    "railway.app": "other", "glitch.me": "other", "deno.dev": "other",
 }
 
 
@@ -1076,7 +1080,7 @@ db_access:
 | `validity` | `not_before`、`not_after`、時間窗 | 每個接觸網路的步驟都檢查 |
 | `targets` | 目標 ID、base URL、環境（`staging`，或我方控制的 `tester_controlled`，例如 canary）、所有權證明方式（`ownership_proof.method`）、**`build_identity`**（H-B4） | base URL 必須 https（localhost、127.0.0.1、[::1] 才可 http；違反 → `E-ROE-URL`，整份 ROE 被拒絕）；DNS TXT／well-known token 由 `B0_ownership_verify` 經 Scope Proxy 驗證，並在每個 `B4_preflight` 重驗；Scope Proxy 白名單 |
 | ├ `build_identity`（每個 target） | `method`（`header`｜`endpoint`｜`none`）＋`header_name`／`path`／`json_pointer`。web 目標範例 `method: header, header_name: x-build-sha`（H-B4） | `method ≠ none` 時，`testresult.observed_build_id` 必須等於 run 的 `repo_commit`（完整或 12+ 字前綴），否則 `E-RESULT-BUILD`；`method: none` 時該目標列入報告的 `build_unverified_targets[]`；`environment: tester_controlled` 的目標（例如 `tgt-canary`）不是受測系統，不列入 |
-| ├ `ownership_proof`（每個 target） | 一般主機用 `dns_txt`／`well_known_path`；**共享平台網域**（`*.supabase.co`、`*.vercel.app`、`*.netlify.app`、`*.firebaseapp.com`、`*.web.app`、`*.onrender.com`、`*.pages.dev`、`*.fly.dev`、`*.herokuapp.com`）改用 `method: platform_project`（`platform`、`project_ref`、`evidence_ref`）（H-D3） | 主機落在共享平台網域清單時，`dns_txt`／`well_known_path` **不被接受**：必須用 `platform_project` 且有對應的 `platform_policies` 條目，否則 `E-ROE-PLATFORM` |
+| ├ `ownership_proof`（每個 target） | 一般主機用 `dns_txt`／`well_known_path`；**共享平台網域**（v0.7 審查 r9：與 `safety.SHARED_PLATFORM_SUFFIXES` 相同的 21 個：`*.supabase.co`、`*.vercel.app`、`*.netlify.app`、`*.firebaseapp.com`、`*.web.app`、`*.onrender.com`、`*.pages.dev`、`*.fly.dev`、`*.herokuapp.com`、`*.lovable.app`、`*.replit.app`、`*.repl.co`、`*.workers.dev`、`*.github.io`、`*.gitlab.io`、`*.amplifyapp.com`、`*.azurewebsites.net`、`*.azurestaticapps.net`、`*.railway.app`、`*.glitch.me`、`*.deno.dev`）改用 `method: platform_project`（`platform`、`project_ref`、`evidence_ref`）（H-D3） | 主機落在共享平台網域清單時，`dns_txt`／`well_known_path` **不被接受**：必須用 `platform_project` 且有對應的 `platform_policies` 條目，否則 `E-ROE-PLATFORM` |
 | `platform_policies`（頂層） | 每個共享平台一筆：`platform`、`policy_url`（uri）、`accepted_by`（person_id）、`accepted_at`、`restrictions[]`（H-D3） | 使用 `platform_project` 的目標必須有相符的 `platform_policies` 條目（`E-ROE-PLATFORM`）；`accepted_by` 須為已登錄人員 |
 | `test_roles` | 測試角色與憑證參照（存在 Z3 secret store）；每個角色的 `login`（`mfa`／`captcha_bypass`／`idp`）、`whoami`、`storage_state_encrypted: true`（H-E8） | 測試案例只能使用列出的角色；`captcha_bypass: blocked` 或 `idp: oauth_third_party` 而無 staging 測試 IdP → 該角色的 job `SKIPPED`（文件層）；validator 檢查每個被測試案例使用的角色都有 `whoami`（`E-ROE-WHOAMI`） |
 | ├ `login`、`whoami`（每個角色） | `login`：`method`、`target_id`，以及 `mfa`（`none`｜`totp`｜`other`）、`captcha_bypass`（`not_needed`｜`staging_bypass_token`｜`blocked`）、`idp`（`local`｜`oauth_third_party`｜`saml`｜`other`）；`whoami` 與 `login` 並列（不在 `login` 內）：`path`、`expect_json_pointer`、`expect_value_from_role`，或 null（H-E8） | 每批開始前以 `whoami` 確認角色身分（見 [03 §7.4](03-system-architecture.md#74-測試帳號與-session-providerz3)）；storageState 一律加密 |
