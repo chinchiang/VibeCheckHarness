@@ -2,7 +2,22 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八輪審查這一批變更。目前：設計文件 v0.5，`rule_version 05-v0.7`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.7`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）。
+
+## 第九輪審查（2026-10-27）
+
+依第九輪設計審查：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（2 項，都重現）。審查紀錄在本輪最後一個 PR 加入。
+
+### 錨定的根因（PR1）
+- **回捲已完成的 run**（致命，不需金鑰）：Z3 對每個副簽的錨點編上本委任的遞增編號 `payload.anchor_counter`（在副簽範圍內）；所有 run 的編號必須連續、依收件時間遞增（`E-AUDIT-ANCHOR-GAP`）。v0.7 第八輪的錨點清單是從稽核檔推回 run 紀錄的，只控制 Z1 的人能把已完成的 run 截回較早的錨點、刪掉 B4 證據、G5、B5 裁決與報告，validator 零錯誤。06 §3 #16「尾端截斷只能截到最後一個錨點」的說法更正。
+- **run 紀錄跟著稽核檔**：`run.status` 是最後一筆 `run_status_changed` 的 `to`（`E-RUN-STATUS`）；已錨定的 `run_created` 釘住 `repo_commit`，run 與 W0 inventory 必須相同（`E-RUN-COMMIT`）。
+- **未錨定的 `verdict_changed` 不是裁決**（`E-AUDIT-VERDICT`）。
+- **裁決釘住叢集、叢集釘住發現項**：verdict 新增 `cluster_sha256`、cluster 新增 `member_finding_sha256`（推導）；v0.7 第八輪在裁決之後改寫成員發現項不會被發現。帶入的叢集不能有自己的成員（`E-CLUSTER-CARRY`）。
+- **裁決鏈**：白箱與 tool_only 叢集的第一版一定是 `W3_adjudicate`（`E-VERDICT-PHASE`）；`G2_apply` 版本一定引用決定該叢集的 G2 紀錄（`E-VERDICT-G2`）。
+- **種子威脅**：W5 的 `artifact_stored` 釘住 seed-threats 的 content hash（`E-AUDIT-ARTIFACT`）；種子的來源叢集屬於種子文件的 run（`E-TRACE-SEED`）。
+- **job**：B 階段的 `sandbox_job_*` 都要對應 `run.jobs`，完成的 run 對 G4 核准的每個測試案例都有 job（`E-JOB-AUDIT`）。
+- 文件：02 §1.6、03 §5.4 `run_init` 與 §13.1、06 §1.8 完整性矩陣與 §3 #16、schemas README 錯誤碼表。
+- 新增 `tests/test_v07_r9_anchor.py`（20 個）與 `tests/mutations/r9_anchor.json`（15 個突變）；`test_v02_hardening` 的兩個「進行中 run」測試改用真正未完成的跟進 run（把已完成的 run 標成 RUNNING 現在是 `E-RUN-STATUS`）。
 
 ## 第八輪審查（2026-10-26）
 

@@ -751,7 +751,7 @@ stateDiagram-v2
 
 | 節點 | 區 | LLM | 冪等鍵／副作用 | 失敗邊 |
 |---|---|---|---|---|
-| `run_init` | Z1 | 否 | `run_id`；建立 run 紀錄（已存在就略過）、寫 `run_created` | 設定不合法 → `FAILED` |
+| `run_init` | Z1 | 否 | `run_id`；建立 run 紀錄（已存在就略過）、寫 `run_created`（v0.7 審查 r9：payload 釘住 `repo_commit`，§13.1） | 設定不合法 → `FAILED` |
 | `G0a_engagement_check` | Z1 | 否 | 純驗證；寫 `engagement_verified`／`engagement_verify_failed` | → `ABORTED` |
 | `W0_inventory` | Z2 | 否 | Sandbox job ID；輸出寫 CAS | → `FAILED` |
 | `LA_static`、`LA_diff_review` | Z2、Z1 | 否、可選單一家族 | job ID、LLM 請求快取 | 失敗只標示 PR 檢查失敗 |
@@ -1338,7 +1338,9 @@ erDiagram
 - **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件以 `{seq, line_sha256}` 寫入 run 紀錄的 `audit_anchors`（Postgres）：`seq` 是該錨點事件的序號，`line_sha256` 是該錨點事件**自己那一行**原始位元組（不含換行）的 sha256；因為這一行含 `prev_hash`，錨點同時承諾它之前的整條鏈；可選擇另外寫到 WORM 儲存或外部系統 [H]。
 - **Z3 副簽**（v0.4；v0.5 擴充）：每個 `audit_anchor` 的 `payload.z3_countersignature` 是 Z3 Executor 服務金鑰（金鑰登錄中角色 `z3_executor` 的 `z3-executor`）對 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`) 的 Ed25519 簽章；`domain` 固定為 `vibecheck/audit_anchor/v2`，`event_sha256` 是錨點事件本身（去掉 `payload.z3_countersignature`）的 JCS 的 sha256。v0.4 只簽 `{run_id, seq, prev_hash}`，最後一個錨點自己的 `ts`、`payload` 可以改而不被發現（後面沒有行用 `prev_hash` 釘住它）；v0.5 起錨點本身也被簽章蓋住（審查 2026-10-25 T-9）。validator 以金鑰登錄驗證，缺少或無效 → `E-AUDIT-ANCHOR-SIG`。
 - **Z3 簽之前先核對**（v0.5，T-9）[H]：v0.4 的 Z3 只看 `seq` 是否遞增、`prev_hash` 是否接得上，看不到鏈的內容，所以 run 進行中控制 Z1 的人可以先偽造幾行再請 Z3 簽。v0.5 起 Run Controller 送的是**上一個錨點之後的原始行**：Z3 自己保存上一個錨點的 hash，重算這一段的 `prev_hash` 鏈，並核對其中 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權驗證結果）與它的 job 帳本和輸出紀錄逐筆一致，才簽。限制：Z1 自己產生的事件（例如 `gate_decision`、`verdict_changed`）Z3 無法判斷真假，副簽只證明「這些行在簽章時已經存在，之後沒有被改」。
-- **未錨定的行不是證據**（v0.5，V-7）[H]：最後一個 `audit_anchor` 之後的行還沒有 Z3 副簽，任何能寫 Z1 的人都能附加。裁決用到的工具輸出（`sarif_refs` 解析到的 `tool_invocation_end`）必須在最後一個錨點之前，否則該參照不成立（`E-SARIF-REF`，不計入佐證）。
+- **未錨定的行不是證據**（v0.5，V-7）[H]：最後一個 `audit_anchor` 之後的行還沒有 Z3 副簽，任何能寫 Z1 的人都能附加。裁決用到的工具輸出（`sarif_refs` 解析到的 `tool_invocation_end`）必須在最後一個錨點之前，否則該參照不成立（`E-SARIF-REF`，不計入佐證）。v0.7（審查 r9）擴及裁決本身：一版裁決的 `verdict_changed` 在最後一個錨點之後，就還不是裁決（`E-AUDIT-VERDICT`），也不提供收件時間。
+- **錨點編號**（v0.7，審查 r9）[H]：Z3 Executor 對本委任每個副簽的錨點編上遞增的 `payload.anchor_counter`（1、2、3…，依收件順序，跨所有 run；計數器存在 Z3，不在 Z1）。編號在副簽範圍內（`event_sha256` 蓋住 payload）。validator 檢查所有 run 的編號不重複、不缺號、依收件時間遞增（`E-AUDIT-ANCHOR-GAP`）。v0.7 第八輪的錨點清單是從稽核檔推回 run 紀錄的，所以只控制 Z1 的人可以把已完成的 run 截回較早的錨點、刪掉之後產生的未簽署文件，validator 看不出來；現在被刪掉的編號會在之後的錨點（同一個 run 或其他 run）留下缺號。限制：委任中**最後**幾個錨點被截掉時，沒有之後的錨點可以比對；報告交付給客戶時附上當下的編號（§1.7 的外部錨點）才看得出來。
+- **run 紀錄跟著稽核檔**（v0.7，審查 r9）[H]：`run.status` 是最後一筆 `run_status_changed` 的 `to`，有 `run_end` 錨點的 run 一定是終止狀態（`E-RUN-STATUS`）；已錨定的 `run_created` 釘住 `repo_commit`，run 紀錄與 W0 inventory 必須相同（`E-RUN-COMMIT`）；W5 的 `artifact_stored` 釘住種子威脅的 content hash（`E-AUDIT-ARTIFACT`）；裁決以 `cluster_sha256` 釘住叢集，叢集以 `member_finding_sha256` 釘住成員發現項，所以已錨定的 `verdict_changed` 蓋住它所裁決的發現項。
 - **每個裁決版本都要有事件**（v0.5）：每一版裁決在其叢集所屬 run 的稽核檔中都要有一筆 `verdict_changed`（`payload.verdict_id` 與 `status` 相符）；沒有 → `E-AUDIT-VERDICT`。v0.4 只檢查已存在的事件，所以刪掉事件就能讓不一致的裁決躲過比對。
 - **B4 job 對帳**（v0.5，審查 2026-10-25 V-9）：`run.jobs` 中的 job、稽核檔的 `sandbox_job_start`／`sandbox_job_end` 與測試結果三者一致：有事件的 job 不能是 `SKIPPED`；已執行的 job（`EXECUTED`、`RESTORED`、`RESTORE_FAILED`）要有 `sandbox_job_end`，也要有 `job_id` 相符、`outcome` 與事件相同的測試結果（`E-JOB-AUDIT`）。v0.4 從不對帳，刪掉 FAIL 的結果再把 job 標成 `SKIPPED` 就能通過。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。

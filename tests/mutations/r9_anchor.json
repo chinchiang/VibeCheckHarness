@@ -1,0 +1,110 @@
+{
+  "tests": "tests/test_v07_r9_anchor.py",
+  "mutations": [
+    {
+      "name": "rollback: anchor counter gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "    for p in ([] if c.broken_audit_runs else anchor_counter_problems(counters)):",
+      "new": "    for p in []:",
+      "k": "counter_gap"
+    },
+    {
+      "name": "status: last run_status_changed",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(run.get(\"status\") == want, \"E-RUN-STATUS\", f\"run {rid}\",",
+      "new": "    R.check(True, \"E-RUN-STATUS\", f\"run {rid}\",",
+      "k": "run_end_anchor_is_terminal or last_status_change"
+    },
+    {
+      "name": "verdict: verdict_changed must be anchored",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(min(seqs) <= anchored_seqs(evs), \"E-AUDIT-VERDICT\", v.path,",
+      "new": "            R.check(True, \"E-AUDIT-VERDICT\", v.path,",
+      "k": "unanchored_tail_is_not_a_verdict"
+    },
+    {
+      "name": "members: cluster pins member findings",
+      "file": "tools/vchlib/derive.py",
+      "old": "            exp(d, [\"member_finding_sha256\"], shas, \"content hash of each member finding (member_finding_ids order)\")",
+      "new": "            pass",
+      "k": "editing_a_member_finding"
+    },
+    {
+      "name": "members: verdict pins its cluster",
+      "file": "tools/vchlib/derive.py",
+      "old": "                exp(d, [\"cluster_sha256\"], content_hash(cl.data), \"content hash of the cluster the verdict adjudicates\")",
+      "new": "                pass",
+      "k": "editing_a_member_finding"
+    },
+    {
+      "name": "members: carried cluster has no members",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(not k.get(\"member_finding_ids\"), \"E-CLUSTER-CARRY\", w,",
+      "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
+      "k": "carried_cluster_has_no_members"
+    },
+    {
+      "name": "phase: first version is W3",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(phase == \"W3_adjudicate\", \"E-VERDICT-PHASE\", w,",
+      "new": "                R.check(True, \"E-VERDICT-PHASE\", w,",
+      "k": "first_version"
+    },
+    {
+      "name": "phase: G2_apply names its G2 record",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(lid is not None and v.get(\"g2_decision_ref\") == lid, \"E-VERDICT-G2\", d.path,",
+      "new": "                    R.check(True, \"E-VERDICT-G2\", d.path,",
+      "k": "g2_apply_version"
+    },
+    {
+      "name": "seed: artifact_stored pins the seed threats",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(seq <= last and len(seeds) == 1 and content_hash(seeds[0].data) == sha, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
+      "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
+      "k": "moving_the_seed"
+    },
+    {
+      "name": "seed: seed threats need an anchored event",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(any(seq <= last for seq, _ in stored), \"E-AUDIT-ARTIFACT\", sd.path,",
+      "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", sd.path,",
+      "k": "moving_the_seed"
+    },
+    {
+      "name": "seed: source cluster of the seed's run",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(cl is None or cl.data.get(\"run_id\") == d.data.get(\"run_id\"), \"E-TRACE-SEED\", d.path,",
+      "new": "            R.check(True, \"E-TRACE-SEED\", d.path,",
+      "k": "moving_the_seed"
+    },
+    {
+      "name": "commit: run record vs run_created",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(run.get(\"repo_commit\") == pinned, \"E-RUN-COMMIT\", f\"run {rid}\",",
+      "new": "        R.check(True, \"E-RUN-COMMIT\", f\"run {rid}\",",
+      "k": "rewriting_the_run_commit"
+    },
+    {
+      "name": "commit: inventory vs run_created",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(inv.data.get(\"repo_commit\") == pinned, \"E-RUN-COMMIT\", inv.path,",
+      "new": "                R.check(True, \"E-RUN-COMMIT\", inv.path,",
+      "k": "inventory_of_another_commit"
+    },
+    {
+      "name": "jobs: orphan sandbox_job event",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(jid in jobs, \"E-JOB-AUDIT\", f\"{w} seq {e.get('seq')}\",",
+      "new": "            R.check(True, \"E-JOB-AUDIT\", f\"{w} seq {e.get('seq')}\",",
+      "k": "orphan_sandbox_job"
+    },
+    {
+      "name": "jobs: approved testcase has a job",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(x.get(\"item_id\") in have, \"E-JOB-AUDIT\", w,",
+      "new": "                    R.check(True, \"E-JOB-AUDIT\", w,",
+      "k": "approved_testcase"
+    }
+  ]
+}

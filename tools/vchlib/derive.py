@@ -924,7 +924,44 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
             if len(sl) == 1:
                 exp(d, ["slice_id"], sl[0], "the slice of the same run")
 
+    # v0.7 (review r9 members): a cluster pins its member findings and a verdict pins its cluster, so the anchored
+    # verdict_changed (verdict_sha256) covers the findings it adjudicated. v0.6 let anyone with Z1 write access edit a
+    # member finding after the verdict and re-derive the unsigned fields without any error
+    for d in ix.docs("cluster"):
+        with guard(d):
+            shas = []
+            for fid in d.data.get("member_finding_ids") or []:
+                f = ix.first("finding", finding_id=fid)
+                shas.append(content_hash(f.data) if f else None)
+            exp(d, ["member_finding_sha256"], shas, "content hash of each member finding (member_finding_ids order)")
+    for d in ix.docs("verdict"):
+        with guard(d):
+            cl = ix.first("cluster", cluster_id=d.data.get("cluster_id"))
+            if cl:
+                exp(d, ["cluster_sha256"], content_hash(cl.data), "content hash of the cluster the verdict adjudicates")
+
     if for_writer:
+        # v0.7 (review r9 rollback, seed, commit): values only the writer fills in; the reader checks them with dedicated
+        # codes (E-AUDIT-ANCHOR-GAP, E-AUDIT-ARTIFACT, E-RUN-COMMIT). The Z3 executor numbers every anchor it
+        # countersigns, engagement-wide and in receive order, so a run cut back to an earlier anchor leaves a gap
+        anchors = sorted(((timeutil.sort_key(e.get("ts")), str(e.get("run_id")), i, a) for a in ix.audit_docs()
+                          for i, e in enumerate(a.data) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"),
+                         key=lambda x: x[:3])
+        for n, (_, _, i, a) in enumerate(anchors, start=1):
+            exp(a, [i, "payload", "anchor_counter"], n, "engagement-wide anchor counter of the Z3 executor (receive order)")
+        for a in ix.audit_docs():
+            for i, e in enumerate(a.data):
+                if not isinstance(e, dict):
+                    continue
+                rid, p = e.get("run_id"), e.get("payload") or {}
+                if e.get("event_type") == "run_created":
+                    r = ix.first("run", run_id=rid)
+                    if r is not None:
+                        exp(a, [i, "payload", "repo_commit"], r.data.get("repo_commit"), "the commit the run tests (E-RUN-COMMIT)")
+                if e.get("event_type") == "artifact_stored" and p.get("artifact") == "seed-threats":
+                    sd = ix.first("seed-threats", run_id=rid)
+                    if sd is not None:
+                        exp(a, [i, "payload", "sha256"], content_hash(sd.data), "content hash of the run's seed threats (E-AUDIT-ARTIFACT)")
         # writer-only: the reader checks these with dedicated codes (E-CLUSTER-FINGERPRINT,
         # E-RESULT-PRECONDITION, E-RESULT-CONTROLS) so a tampered value is reported by its rule
         for d in ix.docs("cluster"):

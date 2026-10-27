@@ -29,5 +29,6 @@
   "rule_version": "05-v0.7",
   "rule_trace": [
     "R9:lane_a->cap UNCORROBORATED,advisory"
-  ]
+  ],
+  "cluster_sha256": "sha256:2f659c7a4d8a14bc56434bf0f76eaafc701e245fbd142160cfe2eb82847dbdb4"
 }

@@ -126,13 +126,13 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-TC-SEEDS`（v0.5 補充） | `seed_manifest_ref` 必填，且等於 ROE 的 `db_access.seed_manifest_ref`；沒有 manifest，安全等級計算看不到種子、`state_changing_reads` 與 `read_only_endpoints` |
 | `E-AUDIT-ANCHOR-SIG` | v0.4：每個 `audit_anchor` 的 `payload.z3_countersignature` 必須是金鑰登錄中 `z3-executor`（角色 `z3_executor`）對 JCS(`{run_id, seq, prev_hash}`) 的有效簽章；v0.5 改為 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`)，`domain` 為 `vibecheck/audit_anchor/v2`，`event_sha256` 蓋住錨點事件本身（去掉副簽） |
 | `E-SIG-BACKDATED` | v0.4：委任設定或 ROE 的簽章金鑰後來以非 `compromised` 原因撤銷時，該文件第一次被驗章（G0a／G0b 紀錄的收件時間）必須早於 `revoked_at`；v0.5 對 `not_after` 也一樣（首次驗章時金鑰已到期，或從未驗章而登錄顯示已到期） |
-| `E-AUDIT-VERDICT` | `verdict_changed` 必須與裁決相符；v0.5：每一版裁決在其叢集所屬 run 的稽核檔中都必須有一筆 `verdict_changed` |
+| `E-AUDIT-VERDICT` | `verdict_changed` 必須與裁決相符；v0.5：每一版裁決在其叢集所屬 run 的稽核檔中都必須有一筆 `verdict_changed`；v0.7（審查 r9）：那一筆必須在最後一個 `audit_anchor` 之前（未錨定的行不是證據，所以還不是裁決）；裁決以 `cluster_sha256` 釘住叢集、叢集以 `member_finding_sha256` 釘住成員發現項，裁決之後改寫發現項也會讓這個比對失敗 |
 | `E-VERDICT-CHAIN` | v0.5：同一叢集的裁決版本以 `supersedes_verdict_id` 形成單一線性鏈（不自我取代、不循環、不分岔、恰好一個最新版） |
-| `E-VERDICT-PHASE` | v0.5：`readjudicated_by` 不能倒填：黑箱叢集只有 B5 版本；W3 版本不取代任何版本；階段只能往後；收件時間晚於 W4／B4 測試結果的版本至少是 W4／B5；審查 r7 1.2：B5 版本的收件時間晚於所連 B4 job 的 `sandbox_job_end` |
+| `E-VERDICT-PHASE` | v0.5：`readjudicated_by` 不能倒填：黑箱叢集只有 B5 版本；W3 版本不取代任何版本；v0.7（審查 r9）：白箱與 tool_only 叢集的第一版一定是 `W3_adjudicate`（標成 `G2_apply` 會跳過 G2 路由檢查）；階段只能往後；收件時間晚於 W4／B4 測試結果的版本至少是 W4／B5；審查 r7 1.2：B5 版本的收件時間晚於所連 B4 job 的 `sandbox_job_end` |
 | `E-ID-DUP` | v0.5：同一種文件（run、verdict、cluster、finding、testcase、testresult、threat、gate-record、report-manifest、slice）的 ID 不能重複 |
 | `E-CLUSTER-BINDING` | v0.5：白箱叢集的 `canonical_location.file` 是成員證據的檔案、sink 落在成員證據的行範圍內、`file::name` 形式的 symbol 屬於該檔案、`cwe_bucket` 是某個成員 CWE 的桶（`facets.CWE_BUCKETS`）；同一 run 的叢集指紋不重複；審查 r7 1.6：同一個 run 內，一個發現項只能是一個叢集的成員 |
 | `W-CLUSTER-BUCKET` | v0.5（警告）：成員的 CWE 都不在 `facets.CWE_BUCKETS`，`cwe_bucket` 無法檢查 |
-| `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10）；審查 r8 F2a／F2b：每個 B4 結果的 job 必須在已執行的狀態（PENDING、EXECUTING、INTERRUPTED、STOPPED 的 job 不能有結果），每個 job 恰有一份結果，而且每一份結果都要有恰一筆已錨定、outcome 與三個 hash 都相符的 `sandbox_job_end`（不只是同一 job 的最後一份）；`derive.classify_result` 對沒有已錨定執行事件的結果一律給 `E_inc` |
+| `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10）；審查 r8 F2a／F2b：每個 B4 結果的 job 必須在已執行的狀態（PENDING、EXECUTING、INTERRUPTED、STOPPED 的 job 不能有結果），每個 job 恰有一份結果，而且每一份結果都要有恰一筆已錨定、outcome 與三個 hash 都相符的 `sandbox_job_end`（不只是同一 job 的最後一份）；`derive.classify_result` 對沒有已錨定執行事件的結果一律給 `E_inc`；審查 r9：B 階段的每個 `sandbox_job_*` 事件都要對應 `run.jobs` 的 job（拿掉 job 與它的 FAIL 結果，已錨定的 `sandbox_job_end` 不再被忽略），完成的 run 對 G4 核准的每個測試案例都有 job（已執行或 SKIPPED） |
 | `E-RESULT-G4`、`E-RESULT-G5`、`E-RESULT-WINDOW`、`E-RUN-G4` | 審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 |
 | `E-REPORT-QUEUE` | v0.4（BL-26）：`report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id）；v0.6（審查 r7 4.5）：清單也重算完整性：每個威脅被 G3 判為 over_cap 的種子都要列出 |
 | `E-ROE-EDGE-RANGE` | v0.4（BL-15）：`targets[].edge_ip_ranges` 只用於 http 目標，每項是主機位元為 0 的 CIDR，且不與任何非公開網段重疊 |
@@ -163,7 +163,11 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ENG-CONFIG-PIN`（v0.7 補充，審查 r8 M1） | `config_pins` 另釘 `toolkit`（toolkit.yaml）；`E-TOOLKIT`：`gate_queues.g2/g3/g4_max_items` ≥ 1 |
 | `E-FEEDBACK`（v0.7 補充，審查 r8 M4） | `sarif_suppression` 由 `checks.feedback_suppression` 推導：`false_positive` 只有在 `signed_by` 或 `co_signed_by` 是 `security_reviewer` 時才是 `accepted`，否則 `underReview`；採用 run 中同指紋叢集 `baseline_state: updated` 時回到 `underReview`；副簽者是 `security_reviewer` 且不是簽署者本人；signatures 依序對應 signed_by、co_signed_by |
 | `E-GATE-OUTCOME`（v0.7 補充，審查 r8 M3） | `assurance_profile: lite` 的 G2 決定只能是 accept／needs_info |
-| `E-CLUSTER-CARRY`（v0.7，審查 r8 外部 5） | `carried_from` 只在 followup／regression run 中、指向 parent run 的叢集，fingerprint、桶、家族、血統相同；parent 有同指紋叢集而本 run 的叢集沒有 `carried_from` → 報錯。帶入的叢集沒有本 run 的成員，不做成員綁定與家族檢查 |
+| `E-AUDIT-ANCHOR-GAP`（v0.7，審查 r9） | Z3 對每個副簽的錨點編上本委任的遞增編號 `payload.anchor_counter`（在副簽範圍內）：所有 run 的錨點編號必須是 1、2、3…不重複、不缺號，而且依收件時間排序。只控制 Z1 的人把一個 run 截回較早的錨點（刪掉 B4 證據、G5、B5 裁決與報告）時，之後的錨點已經用過被刪掉的編號，所以會留下缺號 |
+| `E-RUN-STATUS`（v0.7，審查 r9） | `run.status` 必須是稽核檔最後一筆 `run_status_changed` 的 `to`（第一筆之前是 `RUNNING`）；稽核檔有 `run_end` 錨點的 run 一定是終止狀態。v0.7 第八輪只看 run 紀錄自填的狀態，把已完成的 run 改回 RUNNING 就能在 `run_end` 錨點之後繼續附加未錨定的行 |
+| `E-RUN-COMMIT`（v0.7，審查 r9） | 已錨定的 `run_created` 事件以 `payload.repo_commit` 釘住 run 測試的 commit；run 紀錄與本 run 的 W0 inventory 必須是同一個 commit（`E-RESULT-BUILD` 再拿它比對觀察到的 build） |
+| `E-AUDIT-ARTIFACT`（v0.7，審查 r9） | W5 的 `artifact_stored`（`artifact: seed-threats`）以 `payload.sha256` 釘住種子威脅文件：事件必須已錨定，本 run 恰有一份 hash 相符的 seed-threats；有 seed-threats 的 run 必須有這筆事件。v0.7 第八輪只讀種子文件自填的 `run_id`，把它改成另一個 run 就關掉了本 run 的管線檢查 |
+| `E-CLUSTER-CARRY`（v0.7，審查 r8 外部 5） | `carried_from` 只在 followup／regression run 中、指向 parent run 的叢集，fingerprint、桶、家族、血統相同；parent 有同指紋叢集而本 run 的叢集沒有 `carried_from` → 報錯。帶入的叢集沒有本 run 的成員，不做成員綁定與家族檢查；v0.7（審查 r9）：有成員 → 報錯（v0.7 第八輪允許掛成員卻不檢查證據綁定） |
 | `E-W4-OBSERVATION`（v0.7，審查 r8 外部 6） | W4 結果宣告 `observations_source`（harness／sut）；`sut` 的結果在 `classify_result` 只能是 `E_inc` |
 | `E-CLUSTER-ORIGIN` | white_box 叢集要有成員與程式位置；tool_only 叢集（v0.5，BL-13）沒有成員、`tool_report_refs` 至少一筆能解析，`sarif_refs` 不能含回報或同一工具的結果，其他 origin 的 `tool_report_refs` 為空；black_box 叢集要有 threat_id（該威脅沒有 source_cluster_id）與 `canonical_location.endpoint`；沒有來源叢集的威脅，其測試結果（FAIL、PASS、INVALID 都一樣）記在該威脅的 black_box 叢集 |
 | `E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | 指紋＝sha256(JCS({cwe_bucket, file, symbol}))（black_box：{cwe_bucket, target_id, method, path_template}）；`baseline_state` 依 run `baseline_run_id` 推導；report `absent_fingerprints` |
@@ -285,7 +289,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 |---|---|
 | `E-VERDICT-ANNOTATIONS` | `annotations` 的 kind 集合必須等於裁決規則重算的結果 |
 | `E-VERDICT-CALIBRATION` | 裁決的 `calibration_version` 必須等於 calibration.yaml 的 `calibration_version` |
-| `E-VERDICT-G2` | 有 `g2_decision_ref` 時必須是決定該叢集的最新 G2 紀錄；沒有時（且不是 `W3_adjudicate` 的版本），該叢集不能已有 G2 紀錄 |
+| `E-VERDICT-G2` | 有 `g2_decision_ref` 時必須是決定該叢集的最新 G2 紀錄；沒有時（且不是 `W3_adjudicate` 的版本），該叢集不能已有 G2 紀錄；v0.7（審查 r9）：`G2_apply` 版本一定要引用決定該叢集的 G2 紀錄 |
 | `E-VERDICT-PROOF` | CONFIRMED_EXECUTABLE 的 `executable_proof.interpretation_confirmed_by` 有值時，其家族不能是叢集的家族之一 |
 | `E-VERDICT-STATUS` | `status`、`status_cap`、`advisory` 必須等於 docs/05 §4.2 規則（`vchlib.adjudicate`）重算的結果 |
 | `E-VERDICT-TRACE` | `rule_trace` 的規則序列必須等於重算的規則序列 |
@@ -396,7 +400,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-TRACE-DFD` | 威脅的 `dfd_elements` 必須存在於 merged DFD，且型別相同 |
 | `E-TRACE-INVARIANT` | invariants.yaml 每條不變量的 `signoff`（`gate_record_id` 與狀態）必須與 G1 紀錄的決定相符 |
 | `E-TRACE-REQUIREMENT` | `source: invariant` 的 requirement 必須與 invariants.yaml 的項目完全相同；其他 requirement 的 source、ref、level 必須與 baseline 項目相符 |
-| `E-TRACE-SEED` | seed-threats 每個種子的叢集、裁決、威脅、狀態與 CWE 桶必須互相相符 |
+| `E-TRACE-SEED` | seed-threats 每個種子的叢集、裁決、威脅、狀態與 CWE 桶必須互相相符；v0.7（審查 r9）：來源叢集屬於種子文件的 run |
 | `E-TRACE-THREAT-REVIEW` | 威脅的 `review.status` 與 `gate_record_id` 必須與決定它的 G3 紀錄相符（accept → ACCEPTED，reject／over_cap → REJECTED，其他 → NEEDS_INFO）；以 `carried_from` 沿用的決定指向來源紀錄（v0.7） |
 | `E-THREAT-LLM-LINK` | ACCEPTED 的威脅不能有 llm-suggested 的對照連結 |
 | `E-XWALK-DUP` | crosswalk.yaml 的連結（from_scheme、from_id、target_scheme、target_id）不能重複 |

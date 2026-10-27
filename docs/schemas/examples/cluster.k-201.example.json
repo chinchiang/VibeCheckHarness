@@ -31,5 +31,6 @@
   "baseline_state": null,
   "reopened": false,
   "severity": "high",
-  "carried_from": null
+  "carried_from": null,
+  "member_finding_sha256": []
 }

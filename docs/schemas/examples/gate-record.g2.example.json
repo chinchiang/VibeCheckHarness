@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "disputed_clusters",
-    "sha256": "sha256:5d2fefe2754a8558a9aeedf65fd8452e1cdb8334c650a24785a6c0d50926f5ca"
+    "sha256": "sha256:52b0e131d25a8375a3488fa8b3f11042331b2fec007346601c7101a2d23e322f"
   },
   "job_id": null,
   "g4_gate_record_id": null,
@@ -22,7 +22,7 @@
   "decisions": [
     {
       "item_id": "K-011",
-      "item_sha256": "sha256:df14514f2959a83a9dd3d6a7d63bcf5a4c669f4501052eae9e6b1825975b4d36",
+      "item_sha256": "sha256:ebce848afb584900264b8decf79ba9e4682215ee252bd9f7ea56aaea9db54b8f",
       "decision": "accept",
       "risk_override": null,
       "note": "高嚴重度、只有一個家族回報；保留進 B 階段以測試驗證",
@@ -30,7 +30,7 @@
     },
     {
       "item_id": "K-015",
-      "item_sha256": "sha256:67cc29433974c2fa0c2de3898a591cfdded217daf16af863b1d62109ffd4c7a9",
+      "item_sha256": "sha256:cb9077210d30a019c8a75a713a506a3362822a20c0b7ed668337ee63a9968b44",
       "decision": "accept",
       "risk_override": null,
       "note": "RLS 未啟用的表；保留給 W4 的本地 RLS 測試與 B 階段驗證",
@@ -38,7 +38,7 @@
     },
     {
       "item_id": "K-016",
-      "item_sha256": "sha256:fc5815155142a930c50939973a4b4f9e14c538ee79ed52d5dc00e0ccd1d9a476",
+      "item_sha256": "sha256:cff2f4d5f129283b235b96e8d2b88306e938a0ed44ebb799fc4e5a0bbe6a8c12",
       "decision": "accept",
       "risk_override": null,
       "note": "只有工具回報；沒有獨立來源，列入報告（report_only）",
@@ -54,7 +54,7 @@
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "jCIsCztyub1lJ8gPCfpw1M49NwyldA4Qh249i4ub2h2P0ksEtsLOR4Z3yS+/cXVh9dyZ3NgY1RiysIqeEu2UDQ=="
+      "value": "hQKcE3cI71xe+JCqaL8X4wPG8vrMkGfzE0eOylZxTX0wo6ggYHdWbsYlCddFtUiygzdi4k8NBJZaYgybmWLvCg=="
     }
   ]
 }

@@ -41,5 +41,6 @@
   "rule_version": "05-v0.7",
   "rule_trace": [
     "R1:E_proof(R-TC-033-01-1),deterministic oracle,pre-registered at G4,no LLM analyst->CONFIRMED_EXECUTABLE"
-  ]
+  ],
+  "cluster_sha256": "sha256:4fb9b0b3cae37c3932c926ce92338529b6e24876c11082c0d9ecb6940b5781ff"
 }

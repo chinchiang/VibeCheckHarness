@@ -3116,6 +3116,11 @@ def verdict_chains(R: Report, c: Ctx):
             if phase == "W3_adjudicate":
                 R.check(v.get("supersedes_verdict_id") is None, "E-VERDICT-PHASE", w,
                         f"{v.get('verdict_id')}: a W3_adjudicate version is the first version; it supersedes nothing")
+            # v0.7 (review r9 phase): and the first version of a white-box or tool-only cluster is W3_adjudicate. v0.6 let it
+            # be labelled G2_apply, which switched off the G2 routing check (E-PIPELINE reads the W3 version)
+            if v.get("supersedes_verdict_id") is None and cluster.get("origin") != "black_box":
+                R.check(phase == "W3_adjudicate", "E-VERDICT-PHASE", w,
+                        f"{v.get('verdict_id')} is the first version of {cid}, so it is W3_adjudicate, not {phase}")
             at = received.get(v.get("verdict_id"))
             if at is None:
                 continue
@@ -3194,6 +3199,11 @@ def cluster_origin(R: Report, c: Ctx, d: Doc):
         R.check(src is None or (k.get("cwe_bucket") == src.data.get("cwe_bucket") and k.get("families") == src.data.get("families")
                                 and k.get("lineages") == src.data.get("lineages")), "E-CLUSTER-CARRY", w,
                 "a carried cluster keeps the source's bucket, families and lineages")
+        # v0.7 (review r9 members): a carried cluster skips the evidence binding (its evidence is the source's), so it has
+        # no member findings of its own; v0.6 let findings be attached to it unchecked and counted their families
+        R.check(not k.get("member_finding_ids"), "E-CLUSTER-CARRY", w,
+                f"a carried cluster has no member findings of its own (got {k.get('member_finding_ids')}): its members are the "
+                "source cluster's, and new findings of this run form a cluster of their own")
     elif run.get("run_kind") in ("followup", "regression"):
         twins = [x.data.get("cluster_id") for x in c.docs("cluster") if x.data.get("run_id") == run.get("parent_run_id")
                  and x.data.get("fingerprint") == k.get("fingerprint")]
@@ -3548,6 +3558,10 @@ def g_trace(R: Report, c: Ctx):
                 elif v.get("readjudicated_by") != "W3_adjudicate":
                     R.check(lid is None, "E-VERDICT-G2", d.path,
                             f"verdict after G2 must reference the G2 record {lid} that decided this cluster")
+                # v0.7 (review r9 phase): a G2_apply version applies a G2 decision; v0.6 accepted one with no G2 record at all
+                if v.get("readjudicated_by") == "G2_apply":
+                    R.check(lid is not None and v.get("g2_decision_ref") == lid, "E-VERDICT-G2", d.path,
+                            f"a G2_apply version must reference the G2 record that decided {v.get('cluster_id')} (latest: {lid})")
     for d in c.docs("threat"):
         with doc_guard(R, d.path):
             t, w = d.data, d.path
@@ -3650,6 +3664,10 @@ def g_trace(R: Report, c: Ctx):
             ok = cl is not None and v is not None and th is not None and v.data.get("cluster_id") == s.get("source_cluster_id") \
                 and v.data.get("status") == s.get("cluster_status") and cl.data.get("cwe_bucket") == s.get("cwe_bucket")
             R.check(ok, "E-TRACE-SEED", d.path, f"{s.get('seed_id')}: cluster/verdict/threat/status/bucket do not match")
+            # v0.7 (review r9 seed): W5 seeds the run's own clusters
+            R.check(cl is None or cl.data.get("run_id") == d.data.get("run_id"), "E-TRACE-SEED", d.path,
+                    f"{s.get('seed_id')}: source cluster {s.get('source_cluster_id')} belongs to run {(cl.data if cl else {}).get('run_id')}, "
+                    f"not to the seed document's run {d.data.get('run_id')}")
     with doc_guard(R, "invariants.yaml baseline"):
         baseline_checks(R, c)
     for d in c.docs("commander-plan"):
@@ -3801,8 +3819,39 @@ def pipeline_checks(R: Report, c: Ctx):
 
 
 # ============================================================== 15 audit log
+def anchor_counter_problems(anchors) -> list[str]:
+    """v0.7 (review r9 rollback): anchors = [(anchor_counter, ts, where)] of every audit_anchor of the engagement. The
+    Z3 executor numbers the anchors it countersigns 1, 2, 3, ... in receive order, so the counters are unique integers
+    without a gap and follow the receive time. Cutting a run back to an earlier anchor deletes counters that a later
+    anchor (of the same or another run) already went past."""
+    out, seen = [], {}
+    for n, t, where in anchors:
+        if type(n) is not int or n < 1:
+            out.append(f"{where}: anchor_counter {n!r} is not a positive integer")
+            continue
+        if n in seen:
+            out.append(f"{where}: anchor_counter {n} is used twice (also {seen[n]})")
+        seen.setdefault(n, where)
+    if seen:
+        missing = sorted(set(range(1, max(seen) + 1)) - set(seen))
+        if missing:
+            out.append(f"anchor_counter {missing[:10]}{' ...' if len(missing) > 10 else ''} missing below {max(seen)}: "
+                       "anchors the Z3 executor countersigned are gone (a log was cut back to an earlier anchor or deleted)")
+    ordered = sorted(((n, t, w) for n, t, w in anchors if type(n) is int), key=lambda x: x[0])
+    for (n1, t1, w1), (n2, t2, w2) in zip(ordered, ordered[1:]):
+        if timeutil.sort_key(t2) < timeutil.sort_key(t1):
+            out.append(f"{w2}: anchor_counter {n2} was received at {t2}, before anchor_counter {n1} ({w1}, {t1})")
+    return out
+
+
+def anchored_seqs(evs) -> int:
+    """The seq of the last audit_anchor of a log (0 when none): lines up to it are covered by the chain."""
+    return max((i + 1 for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"), default=0)
+
+
 def g_audit(R: Report, c: Ctx):
     interval = (c.toolkit.get("audit") or {}).get("anchor_interval_events", 500)
+    counters = []
     for d in c.ix.audit_docs():
         with doc_guard(R, d.path):
             evs, w = d.data, d.path
@@ -3829,6 +3878,7 @@ def g_audit(R: Report, c: Ctx):
                 since = 0 if et == "audit_anchor" else since + 1
                 R.check(since <= interval, "E-AUDIT-ANCHOR", where, f"more than {interval} events without an anchor")
                 if et == "audit_anchor":
+                    counters.append(((ev.get("payload") or {}).get("anchor_counter"), ev.get("ts"), where))
                     # v0.4: the Z3 executor countersigns {run_id, seq, prev_hash}; whoever controls both the
                     # audit log and the run record still cannot rewrite the chain without the Z3 key.
                     # v0.5 (T-9): plus a domain tag and the hash of the anchor event itself (crypto.anchor_payload)
@@ -3892,6 +3942,7 @@ def g_audit(R: Report, c: Ctx):
                             + "; ".join(why))
             elif tail > 0:
                 R.warn("W-AUDIT-UNANCHORED-TAIL", w, f"{tail} line(s) after the last audit_anchor (seq {last_anchor}) are not yet anchored")
+            run_log_state(R, c, w, rid, run, evs)
             logged = {(e.get("payload") or {}).get("gate_record_id") for e in evs if e.get("event_type") == "gate_decision"}
             for g in c.ix.gate_records(rid):
                 R.check(g.data.get("gate_record_id") in logged, "E-AUDIT-GATE", w, f"{g.data.get('gate_record_id')} has no gate_decision event")
@@ -3899,17 +3950,28 @@ def g_audit(R: Report, c: Ctx):
             run_structure(R, c, w, rid, run, evs)
 
 
+    # a log the strict loader rejected has no anchors to count: its load error is the only report (no cascade)
+    for p in ([] if c.broken_audit_runs else anchor_counter_problems(counters)):
+        R.error("E-AUDIT-ANCHOR-GAP", "audit logs of the engagement", p)
+
     # v0.5 (review 2026-10-25, group 3): every verdict version has a verdict_changed event in its cluster's run log
-    # (E-AUDIT-VERDICT above checks the events that exist; this makes the event itself required)
+    # (E-AUDIT-VERDICT above checks the events that exist; this makes the event itself required).
+    # v0.7 (review r9 verdict): the event is in the anchored part of the log; an unanchored line is no evidence
+    # (docs/03 §13.1), and v0.6 took a verdict_changed appended after the last anchor as the cluster's verdict
     for v in c.docs("verdict"):
         cl = c.ix.first("cluster", cluster_id=v.data.get("cluster_id"))
         rid = (cl.data if cl else {}).get("run_id")
         if rid in c.broken_audit_runs:
             continue
         audit = c.ix.audit_for(rid)
-        R.check(audit is not None and any(isinstance(e, dict) and e.get("event_type") == "verdict_changed"
-                                          and (e.get("payload") or {}).get("verdict_id") == v.data.get("verdict_id") for e in audit.data),
-                "E-AUDIT-VERDICT", v.path, f"verdict {v.data.get('verdict_id')} has no verdict_changed event in the audit log of run {rid}")
+        evs = audit.data if audit is not None else []
+        seqs = [i + 1 for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "verdict_changed"
+                and (e.get("payload") or {}).get("verdict_id") == v.data.get("verdict_id")]
+        if R.check(bool(seqs), "E-AUDIT-VERDICT", v.path,
+                   f"verdict {v.data.get('verdict_id')} has no verdict_changed event in the audit log of run {rid}"):
+            R.check(min(seqs) <= anchored_seqs(evs), "E-AUDIT-VERDICT", v.path,
+                    f"verdict {v.data.get('verdict_id')}: its verdict_changed (seq {min(seqs)}) is after the last audit_anchor "
+                    f"(seq {anchored_seqs(evs)}): an unanchored line is no evidence, so this is not yet a verdict")
 
     audited = {d.data[0].get("run_id") for d in c.ix.audit_docs() if d.data}
     for rid, run in c.runs.items():
@@ -3930,6 +3992,45 @@ def g_audit(R: Report, c: Ctx):
             R.check(False, "E-AUDIT-GATE", where,
                     f"{g.data.get('gate_record_id')} ({g.data.get('gate')}) has no gate_decision event: the run has no audit "
                     "log, so its receive time cannot be established")
+
+
+def run_log_state(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
+    """v0.7 (review r9): what the run record says about itself is checked against the log.
+
+    E-RUN-STATUS: run.status is the `to` of the last run_status_changed (RUNNING before the first one); a completed run
+    wrote its terminal status change before its run_end anchor, so it cannot be marked RUNNING again. v0.6 decided "terminal" from the unsigned run record alone, so a completed
+    run marked RUNNING again accepted new unanchored lines after its run_end anchor.
+    E-RUN-COMMIT: the anchored run_created event pins the commit the run tests; the run record and the run's W0
+    inventory name the same commit (the build check, E-RESULT-BUILD, compares observed builds with it).
+    E-AUDIT-ARTIFACT: the anchored artifact_stored event of the seed threats pins their content hash; v0.6 read the seed
+    document's unsigned run_id, so moving it to another run switched off the run's pipeline checks."""
+    changes = [(e.get("payload") or {}).get("to") for e in evs if isinstance(e, dict) and e.get("event_type") == "run_status_changed"]
+    want = changes[-1] if changes else "RUNNING"
+    R.check(run.get("status") == want, "E-RUN-STATUS", f"run {rid}",
+            f"run.status {run.get('status')!r} but the last run_status_changed of the log moves the run to {want!r}")
+    last = anchored_seqs(evs)
+    created = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "run_created"]
+    pinned = (created[0][1].get("payload") or {}).get("repo_commit") if created and created[0][0] <= last else None
+    if R.check(len(created) == 1 and created[0][0] <= last, "E-RUN-COMMIT", f"run {rid}",
+               "the log needs exactly one anchored run_created event (it pins the commit the run tests)"):
+        R.check(run.get("repo_commit") == pinned, "E-RUN-COMMIT", f"run {rid}",
+                f"run.repo_commit {run.get('repo_commit')!r} != {pinned!r} pinned by the anchored run_created event")
+        for inv in c.docs("inventory"):
+            if inv.data.get("run_id") == rid:
+                R.check(inv.data.get("repo_commit") == pinned, "E-RUN-COMMIT", inv.path,
+                        f"the W0 inventory names commit {inv.data.get('repo_commit')!r}, but the run tests {pinned!r}")
+    stored = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "artifact_stored"
+              and (e.get("payload") or {}).get("artifact") == "seed-threats"]
+    seeds = [d for d in c.docs("seed-threats") if d.data.get("run_id") == rid]
+    for seq, e in stored:
+        sha = (e.get("payload") or {}).get("sha256")
+        R.check(seq <= last and len(seeds) == 1 and content_hash(seeds[0].data) == sha, "E-AUDIT-ARTIFACT", f"{w} seq {seq}",
+                f"artifact_stored pins seed threats {sha!r}, but run {rid} has {len(seeds)} seed-threats document(s)"
+                + (f" hashing to {content_hash(seeds[0].data)}" if len(seeds) == 1 else "")
+                + ("" if seq <= last else "; and the event is not anchored"))
+    for sd in seeds:
+        R.check(any(seq <= last for seq, _ in stored), "E-AUDIT-ARTIFACT", sd.path,
+                f"the seed threats of run {rid} have no anchored artifact_stored event pinning them")
 
 
 JOB_RAN_STATES = ("EXECUTED", "RESTORED", "RESTORE_FAILED")       # finished with a result (INTERRUPTED has none)
@@ -4019,6 +4120,23 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
     for jid in ended:
         if jid in jobs:
             R.check(jid in results, "E-JOB-AUDIT", w, f"sandbox_job_end for job {jid} has no testresult")
+    # v0.7 (review r9 jobs): every B-phase sandbox_job event names a job of run.jobs (W0 / W1 / W4 jobs are not in it), and a
+    # completed run has a job, executed or SKIPPED with its reason, for every testcase G4 approved. v0.6 ignored an anchored
+    # sandbox_job_end whose job had been dropped from run.jobs together with its FAIL result
+    for e in evs:
+        if isinstance(e, dict) and e.get("event_type") in ("sandbox_job_start", "sandbox_job_end") and e.get("node") in B_NODES:
+            jid = (e.get("payload") or {}).get("job_id")
+            R.check(jid in jobs, "E-JOB-AUDIT", f"{w} seq {e.get('seq')}",
+                    f"{e.get('event_type')} names job {jid}, which is not in run.jobs")
+    if run.get("status") in COMPLETED_RUN_STATES:
+        have = {j.get("testcase_id") for j in jobs.values() if isinstance(j, dict)}
+        for g4 in c.ix.gate_records(rid, "G4"):
+            if g4.data.get("outcome") == "EXPIRED":
+                continue
+            for x in g4.data.get("decisions") or []:
+                if x.get("decision") == "accept":
+                    R.check(x.get("item_id") in have, "E-JOB-AUDIT", w,
+                            f"G4 approved testcase {x.get('item_id')} ({g4.data.get('gate_record_id')}), but run.jobs has no job for it")
 
 
 B_NODES = ("B0", "B1", "B2", "B3", "B4", "B5", "B6")

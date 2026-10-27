@@ -8,7 +8,7 @@ import json
 import pytest
 
 from conftest import codes, doc, rederive
-from vchlib import crypto, jsonstrict, safety
+from vchlib import crypto, derive, jsonstrict, safety
 from vchlib.bundle import read_jsonl_lines, reload_json
 from vchlib.checks import run_all
 
@@ -16,6 +16,9 @@ AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
 AUDIT_A = "audit-event.run-2026-09-25-pr-118.example.jsonl"
 RUN = "examples/run.example.json"
 RUN_A = "examples/run.lane-a.example.json"
+# v0.7 (review r9): a run is RUNNING only when its log says so (E-RUN-STATUS); the follow-up run is the unfinished one
+AUDIT_F = "audit-event.run-2026-10-07-001.example.jsonl"
+RUN_F = "examples/run.followup.example.json"
 V_W3 = "verdict.example.json"                  # K-005, no valid votes -> degraded
 V_K011 = "verdict.k-011-w3.example.json"       # K-011, one valid nvidia vote -> degraded
 V_LANE_A = "verdict.lane-a.example.json"
@@ -348,19 +351,23 @@ def test_anchor_must_name_an_anchor_event(b):
 
 
 def test_dropped_anchor_on_running_run_is_an_error(b):
-    """Previously a warning: dropping the last run.audit_anchors entry now fails E-AUDIT-ANCHOR."""
-    run = doc(b, RUN_A).data
+    """Previously a warning: dropping the last run.audit_anchors entry now fails E-AUDIT-ANCHOR.
+    v0.7 (review r9): on the unfinished follow-up run; marking a completed run RUNNING is E-RUN-STATUS."""
+    run = doc(b, RUN_F).data
     run["audit_anchors"].pop()
-    run["status"] = "RUNNING"
-    run["current_node"] = "W3"
+    docs = {x.path: x for x in b.docs}
+    for e in derive.expectations(b):          # the checkpoint pins the run record (audit_anchors is writer-only, not restored)
+        if docs[e.file].kind == "checkpoint-metadata":
+            derive.set_path(docs[e.file].data, e.path, e.expected)
     R = run_all(b)
     assert R.codes() == {"E-AUDIT-ANCHOR"}
     assert "W-AUDIT-UNANCHORED-TAIL" not in {w.code for w in R.warnings}
 
 
 def test_unanchored_tail_on_running_run_is_a_warning(b):
-    """Genuine tail: events appended after the log's last audit_anchor, run still RUNNING."""
-    d, run = doc(b, AUDIT_A), doc(b, RUN_A).data
+    """Genuine tail: events appended after the log's last audit_anchor of an unfinished run (v0.7, review r9: the
+    follow-up run, WAITING_GATE; a completed run marked RUNNING is E-RUN-STATUS)."""
+    d, run = doc(b, AUDIT_F), doc(b, RUN_F).data
     evs = copy.deepcopy(d.data)
     extra = copy.deepcopy(next(e for e in reversed(evs) if e["event_type"] != "audit_anchor"))
     extra.update(seq=len(evs) + 1, ts=evs[-1]["ts"], event_type="artifact_stored",
@@ -369,8 +376,6 @@ def test_unanchored_tail_on_running_run_is_a_warning(b):
                  actor={"kind": "system", "id": "run-controller"})
     extra2 = dict(copy.deepcopy(extra), seq=len(evs) + 2, idempotency_key=f"{extra['run_id']}:{extra['node']}:artifact_stored:late-2")
     reload_json(d, rechain(evs + [extra, extra2]))
-    run["status"] = "RUNNING"
-    run["current_node"] = "W3"
     R = run_all(b)
     tails = [w for w in R.warnings if w.code == "W-AUDIT-UNANCHORED-TAIL"]
     assert len(tails) == 1 and "2 line(s)" in tails[0].msg

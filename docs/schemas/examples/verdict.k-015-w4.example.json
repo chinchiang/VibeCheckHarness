@@ -59,5 +59,6 @@
   "rule_version": "05-v0.7",
   "rule_trace": [
     "R1:E_proof (WTC-015-01 local RLS FAIL, deterministic STATE_DIFF oracle, pre-registered by G1 INV-AC-007 and a PASSed oracle_can_pass control)->CONFIRMED_EXECUTABLE"
-  ]
+  ],
+  "cluster_sha256": "sha256:cb9077210d30a019c8a75a713a506a3362822a20c0b7ed668337ee63a9968b44"
 }

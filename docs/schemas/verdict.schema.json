@@ -11,6 +11,10 @@
       "type": "string",
       "pattern": "^K-[0-9]{3,}$"
     },
+    "cluster_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256",
+      "description": "v0.7（審查 r9）：本裁決所裁決的叢集的 content hash（validator 推導，E-DERIVED）；叢集又以 member_finding_sha256 釘住成員發現項"
+    },
     "readjudicated_by": {
       "type": "string",
       "enum": [
@@ -454,6 +458,7 @@
   "required": [
     "verdict_id",
     "cluster_id",
+    "cluster_sha256",
     "readjudicated_by",
     "supersedes_verdict_id",
     "votes",

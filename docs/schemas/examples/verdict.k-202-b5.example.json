@@ -43,5 +43,6 @@
     "R2:black_box cluster,no votes,no tool signal,independent_sources=0",
     "R7:no independent source->UNCORROBORATED",
     "R11:E_pass on UNCORROBORATED->annotate test_not_reproduced"
-  ]
+  ],
+  "cluster_sha256": "sha256:aeb35d2dcf759921240921c0671289a8f6d3990a394df9423dea273fdfcb852b"
 }
