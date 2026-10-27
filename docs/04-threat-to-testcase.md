@@ -358,7 +358,7 @@ vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器 [H
 
 - 允許：**固定案例評估**（promptfoo `eval`、`pyrit:orchestrator` 的固定資料集）、**本地產生**且不外連的 red-team 案例（`promptfoo:redteam_local`）、以及**腳本式多輪**（§3 `script_turns[]`；ROE `relay.mode: scripted`）。這些都以確定性 oracle 判定，LLM grader 只作參考（§4.2）。
 - 受限：**adaptive／iterative／crescendo 類**的即時生成多輪策略只在 profile `full` 允許，且必須綁 G4 核准的策略模板 hash（§7、[03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)）；部分此類策略據報會繞過設定去用遠端生成 [單源][S-09]，所以一律在出站層封鎖 promptfoo 雲端並以出站紀錄實測確認。
-- 一律關閉遠端生成（`PROMPTFOO_DISABLE_REMOTE_GENERATION=true`、`PROMPTFOO_DISABLE_TELEMETRY=1` [V][S-08]）；grader 指定為 Gateway 上允許的模型。
+- 一律關閉遠端生成與 telemetry；grader 指定為 Gateway 上允許的模型（[03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)）。
 - 具名 PII 偵測器命中受測回應中的個資時，後續解讀只用自架模型（[03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)）。
 - 策略以類別授權而非逐一列 ID：新策略只要落在「固定案例／本地生成／腳本式多輪」類別即可用；落在 adaptive 類別才需 profile `full`＋G4 模板。若某策略要單獨啟用某個有法務或資料顧慮的外掛，則該外掛 ID 必須在授權登錄表有條目。
 
@@ -970,7 +970,7 @@ db_access:
 - **trials**：`n: 60`；`fail_k_min: 1`（k ≥ 1 即 FAIL）；`replay_n: 20`；`multi_turn_max_turns: null`；`record: [target_model, target_model_version, temperature]`（seed manifest 設 `reseed_per_trial: true`，每個 trial 前重建種子）
 - **multi_turn**：`false`（單輪摘要，不需要 Z3→Z1 relay；`script_turns: null`）
 - **tool_binding**：`GENERATED_SCRIPT`，adapter＝`promptfoo:eval`（固定測試案例＋自訂確定性 assertion，屬「固定案例評估」類別，不用即時紅隊生成，見 §4.3.1）；替代方案 `pyrit:orchestrator`
-  - promptfoo 要設定 `PROMPTFOO_DISABLE_REMOTE_GENERATION=true` 與 `PROMPTFOO_DISABLE_TELEMETRY=1`，grader 指定為 Gateway 上允許的模型 [V][S-08]；部分策略據報仍會使用遠端生成 [單源][S-09]，所以另外在出站層封鎖 promptfoo 雲端（詳見 [03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)）
+  - promptfoo 一律關閉遠端生成與 telemetry、grader 指定為 Gateway 上允許的模型、出站層封鎖 promptfoo 雲端；設定與理由的主頁是 [03 §7.5](03-system-architecture.md#75-llm-功能測試的額外控制)
   - LLM grader 的判定只作參考（本測試以確定性 oracle 判定）
 - **rate_limit**：`requests_per_second: 1`；`max_requests: 250`，只涵蓋**本 job 自己**的請求：每個 trial ≤ 4 個請求（開對話、送訊息、最多 2 次取回），60 × 4 ＝ 240，加 reachability 控制最多 4 個（CTL-01 的開對話、送訊息、最多 2 次取回）與 canary 紀錄讀取 1 個，共 245 ≤ 250（範例 PASS 結果的 `request_count` 為 184）。**重播是獨立 job，有自己的 `max_requests`，不計入本 job**。
 - **花費上限**：ROE `upstream_llm_providers[].spend_cap_usd`（範例為 20 USD）。B3 依上游模型單價估算對話費用（60 trial ＋ reachability 控制）；估算超過上限時不降低 n，測試案例改標 `MANUAL`（`budget`）並列入 gaps（§4.4，v0.7）。重播 job（n_r＝20）另計。

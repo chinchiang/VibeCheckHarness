@@ -566,7 +566,7 @@ class ToolAdapter(ABC):
 | 允許的工具與模式 | `tools.yaml` − `TOOLKIT_DENYLIST` − ROE 的 `denied_modes`，再 ∩ ROE 的 `allowed_tools` |
 | 保證等級 | 只由 engagement 的 `assurance_profile` 決定（G0a 驗章），ROE 不能改。`lite` → 實際可用的安全等級＝ROE `allowed_safety_classes` ∩ {S0, S1}（`E-PROFILE-SAFETY`）；ROE `relay.mode: adaptive` 只在 `full` 有效（[02 §1.7](02-methodology.md#17-保證等級liteteamfull)、§11.15） |
 | 沙箱資源 | 只看 `toolkit.yaml` 的 `sandbox`；run 不能改 |
-| 保留期限 | `toolkit.yaml` 的 `retention` 是組織的上限與預設值 → engagement 的 `retention_days` 是實際值，必須在 1 到工具包上限之間（P 級 `p_days`、C 級 `c_days_after_run_end`；`E-RETENTION`）→ ROE 的 `data_handling.retention_days` 必須 ≤ engagement（`E-ROE-RETENTION`）且 ≤ 工具包上限（`E-RETENTION`）。超過上限 → validator 拒絕（[06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)、§7.5）[H] |
+| 保留期限 | `toolkit.yaml` 的上限 → engagement 的實際值 → ROE，後者只能更短；規則與錯誤碼見 [06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)、§7.5 [H] |
 | CLI 旗標、環境變數 | 不能改上面任何一項 |
 
 ### 5.3 環境變數與 secrets
@@ -773,12 +773,12 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 - 一個 run 的檔案不輪替。run 結束時寫最後一個錨點。
 - **分行**：`AuditWriter` 與所有讀取端（`audit verify`、validator）都只以 `\n` 分行，不使用 `str.splitlines()` 之類會把 `\r`、U+2028 等也當成行界的函式 [H]。
 - **錨點格式**：`run.audit_anchors` 的每一項是 `{seq, line_sha256}`，`line_sha256` ＝ 該 `audit_anchor` 事件自己那一行原始位元組的 sha256（取代舊版的「錨點的 prev_hash」）。
-- **尾端保護（validator 強制）** [H]：錨點的 `seq` 超出稽核檔 → `E-AUDIT-TRUNCATED`；行 hash 不符 → `E-AUDIT-ANCHOR-MISMATCH`；指名的不是錨點行，或 `audit_anchors` 與稽核檔中的 `audit_anchor` 事件不是一一對應（遺漏、重複或多列）→ `E-AUDIT-ANCHOR`；非終態 run（含 `SUSPENDED`、`STOPPED`）在稽核檔中最後一個 `audit_anchor` 事件之後的行 → `W-AUDIT-UNANCHORED-TAIL`（警告；只看這一段）；終態 run（`COMPLETED`、`COMPLETED_WITH_GAPS`、`ABORTED`、`FAILED`）必須有稽核檔並以 `run_end` 錨點結尾，否則 → `E-AUDIT-TAIL`。hash chain 只能**偵測**竄改，不能防止；截斷只能偵測到最後一個錨點為止（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16）。
+- **尾端保護（validator 強制）** [H]：規則與錯誤碼的主頁是 [03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)；hash chain 只能偵測竄改，不能防止（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16）。
 - 可選擇另外寫到 WORM 儲存或外部系統；是否需要，由 engagement 決定（§10）。
 
 ### 7.5 保留與刪除
 
-- 優先順序 [H]：`toolkit.yaml` 的 `retention` 是組織的**上限與預設值**；engagement 的 `retention_days` 是實際值，必須在 1 到工具包上限之間（P 級 `p_days`、C 級 `c_days_after_run_end`），否則 `E-RETENTION`；ROE 的 `data_handling.retention_days` 必須 ≤ engagement，否則 `E-ROE-RETENTION`；也必須 ≤ 工具包上限，否則 `E-RETENTION`（§5.2、[06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)）。這些都是錯誤；舊的警告 `W-ENG-RETENTION` 已移除。寫入 CAS 物件時，meta 記的是生效值。
+- 優先順序 [H]：規則與錯誤碼見 [06 §2.2.1](06-security-legal-limitations.md#221-保留期限的優先順序-h)。寫入 CAS 物件時，meta 記的是生效值。
 - 保留期限設定在 `toolkit.yaml` 的 `retention` 區塊（[toolkit-config](schemas/toolkit-config.schema.json)）。工具包的預設值 [H] 如下，**實際值需要法務決定（§10）**：
   - `p_days: 365`（P 級）；
   - `c_days_after_run_end: 90`（C 級）；
