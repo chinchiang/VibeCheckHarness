@@ -86,13 +86,6 @@
       "k": "whatever_the_adapter or disguised_llm_pass"
     },
     {
-      "name": "ext2 sampling signal",
-      "file": "tools/vchlib/derive.py",
-      "old": "    if trials.get(\"sampling\") == \"sampled\":",
-      "new": "    if False:",
-      "k": "sampling_sampled"
-    },
-    {
       "name": "ext2 deterministic contradiction",
       "file": "tools/vchlib/checks.py",
       "old": "                R.check(tr.get(\"sampling\") == \"sampled\", \"E-TC-TRIALS\", w,",

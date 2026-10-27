@@ -1,0 +1,103 @@
+{
+  "tests": "tests/test_v07_r10_verdict.py",
+  "mutations": [
+    {
+      "name": "theta_reject above every refute weight",
+      "file": "tools/vchlib/checks.py",
+      "old": "    for name, side, verb in ((\"theta_confirm\", \"support\", \"confirms\"), (\"theta_reject\", \"refute\", \"rejects\")):",
+      "new": "    for name, side, verb in ((\"theta_confirm\", \"support\", \"confirms\"),):",
+      "k": "theta_reject_below_a_single"
+    },
+    {
+      "name": "sampled without a target signal",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(tr.get(\"sampling\") != \"sampled\" or bool(signals), \"E-TC-TRIALS\", w,",
+      "new": "            R.check(True, \"E-TC-TRIALS\", w,",
+      "k": "declaring_sampled_without"
+    },
+    {
+      "name": "sampled is not a signal",
+      "file": "tools/vchlib/derive.py",
+      "old": "    # counted it, so any HTTP test that declared it was exempt from the deterministic replay rule (E-TC-TRIALS checks it)\n",
+      "new": "    # counted it, so any HTTP test that declared it was exempt from the deterministic replay rule (E-TC-TRIALS checks it)\n    if trials.get(\"sampling\") == \"sampled\":\n        out.append(\"trials.sampling sampled\")\n",
+      "k": "self_declared_sampled or silent_replay"
+    },
+    {
+      "name": "root_score: strongest vote of a root",
+      "file": "tools/vchlib/derive.py",
+      "old": "        total += max(xs, key=abs) if same else sum(xs) / len(xs)",
+      "new": "        total += sum(xs) / len(xs)",
+      "k": "weaker_vote_of_the_same_root"
+    },
+    {
+      "name": "analyst disagreement fails closed",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if disagreement:\n        # v0.7 (review r10)",
+      "new": "    if False:\n        # v0.7 (review r10)",
+      "k": "disagreeing_eligible_analyst"
+    },
+    {
+      "name": "unknown authors are not independent",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if not fams:\n        return False",
+      "new": "    if False:\n        return False",
+      "k": "unknown_authors"
+    },
+    {
+      "name": "W4 results need the author roles",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(role in roles, \"E-AGENT-ROLES\", \"agents.yaml\",",
+      "new": "            R.check(True, \"E-AGENT-ROLES\", \"agents.yaml\",",
+      "k": "need_the_test_author_roles"
+    },
+    {
+      "name": "canary: weight 0",
+      "file": "tools/vchlib/derive.py",
+      "old": "               for x in (res.get(\"contamination\") or {}).get(\"canary_results\") or []):\n            return 0.0",
+      "new": "               for x in (res.get(\"contamination\") or {}).get(\"canary_results\") or []) and False:\n            return 0.0",
+      "k": "reproduced_canary"
+    },
+    {
+      "name": "canary: E-CAL-CONTAMINATION",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(x.get(\"model_key\") not in weighted, \"E-CAL-CONTAMINATION\", w,",
+      "new": "            R.check(True, \"E-CAL-CONTAMINATION\", w,",
+      "k": "reproduced_canary"
+    },
+    {
+      "name": "sentinel in the holdout",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(app.get(\"split\") == \"holdout\", \"E-CAL-CONTAMINATION\", w,",
+      "new": "            R.check(True, \"E-CAL-CONTAMINATION\", w,",
+      "k": "sentinel_app"
+    },
+    {
+      "name": "holdout read after preregistration",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(reg is not None and at is not None and at >= reg, \"E-CAL-CONTAMINATION\", w,",
+      "new": "        R.check(True, \"E-CAL-CONTAMINATION\", w,",
+      "k": "before_preregistration"
+    },
+    {
+      "name": "flagged variant gap warns",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if isinstance(x, dict) and x.get(\"flagged\") is True and x.get(\"model_key\") in weighted:",
+      "new": "        if False:",
+      "k": "flagged_variant_gap"
+    },
+    {
+      "name": "holdout n >= 10 to generalise",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if t.get(\"generalised\") is True and not (num(ho.get(\"n\")) and ho[\"n\"] >= HOLDOUT_MIN_N):",
+      "new": "            if False:",
+      "k": "tiny_holdout"
+    },
+    {
+      "name": "abstention as a coin flip",
+      "file": "tools/vchlib/checks.py",
+      "old": "        a = {sk: smoothed_rate(*effective_counts(x), k, abar[(mk, sk)]) for sk, x in sides.items()}",
+      "new": "        a = {sk: smoothed_rate(x.get(\"correct\", 0), x.get(\"n\", 0), k, abar[(mk, sk)]) for sk, x in sides.items()}",
+      "k": "abstaining_on_the_hard_cases or examples_are_clean"
+    }
+  ]
+}

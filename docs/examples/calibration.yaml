@@ -72,28 +72,28 @@ result:
   weights:
     - model_key: nemotron_self
       cwe_bucket: authz
-      support: {n: 40, correct: 34, a: 0.8333, w: 1.4633, near_zero: false, near_zero_reasons: [], n_abstain: 4}
-      refute: {n: 24, correct: 20, a: 0.8071, w: 1.5775, near_zero: false, near_zero_reasons: [], n_abstain: 2}
+      support: {n: 40, correct: 34, a: 0.8041, w: 1.3179, near_zero: false, near_zero_reasons: [], n_abstain: 4}
+      refute: {n: 24, correct: 20, a: 0.7848, w: 1.3878, near_zero: false, near_zero_reasons: [], n_abstain: 2}
     - model_key: nemotron_self
       cwe_bucket: llm_specific
-      support: {n: 20, correct: 16, a: 0.7917, w: 0, near_zero: false, near_zero_reasons: [], n_abstain: 2}
-      refute: {n: 12, correct: 9, a: 0.7523, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
+      support: {n: 20, correct: 16, a: 0.7656, w: 0, near_zero: false, near_zero_reasons: [], n_abstain: 2}
+      refute: {n: 12, correct: 9, a: 0.7328, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
     - model_key: claude_sonnet
       cwe_bucket: authz
-      support: {n: 30, correct: 24, a: 0.7832, w: 1.4425, near_zero: false, near_zero_reasons: [], n_abstain: 3}
-      refute: {n: 20, correct: 17, a: 0.8149, w: 1.3241, near_zero: false, near_zero_reasons: [], n_abstain: 2}
+      support: {n: 30, correct: 24, a: 0.7596, w: 1.2853, near_zero: false, near_zero_reasons: [], n_abstain: 3}
+      refute: {n: 20, correct: 17, a: 0.7899, w: 1.1897, near_zero: false, near_zero_reasons: [], n_abstain: 2}
     - model_key: claude_sonnet
       cwe_bucket: llm_specific
-      support: {n: 8, correct: 6, a: 0.7447, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
-      refute: {n: 6, correct: 4, a: 0.7265, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
+      support: {n: 8, correct: 6, a: 0.7341, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
+      refute: {n: 6, correct: 4, a: 0.7143, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
     - model_key: gpt_oss_self
       cwe_bucket: authz
-      support: {n: 25, correct: 15, a: 0.6077, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 2}
-      refute: {n: 15, correct: 8, a: 0.5427, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
+      support: {n: 25, correct: 15, a: 0.5994, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 2}
+      refute: {n: 15, correct: 8, a: 0.5402, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
     - model_key: gpt_oss_self
       cwe_bucket: llm_specific
-      support: {n: 12, correct: 9, a: 0.6869, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
-      refute: {n: 8, correct: 5, a: 0.5826, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
+      support: {n: 12, correct: 9, a: 0.675, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max], n_abstain: 1}
+      refute: {n: 8, correct: 5, a: 0.5813, w: 0, near_zero: true, near_zero_reasons: [wilson_lower_le_max, n_below_min], n_abstain: 0}
   high_precision_rules: []       # 還沒有語料量到的高精準度 SARIF 規則 → 所有 SARIF 結果都只是弱訊號（R6 的獨立來源）
   thresholds:
     theta_confirm:

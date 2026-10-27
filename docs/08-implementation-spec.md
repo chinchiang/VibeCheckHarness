@@ -669,7 +669,7 @@ class ToolAdapter(ABC):
 | 發現項（finding） | 證據的 `kind`（`code_snippet`、`inventory_fact`、`config_fact`）、`fact_ref`、`key_path`、`asserted`；`match` 新增 `MATCHED_SHIFTED`；`facet`（13 個面向） | 不是程式片段的證據；審查面向 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-INVENTORY-REF`；所屬叢集的桶必須在 `FACET_BUCKETS[facet]` 中（`E-FINDING-FACET`） | §11.1、[05 §3](05-bias-calibration.md#3-設計規則) |
 | 切片（slice） | `redaction_map_sha256`、`prompt_template_sha256` | 新的 `slice_id` | `slice_id` 重算（`E-DERIVED`）；範本不是 run 的 `prompt_templates` 之一，或遮罩表不是 run 的 `redaction_map_ref` → `E-SLICE-IDENTITY` | §11.3 |
 | 叢集（cluster） | `origin`（`white_box`、`black_box`；v0.5 加 `tool_only` 與 `tool_report_refs`）、`threat_id`、`canonical_location.endpoint`、`fingerprint`、`baseline_state`、`reopened` | 黑箱起源的叢集；跨 run 的指紋 | `E-CLUSTER-ORIGIN`、`E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | §11.16 |
-| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為目前的 `RULE_VERSION`（目前 `05-v0.8`；v0.5 起 `05-v0.5`） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
+| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為目前的 `RULE_VERSION`（目前 `05-v0.9`；v0.5 起 `05-v0.5`） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
 | 測試案例（testcase） | `oracle.types[]`、`controls[]`、`script_turns`、`request_allowlist[].step_id`、`request_allowlist[].graphql_operation` | 對照組、多輪腳本、寫入範圍 | `E-TC-CONTROLS`、`E-TC-SCRIPT`、`E-TC-MUTATION-SCOPE`、`E-TC-REQ-UNAPPROVED` | §11.6、§11.15 |
 | 測試結果（testresult） | `controls[]`、`fail_oracles[]`、`outcome: INVALID`、`observed_build_id`、`request_log_sha256`、`interpretation` | 對照結果、build 識別、解讀 | `E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-ORACLE`、`E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG`、`E-RESULT-ANALYST`、`E-RESULT-ANALYST-ROLE` | §11.7、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) |
 | report-manifest | `metrics`（`results_total`、`results_invalid`、`control_pass_rate`）、`build_unverified_targets[]`、`absent_fingerprints[]` | 報告的確定性計數 | `E-REPORT-METRICS`、`E-RESULT-BUILD`、`E-CLUSTER-BASELINE` | §11.16、§11.17 |
@@ -1779,7 +1779,7 @@ class SessionProvider(Protocol):
 | `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`；已產生的是 `{path, sha256}`，`invariants` 與 `seed_manifest` 另可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}`（v0.5，見表下） | `run_init`（`invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之前才有內容） |
 | `prompt_templates[]` | `{template_id, version, sha256}` | `run_init`：列出本 run 的 agent 會用到的全部範本 |
 | `tool_versions[]` | `{adapter, version, image_digest}`；工具包自有程式碼的 adapter 填 Z2 映像的 digest | 每個工具第一次執行時 |
-| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.8`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
+| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.9`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
 | `baseline_run_id` | 計算 `baseline_state` 用的基準 run（§11.16）；null＝沒有基準 | `run start` 的選項；`followup`、`regression` 預設為 `parent_run_id`（範例跟進 run 的基準是 `run-2026-09-23-001`） |
 
 **schema 與 validator**（v0.5，[09 BL-22／BL-23](09-backlog.md)）：`config_refs` 的六個鍵都必填，不能是沒有說明的 null（`E-RUN-CONFIG`）。
