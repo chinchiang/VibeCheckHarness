@@ -35,5 +35,6 @@
   "rule_trace": [
     "R2:valid_votes=0,score=0",
     "R6:no_weighted_votes,independent_families=2->LIKELY"
-  ]
+  ],
+  "cluster_sha256": "sha256:d5c61a583a803b5c592d36739068e96fb1b8c677f760171a8010f88baa16b12d"
 }

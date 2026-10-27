@@ -65,5 +65,6 @@
   "rule_trace": [
     "R2:weighted_support=1 (nvidia),score=0.6933<theta_confirm=1.2,independent_sources=0 (the reporting opengrep result is a report, not a signal)",
     "R7:independent_sources=0 (tool-only cluster, no LLM member)->UNCORROBORATED"
-  ]
+  ],
+  "cluster_sha256": "sha256:cff2f4d5f129283b235b96e8d2b88306e938a0ed44ebb799fc4e5a0bbe6a8c12"
 }

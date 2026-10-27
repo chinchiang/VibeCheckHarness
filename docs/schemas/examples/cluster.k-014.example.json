@@ -40,5 +40,8 @@
   "baseline_state": null,
   "reopened": false,
   "severity": "critical",
-  "carried_from": null
+  "carried_from": null,
+  "member_finding_sha256": [
+    "sha256:8ff3da017a58fa9e0ac2694ca9f3216a2d1fd1d34cb6c6fa74177c51272c3040"
+  ]
 }
