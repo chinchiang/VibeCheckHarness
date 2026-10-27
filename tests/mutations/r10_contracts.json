@@ -1,0 +1,40 @@
+{
+  "tests": "tests/test_v07_r10_contracts.py",
+  "mutations": [
+    {
+      "name": "observability contract",
+      "file": "docs/06-security-legal-limitations.md",
+      "old": "### 1.11 harness 的可觀測性與值班 [H]",
+      "new": "### 1.11 harness 的執行期 [H]",
+      "k": "observability"
+    },
+    {
+      "name": "reviewer qualifications",
+      "file": "docs/06-security-legal-limitations.md",
+      "old": "- **重新認證**：每 12 個月",
+      "new": "- **複訓**：每 12 個月",
+      "k": "reviewer_qualifications"
+    },
+    {
+      "name": "effort table covers M5",
+      "file": "docs/07-roadmap.md",
+      "old": "| M5 LLM 功能測試與報告 | 8 | 5 |",
+      "new": "| M6 LLM 功能測試與報告 | 8 | 5 |",
+      "k": "estimates_every_milestone"
+    },
+    {
+      "name": "record lists PR4",
+      "file": "docs/evidence/review-2026-10-27-r10.md",
+      "old": "| chinchiang/VibeCheckHarness#31 |",
+      "new": "| 本 PR |",
+      "k": "record_lists"
+    },
+    {
+      "name": "backlog BL-65",
+      "file": "docs/09-backlog.md",
+      "old": "| BL-65 | r10 |",
+      "new": "| BL-65 | r9 |",
+      "k": "backlog_carries"
+    }
+  ]
+}

@@ -104,6 +104,6 @@ flowchart LR
 | 資安審查者（關卡核准者） | [02 §1.3](02-methodology.md#13-人工關卡一覽) → [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | [04](04-threat-to-testcase.md) 的 binding 表與安全等級、[06 §1](06-security-legal-limitations.md#1-工具包自身的安全) |
 | 實作者 | [03](03-system-architecture.md) → [08](08-implementation-spec.md)（含 §11 元件規格） | [schemas/README](schemas/README.md)、[07](07-roadmap.md) 的出口準則、[09 待辦](09-backlog.md) |
 | 法務或管理層 | [06 §2](06-security-legal-limitations.md#2-法遵與授權) → [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) | [07 §3](07-roadmap.md#3-入口閘門法務與查證) 的入口閘門、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 待決事項 |
-| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（第九輪）](evidence/review-2026-10-27-r9.md) |
+| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（第十輪）](evidence/review-2026-10-27-r10.md) |
 
 術語見 [README 術語表](../README.md#術語表)。

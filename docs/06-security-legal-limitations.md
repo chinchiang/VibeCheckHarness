@@ -237,6 +237,40 @@
 
 - **harness 端的事故應變**：Z1 或 Z3 被攻破時依 §1.9 第 3 點；RPO 24 小時（每日備份）、RTO 2 個工作天（每季還原演練驗證）。受測方的事故應變仍依 ROE 的 `incident_response`。
 
+### 1.11 harness 的可觀測性與值班 [H]
+
+這一節是契約，不是實作；對應工作是 [09 BL-61](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)。validator 只在事後看 bundle；harness 執行時是否健康、錨點是否按時寫入、人工關卡是否卡住，要靠執行期的監看。
+
+- **健康檢查**：每個元件提供存活（liveness）與就緒（readiness）兩種檢查，每 30 秒探測一次。就緒的條件：Run Controller 能讀寫 checkpoint；Model Gateway 至少有一個允許的模型可呼叫；Audit Writer 能寫入並取得 Z3 副簽；Scope Proxy 已載入 ROE 與白名單；Z3 Executor 能讀到 ROE 驗章結果；CAS 與 Postgres 可寫。
+- **fail closed**：Audit Writer 或 Z3 副簽不可用時，Run Controller 不開始新的節點，進行中的 run 轉 `SUSPENDED`（與 Z3 無法連線的處理相同，[03 §5.6](03-system-architecture.md#56-中止補償與-resume)）；稽核寫不進去的動作一律不做。
+- **指標**（每個委任、每個 run 分開）：
+  - 錨點延遲：距離上一個 `audit_anchor` 的事件數與分鐘數；`z3_countersignature` 失敗次數；`anchor_counter` 是否連續（每晚用 validator 驗一次整個委任的稽核檔）。
+  - 關卡：每個關卡的待決項目數與最久的等待時間，對照 [03 §6.5](03-system-architecture.md#65-人力負擔與周轉時間h) 的目標周轉時間。
+  - 執行：各狀態的 run 數、Scope Proxy 拒絕的請求數、每個 job 的預算用量、停止條件與 kill switch 的觸發次數。
+  - 模型：每個家族的錯誤率、逾時與 fallback 次數、缺票數（quorum 不足的切片）、`DISPUTED` 的比例。
+- **告警**（觸發即通知值班者；第一欄是嚴重度）：
+
+| 嚴重度 | 條件 | 預期處理 |
+|---|---|---|
+| 立即 | Audit Writer 或 Z3 副簽失敗超過 5 分鐘；每晚的稽核驗證出現錯誤（例如 `E-AUDIT-ANCHOR-GAP`、`E-AUDIT-ANCHOR-SIG`）；kill switch 觸發；`signature_invalid` 事件 | 15 分鐘內回應；依 §1.9 判斷是否為金鑰或 Z1／Z3 外洩 |
+| 當日 | 錨點延遲超過 `anchor_interval_events` 的 80% 或 24 小時；Scope Proxy 拒絕率突增；某家族錯誤率超過 20% | 當個工作日內處理 |
+| 每週 | 關卡等待超過目標周轉時間；金鑰在 30 天內到期；模型在 30 天內退役（[03 §8](03-system-architecture.md#81-模型登錄家族與-fallback)） | 排入下週工作 |
+
+- **值班**：每個部署指定一位值班者（預設 `toolkit_maintainer`）與一位備援；告警送到兩人。值班者只處理 harness 本身；受測方的事故依 ROE 的 `incident_response` 聯絡人。
+- **事故偵測與紀錄**：以上的「立即」告警一律開事故紀錄（時間、影響的委任與 run、處理、是否需要通知客戶）；涉及稽核或金鑰的事故依 §1.9。事故紀錄保留期間與稽核紀錄相同。
+- **限制**：這些監看由 harness 自己執行，同時控制 Z1 與監看系統的人可以關掉它；外部錨點（[09 BL-65](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）仍是唯一不靠 harness 的偵測。
+
+### 1.12 審查者與抽查人的資格 [H]
+
+這一節是契約，不是實作；對應工作是 [09 BL-62](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)。簽章只證明「誰核准」（§3 #39）；validator 能檢查角色與職責分離，不能檢查這個人是否有能力判斷。
+
+- **`security_reviewer`**（G2～G5 的核准者、ASI09 抽查人）：有應用程式安全的實務經驗（建議至少兩年，或完成組織認可的訓練）；開始核准前，在一組已知答案的練習叢集與測試計畫上與資深審查者對答，κ ≥ 0.6（與 [05 §5.1](05-bias-calibration.md#51-語料) 標註者的 0.7 相比，關卡判斷容許稍低）。
+- **`app_owner`**（G1 的核准者）：熟悉受測應用的業務規則與資料；不要求資安背景，因為 G1 簽的是需求，不是漏洞判斷。
+- **利益衝突**：審查者不得核准自己寫的程式碼、自己設計的測試（validator 已以職責分離檢查一部分：`E-GATE-SOD`、`E-SPOT-CHECK`），也不得核准自己有直接業績壓力的發布（例如該版本的發布負責人）。後者無法由程式判斷，由委任的簽署人聲明。
+- **抽查人**：除了上面的條件，抽查人不是被抽查項目的核准者或該 run 的發起者（`E-SPOT-CHECK` 已檢查）；抽查推翻率（`overturned` 的比例）每季回顧，推翻率高的關卡回頭檢查核准者的資格。
+- **重新認證**：每 12 個月，或某位審查者被抽查推翻超過 2 次後，重新做一次練習對答。
+- **記錄方式**（待辦）：金鑰登錄的人員加 `qualifications: [{role, qualified_at, expires_at, evidence_ref}]`，validator 檢查核准時資格有效；目前只在委任設定中以文字聲明。
+
 ## 2. 法遵與授權
 
 ### 2.1 授權範圍
