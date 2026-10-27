@@ -6,7 +6,7 @@
   "round": 1,
   "artifact": {
     "kind": "invariants",
-    "sha256": "sha256:7670231dce457b9d88161ebfd9389cbb752b01e9cb56e09370ba70ca367f3fb5"
+    "sha256": "sha256:63f7decc0f82688ab87a952fe705fa3f3b6a9a1ce492c81109898cc2b401edae"
   },
   "job_id": null,
   "g4_gate_record_id": null,
@@ -46,7 +46,7 @@
       "signer": "alice",
       "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
       "alg": "ed25519",
-      "value": "6sRXmL0H34eF7qLwyCyhRY6Jgea/QS01+OftO9AHzOSAV1BqpPVktfTGwzX9OvvvwO1D6EgVi/Rg9VzryeLqDA=="
+      "value": "dh7TRUcwB3eyqRIXJmJdNhPeZNdt8bzTTdSPGatAXP/Mrbf2/7nyhEviW3pU9t4WnkS3MRSBrpJNL6UTrmF/Ag=="
     }
   ]
 }

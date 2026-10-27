@@ -393,7 +393,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 
 | 錯誤碼 | 規則 | 守住的測試 |
 |---|---|---|
-| `E-TC-ACCESS-CELL` | testcase／w4-testcase 的 `access_cells` 每格都在 G1 存取矩陣中 | `test_v05_schema_backlog` |
+| `E-TC-ACCESS-CELL` | testcase／w4-testcase 的 `access_cells` 每格都在 G1 存取矩陣中 | `test_v05_schema_backlog`、`test_bl47_access_matrix` |
 | `E-TC-ADMISSIBLE` | 重算的安全等級必須是 ROE 允許進入 G4 的等級（`safety.admissible`） | `test_validator`、`test_v03_scope`、`test_v04_validator` |
 | `E-TC-CONTROLS` | （同一條規則也涵蓋 `E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-PRECONDITION`）testcase 至少一個 reachability 對照；結果恰好涵蓋所有對照；任何對照沒有 PASS → outcome 必須是 INVALID；`precondition_reached`＝所有 reachability 對照 PASS；`positive_control`＝oracle_can_fail 對照 PASS（沒有時為 null） | `test_v03_adjudication`、`test_v05_bl27_w4` |
 | `E-TC-DB` | `data_needed.db_tables` ⊆ ROE `db_access.oracle_tables`；oracle query 的資料表必須列在 `data_needed.db_tables` | `test_validator` |

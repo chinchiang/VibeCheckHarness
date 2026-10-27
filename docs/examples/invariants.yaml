@@ -43,6 +43,16 @@ access_matrix:
     actions: [invoke]
     ownership: {kind: owner_field, field: order.owner_id, via: session.user_id}
     condition: "已經人工確認，且 order.owner == session.user"
+  - role: workspace_member             # BL-47：範例 B′（docs/04 §6.3）的共享讀取
+    resource: workspace_document
+    actions: [read]
+    ownership: {kind: membership, field: document.workspace_id, via: session.workspace_ids}
+    condition: "同一工作區的成員可讀（U2 上傳的 u2_doc，U1 可讀）"
+  - role: workspace_member
+    resource: workspace_document
+    actions: [update, delete]
+    ownership: {kind: owner_field, field: document.uploader_id, via: session.user_id}
+    condition: "只有上傳者可改或刪"
 
 data_classification:                   # 受測應用的資料分級（不是工具包的 P／C）
   - {data_class_id: DC-INVOICE, name: 發票, level: confidential, fields: [invoices.amount, invoices.customer_name, invoices.tenant_id], pii: true}

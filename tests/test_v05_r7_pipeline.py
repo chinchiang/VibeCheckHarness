@@ -115,7 +115,7 @@ def test_lane_a_stops_at_w3(b):
 def test_executed_coverage_drops_without_results(b):
     b.docs[:] = [d for d in b.docs if not (d.kind == "testresult" and d.data.get("run_id") == RUN_ID)]
     m = report_metrics(Ctx(b), RUN_ID)
-    assert (m["planned_access_matrix_coverage"], m["planned_endpoint_test_coverage"]) == (1.0, 0.8571)
+    assert (m["planned_access_matrix_coverage"], m["planned_endpoint_test_coverage"]) == (0.5714, 0.8571)
     assert (m["executed_access_matrix_coverage"], m["executed_endpoint_test_coverage"]) == (0.0, 0.0)
 
 
@@ -160,7 +160,7 @@ def test_unbacked_results_do_not_raise_executed_coverage(b):
         if d.kind == "testresult" and d.data.get("run_id") == RUN_ID:
             d.data["artifact_sha256"] = "sha256:" + "1" * 64            # none matches its sandbox_job_end any more
     m = report_metrics(Ctx(b), RUN_ID)
-    assert (m["planned_access_matrix_coverage"], m["executed_access_matrix_coverage"], m["executed_endpoint_test_coverage"]) == (1.0, 0.0, 0.0)
+    assert (m["planned_access_matrix_coverage"], m["executed_access_matrix_coverage"], m["executed_endpoint_test_coverage"]) == (0.5714, 0.0, 0.0)
 
 
 def test_a_result_without_matching_pins_does_not_count(b):

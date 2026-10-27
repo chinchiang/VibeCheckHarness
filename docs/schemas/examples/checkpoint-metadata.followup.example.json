@@ -5,7 +5,7 @@
   "parent_checkpoint_id": "ckpt-run-2026-10-07-001-0006",
   "node": "G4",
   "created_at": "2026-10-07T10:30:00+08:00",
-  "state_sha256": "sha256:4ff9ee50df4aec044353489f3bfc602d0d09a234696bdb98297d714f953a92a9",
+  "state_sha256": "sha256:0f6eea575aaf6b82e8af737d0ab365aeb84bbf7fdc79ba5ed0cb3f83aa2d393e",
   "schema_version": "0.5",
   "run_status": "WAITING_GATE",
   "pending_interrupt": {

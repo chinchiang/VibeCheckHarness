@@ -1,0 +1,17 @@
+{
+  "tests": "tests/test_bl47_access_matrix.py",
+  "mutations": [
+    {"name": "members may read a shared document", "file": "docs/examples/invariants.yaml",
+     "old": "    actions: [read]\n    ownership: {kind: membership", "new": "    actions: [create]\n    ownership: {kind: membership",
+     "k": "members_may_read or shared_read"},
+    {"name": "only the uploader may change it", "file": "docs/examples/invariants.yaml",
+     "old": "    ownership: {kind: owner_field, field: document.uploader_id, via: session.user_id}", "new": "    ownership: {kind: membership, field: document.workspace_id, via: session.workspace_ids}",
+     "k": "uploader_may_change"},
+    {"name": "the report counts the uncovered cells", "file": "docs/schemas/examples/report-manifest.example.json",
+     "old": "\"planned_access_matrix_coverage\": 0.5714", "new": "\"planned_access_matrix_coverage\": 1.0",
+     "k": "uncovered_cells"},
+    {"name": "04 drops the missing-row note", "file": "docs/04-threat-to-testcase.md",
+     "old": "已由 G1 簽核；BL-47。", "new": "範例的 `invariants.yaml` 沒有這一列。",
+     "k": "no_longer_says"}
+  ]
+}
