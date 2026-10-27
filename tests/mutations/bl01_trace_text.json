@@ -1,0 +1,26 @@
+{
+  "tests": "tests/test_bl01_trace_text.py",
+  "mutations": [
+    {"name": "status claims are checked", "file": "tools/vchlib/checks.py",
+     "old": "            if m.group(1) != status:\n                problems.append(", "new": "            if False:\n                problems.append(",
+     "k": "wrong_status_claim or r8_leaves"},
+    {"name": "number claims are checked", "file": "tools/vchlib/checks.py",
+     "old": "            if want is None or abs(float(raw) - want) > tol:", "new": "            if False:",
+     "k": "wrong_score or count_is_checked or threshold_that_is_null"},
+    {"name": "precision follows what is written", "file": "tools/vchlib/checks.py",
+     "old": "            tol = 0.5 * 10 ** -(len(raw.split(\".\")[1]) if \".\" in raw else 0) + 1e-9", "new": "            tol = 1e-9",
+     "k": "precision_written"},
+    {"name": "R8 leaves LIKELY", "file": "tools/vchlib/adjudicate.py",
+     "old": "    return [\"LIKELY\" if r == \"R8\" else out.status", "new": "    return [out.status",
+     "k": "r8_leaves"},
+    {"name": "the deciding status is recorded", "file": "tools/vchlib/adjudicate.py",
+     "old": "    decided = status\n    cap = None", "new": "    decided = None\n    cap = None",
+     "k": "deciding_status or r8_leaves"},
+    {"name": "text is checked only when the sequence matches", "file": "tools/vchlib/checks.py",
+     "old": "\"E-VERDICT-TRACE\", w, f\"rule_trace rules {rules} != {out.rules}\"):", "new": "\"E-VERDICT-TRACE\", w, f\"rule_trace rules {rules} != {out.rules}\") or True:",
+     "k": "reported_once"},
+    {"name": "the stale example text is fixed", "file": "docs/schemas/examples/verdict.k-014-w3.example.json",
+     "old": "score=1.3179<theta_confirm=2.5", "new": "score=1.4633<theta_confirm=2.5",
+     "k": "examples_state_only_true"}
+  ]
+}

@@ -57,7 +57,7 @@
     {
       "kind": "verdict",
       "ref": "V-011-1",
-      "sha256": "sha256:c06c1e6d50205d849ffd8b0b23e64260294abe509779467a960192b2df70822f"
+      "sha256": "sha256:3b38ff72fffa3bd5e105b32c896a78fbd0069d979543c042e40410da7101acd6"
     },
     {
       "kind": "verdict",
@@ -67,12 +67,12 @@
     {
       "kind": "verdict",
       "ref": "V-011-2",
-      "sha256": "sha256:51142112e4cbe1f93bc3988eddd8f61ed36117cfb8c2e52ede21767508c74a2d"
+      "sha256": "sha256:61e2d1bbce09e6648eb0b080dc1ae93bf34e00bec3655ecedfc865e93d4e9fed"
     },
     {
       "kind": "verdict",
       "ref": "V-015-1",
-      "sha256": "sha256:ace2f00162fbfa4912610b37325f97e204f0b9d91c09c5f1b956f8efaf5f22cf"
+      "sha256": "sha256:318b324c8c53b7014ddb846853f8b6a15ece2538838d10f83d5a71e90ebe10bf"
     },
     {
       "kind": "verdict",
@@ -87,7 +87,7 @@
     {
       "kind": "verdict",
       "ref": "V-014-1",
-      "sha256": "sha256:375d1c2ec2a8b176951b8444347eba78c27f239130667a405f5fcca7552ae67b"
+      "sha256": "sha256:aaaa5adfe05997a7ab3f71ae0f3aa18844962b373c376b741ee4fb72c76c3424"
     },
     {
       "kind": "verdict",
@@ -142,7 +142,7 @@
     {
       "kind": "audit_log",
       "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
-      "sha256": "sha256:bfd1a9502c06727a8756870b8f3c8b4fe0cc3897e8195e7490803f4ddbf0d3c5"
+      "sha256": "sha256:d33c1ed46f35db4e989210cedc681db2e9fec7b255c7d64a6e015e243ecdd9e4"
     },
     {
       "kind": "followup_draft",

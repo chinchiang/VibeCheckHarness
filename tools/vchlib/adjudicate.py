@@ -96,6 +96,14 @@ class Outcome:
     advisory: bool = False
     annotations: set[str] = field(default_factory=set)
     sources: int = 0                                      # R2: independent families + weak SARIF + E_fail_u
+    decided: str | None = None                            # status of the deciding rule, before the R8 / R11 modifiers
+
+
+def trace_statuses(out: Outcome) -> list[str]:
+    """The status each fired rule leaves (BL-01): the deciding rule and R2 leave `decided`, R8 caps to LIKELY,
+    R11 and the R12 / R13 annotations leave the final status. A `->STATUS` claim in a rule_trace item must match."""
+    return ["LIKELY" if r == "R8" else out.status if r in ("R11", "R12", "R13") else (out.decided or out.status)
+            for r in out.rules]
 
 
 def strongest(evidence: set[str]) -> str | None:
@@ -189,6 +197,7 @@ def _decide(x: Inputs) -> Outcome:
     else:
         status, row, rule = "UNCORROBORATED", 13, "R7"
     rules = ["R2", rule]
+    decided = status
     cap = None
     if x.diversity_degraded and row == 11:                    # row 10 (strong tool) is never capped
         status, cap = "LIKELY", "LIKELY"
@@ -200,4 +209,4 @@ def _decide(x: Inputs) -> Outcome:
         elif status in ("CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED"):
             notes.add("test_not_reproduced")                 # v0.4: no positive control -> annotate only
             rules.append("R11")
-    return Outcome(status, row, rules, cap, False, notes)
+    return Outcome(status, row, rules, cap, False, notes, decided=decided)

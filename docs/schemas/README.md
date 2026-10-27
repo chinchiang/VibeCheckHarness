@@ -451,7 +451,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-VERDICT-STATUS` | `status`、`status_cap`、`advisory` 必須等於 docs/05 §4.2 規則（`vchlib.adjudicate`）重算的結果 | `test_v02_hardening`、`test_adjudicate`、`test_review_fixes` 等 7 份 |
 | `E-VERDICT-TOOLCORR` | 裁決的 `tool_corroboration` 必須等於推導值：已錨定的 SARIF 結果中，屬於該桶校準過的高精準規則者 | `test_v02_hardening`、`test_review_fixes` |
 | `E-VERDICT-TOOLSIGNAL` | （同一條規則也涵蓋 `E-VERDICT-SOURCES`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-RULE-VERSION`）裁決的推導欄位（第 13 組） | `test_v02_hardening`、`test_review_fixes`、`test_v03_adjudication` 等 4 份 |
-| `E-VERDICT-TRACE` | `rule_trace` 的規則序列必須等於重算的規則序列 | `test_adjudicate`、`test_v02_hardening` |
+| `E-VERDICT-TRACE` | `rule_trace` 的規則序列必須等於重算的規則序列；說明文字裡的 `->狀態` 必須是該規則留下的狀態，`名稱=數字`（score、θ、獨立來源與家族數、計權票數）必須在寫出的位數內等於重算值（BL-01） | `test_bl01_trace_text`、`test_adjudicate`、`test_v02_hardening` |
 | `E-VERDICT-VOTE` | 每張票的代理與模型都能經 agents.yaml／models.yaml 解析，`voter_family`／`voter_lineage` 與登錄相符；計為有效的票不能來自叢集的家族或相同的基礎血統（自我審查）；`anonymized`／`order_randomized` 必須等於該 run 驗證者範本的設定，不能由票自行宣告 | `test_v02_hardening`、`test_v04_round5_adjudication`、`test_v03_adjudication` 等 4 份 |
 | `E-VERDICT-VOTER-ROLE` | 只有 agents.yaml 中 `verifier` 角色的代理可以投票；其他角色的票被忽略（不算計權合格、分數、支持／反駁或多樣性） | `test_review_fixes` |
 | `E-VOTE-MODEL` | 票的 `voter_agent_id` 在 agents.yaml 的模型及其在 models.yaml 的家族、血統，必須與票上的 `voter_model_key`、`voter_family`、`voter_lineage` 相符 | `test_bl66_pipeline` |
