@@ -1,0 +1,75 @@
+{
+  "tests": "tests/test_v07_r9_examples.py",
+  "mutations": [
+    {
+      "name": "ids: plan_id",
+      "file": "tools/vchlib/checks.py",
+      "old": "           \"slice\": \"slice_id\", \"commander-plan\": \"plan_id\"}     # v0.7 (review r9): plans too",
+      "new": "           \"slice\": \"slice_id\"}",
+      "k": "duplicate_plan_id"
+    },
+    {
+      "name": "ids: one inventory per run",
+      "file": "tools/vchlib/checks.py",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "new": "PER_RUN_SINGLETONS = {\"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "k": "second_inventory"
+    },
+    {
+      "name": "ids: one seed-threats per run",
+      "file": "tools/vchlib/checks.py",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "k": "second_seed_threats"
+    },
+    {
+      "name": "ids: one redaction-map per run",
+      "file": "tools/vchlib/checks.py",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"dfd\": \"viewpoint\"}",
+      "k": "second_redaction_map"
+    },
+    {
+      "name": "ids: one DFD per viewpoint per run",
+      "file": "tools/vchlib/checks.py",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None}",
+      "k": "second_merged_dfd"
+    },
+    {
+      "name": "threat DFD of its own run",
+      "file": "tools/vchlib/checks.py",
+      "old": "            dfd = ix.first(\"dfd\", run_id=trun, viewpoint=\"merged\") if trun else None",
+      "new": "            dfd = ix.first(\"dfd\", viewpoint=\"merged\")",
+      "k": "own_runs_dfd"
+    },
+    {
+      "name": "README lists every record",
+      "file": "README.md",
+      "old": "[第九輪](docs/evidence/review-2026-10-27-r9.md) |",
+      "new": "第九輪 |",
+      "k": "readme_lists_every_review_record"
+    },
+    {
+      "name": "00 links the latest record",
+      "file": "docs/00-overview.md",
+      "old": "、[最新的審查紀錄（第九輪）](evidence/review-2026-10-27-r9.md) |",
+      "new": " |",
+      "k": "overview_links_the_latest"
+    },
+    {
+      "name": "03 names toolkit.yaml",
+      "file": "docs/03-system-architecture.md",
+      "old": "；v0.7 審查 r8 加入 `toolkit.yaml`，共七份",
+      "new": "",
+      "k": "names_every_pinned_config_file"
+    },
+    {
+      "name": "03 rule_version history",
+      "file": "docs/03-system-architecture.md",
+      "old": "，第七輪 `05-v0.6`，第八輪 `05-v0.7`，第九輪 `05-v0.8`）",
+      "new": "）",
+      "k": "current_rule_version"
+    }
+  ]
+}

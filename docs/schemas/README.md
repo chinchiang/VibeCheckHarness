@@ -129,7 +129,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-AUDIT-VERDICT` | `verdict_changed` 必須與裁決相符；v0.5：每一版裁決在其叢集所屬 run 的稽核檔中都必須有一筆 `verdict_changed`；v0.7（審查 r9）：那一筆必須在最後一個 `audit_anchor` 之前（未錨定的行不是證據，所以還不是裁決）；裁決以 `cluster_sha256` 釘住叢集、叢集以 `member_finding_sha256` 釘住成員發現項，裁決之後改寫發現項也會讓這個比對失敗 |
 | `E-VERDICT-CHAIN` | v0.5：同一叢集的裁決版本以 `supersedes_verdict_id` 形成單一線性鏈（不自我取代、不循環、不分岔、恰好一個最新版） |
 | `E-VERDICT-PHASE` | v0.5：`readjudicated_by` 不能倒填：黑箱叢集只有 B5 版本；W3 版本不取代任何版本；v0.7（審查 r9）：白箱與 tool_only 叢集的第一版一定是 `W3_adjudicate`（標成 `G2_apply` 會跳過 G2 路由檢查）；階段只能往後；收件時間晚於 W4／B4 測試結果的版本至少是 W4／B5；審查 r7 1.2：B5 版本的收件時間晚於所連 B4 job 的 `sandbox_job_end` |
-| `E-ID-DUP` | v0.5：同一種文件（run、verdict、cluster、finding、testcase、testresult、threat、gate-record、report-manifest、slice）的 ID 不能重複 |
+| `E-ID-DUP` | v0.5：同一種文件（run、verdict、cluster、finding、testcase、testresult、threat、gate-record、report-manifest、slice）的 ID 不能重複；v0.7（審查 r9）：commander-plan 的 `plan_id` 也是；一個 run 只有一份 inventory、seed-threats、redaction-map，每個 viewpoint 一份 DFD（查找取檔名排序的第一份，第二份會默默決定哪一份被檢查） |
 | `E-CLUSTER-BINDING` | v0.5：白箱叢集的 `canonical_location.file` 是成員證據的檔案、sink 落在成員證據的行範圍內、`file::name` 形式的 symbol 屬於該檔案、`cwe_bucket` 是某個成員 CWE 的桶（`facets.CWE_BUCKETS`）；同一 run 的叢集指紋不重複；審查 r7 1.6：同一個 run 內，一個發現項只能是一個叢集的成員 |
 | `W-CLUSTER-BUCKET` | v0.5（警告）：成員的 CWE 都不在 `facets.CWE_BUCKETS`，`cwe_bucket` 無法檢查 |
 | `E-JOB-AUDIT` | v0.5：`run.jobs`、`sandbox_job_*` 稽核事件與測試結果一致（有事件的 job 不是 SKIPPED；已執行的 job 有 `sandbox_job_end` 與 outcome 相同的測試結果）；審查 r7：B4 結果的 `executed_at` 落在該 job 的 `sandbox_job_start`／`end` 收件時間之間（1.2），`sandbox_job_end` 的 payload 釘住 `testcase_sha256`、`artifact_sha256`、`result_sha256`（1.10）；審查 r8 F2a／F2b：每個 B4 結果的 job 必須在已執行的狀態（PENDING、EXECUTING、INTERRUPTED、STOPPED 的 job 不能有結果），每個 job 恰有一份結果，而且每一份結果都要有恰一筆已錨定、outcome 與三個 hash 都相符的 `sandbox_job_end`（不只是同一 job 的最後一份）；`derive.classify_result` 對沒有已錨定執行事件的結果一律給 `E_inc`；審查 r9：B 階段的每個 `sandbox_job_*` 事件都要對應 `run.jobs` 的 job（拿掉 job 與它的 FAIL 結果，已錨定的 `sandbox_job_end` 不再被忽略），完成的 run 對 G4 核准的每個測試案例都有 job（已執行或 SKIPPED） |
@@ -451,6 +451,23 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `W-DIVERSITY` | 能收該資料等級的 reviewer 家族少於 2 個：多樣性降級（裁決受上限限制） |
 | `W-L2-MANAGEMENT` | `legal_review.attested_by` 沒有 legal_reviewer 角色而以 management 身分證明：報告中必須標示 |
 | `W-MODEL-RETIREMENT` | 被代理使用或在允許清單中的模型，其 `earliest_retirement` 落在委任有效期間內 |
+
+### 範例沒有走過的路徑（v0.7，審查 r9）
+
+範例 bundle 只有一個委任（`team`）、三個 run，所以下列文件化的路徑沒有出現在範例裡，由記憶體中的測試在範例上修改後檢查。每一列都由 `tests/test_v07_r9_examples.py` 確認所列的測試存在；第二個小型 bundle 列為 [09 BL-60](../09-backlog.md)。
+
+| 路徑 | 規則 | 測試 |
+|---|---|---|
+| `lite` 委任的安全等級與抽查 | `E-PROFILE-SAFETY`、`E-SPOT-CHECK` | `tests/test_v03_gates.py::test_lite_rejects_s2_toolkit_jobs`、`tests/test_v07_r9_contracts.py::test_a_lite_engagement_records_no_spot_check` |
+| G2 駁回之後的證據（R10） | `E-VERDICT-G2`、R10 | `tests/test_adjudicate.py::test_r10_cannot_be_bypassed_by_null_g2_ref` |
+| `ABORTED`／`FAILED` 的 run | `E-RUN-CONFIG`、`E-AUDIT-TAIL` | `tests/test_v05_backlog_high.py::test_a_run_that_ended_before_g1_keeps_its_invariants_pending` |
+| G0b `VERIFY_FAILED` 擋住 B 階段 | `E-GATE-ORDER` | `tests/test_v07_r8_validator.py::test_a_failed_g0b_stops_the_b_phase` |
+| `STOPPED` 之後的 resume | `E-SIG-ROLE` | `tests/test_v05_round6_lowprio.py::test_stopped_resume_needs_a_test_lead` |
+| PII 停止條件 | `safety.pii_stop_hits` | `tests/test_v06_r7_methodology.py::test_unregistered_pii_still_stops` |
+| G5 抽查推翻後改為兩人核准 | `E-G5-TWO-PERSON` | `tests/test_v06_r7_methodology.py::test_an_overturned_g5_spot_check_requires_two_reviewers_later` |
+| `regression` run | `E-RUN-FOLLOWUP` | `tests/test_v07_r8_validator.py::test_a_regression_run_carries_a_parent` |
+| 逾時的關卡（EXPIRED 不核准任何項目） | `Index.approved_requirement_ids` | `tests/test_v05_r7_bypasses.py::test_an_expired_g1_approves_nothing` |
+| 已完成的 run 被截回較早的錨點 | `E-AUDIT-ANCHOR-GAP` | `tests/test_v07_r9_anchor.py::test_rolling_a_completed_run_back_to_an_earlier_anchor_leaves_a_counter_gap` |
 
 ## 簽章與測試金鑰
 

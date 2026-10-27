@@ -3654,7 +3654,12 @@ def g_trace(R: Report, c: Ctx):
                     runs = [r for r in c.runs.values() if r.get("run_kind") == "initial"]
                     R.check(all(x["scheme"] == f"owasp-llm@{r.get('owasp_llm_version')}" for r in runs), "E-XWALK-OWASP", w,
                             f"{x['scheme']} differs from the run's owasp_llm_version")
-            dfd = ix.first("dfd", viewpoint="merged")
+            # v0.7 (review r9): the threat's own run (the run whose G3 reviewed it, else its source cluster's); v0.6 took
+            # the first merged DFD of the bundle, whatever its run
+            rv_rec = c.record((t.get("review") or {}).get("gate_record_id")) or {}
+            src = ix.first("cluster", cluster_id=t.get("source_cluster_id")) if t.get("source_cluster_id") else None
+            trun = rv_rec.get("run_id") or (src.data.get("run_id") if src else None)
+            dfd = ix.first("dfd", run_id=trun, viewpoint="merged") if trun else None
             if dfd:
                 els = {e.get("element_id"): e.get("type") for e in dfd.data.get("elements", [])}
                 for el in t.get("dfd_elements", []):
@@ -4695,7 +4700,10 @@ def report_metrics(c: Ctx, run_id) -> dict:
 ID_KEYS = {"run": "run_id", "verdict": "verdict_id", "cluster": "cluster_id", "finding": "finding_id", "testcase": "testcase_id",
            "w4-testcase": "testcase_id", "feedback": "feedback_id",
            "testresult": "result_id", "threat": "threat_id", "gate-record": "gate_record_id", "report-manifest": "report_id",
-           "slice": "slice_id"}
+           "slice": "slice_id", "commander-plan": "plan_id"}     # v0.7 (review r9): plans too
+# v0.7 (review r9): documents a run has at most one of (per viewpoint for DFDs). Lookups take the first by file name, so a
+# second inventory, seed-threats document or merged DFD of a run decided silently which one was checked
+PER_RUN_SINGLETONS = {"inventory": None, "seed-threats": None, "redaction-map": None, "dfd": "viewpoint"}
 
 
 def id_uniqueness(R: Report, c: Ctx):
@@ -4708,6 +4716,14 @@ def id_uniqueness(R: Report, c: Ctx):
                 seen.setdefault(d.data.get(key), []).append(d.path)
         for i, paths in seen.items():
             R.check(len(paths) == 1, "E-ID-DUP", paths[-1], f"{kind} {key} {i!r} is used by {len(paths)} documents: {paths}")
+    for kind, facet in PER_RUN_SINGLETONS.items():
+        per: dict = {}
+        for d in c.docs(kind):
+            if isinstance(d.data, dict) and d.data.get("run_id") is not None:
+                per.setdefault((d.data.get("run_id"), d.data.get(facet) if facet else None), []).append(d.path)
+        for (rid, f), paths in per.items():
+            R.check(len(paths) == 1, "E-ID-DUP", paths[-1],
+                    f"run {rid} has {len(paths)} {kind} documents{f' ({facet} {f})' if facet else ''}: {paths}; a run has one")
 
 
 def threat_coverage(R: Report, c: Ctx):

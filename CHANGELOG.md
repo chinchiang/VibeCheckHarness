@@ -6,7 +6,14 @@
 
 ## 第九輪審查（2026-10-27）
 
-依第九輪設計審查：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（2 項，都重現）。審查紀錄在本輪最後一個 PR 加入。
+依 [2026-10-27 設計審查（第九輪）](docs/evidence/review-2026-10-27-r9.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（2 項，都重現）。
+
+### 範例、穩健性與過時文字（PR4）與審查紀錄
+- 範例加上一筆已錨定、簽署的 ASI09 抽查（heidi 重看 V-005-2）；`sign_examples` 簽 `spot_check_result`。
+- schemas README 新增「範例沒有走過的路徑」表：每一條文件化但範例沒有走過的路徑（Lite、G2 駁回、ABORTED、STOPPED、PII、G5 兩人、regression、EXPIRED、回捲）指名涵蓋它的測試，由測試守住；第二個 bundle 列為 BL-60。
+- `E-ID-DUP` 涵蓋 commander-plan 的 `plan_id`，以及每個 run 一份 inventory、seed-threats、redaction-map、每個 viewpoint 一份 DFD；威脅的 DFD 元素改對照它所屬 run 的 merged DFD。
+- 過時文字：README 的審查紀錄清單、00 連到最新紀錄、03 的 `config_pins` 七份與 rule_version 歷程、04 的共享平台清單（21 個，與程式相同）、09 開放項目依編號排序。
+- 審查紀錄 `docs/evidence/review-2026-10-27-r9.md`；新增 `tests/test_v07_r9_examples.py`（15 個）與 `tests/mutations/r9_examples.json`。
 
 ### 設計契約（PR3）
 - **所有權驗證的方法綁回 ROE**（`E-RUN-OWNERSHIP`）：每筆結果的方法等於 ROE 為該目標宣告的方法，B4 job 跑過的每個目標都有 ok 的結果。v0.7 從不讀 `run.ownership_results`，範例的 DB 目標以 `dns_txt`「通過」；run schema 與 03 §5.1 補上 `db_comment`，範例改正。

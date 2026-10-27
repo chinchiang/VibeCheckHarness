@@ -32,7 +32,7 @@ from vchlib.bundle import SIGNED_YAML, load_bundle, read_jsonl_lines  # noqa: E4
 KEY_DIR = ROOT / "tests" / "fixtures" / "TEST_ONLY_private_keys"
 EXAMPLES = ROOT / "docs" / "schemas" / "examples"
 CONFIG = ROOT / "docs" / "examples"
-SIGNED_EVENTS = {"initiator_claim", "run_resume"}
+SIGNED_EVENTS = {"initiator_claim", "run_resume", "spot_check_result"}   # v0.7 (review r9): as checks.SIGNED_EVENTS
 PLACEHOLDER = re.compile(r'"(FP|PK):([a-z][a-z0-9_]*)"')
 
 
