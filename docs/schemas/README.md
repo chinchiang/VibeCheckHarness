@@ -167,7 +167,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RUN-RESTORE-DRILL` | S2 job 開始前 `restore_drill_days` 天內必須有一次成功的還原演練（`restore_drill` 事件），且 job 帶 `restore_drill_ref` | `test_review_fixes` |
 | `E-RUN-RULE-VERSION` | （同一條規則也涵蓋 `E-RUN-CONFIG`、`E-SLICE-IDENTITY`）run config_refs 指向正確種類的檔案；不能是 null，`invariants`／`seed_manifest` 可為 pending（`expected_node` 是產生節點 G1／G0b，且 run 尚未到達）或 not_applicable（invariants 只限 Lane A；seed_manifest 只限沒有 B 階段內容的 run）；tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.5`；切片的 prompt 範本與 redaction map 屬於本 run | `test_v03_manifest`、`test_v07_r8_calibration` |
 | `E-RUN-S2` | S2 job 需要該 job 的 APPROVED G5 紀錄，並有快照、`restore_verified: true` 與狀態 RESTORED | `test_validator` |
-| `E-RUN-STATUS` | `run.status` 必須是稽核檔最後一筆 `run_status_changed` 的 `to`（第一筆之前是 `RUNNING`）；稽核檔有 `run_end` 錨點的 run 一定是終止狀態。v0.7 第八輪只看 run 紀錄自填的狀態，把已完成的 run 改回 RUNNING 就能在 `run_end` 錨點之後繼續附加未錨定的行<br>終止狀態的 run 不能有 `current_node` 或待決關卡；WAITING_GATE 必須恰好有一個待決關卡且等於 `current_node` | `test_v07_r9_anchor` |
+| `E-RUN-STATUS` | `run.status` 必須是稽核檔最後一筆 `run_status_changed` 的 `to`（第一筆之前是 `RUNNING`）；稽核檔有 `run_end` 錨點的 run 一定是終止狀態。v0.7 第八輪只看 run 紀錄自填的狀態，把已完成的 run 改回 RUNNING 就能在 `run_end` 錨點之後繼續附加未錨定的行<br>終止狀態的 run 不能有 `current_node` 或待決關卡；WAITING_GATE 必須恰好有一個待決關卡且等於 `current_node` | `test_v07_r9_anchor`、`test_bl60_suspend` |
 
 **關卡與抽查**
 
@@ -184,7 +184,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-GATE-ARTIFACT` | （同一條規則也涵蓋 `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-G5-TWO-PERSON`）G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer；同一委任另一個 run 中，已錨定且早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）也要求兩位資安審查者（`checks.g5_escalation`） | `test_v03_robustness` |
 | `E-GATE-CARRY` | `decisions[].carried_from` 只限 G1／G3 的 accept；來源是祖先 run（同一委任）的同一關卡紀錄、同項目 accept 且 `item_sha256` 相同；來源簽章以現行金鑰登錄重新驗證；G3 另要求兩個 run 的 G0b 驗證同一份 ROE | `test_v05_backlog_high` |
 | `E-GATE-ENGAGEMENT` | 關卡的決定時間（收件時間）必須在委任有效期間內 | `test_bl66_run_gates` |
-| `E-GATE-EXPIRED-EARLY` | EXPIRED 關卡紀錄的收件時間必須在開啟時間加上該關卡逾時之後（開啟時間是 `gate_opened` 事件的收件時間） | `test_v04_round5_adjudication`、`test_v05_round6_group3` |
+| `E-GATE-EXPIRED-EARLY` | EXPIRED 關卡紀錄的收件時間必須在開啟時間加上該關卡逾時之後（開啟時間是 `gate_opened` 事件的收件時間） | `test_v04_round5_adjudication`、`test_bl60_suspend`、`test_v05_round6_group3` |
 | `E-GATE-EXPIRED-SIG` | EXPIRED 是唯一沒有簽章的結果，`signatures` 必須是 `[]`；不要求核准者簽章；審查 r7 1.1：EXPIRED 紀錄只能帶 needs_info 決定（`E-GATE-OUTCOME`），也不計入 G1 核准的需求、G2／G3 的決定與 G4 核准的測試案例 | `test_v05_round6_group3` |
 | `E-GATE-G0-APPROVERS` | G0a 核准者必須恰好是委任設定的簽署人，G0b 核准者恰好是 ROE 的簽署人（person_id、角色與金鑰指紋都相同） | `test_bl66_run_gates` |
 | `E-GATE-G0-SIG` | G0a／G0b 是系統驗章，`signatures` 必須是 `[]` | `test_bl66_run_gates` |
@@ -193,7 +193,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-GATE-JOB` | 只有 G5 使用 `job_id`，其他關卡必須是 null | `test_bl66_run_gates` |
 | `E-GATE-OPENED` | G0a／G0b 以外的關卡紀錄，其 `gate_decision` 之前必須有同一關卡（G5 另加同一個 `job_id`）的 `gate_opened` 事件，`opened_at` 與它的收件時間相差不超過時鐘容差 | `test_v05_round6_group3` |
 | `E-GATE-ORDER` | 以稽核事件的收件時間檢查 run 的結構：各關卡第一次決定依 G0a < G1 < G2 < G0b < G3 < G4 < G5；G0a 之後的事件都在 VERIFIED 的 G0a 之後；B 階段事件（B0～B6 節點、G3／G4／G5 決定、B4 的 job）都在 VERIFIED 的 G0b 之後、而且中間沒有 VERIFY_FAILED；有 G3／G4／G5 紀錄或 job 的 run 一定有 VERIFIED 的 G0b；W4 在 G2 決定之後、G0b 之前 | `test_v07_r8_validator` |
-| `E-GATE-OUTCOME` | `assurance_profile: lite` 的 G2 決定只能是 accept／needs_info | `test_v05_round6_group4`、`test_v07_r8_integrity`、`test_validator` 等 4 份 |
+| `E-GATE-OUTCOME` | `assurance_profile: lite` 的 G2 決定只能是 accept／needs_info | `test_bl60_suspend`、`test_v05_round6_group4`、`test_v07_r8_integrity` 等 5 份 |
 | `E-GATE-OVER-CAP` | G3 的 `over_cap` 決定不能用在有 `attack_tree_ref` 或 impact 為 high 的威脅（這類威脅永遠不受 G3 佇列上限影響） | `test_v05_round6_group4` |
 | `E-GATE-ROE-APPROVER` | G3～G5 的核准者必須是 ROE 的簽署人或 ROE 列出的 `gate_approvers` | `test_v03_gates` |
 | `E-GATE-ROE-VALIDITY` | G3～G5 的決定（收件時間）必須在 ROE 的有效期間內 | `test_v03_gates` |
@@ -203,7 +203,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-GATE-TIME` | 關卡的開啟時間不能晚於決定時間（收件時間） | `test_bl66_run_gates` |
 | `E-GATE-TIMEOUT` | G5 以外的關卡，決定時間與開啟時間的間隔不能超過逾時（委任 `gate_timeouts_hours`，未設定時用工具包上限） | `test_v05_round6_group3` |
 | `E-GB-APPROVER` | GB 核准者只能是委任的 `run_owner` 或 `budget_approver` | `test_bl66_run_gates` |
-| `E-SPOT-CHECK` | `spot_check_result` 的 actor 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5，`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者、發起者或其 run 的發起者（06 §1.1 ASI09 的獨立複核）；審查 r9：`item_kind` 也可以是 `verdict`、`cluster`、`feedback`（06 §1.1 的母體），項目屬於本委任，抽查人不是該 run 的發起者、該叢集 G2 的核准者或回饋的簽署者；Lite 委任不記錄抽查（一個人無法獨立重看自己的決定） | `test_v07_r8_validator`、`test_v07_r9_anchor`、`test_v07_r9_contracts` |
+| `E-SPOT-CHECK` | `spot_check_result` 的 actor 是登錄的 `security_reviewer`，`item_kind` 是 g1～g5，`item_id` 是同一委任的該關卡紀錄，而且 actor 不是該紀錄的核准者、發起者或其 run 的發起者（06 §1.1 ASI09 的獨立複核）；審查 r9：`item_kind` 也可以是 `verdict`、`cluster`、`feedback`（06 §1.1 的母體），項目屬於本委任，抽查人不是該 run 的發起者、該叢集 G2 的核准者或回饋的簽署者；Lite 委任不記錄抽查（一個人無法獨立重看自己的決定） | `test_v07_r8_validator`、`test_bl60_suspend`、`test_v07_r9_anchor` 等 4 份 |
 
 **ROE 與法務聲明**
 
@@ -327,7 +327,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-MODEL-UNKNOWN` | 委任設定 `allowed_models` 與 agents.yaml 引用的模型必須在 models.yaml 中，而且能接收該資料等級 | `test_validator` |
 | `E-PROVENANCE` | （同一條規則也涵蓋 `E-MODEL-FALLBACK-CLASS`、`E-MODEL-RETIREMENT-DATE`、`E-RESULT-ANALYST-ROLE`）threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 | `test_v03_manifest` |
 | `W-DIVERSITY` | 能收該資料等級的 reviewer 家族少於 2 個：多樣性降級（裁決受上限限制） | `test_bl66_pipeline` |
-| `W-MODEL-PLACEHOLDER` | models.yaml 有標示 `placeholder: true` 的模型 ID（警告）；真實 run 前必須換成真實 ID | `test_bl60_variants`、`test_v02_hardening`、`test_review_fixes` 等 5 份 |
+| `W-MODEL-PLACEHOLDER` | models.yaml 有標示 `placeholder: true` 的模型 ID（警告）；真實 run 前必須換成真實 ID | `test_bl60_variants`、`test_v02_hardening`、`test_bl60_suspend` 等 6 份 |
 | `W-MODEL-RETIREMENT` | 被代理使用或在允許清單中的模型，其 `earliest_retirement` 落在委任有效期間內 | `test_validator` |
 
 **白箱產物：盤點、計畫、發現項、切片、叢集、W4、種子**
@@ -527,6 +527,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 |---|---|
 | [`lite`](../examples/variants/lite/README.md) | 單人委任：alice 以簽署的 `role_consolidation` 兼任所有角色；只有 S0／S1 job，S2 的主動掃描改為 MANUAL，所以沒有 G5；沒有抽查；只保留主範例的首次 run。預期警告 `W-L5-LITE`（法務聲明自行簽署） |
 | [`edge`](../examples/variants/edge/README.md) | G2 駁回 K-016，G2_apply 版本由 R10 決定為 REJECTED；委任為 `full`，S2 job 的 G5 由兩位資安審查者核准；跟進 run 在等 G4 時觸發停止條件，由測試負責人中止（`ABORTED`，以 `run_end` 錨點收尾） |
+| [`suspend`](../examples/variants/suspend/README.md) | 跟進 run 的 G4 開啟 72 小時沒有人決定：Gate Service 寫入沒有簽章、只有 `needs_info` 的 `EXPIRED` 紀錄，run 轉為 `SUSPENDED`（沒有 `run_end`，可 resume）；同一個 run 記錄的 ASI09 抽查推翻第一個 run 的 G5，抽查人 grace 與該 G5 的核准者、發起者都不同 |
 
 ```bash
 python tools/validate_schemas.py --variant lite   # 驗證一個變體
@@ -534,11 +535,11 @@ python tools/build_variants.py                    # 改了主範例或推導規�
 python tools/build_variants.py --check            # CI：覆蓋是最新的，而且每個變體零錯誤
 ```
 
-建置變體時找到兩個 validator 缺口，已修正：G4 核准的 MANUAL 測試案例不需要工具包的 job（它由人執行，列在報告的未能測試清單）；G2 駁回的叢集，最新的裁決版本必須在 G2 之後（`E-VERDICT-G2`），否則報告會顯示它在 G2 之前的狀態。「每個 schema 都有範例」（`E-SCHEMA-NO-EXAMPLE`）只檢查主範例。
+建置變體時找到兩個 validator 缺口，已修正：G4 核准的 MANUAL 測試案例不需要工具包的 job（它由人執行，列在報告的未能測試清單）；G2 駁回的叢集，最新的裁決版本必須在 G2 之後（`E-VERDICT-G2`），否則報告會顯示它在 G2 之前的狀態。`suspend` 變體另外找到一個：逾時的 G3／G4 紀錄只能有 `needs_info`，「結果與決定一致」的檢查卻要求 `PARTIALLY_APPROVED`，所以任何逾時的 G3／G4 都會被拒絕（`E-GATE-OUTCOME`）；現在 `EXPIRED` 不由決定推導結果。「每個 schema 都有範例」（`E-SCHEMA-NO-EXAMPLE`）只檢查主範例。
 
 ### 範例沒有走過的路徑
 
-主範例 bundle 只有一個委任（`team`）、三個 run。兩個**變體 bundle**（見上一節）在真實簽署的資料上走過其中幾條路徑，標「`lite` 變體」「`edge` 變體」；其餘路徑由記憶體中的測試在範例上修改後檢查。每一列都由 `tests/test_v07_r9_examples.py` 確認所列的測試存在。
+主範例 bundle 只有一個委任（`team`）、三個 run。三個**變體 bundle**（見上一節）在真實簽署的資料上走過其中幾條路徑，標「`lite` 變體」「`edge` 變體」「`suspend` 變體」；其餘路徑由記憶體中的測試在範例上修改後檢查。每一列都由 `tests/test_v07_r9_examples.py` 確認所列的測試存在。
 
 | 路徑 | 規則 | 測試 |
 |---|---|---|
@@ -548,7 +549,8 @@ python tools/build_variants.py --check            # CI：覆蓋是最新的，�
 | G0b `VERIFY_FAILED` 擋住 B 階段 | `E-GATE-ORDER` | `tests/test_v07_r8_validator.py::test_a_failed_g0b_stops_the_b_phase` |
 | `STOPPED` 之後的 resume | `E-SIG-ROLE` | `tests/test_v05_round6_lowprio.py::test_stopped_resume_needs_a_test_lead` |
 | PII 停止條件 | `safety.pii_stop_hits` | `tests/test_v06_r7_methodology.py::test_unregistered_pii_still_stops` |
-| G5 兩人核准（`edge` 變體以 `full` 等級走過；抽查推翻後升級的路徑仍只在記憶體中） | `E-G5-TWO-PERSON` | `tests/test_v06_r7_methodology.py::test_an_overturned_g5_spot_check_requires_two_reviewers_later`、`tests/test_bl60_variants.py::test_edge_g5_has_two_security_reviewers` |
+| G5 兩人核准（`edge` 變體以 `full` 等級走過；`suspend` 變體記錄推翻 G5 的抽查，但範例沒有更晚、帶 G5 的 run，所以升級的後果仍只在記憶體中） | `E-G5-TWO-PERSON`、`E-SPOT-CHECK` | `tests/test_v06_r7_methodology.py::test_an_overturned_g5_spot_check_requires_two_reviewers_later`、`tests/test_bl60_variants.py::test_edge_g5_has_two_security_reviewers`、`tests/test_bl60_suspend.py::test_the_overturn_escalates_later_runs_only` |
+| 關卡逾時 → `SUSPENDED`（`suspend` 變體的跟進 run，G4 `EXPIRED`） | `E-GATE-EXPIRED-EARLY`、`E-GATE-OUTCOME`、`E-RUN-STATUS` | `tests/test_bl60_suspend.py::test_the_run_is_suspended_not_ended`、`tests/test_bl60_suspend.py::test_an_expired_g3_or_g4_implies_no_outcome_from_its_decisions` |
 | `regression` run | `E-RUN-FOLLOWUP` | `tests/test_v07_r8_validator.py::test_a_regression_run_carries_a_parent` |
 | 逾時的關卡（EXPIRED 不核准任何項目） | `Index.approved_requirement_ids` | `tests/test_v05_r7_bypasses.py::test_an_expired_g1_approves_nothing` |
 | 已完成的 run 被截回較早的錨點 | `E-AUDIT-ANCHOR-GAP` | `tests/test_v07_r9_anchor.py::test_rolling_a_completed_run_back_to_an_earlier_anchor_leaves_a_counter_gap` |

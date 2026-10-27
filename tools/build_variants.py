@@ -299,6 +299,58 @@ def v_edge(b: Bundle, keys) -> None:
     ck.update({"run_status": "ABORTED", "pending_interrupt": None})
 
 
+@variant
+def v_suspend(b: Bundle, keys) -> None:
+    """The two remaining paths of the follow-up run (BL-60 follow-up):
+    - nobody decides G4 within its 72 h timeout: the Gate Service writes an unsigned EXPIRED record and the run is
+      SUSPENDED (docs/02 §1.4), resumable from its checkpoint; there is no run_end anchor, because the run has not ended;
+    - the ASI09 spot check recorded in this run overturns the initial run's G5 decision (item_kind g5), so every run of
+      the engagement that starts after it needs two security reviewers at G5 (checks.g5_escalation)."""
+    log = doc(b, "audit-event.run-2026-10-07-001.example.jsonl")
+    sc = next(e for e in log.data if e["event_type"] == "spot_check_result")
+    # heidi approved GR-G5-0001 and erin initiated its run, so neither may check it: grace becomes a security reviewer
+    reg = doc(b, "key-registry.yaml").data
+    for e in reg["entries"]:
+        if e["person_id"] == "grace":
+            e["roles"] = sorted(set(e["roles"]) | {"security_reviewer"})
+    doc(b, "roe.yaml").data["gate_approvers"].append({"person_id": "grace", "role": "security_reviewer", "key_fingerprint": fp(keys, "grace")})
+    sc["actor"] = {"kind": "human", "id": "grace"}
+    sc["payload"] = {"item_kind": "g5", "item_id": "GR-G5-0001", "outcome": "overturned",
+                     "note": "ASI09 抽查（06 §1.1）：重看 GR-G5-0001 的 S2 主動掃描，回應證據不足以支持核准時的安全判斷；之後的 G5 需要兩位資安審查者"}
+    g4 = copy.deepcopy(doc(b, "gate-record.followup.g3.example.json").data)
+    main_g4 = doc(b, "gate-record.g4.example.json").data
+    # the G4 reviewer (erin) claims the run before G4 opens, as in the initial run (E-G4-INITIATOR)
+    _append(log, 18, {"event_type": "initiator_claim", "node": "claim_run", "ts": "2026-10-07T10:25:00+08:00",
+                      "key": "initiator_claim:erin", "actor": {"kind": "human", "id": "erin"},
+                      "payload": {"person_id": "erin", "role": "security_reviewer"}})
+    frun0 = doc(b, "run.followup.example.json").data
+    frun0["initiators"] = sorted(set(frun0.get("initiators") or []) | {"erin"})
+    g4.update({"gate_record_id": "GR-G4-0002", "gate": "G4", "approvers": copy.deepcopy(main_g4["approvers"]), "outcome": "EXPIRED",
+               "decisions": [{"item_id": "TC-012-01", "item_sha256": None, "decision": "needs_info", "risk_override": None,
+                              "note": "逾時：沒有人在 72 小時內決定", "carried_from": None}],
+               "opened_at": "2026-10-07T10:30:00+08:00", "timestamp": "2026-10-10T10:30:00+08:00", "signatures": []})
+    g4["artifact"] = {"kind": "test_plan", "sha256": None}
+    add(b, f"{EX}gate-record.followup.g4.example.json", "gate-record", g4)
+    n = len(log.data)
+    _append(log, n,
+            {"event_type": "gate_decision", "node": "G4", "ts": "2026-10-10T10:30:00+08:00", "key": "gate_decision:GR-G4-0002",
+             "actor": {"kind": "system", "id": "gate-service"},
+             "payload": {"gate": "G4", "gate_record_id": "GR-G4-0002", "outcome": "EXPIRED", "gate_record_sha256": None}},
+            {"event_type": "audit_anchor", "node": "G4", "ts": "2026-10-10T10:30:00+08:00", "key": "audit_anchor:g4-expired",
+             "payload": {"reason": "gate_decision", "anchor_counter": 0, "z3_countersignature": None}},
+            {"event_type": "run_status_changed", "node": "G4", "ts": "2026-10-10T10:30:00+08:00", "key": "run_status_changed:suspended",
+             "payload": {"from": "WAITING_GATE", "to": "SUSPENDED", "reason": "G4 逾時（72 小時）未決定"}},
+            {"event_type": "audit_anchor", "node": "G4", "ts": "2026-10-10T10:30:00+08:00", "key": "audit_anchor:suspended",
+             "payload": {"reason": "phase_end", "anchor_counter": 0, "z3_countersignature": None}})
+    frun = doc(b, "run.followup.example.json").data
+    for g in frun["gate_records"]:
+        if g["gate"] == "G4" and g["gate_record_id"] is None:
+            g.update({"gate_record_id": "GR-G4-0002", "outcome": "EXPIRED", "decided_at": "2026-10-10T10:30:00+08:00"})
+    frun.update({"status": "SUSPENDED", "status_reason": "G4 逾時未決定；由 run_owner 或發起者在委任到期前 resume，resume 時 G0b 重驗"})
+    ck = doc(b, "checkpoint-metadata.followup.example.json").data
+    ck.update({"run_status": "SUSPENDED"})
+
+
 # ---------------------------------------------------------------- overlay
 def overlay(name: str, keys) -> tuple[dict[str, str], list[str], Bundle]:
     base = load_bundle(ROOT)

@@ -1640,7 +1640,8 @@ def g_gates(R: Report, c: Ctx):
                 R.check(gate in ("G3", "G4"), "E-GATE-OUTCOME", w, "PARTIALLY_APPROVED is only allowed at G3 and G4 (D2)")
             # v0.5 (review 2026-10-25 M-4): over_cap is a G3-only, rule-based rejection written by the Gate Service
             R.check(gate == "G3" or "over_cap" not in decs, "E-GATE-OUTCOME", w, "decision over_cap is only used at G3")
-            if gate in ("G3", "G4") and decs:
+            # BL-60 (suspend variant): an EXPIRED G3 / G4 record carries only needs_info (above), so it implies no outcome
+            if gate in ("G3", "G4") and decs and rec.get("outcome") != "EXPIRED":
                 rej = [x for x in decs if x in ("reject", "over_cap")]
                 want = "APPROVED" if all(x == "accept" for x in decs) else ("REJECTED" if len(rej) == len(decs) else "PARTIALLY_APPROVED")
                 R.check(rec.get("outcome") == want, "E-GATE-OUTCOME", w, f"{gate} outcome {rec.get('outcome')} but decisions imply {want}")
