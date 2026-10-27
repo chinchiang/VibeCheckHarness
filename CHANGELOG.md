@@ -4,6 +4,20 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.8`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
 
+## 第十輪審查（2026-10-27）
+
+依 2026-10-27 設計審查（第十輪）：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的 5 項由主審查者重跑 probe 確認。
+
+### 錨定模型的三個缺口與穩健性（PR1）
+- **已完成的 run 不能重新打開**（`E-AUDIT-TAIL`）：`run_end` 錨點之後不能再有任何行，不論 run 紀錄自填什麼狀態。第九輪的 `E-RUN-STATUS` 跟著最後一筆 `run_status_changed`，但那一筆可以是 `run_end` 之後附加的未錨定行，所以不需金鑰就能把已完成的 run 改回 RUNNING、繼續附加。
+- **報告 manifest 由事件綁住**（`E-AUDIT-REPORT`、`E-ID-DUP`）：每個 run 只有一份 manifest，它必須恰有一筆已錨定的 `report_published`（`report_id` 相同、`report_manifest_sha256` 相符）。第九輪只比對 run 的第一份 manifest；`audit_log` 產物改對照同一 `report_id` 的事件。
+- **關卡紀錄的內容釘進 `gate_decision`**（`E-AUDIT-GATE`）：`payload.gate_record_sha256` 是紀錄去掉簽章的 content hash（`derive.gate_record_sha256`）。第九輪只釘關卡、結果與時間，核准者能用自己的金鑰在決定被錨定後增刪決定項目再重簽。
+- **紙上的 W4 測試不算覆蓋**（`E-W4-COVERAGE`、`E-W4-AUDIT`）：run 完成後每份 w4-testcase 都要有 W4 結果；每筆 W4 `sandbox_job_end` 指名本 run 的 W4 結果，開始的 W4 job 都有結束事件。
+- **所有權結果綁回 Z3 事件**（`E-RUN-OWNERSHIP`）：`ownership_check` 的 payload 列出每個目標的 `{target_id, method, ok}`；每筆 `run.ownership_results` 對應同批次、已錨定的事件，`checked_at` 不晚於收件時間，事件早於對該目標的第一個 B4 job。範例的事件改為列出四個目標。
+- **穩健性**：錨點編號缺號改為一次掃描排序後的編號（第九輪建 `set(range(1, max))`，一個編號 10⁹ 的未簽錨點就要數 GB 記憶體）；inventory 參照的表格索引改用 `[0-9]` 正規式（`"²".isdigit()` 為真，`int("²")` 會讓整份文件以 `E-INTERNAL` 跳過）。
+- 文件：06 §1.8 完整性矩陣與 §3 #16（整個較晚的 run 被刪除時錨點編號仍連續，外部錨點是唯一防線）、03 §13.1、02 B0、schemas README、audit-event schema（`gate_decision`、`ownership_check` 的 payload）。
+- 新增 `tests/test_v07_r10_anchor.py`（19 個）與 `tests/mutations/r10_anchor.json`；第九輪 `r9_examples.json` 的四個 `PER_RUN_SINGLETONS` 突變錨點改短；第九輪的回捲測試多一個 `E-AUDIT-REPORT`（保留下來的 manifest 已沒有 `report_published`）。
+
 ## 第九輪審查（2026-10-27）
 
 依 [2026-10-27 設計審查（第九輪）](docs/evidence/review-2026-10-27-r9.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）加上使用者提供的外部審查（2 項，都重現）。

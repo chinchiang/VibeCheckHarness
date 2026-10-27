@@ -1,0 +1,82 @@
+{
+  "tests": "tests/test_v07_r10_anchor.py",
+  "mutations": [
+    {
+      "name": "reopen: nothing follows a run_end anchor",
+      "file": "tools/vchlib/checks.py",
+      "old": "            after_end = len(evs) - ended if ended is not None else 0",
+      "new": "            after_end = 0",
+      "k": "reopened_after_its_run_end or nothing_follows_a_run_end"
+    },
+    {
+      "name": "manifest: one report manifest per run",
+      "file": "tools/vchlib/checks.py",
+      "old": "                      \"report-manifest\": None}",
+      "new": "                      }",
+      "k": "second_report_manifest"
+    },
+    {
+      "name": "manifest: every manifest needs its report_published",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not R.check(len(pubs) == 1, \"E-AUDIT-REPORT\", rm.path,",
+      "new": "        if not R.check(len(pubs) <= 1, \"E-AUDIT-REPORT\", rm.path,",
+      "k": "without_a_report_published_event"
+    },
+    {
+      "name": "manifest: the event is anchored",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(seq <= last, \"E-AUDIT-REPORT\", rm.path,",
+      "new": "        R.check(True, \"E-AUDIT-REPORT\", rm.path,",
+      "k": "unanchored_tail_publishes_nothing"
+    },
+    {
+      "name": "gate: gate_decision pins the record",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(rec is not None and p.get(\"gate_record_sha256\") == derive.gate_record_sha256(rec), \"E-AUDIT-GATE\", where,",
+      "new": "                    R.check(True, \"E-AUDIT-GATE\", where,",
+      "k": "rewriting_a_decided_gate_record"
+    },
+    {
+      "name": "W4: a completed run's w4-testcases ran",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(t.get(\"testcase_id\") in ran, \"E-W4-COVERAGE\", w,",
+      "new": "            R.check(True, \"E-W4-COVERAGE\", w,",
+      "k": "never_ran_does_not_cover"
+    },
+    {
+      "name": "W4: sandbox_job_end names a W4 result",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(tr is not None and tr.get(\"testcase_id\") == p.get(\"testcase_id\"), \"E-W4-AUDIT\", f\"{w} seq {e.get('seq')}\",",
+      "new": "            R.check(True, \"E-W4-AUDIT\", f\"{w} seq {e.get('seq')}\",",
+      "k": "w4_sandbox_job_end_names"
+    },
+    {
+      "name": "ownership: backed by an anchored ownership_check",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not R.check(len(evs_) == 1 and evs_[0][0] <= last, \"E-RUN-OWNERSHIP\", w,",
+      "new": "        if not True:",
+      "k": "without_an_ownership_check_event"
+    },
+    {
+      "name": "ownership: the event lists the target",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(len(listed) == 1 and listed[0].get(\"method\") == o.get(\"method\") and listed[0].get(\"ok\") is o.get(\"ok\"),",
+      "new": "        R.check(True,",
+      "k": "the_event_does_not_list"
+    },
+    {
+      "name": "ownership: checked_at not after the event",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(at is not None and recv is not None and at <= recv + MAX_CLOCK_SKEW, \"E-RUN-OWNERSHIP\", w,",
+      "new": "        R.check(True, \"E-RUN-OWNERSHIP\", w,",
+      "k": "checked_after_its_event"
+    },
+    {
+      "name": "robust: inventory index is ASCII digits",
+      "file": "tools/vchlib/derive.py",
+      "old": "_INDEX = re.compile(r\"0|[1-9][0-9]*\")",
+      "new": "_INDEX = type(\"I\", (), {\"fullmatch\": staticmethod(str.isdigit)})()",
+      "k": "non_ascii_digit"
+    }
+  ]
+}

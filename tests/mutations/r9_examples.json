@@ -11,29 +11,29 @@
     {
       "name": "ids: one inventory per run",
       "file": "tools/vchlib/checks.py",
-      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
-      "new": "PER_RUN_SINGLETONS = {\"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\",",
+      "new": "PER_RUN_SINGLETONS = {\"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\",",
       "k": "second_inventory"
     },
     {
       "name": "ids: one seed-threats per run",
       "file": "tools/vchlib/checks.py",
-      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
-      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\",",
+      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\",",
       "k": "second_seed_threats"
     },
     {
       "name": "ids: one redaction-map per run",
       "file": "tools/vchlib/checks.py",
-      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
-      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"dfd\": \"viewpoint\"}",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\",",
+      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"dfd\": \"viewpoint\",",
       "k": "second_redaction_map"
     },
     {
       "name": "ids: one DFD per viewpoint per run",
       "file": "tools/vchlib/checks.py",
-      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\"}",
-      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None}",
+      "old": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None, \"dfd\": \"viewpoint\",",
+      "new": "PER_RUN_SINGLETONS = {\"inventory\": None, \"seed-threats\": None, \"redaction-map\": None,",
       "k": "second_merged_dfd"
     },
     {
