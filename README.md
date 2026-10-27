@@ -149,17 +149,18 @@
 ```bash
 python -m pip install -r requirements.lock      # CI 用的精確版本；requirements.txt 是版本範圍
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 1276 個測試，約 8–15 分鐘
+python -m pytest tests                 # 1287 個測試，約 8–15 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點
+python tools/build_error_table.py --check       # schemas README 的錯誤碼表與 validator 一致
 python tools/check_platform_suffixes.py --check  # 選用，需要網路：手寫的共享平台清單對照 Public Suffix List
 ```
 
 - **貢獻**：修正錯誤一定要附回歸測試，並證明拿掉修正時測試會失敗，見 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - **Windows**：驗證器需要 `tzdata`（已列在 requirements.txt）；在 cp950 主控台上執行其他工具時請設定 `PYTHONUTF8=1`。
 - **簽章**：範例檔帶有真正的 Ed25519 簽章，但使用的是 `tests/fixtures/TEST_ONLY_private_keys/` 裡的 **TEST ONLY** 金鑰；這些簽章**不代表任何真實的核准**。
-- CI：[.github/workflows/validate.yml](.github/workflows/validate.yml)（Ubuntu／Windows × Python 3.11／3.13；Actions 鎖 commit SHA、token 只有 `contents: read`；也跑上面兩個 generator 的 `--check`）。外部連結檢查不在 CI 中，需要時手動執行 `python tools/check_external_links.py`。
+- CI：[.github/workflows/validate.yml](.github/workflows/validate.yml)（Ubuntu／Windows × Python 3.11／3.13；Actions 鎖 commit SHA、token 只有 `contents: read`；也跑上面三個 generator 的 `--check`）。外部連結檢查不在 CI 中，需要時手動執行 `python tools/check_external_links.py`。
 - 依賴與授權：`requirements.txt`、`pyproject.toml`；授權見 [examples/licenses.yaml](docs/examples/licenses.yaml) 與 [06 §2.3](docs/06-security-legal-limitations.md#23-授權登錄表)。
 
 ## 授權

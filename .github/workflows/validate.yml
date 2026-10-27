@@ -33,3 +33,5 @@ jobs:
         run: python tools/build_evidence_ledger.py --check
       - name: Generated references are up to date
         run: python tools/build_references.py --check
+      - name: Error-code table matches the validator
+        run: python tools/build_error_table.py --check

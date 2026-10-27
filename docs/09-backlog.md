@@ -84,8 +84,8 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-61 | r10 | harness 的可觀測性與值班：健康檢查、指標、告警、每晚的稽核驗證、事故紀錄 | [06 §1.11](06-security-legal-limitations.md#111-harness-的可觀測性與值班-h) | MVP-1 | 契約已寫；未實作 |
 | BL-62 | r10 | 審查者與抽查人的資格：金鑰登錄加 `qualifications`、核准時資格有效的 validator 檢查、練習對答的題組 | [06 §1.12](06-security-legal-limitations.md#112-審查者與抽查人的資格-h) | MVP-2 | 契約已寫；未實作 |
 | BL-63 | r10 | 人力與時程估算的實測：pilot 記錄每個里程碑的實際人週，超過估算 50% 時重估 | [07 §1.5](07-roadmap.md#15-人力與時程估算-h) | MVP-0 | 估算已寫；待量測 |
-| BL-64 | r10 | schemas README 的錯誤碼表整併：同一錯誤碼散在多個版本列的說明合併為一列，依家族排序，加「守住的測試」欄（可由測試檔中的錯誤碼自動產生） | [schemas README](schemas/README.md#錯誤碼) | MVP-0 | 未處理（第十輪 PR3 只拿掉標籤） |
 | BL-65 | r10 | 外部錨點：把每個錨點（或每日摘要）寫到委任的管理者無法修改的系統（客戶方 WORM 儲存、簽章寄送）。委任最後幾個錨點或整個較晚的 run 被刪掉時，這是唯一的防線 | [06 §3 #16](06-security-legal-limitations.md#3-做不到不承諾的事)、§1.7 | MVP-2 | 未實作 |
+| BL-66 | r10 | 97 個 validator 錯誤碼沒有任何測試直接引用（schemas README 錯誤碼表「守住的測試」欄標「—」者），多半是設定檔與金鑰登錄的格式檢查；逐一補上正反向測試，或確認已由其他檢查涵蓋 | [schemas README](schemas/README.md#錯誤碼) | MVP-0 | 未處理（BL-64 產生清單時發現） |
 
 ## 5. 已完成（保留編號供追溯）
 
@@ -108,3 +108,4 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-24 | 種子綁定只看路徑；GraphQL mutation 的物件 ID 在 variables 裡，無法綁定 | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（`object_refs`＋Scope Proxy 的 body ID 綁定）；v0.5 補強 query 字串、ID 鍵下的陣列與物件、整表寫入與 Server Action（審查 2026-10-25 H-6；執行期見 BL-38） |
 | BL-25 | 沒有方式宣告「唯讀的 POST 端點」（例如 Supabase RPC 的查詢函式） | v0.4 已處理：見 [04 §5](04-threat-to-testcase.md#5-安全等級計算規則)（seed manifest `read_only_endpoints`） |
 | BL-26 | `toolkit.yaml` 沒有 G2／G3 佇列上限與逾時比例告警門檻的欄位；run／report-manifest 沒有「超出上限」「只列報告」清單的欄位 | v0.4 已處理：`toolkit.yaml` `gate_queues`；report-manifest `over_cap_items`、`report_only_clusters`（`E-REPORT-QUEUE`）；v0.5 另加 G4 上限（`g4_max_items`，見 BL-41）與 G3 的 `over_cap` 決定 |
+| BL-64 | r10 錯誤碼表分成兩段、250 列，11 個錯誤碼散在多列，28 個沒有自己的列 | 已處理：`tools/build_error_table.py` 維護單一的表（每碼一列、依家族排序、自動產生「守住的測試」欄），CI 以 `--check` 檢查（[schemas README](schemas/README.md#錯誤碼)） |
