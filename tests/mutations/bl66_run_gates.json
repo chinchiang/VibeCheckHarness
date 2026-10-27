@@ -1,0 +1,299 @@
+{
+ "tests": "tests/test_bl66_run_gates.py",
+ "mutations": [
+  {
+   "name": "E-AUDIT-INITIATOR: initiator_claim must name a run initiator",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(actor.get(\"id\") in run.get(\"initiators\", []), \"E-AUDIT-INITIATOR\", where, \"claimed initiator not in run.initiators\")",
+   "new": "                    R.check(True, \"E-AUDIT-INITIATOR\", where, \"claimed initiator not in run.initiators\")",
+   "k": "e_audit_initiator"
+  },
+  {
+   "name": "E-AUDIT-RUN: audit log must belong to a known run",
+   "file": "tools/vchlib/checks.py",
+   "old": "            if not R.check(run is not None, \"E-AUDIT-RUN\", w, f\"run {rid} not found\"):",
+   "new": "            if not R.check(True, \"E-AUDIT-RUN\", w, f\"run {rid} not found\"):",
+   "k": "e_audit_run_log_of_an_unknown_run"
+  },
+  {
+   "name": "E-AUDIT-RUN: audit event run/engagement must match",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(ev.get(\"run_id\") == rid and ev.get(\"engagement_id\") == c.engagement.get(\"engagement_id\"), \"E-AUDIT-RUN\", where, \"run/engagement mismatch\")",
+   "new": "                R.check(True, \"E-AUDIT-RUN\", where, \"run/engagement mismatch\")",
+   "k": "e_audit_run_event_of_another_engagement"
+  },
+  {
+   "name": "E-AUDIT-RUN: audit event data_class must match the run",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(ev.get(\"data_class\") == run.get(\"data_class\"), \"E-AUDIT-RUN\", where, \"data_class differs from the run\")",
+   "new": "                R.check(True, \"E-AUDIT-RUN\", where, \"data_class differs from the run\")",
+   "k": "e_audit_run_event_data_class"
+  },
+  {
+   "name": "E-AUDIT-TS: audit timestamps must not go backwards",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(t >= prev_t, \"E-AUDIT-TS\", where, \"timestamps must not go backwards\")",
+   "new": "                    R.check(True, \"E-AUDIT-TS\", where, \"timestamps must not go backwards\")",
+   "k": "e_audit_ts"
+  },
+  {
+   "name": "E-RUN: run engagement_id must match",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(run.get(\"engagement_id\") == e.get(\"engagement_id\"), \"E-RUN\", w, \"engagement_id mismatch\")",
+   "new": "            R.check(True, \"E-RUN\", w, \"engagement_id mismatch\")",
+   "k": "e_run_field_differs_from_the_engagement and engagement_id"
+  },
+  {
+   "name": "E-RUN: run data_class must match",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(run.get(\"data_class\") == e.get(\"data_class\"), \"E-RUN\", w, \"data_class differs from the engagement\")",
+   "new": "            R.check(True, \"E-RUN\", w, \"data_class differs from the engagement\")",
+   "k": "e_run_field_differs_from_the_engagement and data_class"
+  },
+  {
+   "name": "E-RUN: run calibration_version must match",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(run.get(\"calibration_version\") == c.calibration.get(\"calibration_version\"), \"E-RUN\", w, \"calibration_version differs\")",
+   "new": "            R.check(True, \"E-RUN\", w, \"calibration_version differs\")",
+   "k": "e_run_field_differs_from_the_engagement and calibration_version"
+  },
+  {
+   "name": "E-RUN-OWASP: run owasp_llm_version",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(run.get(\"owasp_llm_version\") == want_owasp, \"E-RUN-OWASP\", w, f\"owasp_llm_version must be {want_owasp}\")",
+   "new": "            R.check(True, \"E-RUN-OWASP\", w, f\"owasp_llm_version must be {want_owasp}\")",
+   "k": "e_run_owasp"
+  },
+  {
+   "name": "E-RUN-DEADLINE: resume_deadline = opened_at + timeout",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(op and dl and lim is not None and dl == op + dt.timedelta(hours=lim), \"E-RUN-DEADLINE\", w,",
+   "new": "                    R.check(True, \"E-RUN-DEADLINE\", w,",
+   "k": "e_run_deadline"
+  },
+  {
+   "name": "E-RUN-GATES: gate_records in opened_at order",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(times == sorted(times), \"E-RUN-GATES\", w, \"gate_records are not in opened_at order\")",
+   "new": "            R.check(True, \"E-RUN-GATES\", w, \"gate_records are not in opened_at order\")",
+   "k": "e_run_gates_out_of"
+  },
+  {
+   "name": "E-RUN-GATES: listed gate record must exist",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    if R.check(grec is not None, \"E-RUN-GATES\", w, f\"gate record {g['gate_record_id']} not found\"):",
+   "new": "                    if R.check(True, \"E-RUN-GATES\", w, f\"gate record {g['gate_record_id']} not found\"):",
+   "k": "e_run_gates_listed"
+  },
+  {
+   "name": "E-RUN-BUDGET: budgets carry the GB new_caps",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(all(cur.get(k) == v for k, v in (gb.get(\"new_caps\") or {}).items()), \"E-RUN-BUDGET\", w,",
+   "new": "                    R.check(True, \"E-RUN-BUDGET\", w,",
+   "k": "e_run_budget_does_not_carry"
+  },
+  {
+   "name": "E-RUN-BUDGET: spent within the cap",
+   "file": "tools/vchlib/checks.py",
+   "old": "                            R.check(bud.get(spent, 0) <= bud[cap], \"E-RUN-BUDGET\", w, f\"budgets.{ph}.{spent} exceeds {cap}\")",
+   "new": "                            R.check(True, \"E-RUN-BUDGET\", w, f\"budgets.{ph}.{spent} exceeds {cap}\")",
+   "k": "e_run_budget_spent"
+  },
+  {
+   "name": "E-RUN-JOB: job_id equals its key",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(job.get(\"job_id\") == jid, \"E-RUN-JOB\", jw, \"job_id != key\")",
+   "new": "                    R.check(True, \"E-RUN-JOB\", jw, \"job_id != key\")",
+   "k": "e_run_job_id_differs"
+  },
+  {
+   "name": "E-RUN-JOB: job testcase must exist",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    if not R.check(tc is not None, \"E-RUN-JOB\", jw, \"testcase not found\"):",
+   "new": "                    if not R.check(True, \"E-RUN-JOB\", jw, \"testcase not found\"):",
+   "k": "e_run_job_testcase_not_found"
+  },
+  {
+   "name": "E-RUN-JOB: job testcase approved at G4",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(job.get(\"testcase_id\") in run.get(\"approved_testcase_ids\", []), \"E-RUN-JOB\", jw, \"job for a testcase not approved at G4\")",
+   "new": "                    R.check(True, \"E-RUN-JOB\", jw, \"job for a testcase not approved at G4\")",
+   "k": "e_run_job_testcase_not_approved"
+  },
+  {
+   "name": "E-G5-JOB: G5 references an S2 job",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(job is not None and job.get(\"safety_class\") == \"S2\", \"E-G5-JOB\", w, \"G5 must reference an S2 job of the run\")",
+   "new": "                R.check(True, \"E-G5-JOB\", w, \"G5 must reference an S2 job of the run\")",
+   "k": "e_g5_job"
+  },
+  {
+   "name": "E-GATE-ENGAGEMENT: gate decided inside the engagement validity",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(enb and ena and enb <= at <= ena, \"E-GATE-ENGAGEMENT\", w, \"decided outside the engagement validity\")",
+   "new": "            R.check(True, \"E-GATE-ENGAGEMENT\", w, \"decided outside the engagement validity\")",
+   "k": "e_gate_engagement"
+  },
+  {
+   "name": "E-GATE-G0-APPROVERS: G0a approvers are the engagement signatories",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(want == got, \"E-GATE-G0-APPROVERS\", w, \"G0a approvers must be the engagement signatories\")",
+   "new": "                R.check(True, \"E-GATE-G0-APPROVERS\", w, \"G0a approvers must be the engagement signatories\")",
+   "k": "e_gate_g0_approvers_g0a"
+  },
+  {
+   "name": "E-GATE-G0-APPROVERS: G0b approvers are the ROE signatories",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(want == got, \"E-GATE-G0-APPROVERS\", w, \"G0b approvers must be the ROE signatories\")",
+   "new": "                R.check(True, \"E-GATE-G0-APPROVERS\", w, \"G0b approvers must be the ROE signatories\")",
+   "k": "e_gate_g0_approvers_g0b"
+  },
+  {
+   "name": "E-GATE-G0-SIG: G0a/G0b carry no signatures",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(rec.get(\"signatures\") == [], \"E-GATE-G0-SIG\", d.path, \"G0a/G0b are system verifications: signatures must be []\")",
+   "new": "                R.check(True, \"E-GATE-G0-SIG\", d.path, \"G0a/G0b are system verifications: signatures must be []\")",
+   "k": "e_gate_g0_sig"
+  },
+  {
+   "name": "E-GATE-JOB: job_id only on G5",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(rec.get(\"job_id\") is None, \"E-GATE-JOB\", w, \"job_id is only used by G5\")",
+   "new": "                R.check(True, \"E-GATE-JOB\", w, \"job_id is only used by G5\")",
+   "k": "e_gate_job"
+  },
+  {
+   "name": "E-GATE-ROLES: gate approvers cover the required roles",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(GATE_ROLES[gate] <= roles, \"E-GATE-ROLES\", w, f\"missing roles {sorted(GATE_ROLES[gate] - roles)}\")",
+   "new": "                R.check(True, \"E-GATE-ROLES\", w, f\"missing roles {sorted(GATE_ROLES[gate] - roles)}\")",
+   "k": "e_gate_roles"
+  },
+  {
+   "name": "E-GATE-TIME: opened_at not after the decision",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(opened <= at, \"E-GATE-TIME\", w, \"opened_at after timestamp\")",
+   "new": "            R.check(True, \"E-GATE-TIME\", w, \"opened_at after timestamp\")",
+   "k": "e_gate_time"
+  },
+  {
+   "name": "E-GB-APPROVER: GB approver is run_owner or budget_approver",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(a.get(\"person_id\") in allowed, \"E-GB-APPROVER\", w, f\"GB approver {a.get('person_id')} is neither run_owner nor budget_approver\")",
+   "new": "                    R.check(True, \"E-GB-APPROVER\", w, f\"GB approver {a.get('person_id')} is neither run_owner nor budget_approver\")",
+   "k": "e_gb_approver"
+  },
+  {
+   "name": "E-L1: legal_review required",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if not R.check(isinstance(lr, dict), \"E-L1\", w, \"legal_review is required (docs/06 §2.1.1 L-1)\"):",
+   "new": "    if not R.check(True, \"E-L1\", w, \"legal_review is required (docs/06 §2.1.1 L-1)\"):",
+   "k": "e_l1_legal_review_missing"
+  },
+  {
+   "name": "E-L1: legal_review scope items true or justified",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(ok, \"E-L1\", w, f\"legal_review.scope.{k} must be true or carry not_applicable_reason\")",
+   "new": "        R.check(True, \"E-L1\", w, f\"legal_review.scope.{k} must be true or carry not_applicable_reason\")",
+   "k": "e_l1_scope"
+  },
+  {
+   "name": "E-L2: attester has an unrevoked key",
+   "file": "tools/vchlib/checks.py",
+   "old": "    R.check(bool(live), \"E-L2\", w, f\"legal_review.attested_by {att!r} has no unrevoked registry key\")",
+   "new": "    R.check(True, \"E-L2\", w, f\"legal_review.attested_by {att!r} has no unrevoked registry key\")",
+   "k": "e_l2_attester_has_no_registry_key"
+  },
+  {
+   "name": "E-L2: attester has the legal_reviewer or management role",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.error(\"E-L2\", w, f\"{att} has neither the legal_reviewer nor the management role\")",
+   "new": "            R.check(True, \"E-L2\", w, f\"{att} has neither the legal_reviewer nor the management role\")",
+   "k": "e_l2_attester_has_neither"
+  },
+  {
+   "name": "E-L3: attester signed the ROE",
+   "file": "tools/vchlib/checks.py",
+   "old": "    R.check(ok3, \"E-L3\", w, f\"legal_review.attested_by {att} has no valid signature on this ROE\")",
+   "new": "    R.check(True, \"E-L3\", w, f\"legal_review.attested_by {att} has no valid signature on this ROE\")",
+   "k": "e_l3"
+  },
+  {
+   "name": "E-ROE-DATA-CLASS: ROE data_class equals the engagement",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(dh.get(\"data_class\") == e.get(\"data_class\"), \"E-ROE-DATA-CLASS\", w, \"data_handling.data_class != engagement data_class\")",
+   "new": "        R.check(True, \"E-ROE-DATA-CLASS\", w, \"data_handling.data_class != engagement data_class\")",
+   "k": "e_roe_data_class"
+  },
+  {
+   "name": "E-ROE-ENGAGEMENT: ROE engagement id/version",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(eng.get(\"id\") == e.get(\"engagement_id\") and eng.get(\"version\") == e.get(\"version\"), \"E-ROE-ENGAGEMENT\", w,",
+   "new": "        R.check(True, \"E-ROE-ENGAGEMENT\", w,",
+   "k": "e_roe_engagement"
+  },
+  {
+   "name": "E-ROE-RELAY: ROE relay limits within the toolkit",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(trelay.get(k) is not None and relay[k] <= trelay[k], \"E-ROE-RELAY\", w, f\"relay.{k} exceeds toolkit relay\")",
+   "new": "                R.check(True, \"E-ROE-RELAY\", w, f\"relay.{k} exceeds toolkit relay\")",
+   "k": "e_roe_relay_limit"
+  },
+  {
+   "name": "E-ROE-RELAY: ROE relay models allowed for the data class",
+   "file": "tools/vchlib/checks.py",
+   "old": "                R.check(mk in (e.get(\"allowed_models\") or {}).get(e.get(\"data_class\"), []), \"E-ROE-RELAY\", w, f\"relay model {mk} not allowed for the data class\")",
+   "new": "                R.check(True, \"E-ROE-RELAY\", w, f\"relay model {mk} not allowed for the data class\")",
+   "k": "e_roe_relay_model"
+  },
+  {
+   "name": "E-ROE-S3: S3 never allowed",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(\"S3\" not in acts.get(\"allowed_safety_classes\", []), \"E-ROE-S3\", w, \"S3 can never be allowed\")",
+   "new": "        R.check(True, \"E-ROE-S3\", w, \"S3 can never be allowed\")",
+   "k": "e_roe_s3"
+  },
+  {
+   "name": "E-ROE-SIGNATORIES: ROE signatories cover the G0b roles",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(GATE_ROLES[\"G0b\"] <= roles, \"E-ROE-SIGNATORIES\", w, f\"signatories must include {sorted(GATE_ROLES['G0b'])}\")",
+   "new": "        R.check(True, \"E-ROE-SIGNATORIES\", w, f\"signatories must include {sorted(GATE_ROLES['G0b'])}\")",
+   "k": "e_roe_signatories"
+  },
+  {
+   "name": "E-ROE-TOOLS: allowed tools are B4-executable",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(spec is not None and any(m.get(\"b4_executable\") for m in (spec.get(\"modes\") or {}).values()), \"E-ROE-TOOLS\", w,",
+   "new": "            R.check(True, \"E-ROE-TOOLS\", w,",
+   "k": "e_roe_tools_allowed"
+  },
+  {
+   "name": "E-ROE-TOOLS: denied modes are registered",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(safety.registry_entry(c.tools, m) is not None, \"E-ROE-TOOLS\", w, f\"denied mode {m!r} is not registered\")",
+   "new": "            R.check(True, \"E-ROE-TOOLS\", w, f\"denied mode {m!r} is not registered\")",
+   "k": "e_roe_tools_denied"
+  },
+  {
+   "name": "E-ROE-VALIDITY: ROE not_before precedes not_after",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(nb and na and nb < na, \"E-ROE-VALIDITY\", w, \"not_before must precede not_after\")",
+   "new": "        R.check(True, \"E-ROE-VALIDITY\", w, \"not_before must precede not_after\")",
+   "k": "e_roe_validity_not_before"
+  },
+  {
+   "name": "E-ROE-VALIDITY: ROE validity inside the engagement validity",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(nb and na and enb and ena and enb <= nb and na <= ena, \"E-ROE-VALIDITY\", w, \"ROE validity must lie inside the engagement validity\")",
+   "new": "        R.check(True, \"E-ROE-VALIDITY\", w, \"ROE validity must lie inside the engagement validity\")",
+   "k": "e_roe_validity_outside"
+  },
+  {
+   "name": "W-L2-MANAGEMENT: management attester is flagged",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.warn(\"W-L2-MANAGEMENT\", w, f\"{att} attests as management (no legal_reviewer role): flag this in the report\")",
+   "new": "            R.check(True, \"W-L2-MANAGEMENT\", w, f\"{att} attests as management (no legal_reviewer role): flag this in the report\")",
+   "k": "w_l2_management"
+  }
+ ]
+}
