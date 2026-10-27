@@ -1,0 +1,116 @@
+{
+  "testcase_id": "TC-027-01",
+  "threat_id": "T-027",
+  "requirement_ids": [
+    "REQ-ASVS-1.2.4"
+  ],
+  "abuse_case_id": null,
+  "source_cluster_id": null,
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "preconditions": [
+    "角色 tenantA_user 的 storageState 由 Session Provider 提供",
+    "S2：執行前 Snapshot Service 建立 DB 快照；7 天內有還原演練紀錄"
+  ],
+  "steps": [
+    "以 tenantA_user 的 session 對 GET /api/invoices 的搜尋參數跑 ZAP 主動掃描（只啟用 SQL injection 規則）",
+    "掃描結束後以 Q-seed-count 確認種子資料未被改動，再還原快照"
+  ],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "kind": "reachability",
+      "description": "掃描前以 tenantA_user 的 session 讀發票列表：證明掃描 context 已認證並到達端點",
+      "steps": [
+        "以 tenantA_user GET /api/invoices"
+      ],
+      "expected": "200，且列表含 tenant_a_invoice"
+    }
+  ],
+  "oracle": {
+    "types": [
+      "TOOL_CHECK",
+      "STATE_DIFF"
+    ],
+    "conditions": [
+      "ZAP 報告中 SQL injection 類規則沒有 High 或 Medium 警示",
+      "Q-seed-count 掃描前後相同"
+    ],
+    "requirement_refs": [
+      "REQ-ASVS-1.2.4"
+    ],
+    "oracle_query_id": "Q-seed-count",
+    "oracle_query_sha256": "sha256:3f1b6f0f8f4a0a1e9c7d2b5e6a8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f708"
+  },
+  "tool_binding": {
+    "kind": "MANUAL",
+    "adapter": "manual",
+    "params": {
+      "scan_policy": "sqli-only",
+      "delayInMs": 300,
+      "threadPerHost": 1,
+      "maxScanDurationInMins": 30,
+      "context_role": "tenantA_user"
+    },
+    "manual_reason": "Lite 只允許 S0／S1：S2 的主動掃描改為人工執行"
+  },
+  "safety_class_proposed": null,
+  "safety_class_computed": "S0",
+  "rate_limit": {
+    "requests_per_second": 3,
+    "max_requests": 3000,
+    "max_requests_per_trial": 3000
+  },
+  "request_allowlist": [
+    {
+      "target_id": "tgt-staging-api",
+      "method": "GET",
+      "path": "/api/invoices",
+      "step_id": null,
+      "graphql_operation": null,
+      "graphql_document_sha256": null,
+      "object_refs": [],
+      "server_action": null
+    },
+    {
+      "target_id": "tgt-staging-api",
+      "method": "GET",
+      "path": "/api/invoices/{seed:tenant_a_invoice}",
+      "step_id": null,
+      "graphql_operation": null,
+      "graphql_document_sha256": null,
+      "object_refs": [],
+      "server_action": null
+    }
+  ],
+  "seed_manifest_ref": "docs/examples/seed-manifest.yaml",
+  "data_needed": {
+    "seed_data": [
+      "tenant_a_invoice"
+    ],
+    "roles": [
+      "tenantA_user"
+    ],
+    "db_tables": [
+      "invoices"
+    ]
+  },
+  "trials": {
+    "n": 1,
+    "pass_rule": "確定性；有 High／Medium SQL injection 警示即 FAIL，失敗時重播 1 次",
+    "record": [
+      "seed"
+    ],
+    "fail_k_min": 1,
+    "replay_n": 1,
+    "multi_turn_max_turns": null,
+    "sampling": null
+  },
+  "multi_turn": false,
+  "script_turns": null,
+  "strategy_template_sha256": null,
+  "artifact_sha256": "sha256:082cdaa2f50d7bac98650daa3314d5ce72b3d3a7c5be0a405368d1bf3d551ebd",
+  "expected_error_statuses": [],
+  "access_cells": []
+}

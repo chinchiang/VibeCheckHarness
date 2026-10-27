@@ -1,0 +1,110 @@
+"registry_id": "docs/examples/key-registry.yaml"
+"version": 4
+"issued_at": "2026-09-15T09:00:00+08:00"
+"org_root_public_key": "z+t55vCMGk7Z3OWrKl7SMIAelWBOB8GmjWJHQkjZWjM="
+"entries":
+- "person_id": "alice"
+  "display_name": "Alice（測試負責人，TEST ONLY）"
+  "roles":
+  - "test_lead"
+  "public_key": "/bw1qZLEQ9BHy7WpsvCwvgwe3BD7H1x5VU/wgrs2PU4="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+  "not_before": "2026-01-01T00:00:00+08:00"
+  "not_after": "2027-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+- "person_id": "carol"
+  "display_name": "Carol（管理層，TEST ONLY）"
+  "roles":
+  - "management"
+  "public_key": "8GxcVzu3GihM5KSY3MWwjmetv6MoT9r/eKuOrDR9DVo="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
+  "not_before": "2026-01-01T00:00:00+08:00"
+  "not_after": "2027-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+- "person_id": "dave"
+  "display_name": "Dave（基礎設施擁有者，TEST ONLY）"
+  "roles":
+  - "infrastructure_owner"
+  "public_key": "iAp2qfW6kdPet9HAmZTkWRFZlXjTs+822aUnZ6cIQho="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
+  "not_before": "2026-01-01T00:00:00+08:00"
+  "not_after": "2027-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+- "person_id": "erin"
+  "display_name": "Erin（資安審查者，舊金鑰，TEST ONLY）"
+  "roles":
+  - "security_reviewer"
+  "public_key": "PBZo/tvlZln6CaK1FNk2G/iJwinxFTojO905LHKPO+4="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:KOs0ZpT6WgdIMQXIwwt7QWjyvjJAyNt9CsA1YuOthN4"
+  "not_before": "2025-10-01T00:00:00+08:00"
+  "not_after": "2026-12-31T23:59:59+08:00"
+  "revoked_at": "2026-09-15T09:00:00+08:00"
+  "revocation_reason": "retired"
+- "person_id": "erin"
+  "display_name": "Erin（資安審查者，TEST ONLY）"
+  "roles":
+  - "security_reviewer"
+  "public_key": "8+Fqgko2gh8pIjZn9WS64ul9EL3sIQFQXboR1uT3L8Q="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84"
+  "not_before": "2026-09-15T09:00:00+08:00"
+  "not_after": "2027-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+- "person_id": "frank"
+  "display_name": "Frank（應用擁有者，TEST ONLY）"
+  "roles":
+  - "app_owner"
+  "public_key": "Xp3hSgL959BRVR/D8NbDlJ0KZ5QB4mT+miVSXMWYkiI="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
+  "not_before": "2026-01-01T00:00:00+08:00"
+  "not_after": "2027-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+- "person_id": "grace"
+  "display_name": "Grace（法務審查者，TEST ONLY）"
+  "roles":
+  - "legal_reviewer"
+  - "security_reviewer"
+  "public_key": "7R6pV+FatuAyRI8DUOI+kMfWQMVzobicYM7JTiqjCRY="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
+  "not_before": "2026-01-01T00:00:00+08:00"
+  "not_after": "2027-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+- "person_id": "heidi"
+  "display_name": "Heidi（資安審查者，TEST ONLY）"
+  "roles":
+  - "security_reviewer"
+  "public_key": "xmU6747eeztSXpTebopZhX/0EKV5k4OTGB0Vghx0auA="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:1jyZZuA652L7cTLJWgVC2VwK7buTjLotvqc4xrc9bKk"
+  "not_before": "2026-01-01T00:00:00+08:00"
+  "not_after": "2027-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+- "person_id": "z3-executor"
+  "display_name": "Z3 Executor 服務金鑰（簽署所有權驗證結果，TEST ONLY）"
+  "roles":
+  - "z3_executor"
+  "public_key": "fsyrENMpQKkJ2Xr98gonu+0eL7B7/1MTH+4G+WxDRA8="
+  "alg": "ed25519"
+  "fingerprint": "ed25519:SHA256:h/t5VqgBjtTvjfNBWFT8yNazYL2YS3zYhzKfZE3OOb4"
+  "not_before": "2026-01-01T00:00:00+08:00"
+  "not_after": "2026-12-31T23:59:59+08:00"
+  "revoked_at": null
+  "revocation_reason": null
+"signatures":
+- "signer": "org_root"
+  "key_fingerprint": "ed25519:SHA256:BapVgk4zzu3O27bFRo4KQPgpimca+HewBXfVD+sMLeQ"
+  "alg": "ed25519"
+  "value": "HkHJNOmeKGW3PjsJqlTkr02PXu1xmNb1Yl323+uAgjRgIifr9U2+gCdoXVX5aK/b81GWonzpPpKR6zWihYQyDw=="

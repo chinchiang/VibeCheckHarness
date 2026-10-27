@@ -57,6 +57,7 @@ class Bundle:
     schemas: dict[str, dict] = field(default_factory=dict)
     docs: list[Doc] = field(default_factory=list)
     requirements_txt: str | None = None
+    variant: str | None = None            # BL-60: the overlay applied by load_variant (None: the main bundle)
 
     def by_kind(self, kind: str) -> list[Doc]:
         return [d for d in self.docs if d.kind == kind and d.data is not None]
@@ -148,6 +149,64 @@ def load_bundle(root: pathlib.Path) -> Bundle:
     req = root / "requirements.txt"
     if req.exists():
         b.requirements_txt = req.read_text(encoding="utf-8")
+    return b
+
+
+VARIANTS = pathlib.Path("docs") / "examples" / "variants"
+
+
+def _doc_from_file(p: pathlib.Path, rel: str) -> Doc | None:
+    """A document of the bundle from one file, kind decided by its name as in load_bundle (None: not a bundle file)."""
+    text = p.read_text(encoding="utf-8")
+    if p.name.endswith(".example.json"):
+        return _json_doc(rel, p.name.split(".")[0], text)
+    if p.name.endswith(".example.jsonl"):
+        return _json_doc(rel, p.name.split(".")[0], text, jsonl=True)
+    if p.name.endswith(".yaml"):
+        kind = YAML_KINDS.get(p.name)
+        if kind is None:
+            return Doc(rel, "unknown", None, text, "no schema mapping for this YAML file")
+        try:
+            return Doc(rel, kind, yamlstrict.load(text), text)
+        except yamlstrict.StrictYAMLError as exc:
+            return Doc(rel, kind, None, text, f"strict YAML: {exc}")
+    return None
+
+
+def variant_names(root: pathlib.Path) -> list[str]:
+    vdir = pathlib.Path(root) / VARIANTS
+    return sorted(p.name for p in vdir.iterdir() if p.is_dir()) if vdir.is_dir() else []
+
+
+def load_variant(root: pathlib.Path, name: str) -> Bundle:
+    """BL-60: a variant bundle is the main example bundle with an overlay applied. The overlay directory
+    docs/examples/variants/<name>/ mirrors repo paths (docs/schemas/examples/..., docs/examples/...): a file there replaces
+    the main bundle's file of the same path or adds a new one, and removed.txt lists main-bundle paths the variant drops.
+    Documents keep their repo paths, so lookups by file name work the same as on the main bundle."""
+    root = pathlib.Path(root)
+    vdir = root / VARIANTS / name
+    if not vdir.is_dir():
+        raise ValueError(f"no variant bundle {name!r} under {VARIANTS}")
+    b = load_bundle(root)
+    removed_file = vdir / "removed.txt"
+    removed = {ln.strip() for ln in removed_file.read_text(encoding="utf-8").splitlines()
+               if ln.strip() and not ln.startswith("#")} if removed_file.exists() else set()
+    by_path = {d.path: i for i, d in enumerate(b.docs)}
+    for p in sorted((vdir / "docs").rglob("*")) if (vdir / "docs").is_dir() else []:
+        if not p.is_file():
+            continue
+        rel = p.relative_to(vdir).as_posix()
+        d = _doc_from_file(p, rel)
+        if d is None:
+            continue
+        if rel in by_path:
+            b.docs[by_path[rel]] = d
+        else:
+            b.docs.append(d)
+    b.docs = [d for d in b.docs if d.path not in removed]
+    # the main loader's order: JSON examples, then JSONL, then YAML, each by file name (first-match lookups depend on it)
+    b.docs.sort(key=lambda d: ({".json": 0, ".jsonl": 1}.get(pathlib.PurePosixPath(d.path).suffix, 2), d.path))
+    b.variant = name
     return b
 
 

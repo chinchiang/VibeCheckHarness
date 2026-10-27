@@ -401,7 +401,9 @@ def g_schemas(R: Report, c: Ctx):
                 R.error("E-SCHEMA", d.path, f"{loc}: {e.message[:300]}")
     for name in b.schemas:
         if name != "common":
-            R.check(name in seen, "E-SCHEMA-NO-EXAMPLE", f"{name}.schema.json", "no valid example instance")
+            # BL-60: a variant bundle is an overlay on the main bundle; schema coverage is the main bundle's job
+            if getattr(b, "variant", None) is None:
+                R.check(name in seen, "E-SCHEMA-NO-EXAMPLE", f"{name}.schema.json", "no valid example instance")
 
 
 # ============================================================== 2 JCS
@@ -3172,6 +3174,14 @@ def verdict_chains(R: Report, c: Ctx):
         heads = [i for i in ids if i not in superseded_by]
         R.check(len(heads) == 1, "E-VERDICT-CHAIN", docs[0].path,
                 f"cluster {cid} must have exactly one latest verdict version, got {sorted(map(str, heads))}")
+        # BL-60: a G2 rejection is applied by a post-G2 version (G2_apply, or a later W4 / B5 one), which R10 decides.
+        # v0.7 r10 accepted a rejected cluster whose latest version was still the W3 one, so the report showed it with
+        # its pre-G2 status (found while building the `edge` variant bundle)
+        if len(heads) == 1 and g2_latest(c, cluster)[1] == "reject":
+            head = ids[heads[0]].data
+            R.check(head.get("readjudicated_by") != "W3_adjudicate", "E-VERDICT-G2", ids[heads[0]].path,
+                    f"G2 rejected {cid}, but its latest verdict {head.get('verdict_id')} is the W3 version: the rejection needs "
+                    "a G2_apply version (docs/05 R10)")
         audit = c.ix.audit_for(cluster.get("run_id"))
         received = {(e.get("payload") or {}).get("verdict_id"): e.get("ts") for e in (audit.data if audit else [])
                     if isinstance(e, dict) and e.get("event_type") == "verdict_changed"}
@@ -4353,6 +4363,11 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
             if g4.data.get("outcome") == "EXPIRED":
                 continue
             for x in g4.data.get("decisions") or []:
+                # BL-60: a MANUAL testcase is carried out by a person, not by a toolkit job (it is listed in the report's
+                # untested list, docs/02 B6); the r9 rule asked a job of it, which the examples never exercised
+                tc = c.ix.first("testcase", testcase_id=x.get("item_id"))
+                if ((tc.data if tc else {}).get("tool_binding") or {}).get("kind") == "MANUAL":
+                    continue
                 if x.get("decision") == "accept":
                     R.check(x.get("item_id") in have, "E-JOB-AUDIT", w,
                             f"G4 approved testcase {x.get('item_id')} ({g4.data.get('gate_record_id')}), but run.jobs has no job for it")

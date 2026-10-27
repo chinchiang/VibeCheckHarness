@@ -1,0 +1,26 @@
+{
+  "tests": "tests/test_bl64_error_table.py",
+  "mutations": [
+    {"name": "codes sorted inside a family", "file": "tools/build_error_table.py",
+     "old": "        fam = sorted(c for c in codes if family_of(c) == i)", "new": "        fam = sorted((c for c in codes if family_of(c) == i), reverse=True)",
+     "k": "grouped_by_family or tool_writes"},
+    {"name": "families", "file": "tools/build_error_table.py",
+     "old": "    for i, (_, keys) in enumerate(FAMILIES):\n        if key in keys:\n            return i", "new": "    for i, (_, keys) in enumerate(FAMILIES):\n        if key in keys:\n            return 0",
+     "k": "grouped_by_family or tool_writes"},
+    {"name": "guarding tests column", "file": "tools/build_error_table.py",
+     "old": "    if not names:\n        return \"—\"", "new": "    if True:\n        return \"—\"",
+     "k": "guarding_tests_column or tool_writes"},
+    {"name": "self test excluded", "file": "tools/build_error_table.py",
+     "old": "        if p.stem == SELF_TEST:\n            continue\n", "new": "",
+     "k": "own_fixtures or tool_writes"},
+    {"name": "missing rule is a problem", "file": "tools/build_error_table.py",
+     "old": "    problems = [f\"{c}: no rule text (write it in the table)\" for c in sorted(codes) if not rules.get(c) or rules[c] == MISSING_RULE]", "new": "    problems = []",
+     "k": "without_a_rule_is_a_problem"},
+    {"name": "stale row is a problem", "file": "tools/build_error_table.py",
+     "old": "    problems += [f\"{c}: row for a code the validator never reports\" for c in sorted(set(rules) - codes)]", "new": "",
+     "k": "never_reports"},
+    {"name": "CI runs the check", "file": ".github/workflows/validate.yml",
+     "old": "        run: python tools/build_error_table.py --check", "new": "        run: python tools/build_error_table.py",
+     "k": "ci_runs_the_check"}
+  ]
+}

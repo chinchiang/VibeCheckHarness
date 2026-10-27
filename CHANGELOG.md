@@ -4,6 +4,21 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.8`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
 
+## 待辦 BL-64、BL-60（2026-10-27）
+
+### 變體 bundle（BL-60）
+- 兩個**變體 bundle**在真實簽署的資料上走過主範例沒有走過的路徑：`lite`（單人委任、只有 S0／S1、S2 改為 MANUAL 而沒有 G5、沒有抽查）與 `edge`（G2 駁回由 G2_apply 依 R10 決定、`full` 等級的 G5 兩人核准、跟進 run 觸發停止條件後中止）。
+- 變體是覆蓋：`docs/examples/variants/<名稱>/` 只放與主範例不同的檔案與 `removed.txt`；`vchlib.bundle.load_variant` 套用它，`validate_schemas.py --variant` 驗證它。新工具 `tools/build_variants.py` 從主範例以腳本修改、重算並重簽，`--check` 加進 CI。
+- 建置時找到兩個 validator 缺口並修正：G4 核准的 MANUAL 測試案例不再要求工具包的 job（`E-JOB-AUDIT`）；G2 駁回的叢集，最新裁決版本必須在 G2 之後（`E-VERDICT-G2`）。`E-SCHEMA-NO-EXAMPLE` 只檢查主範例。
+- schemas README 的「範例沒有走過的路徑」表標出變體走過的列，新增停止條件一列；BL-60 移到已完成（SUSPENDED 與抽查推翻後升級 G5 仍只在記憶體中測試）。
+- 新增 `tests/test_bl60_variants.py`（17 個）與 `tests/mutations/bl60_variants.json`。
+
+### 錯誤碼表整併（BL-64）
+- schemas README 的錯誤碼表原本分成兩段、250 列：11 個錯誤碼散在多列，28 個錯誤碼只出現在檢查清單或別列的說明裡。現在是單一的表，validator 會回報的 314 個錯誤碼與警告碼每碼恰好一列，依 17 個家族分組、組內依字母排序。
+- 新工具 `tools/build_error_table.py`：規則欄仍是手寫，工具負責列的集合、排序，以及由 `tests/` 自動產生的「守住的測試」欄；`--check` 加進 CI。
+- 產生清單時發現 97 個錯誤碼沒有任何測試直接引用，列為 BL-66。
+- 新增 `tests/test_bl64_error_table.py`（11 個）與 `tests/mutations/bl64_error_table.json`。
+
 ## 第十輪審查（2026-10-27）
 
 依 [2026-10-27 設計審查（第十輪）](docs/evidence/review-2026-10-27-r10.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的 5 項由主審查者重跑 probe 確認。

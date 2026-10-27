@@ -1,0 +1,76 @@
+{
+  "gate_record_id": "GR-G0b-0001",
+  "gate": "G0b",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-09-23-001",
+  "round": 1,
+  "artifact": {
+    "kind": "roe",
+    "sha256": "sha256:ec1386984a79b0c5c709b4b84e48da2381b877aa68b0a4d686eb05e763c50f5e"
+  },
+  "job_id": null,
+  "g4_gate_record_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "alice",
+      "role": "test_lead",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    },
+    {
+      "person_id": "alice",
+      "role": "management",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    },
+    {
+      "person_id": "alice",
+      "role": "infrastructure_owner",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    }
+  ],
+  "outcome": "VERIFIED",
+  "decisions": [
+    {
+      "item_id": "roe:eng-acme-invoices-2026q4@1",
+      "item_sha256": "sha256:ec1386984a79b0c5c709b4b84e48da2381b877aa68b0a4d686eb05e763c50f5e",
+      "decision": "accept",
+      "risk_override": null,
+      "note": null,
+      "carried_from": null
+    }
+  ],
+  "gb": null,
+  "verification": {
+    "document_ref": "sha256:ec1386984a79b0c5c709b4b84e48da2381b877aa68b0a4d686eb05e763c50f5e",
+    "key_registry_version": 4,
+    "signer_results": [
+      {
+        "person_id": "alice",
+        "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "person_id": "alice",
+        "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "person_id": "alice",
+        "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "person_id": "alice",
+        "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "opened_at": "2026-10-01T08:59:00+08:00",
+  "timestamp": "2026-10-01T09:00:00+08:00",
+  "signatures": []
+}
