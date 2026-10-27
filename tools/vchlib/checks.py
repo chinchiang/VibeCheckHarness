@@ -2556,6 +2556,14 @@ def w4_coverage(R: Report, c: Ctx, run: dict, w: str, approved: set):
         or any(s.data.get("run_id") == rid for s in c.docs("seed-threats"))
     if run.get("run_kind") == "lane_a" or not reached:
         return
+    # v0.7 (review r10 W4): once the run is COMPLETED a w4-testcase covers its invariants only if it ran, i.e. it has a
+    # W4 result (which E-W4-AUDIT backs with an anchored Z2 sandbox_job_end). v0.7 r9 counted a test written on paper
+    if run.get("status") in COMPLETED_RUN_STATES:
+        ran = {r.data.get("testcase_id") for r in c.docs("testresult") if r.data.get("run_id") == rid and r.data.get("phase") == "W4"}
+        for t in tcs:
+            R.check(t.get("testcase_id") in ran, "E-W4-COVERAGE", w,
+                    f"w4-testcase {t.get('testcase_id')} never ran (no W4 result) in the completed run {rid}: it covers none of "
+                    f"{t.get('requirement_ids')}; run it or mark them MANUAL with a reason")
     tested = {x for t in tcs for x in t.get("requirement_ids") or []}
     for x in sorted(invariants):
         R.check((x in tested) != (x in manual), "E-W4-COVERAGE", w,
@@ -3888,9 +3896,16 @@ def anchor_counter_problems(anchors) -> list[str]:
             out.append(f"{where}: anchor_counter {n} is used twice (also {seen[n]})")
         seen.setdefault(n, where)
     if seen:
-        missing = sorted(set(range(1, max(seen) + 1)) - set(seen))
-        if missing:
-            out.append(f"anchor_counter {missing[:10]}{' ...' if len(missing) > 10 else ''} missing below {max(seen)}: "
+        # v0.7 (review r10): one pass over the sorted counters; v0.7 r9 built set(range(1, max)), so one unsigned anchor
+        # numbered 10**9 in an unanchored tail cost gigabytes
+        missing, total, prev = [], 0, 0
+        for n in sorted(seen):
+            if n > prev + 1:
+                total += n - prev - 1
+                missing.extend(range(prev + 1, min(n, prev + 1 + 10 - len(missing))) if len(missing) < 10 else ())
+            prev = n
+        if total:
+            out.append(f"anchor_counter {missing}{' ...' if total > len(missing) else ''} missing below {prev} ({total} in all): "
                        "anchors the Z3 executor countersigned are gone (a log was cut back to an earlier anchor or deleted)")
     ordered = sorted(((n, t, w) for n, t, w in anchors if type(n) is int), key=lambda x: x[0])
     for (n1, t1, w1), (n2, t2, w2) in zip(ordered, ordered[1:]):
@@ -3954,6 +3969,11 @@ def g_audit(R: Report, c: Ctx):
                             and signed_at is not None and t is not None and abs(t - signed_at) <= MAX_CLOCK_SKEW, "E-AUDIT-GATE", where,
                             "gate_decision does not match its gate record (gate, outcome, or the signed timestamp differs from the "
                             f"Audit Writer's receive time by more than {MAX_CLOCK_SKEW})")
+                    # v0.7 (review r10 gate): the event pins the decided record's content (signatures excluded); v0.7 r9 pinned
+                    # gate and outcome only, so the record's own approvers could add or change decisions and re-sign it
+                    R.check(rec is not None and p.get("gate_record_sha256") == derive.gate_record_sha256(rec), "E-AUDIT-GATE", where,
+                            f"gate_decision pins gate_record_sha256 {p.get('gate_record_sha256')!r}, but {p.get('gate_record_id')} hashes to "
+                            f"{derive.gate_record_sha256(rec) if rec is not None else None}: the record changed after it was decided")
                 if et == "initiator_claim":
                     R.check(actor.get("id") in run.get("initiators", []), "E-AUDIT-INITIATOR", where, "claimed initiator not in run.initiators")
                 if et == "spot_check_result":
@@ -3975,16 +3995,24 @@ def g_audit(R: Report, c: Ctx):
                             f"{content_hash(v.data) if v is not None else None}: the verdict changed after it was recorded")
                 if et == "report_published":
                     p = ev.get("payload") or {}
-                    rm = c.ix.first("report-manifest", run_id=rid)
+                    rm = c.ix.first("report-manifest", run_id=rid, report_id=p.get("report_id")) or c.ix.first("report-manifest", run_id=rid)
                     R.check(rm is not None and rm.data.get("report_id") == p.get("report_id"), "E-AUDIT-REPORT", where, "report id mismatch")
                     # v0.7 (review r8 H4): the manifest (whose artifacts pin the SARIF, HTML, verdicts and the audit log) is pinned too
                     R.check(rm is not None and p.get("report_manifest_sha256") == content_hash(rm.data), "E-AUDIT-REPORT", where,
                             f"report_published pins report_manifest_sha256 {p.get('report_manifest_sha256')!r}, but the manifest hashes to "
                             f"{content_hash(rm.data) if rm is not None else None}: the report changed after it was published")
             tail, last_anchor = audit_anchor_tail(R, w, run, d)
-            if run.get("status") in TERMINAL_RUN_STATES:
+            # v0.7 (review r10 reopen): a run ends once. Whatever the (unsigned) run record says, no line follows the first
+            # run_end anchor; v0.7 r9 decided "terminal" from run.status, which followed an unanchored run_status_changed
+            # appended after the run_end anchor, so a completed run could be reopened without any key
+            ended = next((i + 1 for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"
+                          and (e.get("payload") or {}).get("reason") == "run_end"), None)
+            after_end = len(evs) - ended if ended is not None else 0
+            if run.get("status") in TERMINAL_RUN_STATES or after_end:
                 # at most one E-AUDIT-TAIL per run, listing every reason
                 why = []
+                if after_end:
+                    why.append(f"{after_end} line(s) after the run_end anchor (seq {ended}): a run ends once and cannot be reopened")
                 if tail > 0:
                     why.append(f"{tail} line(s) after the last audit_anchor (seq {last_anchor})")
                 if not evs or evs[-1].get("event_type") != "audit_anchor":
@@ -4003,6 +4031,8 @@ def g_audit(R: Report, c: Ctx):
                 R.check(g.data.get("gate_record_id") in logged, "E-AUDIT-GATE", w, f"{g.data.get('gate_record_id')} has no gate_decision event")
             job_audit(R, c, w, rid, run, evs)
             run_structure(R, c, w, rid, run, evs)
+            ownership_events(R, c, w, rid, run, evs)
+            report_events(R, c, rid, evs)
 
 
     # a log the strict loader rejected has no anchors to count: its load error is the only report (no cascade)
@@ -4047,6 +4077,74 @@ def g_audit(R: Report, c: Ctx):
             R.check(False, "E-AUDIT-GATE", where,
                     f"{g.data.get('gate_record_id')} ({g.data.get('gate')}) has no gate_decision event: the run has no audit "
                     "log, so its receive time cannot be established")
+
+
+def report_events(R: Report, c: Ctx, rid, evs: list):
+    """v0.7 (review r10 manifest): a report manifest is a report only through the anchored report_published that pins
+    it. v0.7 r9 checked the event against the first manifest of the run, so a second manifest (or one for a run that
+    never published) with arbitrary SARIF / HTML hashes and a shorter report queue was accepted. With E-ID-DUP's one
+    manifest per run, every manifest needs exactly one report_published naming its report_id, inside the anchored part
+    of the log, whose report_manifest_sha256 is the manifest's content hash."""
+    last = anchored_seqs(evs)
+    for rm in c.docs("report-manifest"):
+        if rm.data.get("run_id") != rid:
+            continue
+        rep = rm.data.get("report_id")
+        pubs = [(i + 1, e.get("payload") or {}) for i, e in enumerate(evs) if isinstance(e, dict)
+                and e.get("event_type") == "report_published" and (e.get("payload") or {}).get("report_id") == rep]
+        if not R.check(len(pubs) == 1, "E-AUDIT-REPORT", rm.path,
+                       f"report {rep}: the audit log of {rid} has {len(pubs)} report_published events naming it; a report "
+                       "manifest is published by exactly one anchored report_published"):
+            continue
+        seq, p = pubs[0]
+        R.check(seq <= last, "E-AUDIT-REPORT", rm.path,
+                f"report {rep}: its report_published (seq {seq}) is after the last audit_anchor (seq {last}); "
+                "an unanchored line is no evidence, so the report is not published yet")
+        R.check(p.get("report_manifest_sha256") == content_hash(rm.data), "E-AUDIT-REPORT", rm.path,
+                f"report {rep}: report_published (seq {seq}) pins {p.get('report_manifest_sha256')!r}, "
+                f"but the manifest hashes to {content_hash(rm.data)}")
+
+
+def ownership_events(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
+    """v0.7 (review r10 ownership; docs/02 B0, 08 §11.9): every run.ownership_results entry is backed by the Z3
+    executor's anchored ownership_check event of the same batch, which lists the target with the same method and
+    outcome. checked_at is not later than the event's receive time, and the event is received before the first B4 job
+    against that target starts. v0.7 r9 compared the results with the ROE only, so a batch no event names, dated after
+    every job, passed."""
+    last = anchored_seqs(evs)
+    checks_ = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "ownership_check"]
+    first_job: dict = {}
+    jobs = run.get("jobs") or {}
+    for e in evs:
+        if isinstance(e, dict) and e.get("event_type") == "sandbox_job_start" and e.get("node") in B_NODES:
+            job = jobs.get((e.get("payload") or {}).get("job_id"))
+            tc = c.ix.first("testcase", testcase_id=job.get("testcase_id")) if isinstance(job, dict) else None
+            for tid in (tc.data if tc else {}).get("target_ids") or []:
+                first_job.setdefault(tid, e)
+    for o in run.get("ownership_results") or []:
+        if not isinstance(o, dict):
+            continue
+        tid = o.get("target_id")
+        evs_ = [(seq, e) for seq, e in checks_ if (e.get("payload") or {}).get("batch_id") == o.get("batch_id")]
+        if not R.check(len(evs_) == 1 and evs_[0][0] <= last, "E-RUN-OWNERSHIP", w,
+                       f"{tid}: batch {o.get('batch_id')!r} needs exactly one anchored ownership_check event "
+                       f"(the Z3 executor's record of the check); the log has {len(evs_)}"
+                       + ("" if not evs_ or evs_[0][0] <= last else ", in the unanchored tail")):
+            continue
+        seq, ev = evs_[0]
+        listed = [r for r in (ev.get("payload") or {}).get("results") or [] if isinstance(r, dict) and r.get("target_id") == tid]
+        R.check(len(listed) == 1 and listed[0].get("method") == o.get("method") and listed[0].get("ok") is o.get("ok"),
+                "E-RUN-OWNERSHIP", w, f"{tid}: the ownership_check event (seq {seq}) lists {listed}, but run.ownership_results "
+                f"says method {o.get('method')!r}, ok {o.get('ok')!r}")
+        at, recv = ts(R, o.get("checked_at"), w), ts(R, ev.get("ts"), w)
+        R.check(at is not None and recv is not None and at <= recv + MAX_CLOCK_SKEW, "E-RUN-OWNERSHIP", w,
+                f"{tid}: checked_at {o.get('checked_at')} is after the ownership_check event was received ({ev.get('ts')})")
+        job = first_job.get(tid)
+        if job is not None:
+            start = ts(R, job.get("ts"), w)
+            R.check(recv is not None and start is not None and recv <= start, "E-RUN-OWNERSHIP", w,
+                    f"{tid}: ownership was checked at {ev.get('ts')}, after the first B4 job against it started "
+                    f"(seq {job.get('seq')}, {job.get('ts')}); B4_preflight checks before the job")
 
 
 def run_log_state(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
@@ -4220,6 +4318,23 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
             jid = (e.get("payload") or {}).get("job_id")
             R.check(jid in jobs, "E-JOB-AUDIT", f"{w} seq {e.get('seq')}",
                     f"{e.get('event_type')} names job {jid}, which is not in run.jobs")
+    # v0.7 (review r10 W4): a W4 / Z2 sandbox_job_end names a W4 result of this run for its testcase (a W4 job that
+    # ended without a result was silently dropped), and a completed run has an end for every W4 job it started
+    w4_results = {r.data.get("result_id"): r.data for r in c.docs("testresult") if r.data.get("run_id") == rid and r.data.get("phase") == "W4"}
+    w4_ended = set()
+    for e in evs:
+        if isinstance(e, dict) and e.get("node") == "W4" and e.get("event_type") == "sandbox_job_end":
+            p = e.get("payload") or {}
+            w4_ended.add(p.get("job_id"))
+            tr = w4_results.get(p.get("result_id"))
+            R.check(tr is not None and tr.get("testcase_id") == p.get("testcase_id"), "E-W4-AUDIT", f"{w} seq {e.get('seq')}",
+                    f"W4 sandbox_job_end names result {p.get('result_id')!r} of testcase {p.get('testcase_id')!r}, "
+                    "which is not a W4 result of this run")
+    if run.get("status") in COMPLETED_RUN_STATES:
+        for e in evs:
+            if isinstance(e, dict) and e.get("node") == "W4" and e.get("event_type") == "sandbox_job_start":
+                R.check((e.get("payload") or {}).get("job_id") in w4_ended, "E-W4-AUDIT", f"{w} seq {e.get('seq')}",
+                        f"W4 job {(e.get('payload') or {}).get('job_id')!r} started but has no sandbox_job_end in the completed run")
     if run.get("status") in COMPLETED_RUN_STATES:
         have = {j.get("testcase_id") for j in jobs.values() if isinstance(j, dict)}
         for g4 in c.ix.gate_records(rid, "G4"):
@@ -4703,7 +4818,8 @@ ID_KEYS = {"run": "run_id", "verdict": "verdict_id", "cluster": "cluster_id", "f
            "slice": "slice_id", "commander-plan": "plan_id"}     # v0.7 (review r9): plans too
 # v0.7 (review r9): documents a run has at most one of (per viewpoint for DFDs). Lookups take the first by file name, so a
 # second inventory, seed-threats document or merged DFD of a run decided silently which one was checked
-PER_RUN_SINGLETONS = {"inventory": None, "seed-threats": None, "redaction-map": None, "dfd": "viewpoint"}
+PER_RUN_SINGLETONS = {"inventory": None, "seed-threats": None, "redaction-map": None, "dfd": "viewpoint",
+                      "report-manifest": None}     # v0.7 (review r10): one report per run; a second one decided nothing
 
 
 def id_uniqueness(R: Report, c: Ctx):

@@ -10,6 +10,7 @@ they need keys or raw lines.
 from __future__ import annotations
 
 import contextlib
+import re
 
 from dataclasses import dataclass
 from typing import Any
@@ -327,7 +328,7 @@ def rubric_inputs(ix: Index, cluster: dict) -> dict:
             store = by_id.get(e.get("to") if e.get("from") in procs else e.get("from")) or {}
             for r in store.get("evidence_refs") or [] if store.get("type") == "data_store" else []:
                 parts = str(r).split("/")
-                if parts[:2] == ["inventory:", "db"] and parts[2:3] == ["tables"] and parts[3:4] and parts[3].isdigit() \
+                if parts[:2] == ["inventory:", "db"] and parts[2:3] == ["tables"] and parts[3:4] and _INDEX.fullmatch(parts[3]) \
                         and int(parts[3]) < len(inv_tables):
                     tables.add(inv_tables[int(parts[3])].get("name"))
     levels, pii = [], False
@@ -925,6 +926,16 @@ def item_hash(ix: Index, rec: dict, item_id: str):
 
 
 # ---------------------------------------------------------------- expectations
+# v0.7 (review r10): str.isdigit() accepts "²", which int() rejects (an internal error that skipped documents)
+_INDEX = re.compile(r"0|[1-9][0-9]*")
+
+
+def gate_record_sha256(rec: dict) -> str:
+    """v0.7 (review r10 gate): the content a gate_decision pins: content_hash, which excludes the signatures, so re-signing
+    the same content is not a change and any edit of a decided record is (docs/06 §1.8)."""
+    return content_hash(rec)
+
+
 def expectations(b: Bundle, for_writer: bool = False, problems: list | None = None) -> list[Expectation]:
     """Derived values. for_writer=True adds values that only the writer (sign_examples) fills in
     and that the reader checks with dedicated rules instead (run.audit_anchors).
@@ -1037,6 +1048,11 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
                     v = ix.first("verdict", verdict_id=p.get("verdict_id"))
                     if v is not None:
                         exp(a, [i, "payload", "verdict_sha256"], content_hash(v.data), "content hash of the verdict version (E-AUDIT-VERDICT)")
+                if e.get("event_type") == "gate_decision":
+                    rec = ix.first("gate-record", gate_record_id=p.get("gate_record_id"))
+                    if rec is not None:
+                        exp(a, [i, "payload", "gate_record_sha256"], gate_record_sha256(rec.data),
+                            "content hash of the decided gate record, signatures excluded (E-AUDIT-GATE)")
                 if e.get("event_type") == "report_published":
                     rm = ix.first("report-manifest", report_id=p.get("report_id"))
                     if rm is not None:
@@ -1287,8 +1303,11 @@ def _report_expectations(ix: Index, d: Doc, exp):
         elif kind == "verdict":
             x = ix.first("verdict", verdict_id=ref)
             val = content_hash(x.data) if x else MISSING
-        elif kind == "audit_log" and audit:
-            pub = [e for e in audit.data if e.get("event_type") == "report_published"]
+        elif kind == "audit_log":
+            # v0.7 (review r10 manifest): the report_published of this manifest's report_id (v0.7 r9 took the first event of
+            # the run). A manifest without its event is E-AUDIT-REPORT (checks.report_events), not a derivation
+            pub = [e for e in (audit.data if audit else []) if isinstance(e, dict) and e.get("event_type") == "report_published"
+                   and (e.get("payload") or {}).get("report_id") == d.data.get("report_id")]
             val = pub[0].get("prev_hash") if pub else MISSING
         elif kind == "followup_draft":
             x = next((p for p in ix.docs("commander-plan") if any(f.get("draft_id") == ref for f in p.data.get("followup_drafts", []))), None)

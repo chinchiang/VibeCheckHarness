@@ -127,8 +127,9 @@ def roll_back_to_g4(b):
 
 def test_rolling_a_completed_run_back_to_an_earlier_anchor_leaves_a_counter_gap(b):
     roll_back_to_g4(b)
-    # v0.7 (review r9 PR4): the follow-up run's anchored spot check of V-005-2 also outlives the deleted verdict
-    assert {i.code for i in run_all(b).errors} == {"E-AUDIT-ANCHOR-GAP", "E-SPOT-CHECK"}
+    # v0.7 (review r9 PR4): the follow-up run's anchored spot check of V-005-2 also outlives the deleted verdict;
+    # v0.7 (review r10): and the kept report manifest has no report_published event any more
+    assert {i.code for i in run_all(b).errors} == {"E-AUDIT-ANCHOR-GAP", "E-SPOT-CHECK", "E-AUDIT-REPORT"}
 
 
 def test_anchor_counter_problems():
