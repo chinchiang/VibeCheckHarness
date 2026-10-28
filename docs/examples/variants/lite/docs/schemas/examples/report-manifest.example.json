@@ -162,5 +162,6 @@
   "over_cap_items": [],
   "report_only_clusters": [
     "K-016"
-  ]
+  ],
+  "evidential": "self_attested"
 }

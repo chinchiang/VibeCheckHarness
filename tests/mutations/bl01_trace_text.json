@@ -2,10 +2,10 @@
   "tests": "tests/test_bl01_trace_text.py",
   "mutations": [
     {"name": "status claims are checked", "file": "tools/vchlib/checks.py",
-     "old": "            if m.group(1) != status:\n                problems.append(", "new": "            if False:\n                problems.append(",
+     "old": "        if arrows and arrows[-1].upper() != status:\n            problems.append(", "new": "        if False:\n            problems.append(",
      "k": "wrong_status_claim or r8_leaves"},
     {"name": "number claims are checked", "file": "tools/vchlib/checks.py",
-     "old": "            if want is None or abs(float(raw) - want) > tol:", "new": "            if False:",
+     "old": "            if want is None or abs(val - want) > tol:", "new": "            if False:",
      "k": "wrong_score or count_is_checked or threshold_that_is_null"},
     {"name": "precision follows what is written", "file": "tools/vchlib/checks.py",
      "old": "            tol = 0.5 * 10 ** -(len(raw.split(\".\")[1]) if \".\" in raw else 0) + 1e-9", "new": "            tol = 1e-9",

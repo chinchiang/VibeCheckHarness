@@ -102,7 +102,7 @@ flowchart TD
 
 | 關卡 | APPROVED／PARTIALLY_APPROVED（後者只限 G3、G4） | REJECTED | NEEDS_INFO | EXPIRED |
 |---|---|---|---|---|
-| G0a／G0b | 離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續。例外（只 G0b）：ROE 尚未生效（`not_before` 未到）或不在測試時間窗內時，結果仍是 `VERIFIED`，另記「不在有效期間或時間窗內」，run → `SUSPENDED`，時間到了再 resume | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0a：委任設定已過期 → `ABORTED`。G0b（ROE 的 `not_after` 或 `legal_review.expires_at` 已過）：**進入 B 階段時**已過期 → `SUSPENDED`；完全沒有提供 ROE 的純白箱 run → 跳到 B6 → `COMPLETED_WITH_GAPS`；**B 階段已開始後**（resume 或 `B4_preflight`）才到期 → `SUSPENDED`，等新的有效 ROE |
+| G0a／G0b | 離線驗章，結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`；`VERIFIED` 即繼續。例外（只 G0b）：ROE 尚未生效（`not_before` 未到）或不在測試時間窗內時，結果仍是 `VERIFIED`，另記「不在有效期間或時間窗內」，run → `SUSPENDED`，時間到了再 resume | `VERIFY_FAILED`（驗章失敗）→ `ABORTED`（例外：06 L-5 → `SUSPENDED` 等 ROE 修正） | — | G0a：委任設定已過期 → `ABORTED`。G0b（ROE 的 `not_after` 或 `legal_review.expires_at` 已過）：**進入 B 階段時**已過期 → `SUSPENDED`；完全沒有提供 ROE 的純白箱 run → 跳到 B6，沒有黑箱階段的 run 以 `COMPLETED` 結束（終態只由 `gaps` 推導，審查 r11；與 [03 §5.2](03-system-architecture.md#52-主狀態圖) 一致）；**B 階段已開始後**（resume 或 `B4_preflight`）才到期 → `SUSPENDED`，等新的有效 ROE |
 | G1 | 進入 W1 | 附審查意見回到 W0.5 重擬，最多 3 輪；第 3 輪仍未通過 → `ABORTED` | 同 REJECTED（共用 3 輪上限） | `SUSPENDED` |
 | G2 | 逐項：accept → 維持狀態，成為種子威脅。整關結果只有 `APPROVED` 或 `EXPIRED` | 只能逐項（不接受整關 `REJECTED`）：該叢集 → `REJECTED`（附理由；對投票、SARIF 與 `E_fail_u` 是最終決定，之後的這類證據只註記 `post_g2_conflict`。例外：之後出現 G4 核准、重播至少命中一次（k_r ≥ 1）的 B4 可執行證明 → `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict` 並列入 B6 人工複核；W4 的證明只加註 `post_g2_conflict`。05 R10，v0.4；v0.6 起限定 B4，v0.7 審查 r9 對齊此表） | 逐項：維持 `DISPUTED`／`UNCORROBORATED`，成為種子威脅並在報告列出 | 未決項視同 NEEDS_INFO，run 繼續 [H] |
 | G3 | 已接受的威脅進入 B3；被駁回的種子威脅在 B6 列為「未做黑箱驗證（G3 駁回：理由）」 | 全部駁回 → 跳到 B6（只含白箱結果）→ `COMPLETED_WITH_GAPS` | 回到 `B2_merge_critic` 補充，最多 3 輪；之後仍 NEEDS_INFO 的項目視同駁回 [H] | `SUSPENDED` |
@@ -154,7 +154,7 @@ flowchart TD
 | G3 與 G4 同一次審查 | 可以 | 只在測試計畫只有 S0／S1 job 時 | 同 `team` |
 | 多輪 LLM relay | 只有 `scripted` | 只有 `scripted` | `scripted` 或 `adaptive` |
 | 法務審查聲明（06 L-5） | 兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁寫明「法務審查聲明為自行簽署」 | 聲明者不能是 `test_lead`（`E-L5`） | 同 `team` |
-| 報告首頁 | 標示「單人模式，未經職責分離，也未經獨立抽查」（Lite 沒有第二個人，ASI09 抽查不適用，`E-SPOT-CHECK`），並附聲明全文；有 `W-L5-LITE` 時另標示法務審查聲明為自行簽署 | — | — |
+| 報告首頁 | 標示「單人模式，未經職責分離，也未經獨立抽查」（Lite 沒有第二個人，ASI09 抽查不適用，`E-SPOT-CHECK`），並附聲明全文；有 `W-L5-LITE` 時另標示法務審查聲明為自行簽署。審查 r11：report-manifest 的 `evidential: self_attested`（Team／Full 為 `separated`，`E-REPORT`）——一人持有所有金鑰與主機，簽章、錨點與收件時間只供自查；誤報只能以 `wont_fix`／`needs_info` 自簽抑制（報告標示「自行抑制」），不能記錄 `false_positive`（[08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)） | — | — |
 | G2 的決定 | 只有 `accept`／`needs_info`：一個不讀程式碼的使用者不該做對投票與 SARIF 而言是最終決定的 `reject`（R10），而 Lite 沒有 S2 證明能推翻；爭議留在報告裡（`E-GATE-OUTCOME`） | `reject` 由資安審查者決定 | 同 `team` |
 
 - **兼任者**在金鑰登錄中仍須具備每個兼任的角色；兼任只免除「必須是不同的人」，不免除角色登錄與簽章。
@@ -445,7 +445,7 @@ flowchart TD
   LLM 只**提議**標籤與邊界，由人在 G3 確認。pytm 也是從明確的模型產生 DFD，不是推論出來的 [V：該條只有日期與數字被更正，此部分成立][E:threat_modeling-11]。
 - **種子威脅**：除了 `REJECTED` 以外的叢集（`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`，以及 W4 已升級的 `CONFIRMED_EXECUTABLE`）都轉成 B2 的種子威脅，帶 `source_cluster_id` 與 `source_finding_ids`。
   - **規則**：每個種子威脅**必須出現在 B2 威脅模型中**；之後要嘛有 ≥1 個 B3 測試案例，要嘛有 **G3 駁回紀錄（理由必填）**。被 G3 駁回的叢集保留其白箱狀態，B6 列為「未做黑箱驗證（G3 駁回：理由）」。
-  - **只列報告的叢集**（v0.4 剪枝）[H]：v0.3 讓每個非 `REJECTED` 叢集都成為種子威脅，而每個種子威脅都要有測試或 G3 駁回理由，所以 LLM 的誤報會直接變成 G3 的人工負擔。v0.4 起，同時符合下列條件的叢集**不轉成種子威脅**，只列在白箱報告的「低優先、未驗證」清單（report-manifest `report_only_clusters`；validator 檢查每項是白箱叢集、最新裁決為 `UNCORROBORATED`、沒有對應的種子威脅，`E-REPORT-QUEUE`）：
+  - **只列報告的叢集**（v0.4 剪枝）[H]：v0.3 讓每個非 `REJECTED` 叢集都成為種子威脅，而每個種子威脅都要有測試或 G3 駁回理由，所以 LLM 的誤報會直接變成 G3 的人工負擔。v0.4 起，同時符合下列條件的叢集**不轉成種子威脅**，只列在白箱報告的「低優先、未驗證」清單（report-manifest `report_only_clusters`；validator 檢查每項是白箱叢集、最新裁決為 `UNCORROBORATED`、沒有對應的種子威脅，`E-REPORT-QUEUE`；下列的嚴重度與風險由工具包計算，validator 不檢查）：
     - 裁決是 `UNCORROBORATED`（獨立來源 ≤ 1）；
     - rubric 嚴重度是 `medium` 以下；
     - 不符合 [B2 高風險威脅](#b2-威脅建模g3-強制簽核) 的任何一條（跨租戶或認證邊界且涉及機密或個資、涉及需人確認的 LLM 工具）；

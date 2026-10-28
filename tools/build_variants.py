@@ -215,6 +215,7 @@ def v_lite(b: Bundle, keys) -> None:
     log.data = [e for e in log.data if not gone(e)]
     rm = doc(b, "report-manifest.example.json").data
     rm["artifacts"] = [a for a in rm["artifacts"] if a["ref"] not in ("V-202-1", "GR-G5-0001", "R-TC-027-01-1")]
+    doc(b, "report-manifest.example.json").data["evidential"] = "self_attested"     # r11: one person holds every key
     _refresh_report(b, run["run_id"])
 
 

@@ -1,0 +1,96 @@
+{
+  "tests": "tests/test_v07_r11_contracts.py",
+  "mutations": [
+    {
+      "name": "a Lite report must say self_attested, a team report separated",
+      "file": "tools/vchlib/checks.py",
+      "old": "            want_ev = \"self_attested\" if profile(c) == \"lite\" else \"separated\"",
+      "new": "            want_ev = \"self_attested\" if profile(c) != \"lite\" else \"separated\"",
+      "k": "cannot_claim"
+    },
+    {
+      "name": "evidential is a required report field",
+      "file": "docs/schemas/report-manifest.schema.json",
+      "old": "    \"report_only_clusters\",\n    \"evidential\"\n  ]",
+      "new": "    \"report_only_clusters\"\n  ]",
+      "k": "evidential_is_required"
+    },
+    {
+      "name": "the Lite example states its evidential value",
+      "file": "docs/examples/variants/lite/docs/schemas/examples/report-manifest.example.json",
+      "old": "\"evidential\": \"self_attested\"",
+      "new": "\"evidential\": \"separated\"",
+      "k": "examples_state_their_evidential_value"
+    },
+    {
+      "name": "Lite cannot record a false_positive",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(not (profile(c) == \"lite\" and f.get(\"label\") == \"false_positive\"), \"E-FEEDBACK\", w,",
+      "new": "            R.check(True, \"E-FEEDBACK\", w,",
+      "k": "lite_cannot_record_a_false_positive"
+    },
+    {
+      "name": "every arrow form is a status claim",
+      "file": "tools/vchlib/checks.py",
+      "old": "TRACE_STATUS = re.compile(r\"(?:->|→|=>)\\s*(?:cap\\s+)?([A-Za-z_]+)\")",
+      "new": "TRACE_STATUS = re.compile(r\"(?:->)\\s*(?:cap\\s+)?([A-Za-z_]+)\")",
+      "k": "every_arrow_form"
+    },
+    {
+      "name": "the status is read case-insensitively",
+      "file": "tools/vchlib/checks.py",
+      "old": "        arrows = [m.group(1) for m in TRACE_STATUS.finditer(text) if m.group(1).upper() in TRACE_STATUSES]",
+      "new": "        arrows = [m.group(1) for m in TRACE_STATUS.finditer(text) if m.group(1) in TRACE_STATUSES]",
+      "k": "every_arrow_form"
+    },
+    {
+      "name": "only the last arrow of an item is the claim",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if arrows and arrows[-1].upper() != status:",
+      "new": "        if arrows and arrows[0].upper() != status:",
+      "k": "only_the_last_arrow"
+    },
+    {
+      "name": "a number may be written with spaces, a colon, ≈ or θ_",
+      "file": "tools/vchlib/checks.py",
+      "old": "                          r\"weighted_support|weighted_refute|valid_votes)\\s*[=:≈]\\s*([+\\-−]?[0-9A-Za-z.]*)\")",
+      "new": "                          r\"weighted_support|weighted_refute|valid_votes)=([+\\-−]?[0-9A-Za-z.]*)\")",
+      "k": "wrong_number_in_any_form"
+    },
+    {
+      "name": "the θ_ prefix is accepted",
+      "file": "tools/vchlib/checks.py",
+      "old": "TRACE_NUMBER = re.compile(r\"(?<![A-Za-z0-9_])(score|S|theta_confirm|theta_reject|θ_confirm|θ_reject|independent_sources",
+      "new": "TRACE_NUMBER = re.compile(r\"(?<![A-Za-z0-9_])(score|S|theta_confirm|theta_reject|independent_sources",
+      "k": "wrong_number_in_any_form"
+    },
+    {
+      "name": "a value that is not a plain decimal is an error",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if not TRACE_PLAIN.match(raw):",
+      "new": "            if False:",
+      "k": "not_a_plain_decimal"
+    },
+    {
+      "name": "a unicode minus is a sign",
+      "file": "tools/vchlib/checks.py",
+      "old": "            val = float(raw.replace(\"−\", \"-\"))",
+      "new": "            val = float(raw.replace(\"−\", \"+\"))",
+      "k": "unicode_minus"
+    },
+    {
+      "name": "02 says a pure white-box run completes",
+      "file": "docs/02-methodology.md",
+      "old": "沒有黑箱階段的 run 以 `COMPLETED` 結束",
+      "new": "沒有黑箱階段的 run 以 `COMPLETED_WITH_GAPS` 結束",
+      "k": "pure_white_box"
+    },
+    {
+      "name": "06 says Lite evidence is for self-check only",
+      "file": "docs/06-security-legal-limitations.md",
+      "old": "只供自查，不可作為對外證據",
+      "new": "只供自查",
+      "k": "lite_statements"
+    }
+  ]
+}

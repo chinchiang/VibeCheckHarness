@@ -438,7 +438,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 
 | 錯誤碼 | 規則 | 守住的測試 |
 |---|---|---|
-| `E-FEEDBACK` | `sarif_suppression` 由 `checks.feedback_suppression` 推導：`false_positive` 只有在 `signed_by` 或 `co_signed_by` 是 `security_reviewer` 時才是 `accepted`，否則 `underReview`；審查 r9：一律兩個不同的人，其中一位是沒有核准該叢集 G2 決定的 `security_reviewer`；採用 run 中同指紋叢集 `baseline_state: updated` 時回到 `underReview`；副簽者是 `security_reviewer` 且不是簽署者本人；signatures 依序對應 signed_by、co_signed_by<br>回饋的 run 屬於同一委任、指紋是所指叢集的指紋、duplicate 指向另一個叢集、sarif_suppression 依標籤、恰好一個 signed_by 的簽章（簽章與角色另由 E-SIG-* 檢查）；審查 r7 1.11：採用回饋的 run（同委任的另一個 run）在稽核紀錄中恰好有一筆已錨定的 `feedback_recorded`，payload 的 `feedback_sha256` 等於回饋的內容 hash；簽章以該事件的收件時間驗證，`signed_at` 與收件時間相差不超過時鐘容差，收件時間不早於所指 run 的開始 | `test_v05_r7_bypasses`、`test_v05_schema_backlog`、`test_v07_r8_integrity` |
+| `E-FEEDBACK` | 審查 r11：`assurance_profile: lite` 不能記錄 `false_positive`（兩人副簽在單人模式永遠不成立），只能用 `wont_fix`／`needs_info`；`sarif_suppression` 由 `checks.feedback_suppression` 推導：`false_positive` 只有在 `signed_by` 或 `co_signed_by` 是 `security_reviewer` 時才是 `accepted`，否則 `underReview`；審查 r9：一律兩個不同的人，其中一位是沒有核准該叢集 G2 決定的 `security_reviewer`；採用 run 中同指紋叢集 `baseline_state: updated` 時回到 `underReview`；副簽者是 `security_reviewer` 且不是簽署者本人；signatures 依序對應 signed_by、co_signed_by<br>回饋的 run 屬於同一委任、指紋是所指叢集的指紋、duplicate 指向另一個叢集、sarif_suppression 依標籤、恰好一個 signed_by 的簽章（簽章與角色另由 E-SIG-* 檢查）；審查 r7 1.11：採用回饋的 run（同委任的另一個 run）在稽核紀錄中恰好有一筆已錨定的 `feedback_recorded`，payload 的 `feedback_sha256` 等於回饋的內容 hash；簽章以該事件的收件時間驗證，`signed_at` 與收件時間相差不超過時鐘容差，收件時間不早於所指 run 的開始 | `test_v05_r7_bypasses`、`test_v05_schema_backlog`、`test_v07_r8_integrity` 等 4 份 |
 | `E-VERDICT-ANNOTATIONS` | `annotations` 的 kind 集合必須等於裁決規則重算的結果 | `test_validator` |
 | `E-VERDICT-CALIBRATION` | 裁決的 `calibration_version` 必須等於 calibration.yaml 的 `calibration_version` | `test_bl66_pipeline` |
 | `E-VERDICT-CHAIN` | 同一叢集的裁決版本以 `supersedes_verdict_id` 形成單一線性鏈（不自我取代、不循環、不分岔、恰好一個最新版） | `test_v05_round6_group6` |
@@ -453,7 +453,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-VERDICT-STATUS` | `status`、`status_cap`、`advisory` 必須等於 docs/05 §4.2 規則（`vchlib.adjudicate`）重算的結果；審查 r11（`05-v0.10`）：`FIXED`（R14，regression run 帶入的 `CONFIRMED_*` 叢集回歸測試合格 PASS）與 `refute_by_later_member_family` 註記（R15）也由重算得出 | `test_v02_hardening`、`test_adjudicate`、`test_review_fixes` 等 7 份 |
 | `E-VERDICT-TOOLCORR` | 裁決的 `tool_corroboration` 必須等於推導值：已錨定的 SARIF 結果中，屬於該桶校準過的高精準規則者 | `test_v02_hardening`、`test_review_fixes` |
 | `E-VERDICT-TOOLSIGNAL` | （同一條規則也涵蓋 `E-VERDICT-SOURCES`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-RULE-VERSION`）裁決的推導欄位（第 13 組） | `test_v02_hardening`、`test_review_fixes`、`test_v03_adjudication` 等 4 份 |
-| `E-VERDICT-TRACE` | `rule_trace` 的規則序列必須等於重算的規則序列；說明文字裡的 `->狀態` 必須是該規則留下的狀態，`名稱=數字`（score、θ、獨立來源與家族數、計權票數）必須在寫出的位數內等於重算值（BL-01） | `test_bl01_trace_text`、`test_adjudicate`、`test_v02_hardening` |
+| `E-VERDICT-TRACE` | `rule_trace` 的規則序列必須等於重算的規則序列；說明文字裡的 `->狀態`（`->`、`→`、`=>`，不分大小寫，每項只看最後一個箭頭）必須是該規則留下的狀態，`名稱=數字`（score、θ、獨立來源與家族數、計權票數；`=`、`:`、`≈` 與正負號都可以，`θ_` 等同 `theta_`）必須在寫出的位數內等於重算值，`=` 後面不是純十進位數（指數、十六進位）就是錯誤（BL-01；審查 r11 收緊） | `test_bl01_trace_text`、`test_v07_r11_contracts`、`test_adjudicate` 等 4 份 |
 | `E-VERDICT-VOTE` | 每張票的代理與模型都能經 agents.yaml／models.yaml 解析，`voter_family`／`voter_lineage` 與登錄相符；計為有效的票不能來自叢集的家族或相同的基礎血統（自我審查）；`anonymized`／`order_randomized` 必須等於該 run 驗證者範本的設定，不能由票自行宣告 | `test_v02_hardening`、`test_v04_round5_adjudication`、`test_v03_adjudication` 等 4 份 |
 | `E-VERDICT-VOTER-ROLE` | 只有 agents.yaml 中 `verifier` 角色的代理可以投票；其他角色的票被忽略（不算計權合格、分數、支持／反駁或多樣性） | `test_review_fixes` |
 | `E-VOTE-MODEL` | 票的 `voter_agent_id` 在 agents.yaml 的模型及其在 models.yaml 的家族、血統，必須與票上的 `voter_model_key`、`voter_family`、`voter_lineage` 相符 | `test_bl66_pipeline` |
@@ -479,7 +479,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | 錯誤碼 | 規則 | 守住的測試 |
 |---|---|---|
 | `E-CHECKPOINT` | checkpoint 的 run 必須存在，`run_status`／`thread_id` 與 run 相符；C 級資料的 checkpoint 必須加密 | `test_bl66_config` |
-| `E-REPORT` | report-manifest 的 run 必須存在；`advisory` 只在 Lane A 為 true；`verdict_counts` 等於每叢集最新裁決的計數；`manual_review_clusters` 與 run 相同；audit_log artifact 必須存在；gate_record artifact 必須恰好是該 run 的所有關卡紀錄 | `test_bl66_config` |
+| `E-REPORT` | report-manifest 的 run 必須存在；`advisory` 只在 Lane A 為 true；審查 r11：`evidential` 在 `assurance_profile: lite` 必須是 `self_attested`，其他為 `separated`；`verdict_counts` 等於每叢集最新裁決的計數；`manual_review_clusters` 與 run 相同；audit_log artifact 必須存在；gate_record artifact 必須恰好是該 run 的所有關卡紀錄 | `test_bl66_config`、`test_v07_r11_contracts` |
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate；v0.5 BL-20：access_matrix_coverage、endpoint_slice_coverage、endpoint_test_coverage）由 run 的測試結果、testcase 的 access_cells、切片與 request_allowlist 重算；審查 r7（外部審查 5）：覆蓋率分成 `planned_*`（測試案例宣告的計畫）與 `executed_*`（只算有有效執行結果的測試案例：outcome PASS／FAIL、對照全部 PASS、有已錨定且 hash 相符的 `sandbox_job_end`），兩者都重算 | `test_v05_schema_backlog`、`test_v03_adjudication`、`test_v05_r7_pipeline` |
 | `E-REPORT-QUEUE` | `report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id）；清單也重算完整性：每個威脅被 G3 判為 over_cap 的種子都要列出 | `test_v04_round5_examples`、`test_v05_round6_group4`、`test_v06_r7_methodology` |
 | `E-SELFTEST` | NOT_RUN 項目沒有結果（`passed`、`value` 為 null、`runs` 為 0），RUN 項目有 `runs` 與 `passed`；`overall_passed` 等於所有 RUN 項目都通過；`finished_at` 不早於 `started_at`；`toolkit_version` 等於 toolkit | `test_bl66_config` |
@@ -498,7 +498,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-JSON-STRICT` | JSON／JSONL 以嚴格模式載入：重複鍵、非有限數字、超出範圍的整數等一律拒絕；被拒的稽核檔不再做後續的鏈與錨點檢查（不連鎖報錯） | `test_review_fixes`、`test_v02_hardening`、`test_v05_round6_lowprio` |
 | `E-KIND` | 每份文件的種類必須有對應的 schema | `test_bl66_config` |
 | `E-LOAD` | 已知種類的文件因嚴格 YAML／JSON 以外的原因無法載入 | `test_bl66_config` |
-| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 18 份 |
+| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 19 份 |
 | `E-SCHEMA-FORMAT` | （同一條規則也涵蓋 `E-INPUT-SHAPE`）見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 | `test_v03_scope` |
 | `E-SCHEMA-ID` | schema 的 `$id` 必須等於檔名 | `test_bl66_config` |
 | `E-SCHEMA-META` | schema 必須通過 2020-12 meta-schema 檢查，且 `$schema` 是 2020-12 | `test_bl66_config` |
