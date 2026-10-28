@@ -35,7 +35,7 @@ def test_the_examples_are_clean(b):
 
 
 def test_rule_version():
-    assert adjudicate.RULE_VERSION == "05-v0.9"
+    assert adjudicate.RULE_VERSION == "05-v0.10"
 
 
 # ================================================================ roots: one observation per base lineage

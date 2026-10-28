@@ -24,7 +24,7 @@ v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a rea
     positive control (an oracle_can_fail control that PASSed). A PASS without one only adds
     test_not_reproduced: a test that was never shown able to fail cannot refute.
 
-v0.7 (rule_version 05-v0.9, review r10 PR2):
+v0.7 (rule_version 05-v0.10, review r10 PR2):
   - S counts each base lineage as its strongest vote when its votes agree (derive.root_score): the mean let a weaker
     SUPPORT of the same root lower S, so adding evidence could remove a confirmation.
   - An eligible Result Analyst that disagrees makes a pre-registered result E_inc; unknown W4 test authors are not
@@ -60,7 +60,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.9"
+RULE_VERSION = "05-v0.10"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -85,6 +85,8 @@ class Inputs:
     g3_rejected: bool = False
     phase: str | None = None                              # caller context: "W3", "W4", "B5", ...
     prev_status: str | None = None                        # status of the superseded verdict (None = first verdict)
+    regression_fixed: bool = False                        # r11 (05-v0.10): a carried-in CONFIRMED_* cluster whose regression test PASSed with a positive control
+    later_member_overlap: bool = False                    # r11: a weighted vote cast before a same-family / same-root member joined the cluster
 
 
 @dataclass
@@ -142,6 +144,9 @@ def _annotate(x: Inputs, out: Outcome) -> Outcome:
         out.rules.append("R13")
     if x.phase == "W4" and x.prev_status is not None and x.prev_status != "DISPUTED" and out.status == "DISPUTED":
         out.annotations.add("w4_became_disputed")                       # became DISPUTED on W4 re-adjudication; flagged at G3 (§4.2)
+    if x.later_member_overlap:
+        out.annotations.add("refute_by_later_member_family")           # R15 (r11): the vote stays valid; the overlap is shown, not hidden
+        out.rules.append("R15")
     return out
 
 
@@ -169,6 +174,8 @@ def _decide(x: Inputs) -> Outcome:
         if ev == "E_proof" and x.proof_overrides_g2:          # v0.6: only a G4-approved, replayed B4 proof
             return Outcome("CONFIRMED_EXECUTABLE", 5, ["R10", "R1"], None, False, notes)
         return Outcome("REJECTED", 3, ["R10"], None, False, notes)
+    if x.regression_fixed:                                 # R14 (r11, 05-v0.10): the regression test of a confirmed defect passed
+        return Outcome("FIXED", 14, ["R14"], None, False, notes)
     if r0_applies(x):
         return Outcome("REJECTED", 4, ["R0"], None, False, notes)
     if ev == "E_proof":

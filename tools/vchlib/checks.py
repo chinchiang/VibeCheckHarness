@@ -47,7 +47,7 @@ M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
 # placeholder model IDs: <...>, {...}, or a TBD / TODO / FIXME / 實作時確認 token (case-insensitive)
 PLACEHOLDER_ID = re.compile(r"<[^<>]*>|\{[^{}]*\}|(?<![A-Za-z0-9])(?:TBD|TODO|FIXME)(?![A-Za-z0-9])|實作時確認", re.IGNORECASE)
 TERMINAL_RUN_STATES = ("COMPLETED", "COMPLETED_WITH_GAPS", "ABORTED", "FAILED")   # D2; SUSPENDED and STOPPED are resumable
-FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED")
+FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED", "FIXED")   # FIXED: r11, 05-v0.10
 # RFC 8785 §3.2.2.3 / Appendix B number vectors and §3.2.3 key-order vector
 JCS_VECTORS = [
     ([333333333.33333329, 1e30, 4.50, 2e-3, 0.000000000000000000000000001], b"[333333333.3333333,1e+30,4.5,0.002,1e-27]"),
@@ -2775,7 +2775,7 @@ def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
     # v0.4: provisional marks only verdicts that votes could have decided. A status fixed by R9 / R10 / R0 / R1
     # (rows 1-5) does not depend on calibration, and a black-box cluster never has votes.
     # v0.5: row 10 (strong tool corroboration, R5) is not decided by votes either
-    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row in (1, 2, 3, 4, 5, 10):
+    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row in (1, 2, 3, 4, 5, 10, 14):
         return False
     if v.get("calibration_version") is None or v.get("theta_confirm") is None:
         return True
@@ -3076,7 +3076,27 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         g3_rejected=g3_rej,
         phase={"W3_adjudicate": "W3", "G2_apply": "G2", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}.get(v.get("readjudicated_by")),
         prev_status=prev.data.get("status") if prev else None,
+        regression_fixed=regression_fixed(c, v, cluster, run),
+        later_member_overlap=any(derive.later_member_overlap(c.ix, x, cluster) for x in votes),
     )
+
+
+def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
+    """R14 (r11, 05-v0.10; docs/02 §1.6, 05 §4.2): a regression run's carried-in cluster whose source verdict (the head
+    verdict of the parent run's cluster) was CONFIRMED_* is FIXED when its test evidence has a qualified PASS with a
+    positive control and no FAIL-class evidence. v0.7 had no state for "fixed": the PASS landed on UNCORROBORATED with
+    test_not_reproduced and the SARIF result stayed open."""
+    cf = cluster.get("carried_from") or {}
+    if run.get("run_kind") != "regression" or not isinstance(cf, dict) or cf.get("run_id") != run.get("parent_run_id"):
+        return False
+    parent = c.runs.get(cf.get("run_id")) or {}
+    src = [h for h in verdict_heads(c, parent.get("verdicts") or []) if h.get("cluster_id") == cf.get("cluster_id")]
+    if not src or src[0].get("status") not in ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED"):
+        return False
+    results = [x for x in (v.get("test_evidence") or {}).get("results", []) if isinstance(x, dict)]
+    classes = {x.get("class") for x in results}
+    return bool(classes) and not (classes & {"E_proof", "E_fail_u"}) \
+        and any(x.get("class") == "E_pass" and x.get("positive_control") is True for x in results)
 
 
 TRACE_STATUS = re.compile(r"->\s*(?:cap\s+)?(REJECTED|UNCORROBORATED|LIKELY|DISPUTED|CONFIRMED_CORROBORATED|CONFIRMED_EXECUTABLE)\b")
@@ -3939,10 +3959,14 @@ def pipeline_checks(R: Report, c: Ctx):
                     continue
                 w_status = w_status_of.get(k)
                 w3_status, sev = w3_status_of.get(k), derive.rubric_severity(c.ix, cl)
-                if w3_status == "DISPUTED" or (w3_status == "UNCORROBORATED" and sev in HIGH_SEVERITIES):
+                # r11: a cluster nobody outside its families can check (no_eligible_verifier) is decided by people too:
+                # its LIKELY (R6) rests on reporters alone, and a same-family member can have voided a refute (R15)
+                no_elig = w3_status not in (None, "REJECTED") and derived_no_eligible_verifier(c, cl)
+                if w3_status == "DISPUTED" or (w3_status == "UNCORROBORATED" and sev in HIGH_SEVERITIES) or no_elig:
                     rec, _ = g2_latest(c, cl)
                     R.check(rec is not None or k in over_cap_g2, "E-PIPELINE", w,
-                            f"{k} is {w3_status} after W3 (rubric severity {sev}) but has no G2 decision and is not over_cap")
+                            f"{k} is {w3_status} after W3 (rubric severity {sev}{', no eligible verifier' if no_elig else ''}) "
+                            "but has no G2 decision and is not over_cap")
                 status = (heads.get(k) or {}).get("status")
                 if status != "REJECTED":
                     R.check(k in seeded or k in report_only, "E-PIPELINE", w,
@@ -4685,7 +4709,7 @@ def lr_weights(tpr: float, tnr: float) -> dict:
 
 
 def effective_counts(side: dict) -> tuple:
-    """v0.7 (review r10, rule_version 05-v0.9): (correct, n) with every abstention counted as a coin flip, half right and
+    """v0.7 (review r10, rule_version 05-v0.10): (correct, n) with every abstention counted as a coin flip, half right and
     half wrong: an abstention carries no information, so it is scored as a guess. The rates and the Wilson bound use
     these counts; v0.7 r9 used the answered cases only, so abstaining on the hard cases kept the accuracy and the weight
     (abstain_rate_max stays as a hard cap)."""
@@ -4714,6 +4738,10 @@ def contamination_problems(R: Report, c: Ctx, cfg: dict, res: dict, w: str):
         if isinstance(x, dict) and x.get("reproduced") is not False:
             R.check(x.get("model_key") not in weighted, "E-CAL-CONTAMINATION", w,
                     f"{x.get('model_key')} reproduced a corpus canary (reproduced {x.get('reproduced')!r}): its weights must be 0")
+    # r11: a model the canary check never covered is not known to be clean: it has no weight until it is checked
+    checked = {x.get("model_key") for x in cont.get("canary_results") or [] if isinstance(x, dict)}
+    for mk in sorted(weighted - checked):
+        R.error("E-CAL-CONTAMINATION", w, f"{mk} has a non-zero weight but no canary_results entry: every weighted model is canary-checked (docs/05 §5.4)")
     for app in cfg.get("corpus") or []:
         if isinstance(app, dict) and app.get("sentinel") is True:
             R.check(app.get("split") == "holdout", "E-CAL-CONTAMINATION", w,
@@ -4735,6 +4763,56 @@ def contamination_problems(R: Report, c: Ctx, cfg: dict, res: dict, w: str):
                    "with a non-zero weight (possible memorisation; review before relying on its votes)")
 
 
+# r11: the policy constants of docs/05 §4.3 (near-zero rules, smoothing prior) and §5.7 (threshold search limits) live
+# here; calibration.yaml must state the same numbers (E-CAL-POLICY). v0.7 read them from the file and checked only
+# that the file agreed with itself, so wilson_lower_max: 0 and a lower theta turned LIKELY clusters CONFIRMED.
+CAL_POLICY = {
+    "smoothing_k": 10,
+    "near_zero_rules": {"w_min": 0.2, "wilson_lower_max": 0.5, "n_min": 10, "abstain_rate_max": 0.3},
+    "threshold_search": {"confirm_precision_floor": 0.9, "confirm_wilson_lower_floor": 0.8,
+                         "reject_true_defect_max": 0.02, "reject_wilson_upper_max": 0.08, "min_clusters": 40},
+}
+
+
+def policy_problems(cfg: dict) -> list[str]:
+    out = []
+    if cfg.get("smoothing_k") != CAL_POLICY["smoothing_k"]:
+        out.append(f"smoothing_k {cfg.get('smoothing_k')!r} != {CAL_POLICY['smoothing_k']} (docs/05 §4.3)")
+    for block, sec in (("near_zero_rules", "§4.3"), ("threshold_search", "§5.7")):
+        have = cfg.get(block) or {}
+        for key, want in CAL_POLICY[block].items():
+            if have.get(key) != want:
+                out.append(f"{block}.{key} {have.get(key)!r} != {want} (docs/05 {sec})")
+    return out
+
+
+def wilson_upper(correct, n, z=1.959964):
+    if n == 0:
+        return 0.0
+    p = correct / n
+    den = 1 + z * z / n
+    centre = p + z * z / (2 * n)
+    margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return (centre + margin) / den
+
+
+def split_problems(label: str, split: str, s: dict) -> list[tuple[str, str]]:
+    """r11: a threshold's split statistics are recomputed from the raw counts (tp of n), as the high-precision rules'
+    are: precision = tp / n and the Wilson 95% bounds (0 when n = 0). v0.7 took precision and ci_low as written, so a
+    threshold's feasibility was checked against numbers the same file declared. recall needs the corpus positives and
+    stays declared."""
+    out = []
+    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
+    tp, n = s.get("tp"), s.get("n")
+    if not (type(tp) is int and type(n) is int and 0 <= tp <= n):
+        return [(label, f"{split}: tp {tp!r} of n {n!r} is not a count")]
+    want = {"precision": tp / n if n else 0.0, "ci_low": wilson_lower(tp, n), "ci_high": wilson_upper(tp, n)}
+    for k, v in want.items():
+        if not (num(s.get(k)) and abs(s[k] - round(v, 4)) <= 5e-4):
+            out.append((label, f"{split}.{k} {s.get(k)!r} but recomputed {v:.4f} from tp {tp} of n {n}"))
+    return out
+
+
 def theta_problems(cal: dict) -> list[tuple[str, str]]:
     """v0.7 (review r9): the docs/05 §5.7 limits, recomputed from each feasible threshold's split statistics. v0.7 read
     `feasible` and `generalised` as declared, so two booleans on a threshold measured on 5 clusters at precision 0.5 switched
@@ -4754,6 +4832,8 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
             if not isinstance(t, dict) or t.get("feasible") is not True:
                 continue
             cs, ho = t.get("calibration") or {}, t.get("holdout") or {}
+            if name in ("theta_confirm", "theta_reject"):
+                out += split_problems(label, "calibration", cs) + split_problems(label, "holdout", ho)
             # v0.7 (review r10): a holdout of one cluster says nothing about generalising (the same floor as the
             # high-precision rules' holdout)
             if t.get("generalised") is True and not (num(ho.get("n")) and ho["n"] >= HOLDOUT_MIN_N):
@@ -4798,6 +4878,8 @@ def g_calibration(R: Report, c: Ctx):
     if not cal:
         return
     cfg, res = cal.get("config") or {}, cal.get("result") or {}
+    for msg in policy_problems(cfg):
+        R.error("E-CAL-POLICY", w, msg)
     k = cfg.get("smoothing_k", 0)
     nz = cfg.get("near_zero_rules") or {}
     rows = res.get("weights", [])

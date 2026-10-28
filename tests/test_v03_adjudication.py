@@ -27,7 +27,7 @@ def errs(bundle, code):
 
 # ================================================================ A1 tool tiers (pure rules)
 def test_rule_version_is_bumped():
-    assert adj.RULE_VERSION == "05-v0.9"           # bumped again by review r10 PR2
+    assert adj.RULE_VERSION == "05-v0.10"           # bumped again by review r10 PR2
 
 
 def test_weak_sarif_alone_never_confirms():
@@ -151,7 +151,7 @@ def test_w4_preregistration_needs_the_matching_control(b):
     # PASS needs the oracle_can_fail control (CTL-03) for a pre-registered W4 interpretation
     assert classify_result(ix, _w4(b, "PASS", ok, []), cl)[0] == "E_pass"
     tc["controls"] = [c for c in tc["controls"] if c["kind"] != "oracle_can_fail"]
-    assert classify_result(ix, _w4(b, "PASS", ok[:2], []), cl) == ("E_inc", "no pre-registered interpretation or eligible analyst")
+    assert classify_result(ix, _w4(b, "PASS", ok[:2], []), cl) == ("E_inc", "no pre-registered interpretation, independent authors or eligible analyst")
 
 
 def test_w4_preregistration_needs_g1_signed_requirements(b):

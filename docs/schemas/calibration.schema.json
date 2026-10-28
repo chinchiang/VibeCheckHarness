@@ -1,36 +1,1117 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"calibration.schema.json","title":"Calibration（校準設定與結果，D15）","description":"docs/05 §5.9。config 在保留切分執行前固定（預先登記）；result 由校準程式寫入。裁決以 calibration_version 引用本檔的 weights 與 thresholds。result 為 null＝尚未執行（所有權重視為 0）。","type":"object","additionalProperties":false,
-"properties":{
-"calibration_id":{"type":"string"},
-"calibration_version":{"type":"integer","minimum":1,"description":"依 docs/05 §5.8 遞增"},
-"config":{"type":"object","additionalProperties":false,"properties":{
-  "preregistration":{"type":"object","additionalProperties":false,"properties":{"doc_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"primary_metric":{"const":"recall_delta"},"test":{"const":"app_clustered_paired_bootstrap"},"sensitivity_test":{"const":"exact_mcnemar"},"alpha":{"type":"number","exclusiveMinimum":0,"maximum":0.5},"min_effect":{"type":"number","exclusiveMinimum":0},"psi_assumed":{"type":"number","minimum":0,"maximum":1},"rho_assumed":{"type":"number","minimum":0,"maximum":1},"ni_margin":{"type":"number","minimum":0},"bootstrap_resamples":{"type":"integer","minimum":1000},"registered_at":{"$ref":"common.schema.json#/$defs/datetime"}},"required":["doc_sha256","primary_metric","test","sensitivity_test","alpha","min_effect","psi_assumed","rho_assumed","ni_margin","bootstrap_resamples","registered_at"]},
-  "corpus":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"properties":{"app_id":{"type":"string"},"content_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"part":{"enum":["P","V","D","B"]},"generator_family":{"anyOf":[{"type":"string"},{"type":"null"}]},"generated_at":{"$ref":"common.schema.json#/$defs/date"},"split":{"enum":["calibration","holdout"]},"sentinel":{"type":"boolean"},"canary_guid":{"type":"string","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}},"required":["app_id","content_sha256","part","generator_family","generated_at","split","sentinel","canary_guid"]}},
-  "models":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"properties":{"model_key":{"type":"string"},"family":{"type":"string"},"lineage":{"type":"string"},"version":{"type":"string"},"params":{"type":"object"},"prompt_template_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"training_cutoff":{"anyOf":[{"$ref":"common.schema.json#/$defs/date"},{"type":"null"}]}},"required":["model_key","family","lineage","version","params","prompt_template_sha256","training_cutoff"]}},
-  "arms":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"properties":{"arm":{"enum":["1","2a","2b","3","4","5"]},"description":{"type":"string"},"n_samples":{"type":"integer","minimum":1},"acceptance_rule":{"type":"string","description":"例如 >=2_of_3、minority_veto"},"model_keys":{"type":"array","items":{"type":"string"},"minItems":1},"exploratory":{"type":"boolean","description":"⑤ 少數否決必須為 true：只作探索，不進入主要假設"}},"required":["arm","description","n_samples","acceptance_rule","model_keys","exploratory"]}},
-  "repetitions":{"type":"integer","minimum":1,"default":3},
-  "random_seed":{"type":"integer"},
-  "threshold_search":{"type":"object","additionalProperties":false,"properties":{"grid_step":{"type":"number","exclusiveMinimum":0},"confirm_precision_floor":{"type":"number"},"confirm_wilson_lower_floor":{"type":"number"},"reject_true_defect_max":{"type":"number"},"reject_wilson_upper_max":{"type":"number"},"min_clusters":{"type":"integer","minimum":1}},"required":["grid_step","confirm_precision_floor","confirm_wilson_lower_floor","reject_true_defect_max","reject_wilson_upper_max","min_clusters"]},
-  "smoothing_k":{"type":"number","minimum":0},
-  "near_zero_rules":{"type":"object","additionalProperties":false,"properties":{"w_min":{"type":"number"},"wilson_lower_max":{"type":"number"},"n_min":{"type":"integer","minimum":1},"abstain_rate_max":{"type":"number","minimum":0,"maximum":1,"description":"v0.7（審查 r9）：一邊的棄權率上限（預設 0.3）"}},"required":["w_min","wilson_lower_max","n_min","abstain_rate_max"]},
-  "annotation":{"type":"object","additionalProperties":false,"properties":{"annotator_ids":{"type":"array","items":{"$ref":"common.schema.json#/$defs/person_id"},"minItems":2},"adjudicator_id":{"$ref":"common.schema.json#/$defs/person_id"},"kappa_min":{"type":"number"},"batch_size_apps":{"type":"integer","minimum":1},"max_relabel_rounds":{"type":"integer","minimum":0}},"required":["annotator_ids","adjudicator_id","kappa_min","batch_size_apps","max_relabel_rounds"]}},
-  "required":["preregistration","corpus","models","arms","repetitions","random_seed","threshold_search","smoothing_k","near_zero_rules","annotation"]},
-"result":{"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,"properties":{
-  "completed_at":{"$ref":"common.schema.json#/$defs/datetime"},
-  "weights":{"type":"array","description":"v0.4：每個（模型，桶）分成兩邊。support＝真缺陷上的票（支持＝答對），權重用於 SUPPORT 票；refute＝已知非缺陷上的票（反駁＝答對），權重用於 REFUTE 票。v0.3 只有一個正確率 a，永遠投支持的驗證者在真缺陷佔多數的語料上也會得到正權重（docs/05 §4.3）","items":{"type":"object","additionalProperties":false,"properties":{"model_key":{"type":"string"},"cwe_bucket":{"$ref":"common.schema.json#/$defs/cwe_bucket"},"support":{"type":"object","additionalProperties":false,"properties":{"n":{"type":"integer","minimum":0},"correct":{"type":"integer","minimum":0},"a":{"type":"number","minimum":0,"maximum":1},"w":{"type":"number","minimum":0,"description":"v0.6（審查 r7 3.2）：對數概似比權重，沒有上限"},"near_zero":{"type":"boolean"},"near_zero_reasons":{"type":"array","items":{"enum":["w_below_min","wilson_lower_le_max","n_below_min","abstain_rate_gt_max"]}},"n_abstain":{"type":"integer","minimum":0,"description":"v0.7（審查 r9）：這一邊的校準案例中棄權的次數（不計入 n）；棄權率 n_abstain／(n＋n_abstain) 超過 near_zero_rules.abstain_rate_max → near_zero（只答容易的題目可以保住正確率）"}},"required":["n","correct","a","w","near_zero","near_zero_reasons","n_abstain"]},"refute":{"type":"object","additionalProperties":false,"properties":{"n":{"type":"integer","minimum":0},"correct":{"type":"integer","minimum":0},"a":{"type":"number","minimum":0,"maximum":1},"w":{"type":"number","minimum":0,"description":"v0.6（審查 r7 3.2）：對數概似比權重，沒有上限"},"near_zero":{"type":"boolean"},"near_zero_reasons":{"type":"array","items":{"enum":["w_below_min","wilson_lower_le_max","n_below_min","abstain_rate_gt_max"]}},"n_abstain":{"type":"integer","minimum":0,"description":"v0.7（審查 r9）：這一邊的校準案例中棄權的次數（不計入 n）；棄權率 n_abstain／(n＋n_abstain) 超過 near_zero_rules.abstain_rate_max → near_zero（只答容易的題目可以保住正確率）"}},"required":["n","correct","a","w","near_zero","near_zero_reasons","n_abstain"]}},"required":["model_key","cwe_bucket","support","refute"]}},
-  "high_precision_rules":{"type":"array","description":"在校準語料上量到的高精準度 SARIF 規則（每個 adapter／rule_id／CWE 桶一列）。只有列在這裡、precision_lower95 ≥ thresholds.high_precision_min.value、且執行時的 tool_version 相同的規則結果才是強工具佐證；其他 SARIF 結果都是弱訊號（docs/05 §4.2 R2）。沒有語料前為 []","items":{"type":"object","additionalProperties":false,"properties":{"adapter":{"$ref":"common.schema.json#/$defs/tool_mode"},"rule_id":{"type":"string","minLength":1},"tool_version":{"type":"string","minLength":1,"description":"量到此精準度的掃描器／規則包版本；稽核 tool_invocation_end 的 payload.tool_version 必須相同才算強佐證"},"cwe_bucket":{"$ref":"common.schema.json#/$defs/cwe_bucket"},"n":{"type":"integer","minimum":0},"tp":{"type":"integer","minimum":0,"description":"v0.6（審查 r7 3.5）：校準切分的真陽性數；n＝tp＋fp"},"fp":{"type":"integer","minimum":0,"description":"校準切分的偽陽性數"},"precision_lower95":{"type":"number","minimum":0,"maximum":1,"description":"tp／n 的 Clopper-Pearson 雙尾 95% 下界，validator 由計數重算（E-CAL-HIGH-PRECISION）"},"holdout_n":{"type":"integer","minimum":0,"description":"保留切分的計數；≥ 10 且 holdout_tp／holdout_n ≥ high_precision_min − 0.05 才列入（docs/05 §5.10）"},"holdout_tp":{"type":"integer","minimum":0}},"required":["adapter","rule_id","tool_version","cwe_bucket","n","tp","fp","precision_lower95","holdout_n","holdout_tp"]}},
-  "thresholds":{"type":"object","additionalProperties":false,"properties":{"theta_confirm":{"$ref":"#/$defs/threshold"},"theta_reject":{"$ref":"#/$defs/threshold"},"high_precision_min":{"$ref":"#/$defs/threshold","description":"SARIF 規則算強工具佐證的精準度下限：high_precision_rules 的 precision_lower95 ≥ value（docs/05 R5 row 10；預設 0.90，是政策下限，不是 θ 搜尋的結果）"}},"required":["theta_confirm","theta_reject","high_precision_min"]},
-  "primary_hypothesis":{"type":"object","additionalProperties":false,"properties":{"comparator":{"enum":["2a","2b"]},"delta":{"type":"number"},"ci_low":{"type":"number"},"ci_high":{"type":"number"},"mcnemar_p":{"type":"number","minimum":0,"maximum":1},"h1":{"type":"boolean"},"h2":{"type":"boolean"},"outcome":{"enum":["multi_family_wins","recall_only","not_shown","single_best_wins"]},"fallback_applied":{"anyOf":[{"type":"string"},{"type":"null"}]},"psi_observed":{"type":"number"},"rho_observed":{"type":"number"},"holdout_n_final":{"type":"integer","minimum":0}},"required":["comparator","delta","ci_low","ci_high","mcnemar_p","h1","h2","outcome","fallback_applied","psi_observed","rho_observed","holdout_n_final"]},
-  "metrics":{"type":"object","additionalProperties":false,"patternProperties":{"^M-([1-9]|1[01])$":{"$ref":"#/$defs/metric"}},"required":["M-1","M-2","M-3","M-4","M-5","M-6","M-7","M-8","M-9","M-10","M-11"],"description":"M-1–M-11（docs/05 §5.3）；M-11 用 by_model 報每個驗證模型、每個桶的真陰性率與 Wilson CI"},
-  "exploratory":{"type":"object","additionalProperties":false,"properties":{"arm":{"const":"5"},"precision":{"type":"number"},"recall":{"type":"number"},"recall_diff_vs_arm3":{"type":"number"},"precision_diff_vs_arm3":{"type":"number"},"ci_low":{"type":"number"},"ci_high":{"type":"number"},"ci_method":{"const":"app_clustered_bootstrap"},"hypothesis_test":{"const":null,"description":"探索性：不做假設檢定"}},"required":["arm","precision","recall","recall_diff_vs_arm3","precision_diff_vs_arm3","ci_low","ci_high","ci_method","hypothesis_test"]},
-  "annotator_agreement":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"batch_id":{"type":"string"},"kappa":{"type":"number"},"accepted":{"type":"boolean"},"rounds":{"type":"integer","minimum":1}},"required":["batch_id","kappa","accepted","rounds"]}},
-  "contamination":{"type":"object","additionalProperties":false,"properties":{"canary_results":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"model_key":{"type":"string"},"reproduced":{"type":"boolean"},"checked_at":{"$ref":"common.schema.json#/$defs/datetime"}},"required":["model_key","reproduced","checked_at"]}},"variant_recall_gap":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"model_key":{"type":"string"},"gap":{"type":"number"},"flagged":{"type":"boolean"}},"required":["model_key","gap","flagged"]}}},"required":["canary_results","variant_recall_gap"]},
-  "holdout_access_log":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"person_id":{"$ref":"common.schema.json#/$defs/person_id"},"at":{"$ref":"common.schema.json#/$defs/datetime"},"reason":{"type":"string"}},"required":["person_id","at","reason"]}},
-  "recommended_defaults":{"type":"object","additionalProperties":false,"properties":{"w2_review.strategy":{"enum":["multi_family","single_best_resampled"]},"n":{"type":"integer","minimum":1},"cross_family_verifier":{"enum":["required","recommended"]}},"required":["w2_review.strategy","n","cross_family_verifier"]},
-  "valid_for_model_keys":{"type":"array","items":{"type":"string"}},
-  "invalidated_by":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"model_key":{"type":"string"},"change":{"type":"string"},"at":{"$ref":"common.schema.json#/$defs/datetime"}},"required":["model_key","change","at"]}}},
-  "required":["completed_at","weights","high_precision_rules","thresholds","primary_hypothesis","metrics","exploratory","annotator_agreement","contamination","holdout_access_log","recommended_defaults","valid_for_model_keys","invalidated_by"]}]}},
-"required":["calibration_id","calibration_version","config","result"],
-"$defs":{
-"split_stats":{"type":"object","additionalProperties":false,"properties":{"precision":{"type":"number"},"recall":{"type":"number"},"ci_low":{"type":"number"},"ci_high":{"type":"number"},"n":{"type":"integer","minimum":0}},"required":["precision","recall","ci_low","ci_high","n"]},
-"threshold":{"type":"object","additionalProperties":false,"properties":{"value":{"anyOf":[{"type":"number"},{"type":"null"}],"description":"null＝停用（+∞）"},"feasible":{"type":"boolean"},"calibration":{"$ref":"#/$defs/split_stats"},"holdout":{"$ref":"#/$defs/split_stats"},"generalised":{"type":"boolean"},"by_bucket":{"type":"object","propertyNames":{"$ref":"common.schema.json#/$defs/cwe_bucket"},"additionalProperties":{"$ref":"#/$defs/threshold"},"description":"v0.6（審查 r7 3.5）：theta_confirm／theta_reject 依 CWE 桶分開搜尋，規則只用叢集所屬桶的門檻；沒有列出的桶視為停用（+∞），generalised 為 false 的門檻也停用。外層的值是合併統計，只供報告（E-CAL-THETA）；high_precision_min 是政策值，沒有 by_bucket"}},"required":["value","feasible","calibration","holdout","generalised"]},
-"metric":{"type":"object","additionalProperties":false,"properties":{"value":{"anyOf":[{"type":"number"},{"type":"null"}]},"ci_low":{"anyOf":[{"type":"number"},{"type":"null"}]},"ci_high":{"anyOf":[{"type":"number"},{"type":"null"}]},"n":{"type":"integer","minimum":0},"exit_pass":{"anyOf":[{"type":"boolean"},{"type":"null"}],"description":"null＝次要分析，沒有退出條件（M-11）"},"by_model":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"model_key":{"type":"string"},"cwe_bucket":{"anyOf":[{"$ref":"common.schema.json#/$defs/cwe_bucket"},{"const":"pooled"}]},"value":{"type":"number"},"ci_low":{"type":"number"},"ci_high":{"type":"number"},"n":{"type":"integer","minimum":0},"ci_method":{"const":"wilson"},"flag":{"anyOf":[{"const":"support_leaning"},{"type":"null"}],"description":"真陰性率 < 0.5 → 報告標示「傾向支持」"}},"required":["model_key","cwe_bucket","value","ci_low","ci_high","n","ci_method","flag"]}}},"required":["value","ci_low","ci_high","n","exit_pass"]}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "calibration.schema.json",
+  "title": "Calibration（校準設定與結果，D15）",
+  "description": "docs/05 §5.9。config 在保留切分執行前固定（預先登記）；result 由校準程式寫入。裁決以 calibration_version 引用本檔的 weights 與 thresholds。result 為 null＝尚未執行（所有權重視為 0）。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "calibration_id": {
+      "type": "string"
+    },
+    "calibration_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "依 docs/05 §5.8 遞增"
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preregistration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "doc_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "primary_metric": {
+              "const": "recall_delta"
+            },
+            "test": {
+              "const": "app_clustered_paired_bootstrap"
+            },
+            "sensitivity_test": {
+              "const": "exact_mcnemar"
+            },
+            "alpha": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 0.5
+            },
+            "min_effect": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "psi_assumed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "rho_assumed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "ni_margin": {
+              "type": "number",
+              "minimum": 0
+            },
+            "bootstrap_resamples": {
+              "type": "integer",
+              "minimum": 1000
+            },
+            "registered_at": {
+              "$ref": "common.schema.json#/$defs/datetime"
+            }
+          },
+          "required": [
+            "doc_sha256",
+            "primary_metric",
+            "test",
+            "sensitivity_test",
+            "alpha",
+            "min_effect",
+            "psi_assumed",
+            "rho_assumed",
+            "ni_margin",
+            "bootstrap_resamples",
+            "registered_at"
+          ]
+        },
+        "corpus": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "app_id": {
+                "type": "string"
+              },
+              "content_sha256": {
+                "$ref": "common.schema.json#/$defs/sha256"
+              },
+              "part": {
+                "enum": [
+                  "P",
+                  "V",
+                  "D",
+                  "B"
+                ]
+              },
+              "generator_family": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "generated_at": {
+                "$ref": "common.schema.json#/$defs/date"
+              },
+              "split": {
+                "enum": [
+                  "calibration",
+                  "holdout"
+                ]
+              },
+              "sentinel": {
+                "type": "boolean"
+              },
+              "canary_guid": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": [
+              "app_id",
+              "content_sha256",
+              "part",
+              "generator_family",
+              "generated_at",
+              "split",
+              "sentinel",
+              "canary_guid"
+            ]
+          }
+        },
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "model_key": {
+                "type": "string"
+              },
+              "family": {
+                "type": "string"
+              },
+              "lineage": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object"
+              },
+              "prompt_template_sha256": {
+                "$ref": "common.schema.json#/$defs/sha256"
+              },
+              "training_cutoff": {
+                "anyOf": [
+                  {
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "model_key",
+              "family",
+              "lineage",
+              "version",
+              "params",
+              "prompt_template_sha256",
+              "training_cutoff"
+            ]
+          }
+        },
+        "arms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "arm": {
+                "enum": [
+                  "1",
+                  "2a",
+                  "2b",
+                  "3",
+                  "4",
+                  "5"
+                ]
+              },
+              "description": {
+                "type": "string"
+              },
+              "n_samples": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "acceptance_rule": {
+                "type": "string",
+                "description": "例如 >=2_of_3、minority_veto"
+              },
+              "model_keys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "exploratory": {
+                "type": "boolean",
+                "description": "⑤ 少數否決必須為 true：只作探索，不進入主要假設"
+              }
+            },
+            "required": [
+              "arm",
+              "description",
+              "n_samples",
+              "acceptance_rule",
+              "model_keys",
+              "exploratory"
+            ]
+          }
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "random_seed": {
+          "type": "integer"
+        },
+        "threshold_search": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "grid_step": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "confirm_precision_floor": {
+              "type": "number"
+            },
+            "confirm_wilson_lower_floor": {
+              "type": "number"
+            },
+            "reject_true_defect_max": {
+              "type": "number"
+            },
+            "reject_wilson_upper_max": {
+              "type": "number"
+            },
+            "min_clusters": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "grid_step",
+            "confirm_precision_floor",
+            "confirm_wilson_lower_floor",
+            "reject_true_defect_max",
+            "reject_wilson_upper_max",
+            "min_clusters"
+          ]
+        },
+        "smoothing_k": {
+          "type": "number",
+          "minimum": 0
+        },
+        "near_zero_rules": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "w_min": {
+              "type": "number"
+            },
+            "wilson_lower_max": {
+              "type": "number"
+            },
+            "n_min": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "abstain_rate_max": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "v0.7（審查 r9）：一邊的棄權率上限（預設 0.3）"
+            }
+          },
+          "required": [
+            "w_min",
+            "wilson_lower_max",
+            "n_min",
+            "abstain_rate_max"
+          ]
+        },
+        "annotation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "annotator_ids": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/person_id"
+              },
+              "minItems": 2
+            },
+            "adjudicator_id": {
+              "$ref": "common.schema.json#/$defs/person_id"
+            },
+            "kappa_min": {
+              "type": "number"
+            },
+            "batch_size_apps": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_relabel_rounds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "annotator_ids",
+            "adjudicator_id",
+            "kappa_min",
+            "batch_size_apps",
+            "max_relabel_rounds"
+          ]
+        }
+      },
+      "required": [
+        "preregistration",
+        "corpus",
+        "models",
+        "arms",
+        "repetitions",
+        "random_seed",
+        "threshold_search",
+        "smoothing_k",
+        "near_zero_rules",
+        "annotation"
+      ]
+    },
+    "result": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "completed_at": {
+              "$ref": "common.schema.json#/$defs/datetime"
+            },
+            "weights": {
+              "type": "array",
+              "description": "v0.4：每個（模型，桶）分成兩邊。support＝真缺陷上的票（支持＝答對），權重用於 SUPPORT 票；refute＝已知非缺陷上的票（反駁＝答對），權重用於 REFUTE 票。v0.3 只有一個正確率 a，永遠投支持的驗證者在真缺陷佔多數的語料上也會得到正權重（docs/05 §4.3）",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "model_key": {
+                    "type": "string"
+                  },
+                  "cwe_bucket": {
+                    "$ref": "common.schema.json#/$defs/cwe_bucket"
+                  },
+                  "support": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "n": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "correct": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "a": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "w": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "v0.6（審查 r7 3.2）：對數概似比權重，沒有上限"
+                      },
+                      "near_zero": {
+                        "type": "boolean"
+                      },
+                      "near_zero_reasons": {
+                        "type": "array",
+                        "items": {
+                          "enum": [
+                            "w_below_min",
+                            "wilson_lower_le_max",
+                            "n_below_min",
+                            "abstain_rate_gt_max"
+                          ]
+                        }
+                      },
+                      "n_abstain": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "v0.7（審查 r9）：這一邊的校準案例中棄權的次數（不計入 n）；棄權率 n_abstain／(n＋n_abstain) 超過 near_zero_rules.abstain_rate_max → near_zero（只答容易的題目可以保住正確率）"
+                      }
+                    },
+                    "required": [
+                      "n",
+                      "correct",
+                      "a",
+                      "w",
+                      "near_zero",
+                      "near_zero_reasons",
+                      "n_abstain"
+                    ]
+                  },
+                  "refute": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "n": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "correct": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "a": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "w": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "v0.6（審查 r7 3.2）：對數概似比權重，沒有上限"
+                      },
+                      "near_zero": {
+                        "type": "boolean"
+                      },
+                      "near_zero_reasons": {
+                        "type": "array",
+                        "items": {
+                          "enum": [
+                            "w_below_min",
+                            "wilson_lower_le_max",
+                            "n_below_min",
+                            "abstain_rate_gt_max"
+                          ]
+                        }
+                      },
+                      "n_abstain": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "v0.7（審查 r9）：這一邊的校準案例中棄權的次數（不計入 n）；棄權率 n_abstain／(n＋n_abstain) 超過 near_zero_rules.abstain_rate_max → near_zero（只答容易的題目可以保住正確率）"
+                      }
+                    },
+                    "required": [
+                      "n",
+                      "correct",
+                      "a",
+                      "w",
+                      "near_zero",
+                      "near_zero_reasons",
+                      "n_abstain"
+                    ]
+                  }
+                },
+                "required": [
+                  "model_key",
+                  "cwe_bucket",
+                  "support",
+                  "refute"
+                ]
+              }
+            },
+            "high_precision_rules": {
+              "type": "array",
+              "description": "在校準語料上量到的高精準度 SARIF 規則（每個 adapter／rule_id／CWE 桶一列）。只有列在這裡、precision_lower95 ≥ thresholds.high_precision_min.value、且執行時的 tool_version 相同的規則結果才是強工具佐證；其他 SARIF 結果都是弱訊號（docs/05 §4.2 R2）。沒有語料前為 []",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "adapter": {
+                    "$ref": "common.schema.json#/$defs/tool_mode"
+                  },
+                  "rule_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "tool_version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "量到此精準度的掃描器／規則包版本；稽核 tool_invocation_end 的 payload.tool_version 必須相同才算強佐證"
+                  },
+                  "cwe_bucket": {
+                    "$ref": "common.schema.json#/$defs/cwe_bucket"
+                  },
+                  "n": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "tp": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "v0.6（審查 r7 3.5）：校準切分的真陽性數；n＝tp＋fp"
+                  },
+                  "fp": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "校準切分的偽陽性數"
+                  },
+                  "precision_lower95": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "tp／n 的 Clopper-Pearson 雙尾 95% 下界，validator 由計數重算（E-CAL-HIGH-PRECISION）"
+                  },
+                  "holdout_n": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "保留切分的計數；≥ 10 且 holdout_tp／holdout_n ≥ high_precision_min − 0.05 才列入（docs/05 §5.10）"
+                  },
+                  "holdout_tp": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "adapter",
+                  "rule_id",
+                  "tool_version",
+                  "cwe_bucket",
+                  "n",
+                  "tp",
+                  "fp",
+                  "precision_lower95",
+                  "holdout_n",
+                  "holdout_tp"
+                ]
+              }
+            },
+            "thresholds": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "theta_confirm": {
+                  "$ref": "#/$defs/threshold"
+                },
+                "theta_reject": {
+                  "$ref": "#/$defs/threshold"
+                },
+                "high_precision_min": {
+                  "$ref": "#/$defs/threshold",
+                  "description": "SARIF 規則算強工具佐證的精準度下限：high_precision_rules 的 precision_lower95 ≥ value（docs/05 R5 row 10；預設 0.90，是政策下限，不是 θ 搜尋的結果）"
+                }
+              },
+              "required": [
+                "theta_confirm",
+                "theta_reject",
+                "high_precision_min"
+              ]
+            },
+            "primary_hypothesis": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "comparator": {
+                  "enum": [
+                    "2a",
+                    "2b"
+                  ]
+                },
+                "delta": {
+                  "type": "number"
+                },
+                "ci_low": {
+                  "type": "number"
+                },
+                "ci_high": {
+                  "type": "number"
+                },
+                "mcnemar_p": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "h1": {
+                  "type": "boolean"
+                },
+                "h2": {
+                  "type": "boolean"
+                },
+                "outcome": {
+                  "enum": [
+                    "multi_family_wins",
+                    "recall_only",
+                    "not_shown",
+                    "single_best_wins"
+                  ]
+                },
+                "fallback_applied": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "psi_observed": {
+                  "type": "number"
+                },
+                "rho_observed": {
+                  "type": "number"
+                },
+                "holdout_n_final": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "comparator",
+                "delta",
+                "ci_low",
+                "ci_high",
+                "mcnemar_p",
+                "h1",
+                "h2",
+                "outcome",
+                "fallback_applied",
+                "psi_observed",
+                "rho_observed",
+                "holdout_n_final"
+              ]
+            },
+            "metrics": {
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^M-([1-9]|1[01])$": {
+                  "$ref": "#/$defs/metric"
+                }
+              },
+              "required": [
+                "M-1",
+                "M-2",
+                "M-3",
+                "M-4",
+                "M-5",
+                "M-6",
+                "M-7",
+                "M-8",
+                "M-9",
+                "M-10",
+                "M-11"
+              ],
+              "description": "M-1–M-11（docs/05 §5.3）；M-11 用 by_model 報每個驗證模型、每個桶的真陰性率與 Wilson CI"
+            },
+            "exploratory": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "arm": {
+                  "const": "5"
+                },
+                "precision": {
+                  "type": "number"
+                },
+                "recall": {
+                  "type": "number"
+                },
+                "recall_diff_vs_arm3": {
+                  "type": "number"
+                },
+                "precision_diff_vs_arm3": {
+                  "type": "number"
+                },
+                "ci_low": {
+                  "type": "number"
+                },
+                "ci_high": {
+                  "type": "number"
+                },
+                "ci_method": {
+                  "const": "app_clustered_bootstrap"
+                },
+                "hypothesis_test": {
+                  "const": null,
+                  "description": "探索性：不做假設檢定"
+                }
+              },
+              "required": [
+                "arm",
+                "precision",
+                "recall",
+                "recall_diff_vs_arm3",
+                "precision_diff_vs_arm3",
+                "ci_low",
+                "ci_high",
+                "ci_method",
+                "hypothesis_test"
+              ]
+            },
+            "annotator_agreement": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "batch_id": {
+                    "type": "string"
+                  },
+                  "kappa": {
+                    "type": "number"
+                  },
+                  "accepted": {
+                    "type": "boolean"
+                  },
+                  "rounds": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "batch_id",
+                  "kappa",
+                  "accepted",
+                  "rounds"
+                ]
+              }
+            },
+            "contamination": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "canary_results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "model_key": {
+                        "type": "string"
+                      },
+                      "reproduced": {
+                        "type": "boolean"
+                      },
+                      "checked_at": {
+                        "$ref": "common.schema.json#/$defs/datetime"
+                      }
+                    },
+                    "required": [
+                      "model_key",
+                      "reproduced",
+                      "checked_at"
+                    ]
+                  }
+                },
+                "variant_recall_gap": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "model_key": {
+                        "type": "string"
+                      },
+                      "gap": {
+                        "type": "number"
+                      },
+                      "flagged": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "model_key",
+                      "gap",
+                      "flagged"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "canary_results",
+                "variant_recall_gap"
+              ]
+            },
+            "holdout_access_log": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "person_id": {
+                    "$ref": "common.schema.json#/$defs/person_id"
+                  },
+                  "at": {
+                    "$ref": "common.schema.json#/$defs/datetime"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "person_id",
+                  "at",
+                  "reason"
+                ]
+              }
+            },
+            "recommended_defaults": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "w2_review.strategy": {
+                  "enum": [
+                    "multi_family",
+                    "single_best_resampled"
+                  ]
+                },
+                "n": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "cross_family_verifier": {
+                  "enum": [
+                    "required",
+                    "recommended"
+                  ]
+                }
+              },
+              "required": [
+                "w2_review.strategy",
+                "n",
+                "cross_family_verifier"
+              ]
+            },
+            "valid_for_model_keys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "invalidated_by": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "model_key": {
+                    "type": "string"
+                  },
+                  "change": {
+                    "type": "string"
+                  },
+                  "at": {
+                    "$ref": "common.schema.json#/$defs/datetime"
+                  }
+                },
+                "required": [
+                  "model_key",
+                  "change",
+                  "at"
+                ]
+              }
+            }
+          },
+          "required": [
+            "completed_at",
+            "weights",
+            "high_precision_rules",
+            "thresholds",
+            "primary_hypothesis",
+            "metrics",
+            "exploratory",
+            "annotator_agreement",
+            "contamination",
+            "holdout_access_log",
+            "recommended_defaults",
+            "valid_for_model_keys",
+            "invalidated_by"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "calibration_id",
+    "calibration_version",
+    "config",
+    "result"
+  ],
+  "$defs": {
+    "split_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "precision": {
+          "type": "number"
+        },
+        "recall": {
+          "type": "number"
+        },
+        "ci_low": {
+          "type": "number"
+        },
+        "ci_high": {
+          "type": "number"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tp": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "審查 r11：該切分中被該分支確認（或駁回）的叢集裡的真缺陷數；validator 以 tp／n 重算 precision 與 Wilson 95% 界限（E-CAL-THETA）"
+        }
+      },
+      "required": [
+        "precision",
+        "recall",
+        "ci_low",
+        "ci_high",
+        "n",
+        "tp"
+      ]
+    },
+    "threshold": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null＝停用（+∞）"
+        },
+        "feasible": {
+          "type": "boolean"
+        },
+        "calibration": {
+          "$ref": "#/$defs/split_stats"
+        },
+        "holdout": {
+          "$ref": "#/$defs/split_stats"
+        },
+        "generalised": {
+          "type": "boolean"
+        },
+        "by_bucket": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/cwe_bucket"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/threshold"
+          },
+          "description": "v0.6（審查 r7 3.5）：theta_confirm／theta_reject 依 CWE 桶分開搜尋，規則只用叢集所屬桶的門檻；沒有列出的桶視為停用（+∞），generalised 為 false 的門檻也停用。外層的值是合併統計，只供報告（E-CAL-THETA）；high_precision_min 是政策值，沒有 by_bucket"
+        }
+      },
+      "required": [
+        "value",
+        "feasible",
+        "calibration",
+        "holdout",
+        "generalised"
+      ]
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ci_low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ci_high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exit_pass": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null＝次要分析，沒有退出條件（M-11）"
+        },
+        "by_model": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "model_key": {
+                "type": "string"
+              },
+              "cwe_bucket": {
+                "anyOf": [
+                  {
+                    "$ref": "common.schema.json#/$defs/cwe_bucket"
+                  },
+                  {
+                    "const": "pooled"
+                  }
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "ci_low": {
+                "type": "number"
+              },
+              "ci_high": {
+                "type": "number"
+              },
+              "n": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ci_method": {
+                "const": "wilson"
+              },
+              "flag": {
+                "anyOf": [
+                  {
+                    "const": "support_leaning"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "真陰性率 < 0.5 → 報告標示「傾向支持」"
+              }
+            },
+            "required": [
+              "model_key",
+              "cwe_bucket",
+              "value",
+              "ci_low",
+              "ci_high",
+              "n",
+              "ci_method",
+              "flag"
+            ]
+          }
+        }
+      },
+      "required": [
+        "value",
+        "ci_low",
+        "ci_high",
+        "n",
+        "exit_pass"
+      ]
+    }
+  }
+}

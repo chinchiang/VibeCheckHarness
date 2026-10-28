@@ -16,7 +16,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327",
   "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
-  "engagement_ref": "sha256:666fb3d62bc5cbca47f936110938224000e6fa66c30a0767ac41c1fe2942fd2e",
+  "engagement_ref": "sha256:9dd10765a71725afe397b7e950cab2e69a1da9c387866c56d9ab70edd26755f1",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -32,7 +32,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:ad3ec68e89a76fa0e0ce76ebdbeea1cd34f2ce0ad79608a753d129e0dbd4449d"
+      "sha256": "sha256:e29c40f5b4a182d9b2c3236e89cb2afcc66a944aaa513fd41a4128e62e6723e6"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -51,7 +51,7 @@
     }
   ],
   "tool_versions": [],
-  "rule_version": "05-v0.9",
+  "rule_version": "05-v0.10",
   "roe_ref": null,
   "repo_commit": "9b7e3d2f1a4c6e8b0d2f4a6c8e0b2d4f6a8c0e1b",
   "owasp_llm_version": "2026",
@@ -122,7 +122,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:666fb3d62bc5cbca47f936110938224000e6fa66c30a0767ac41c1fe2942fd2e",
+      "subject_hash": "sha256:9dd10765a71725afe397b7e950cab2e69a1da9c387866c56d9ab70edd26755f1",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"
@@ -167,11 +167,11 @@
   "audit_anchors": [
     {
       "seq": 6,
-      "line_sha256": "sha256:d39780cc55708d9fcb49ea827a9746cdecc60ed7e2559266ffae243175eefe0e"
+      "line_sha256": "sha256:0c37c8f3947d58b72c5b04e9e4c24517d42de75207b320c0dc5764dd4d109b5a"
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:f17bfb8d19ed7e22fa0748b8e3185c9860a0730cea14b5b1c32cf2a978946b74"
+      "line_sha256": "sha256:23f1011deefb77460fbab7c8000d7d90d9da474465c2c7a64976e0c7818e9659"
     }
   ],
   "errors": [],

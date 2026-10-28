@@ -2,7 +2,7 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.8`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.10`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
 
 ## 第十一輪審查（2026-10-28）
 
@@ -16,6 +16,17 @@
 - **發起者的反向對帳**（`E-RUN-CLAIM`）：`run.initiators` 列出的每個人都要有本 run 已錨定、簽章有效的 `initiator_claim`。範例的 G4 核准者 erin 原本被列為發起者卻從未認領，現在在 G4 開啟前認領；Lane A run 沒有人認領，`initiators` 為空、G0a 紀錄的 `initiator` 為 null（`E-GATE-INITIATOR` 只對 Lane A 允許 null）。
 - **小項**：到達 W4／W5 的 initial run 必須有自己的 G1 不變量，followup／regression 以 `reuse[]` 帶入父 run 的 `invariants_ref` 才免檢（`E-W4-COVERAGE`）；還原演練只採計系統帳號寫在已錨定部分的 `restore_drill`（`E-RUN-RESTORE-DRILL`）。
 - 新增 `tests/test_v07_r11_anchor.py`（30 個）與 `tests/mutations/r11_anchor.json`；`test_v07_r9_anchor.py` 的回捲測試改用新的 G4 錨點 seq 並預期 CMD-5 計畫失去釘住（`E-AUDIT-ARTIFACT`）。
+
+### 裁決參數與獨立性（PR2；`rule_version` 改為 `05-v0.10`）
+- **校準的政策常數由 validator 釘住**（`E-CAL-POLICY`，新）：05 §4.3 的 `smoothing_k`、`near_zero_rules` 與 §5.7 的 `threshold_search` 限制寫在 `checks.CAL_POLICY`，`calibration.yaml` 寫不同的數字就是錯誤。審查的 probe：`wilson_lower_max: 0.0` 加上 θ 1.4，重釘 `config_pins` 並重簽委任設定後，兩個叢集從 LIKELY／UNCORROBORATED 變成 CONFIRMED_CORROBORATED，validator 只剩報告計數一個錯誤。
+- **θ 的切分統計記原始計數**（`E-CAL-THETA`）：`calibration`／`holdout` 新增 `tp`，validator 以 tp／n 重算 precision 與 Wilson 95% 界限（新增 `checks.wilson_upper`）；範例的數字重算（例如 authz 的校準切分 43／46 → 0.9348、下界 0.825）。
+- **每個有權重的模型都要有 canary 結果**（`E-CAL-CONTAMINATION`）：沒有檢查過不等於乾淨。
+- **票的合格性以投票當時的成員判定**（`votes[].voted_after_round`，必填）：只有 `reporter.round` 不大於它的成員算在內（`derive.members_at_vote`）；之後加入的同家族或同基底血統成員不作廢既有票，改加註 `refute_by_later_member_family`（R15）。審查的 probe：K-005 加一張 nvidia 的反駁票是 DISPUTED，再讓 nvidia 的 reviewer 回報同一處，反駁票失效、變成不進 G2 的 LIKELY；現在仍是 DISPUTED 並帶註記。
+- **`no_eligible_verifier` 的叢集一律進 G2**（`E-PIPELINE`）：合格驗證家族為空的叢集，它的 LIKELY 只靠回報者，由人決定。
+- **事先登記的 PASS 也要求作者獨立**（`derive.classify_result`）：與 `E_proof` 對稱；同家族寫、自己解讀的 W4 PASS 不能把別家族投出的確認降成 DISPUTED，改為 `E_inc`。
+- **新裁決狀態 `FIXED`**（R14，決定表第 14 列）：`regression` run 帶入的叢集，來源裁決為 `CONFIRMED_*`、回歸測試合格 PASS 有正對照、沒有 FAIL 類證據。報告列為「已修正」，SARIF `baselineState: absent` 加 `suppressions`（08 §11.16）；`verdict_counts` 多一個鍵；不是暫定裁決。範例沒有 regression run，只在記憶體中測試（BL-49 的 `W4_regression` 節點仍未實作）。
+- 版本字串：`05-v0.9` → `05-v0.10`（CHANGELOG 開頭、02 W3、08 §3 原本停在 `05-v0.8`／`05-v0.7`，一併更正）。
+- 新增 `tests/test_v07_r11_verdict.py`（23 個）與 `tests/mutations/r11_verdict.json`；`r8_validator.json` 的 F5 錨點隨 G2 條件更新。
 
 ## 待辦 BL-66、BL-01、BL-47、BL-05 與 `suspend` 變體（2026-10-27）
 

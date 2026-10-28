@@ -99,6 +99,11 @@
           "weighted_valid": {
             "type": "boolean",
             "description": "valid ∧ weight > 0；只有這些票計入 S"
+          },
+          "voted_after_round": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "審查 r11（05-v0.10）：投票時叢集已完成的回報輪次；票的合格性以 reporter.round ≤ 此值的成員判定（derive.members_at_vote），之後加入的同家族成員不作廢既有票，改加註 refute_by_later_member_family（R15）"
           }
         },
         "required": [
@@ -114,7 +119,8 @@
           "order_randomized",
           "valid",
           "weight",
-          "weighted_valid"
+          "weighted_valid",
+          "voted_after_round"
         ]
       }
     },
@@ -380,9 +386,10 @@
         "LIKELY",
         "UNCORROBORATED",
         "DISPUTED",
-        "REJECTED"
+        "REJECTED",
+        "FIXED"
       ],
-      "description": "依 docs/05 §4.2 的有序規則決定；UNVERIFIED 只是發現項層級的狀態，不是裁決"
+      "description": "依 docs/05 §4.2 的有序規則決定；UNVERIFIED 只是發現項層級的狀態，不是裁決；FIXED：審查 r11（05-v0.10）regression run 帶入的已確認叢集，回歸測試合格 PASS 且有正對照（R14）"
     },
     "status_cap": {
       "anyOf": [
@@ -417,7 +424,8 @@
               "conflicting_test_results",
               "g3_rejected",
               "post_g2_conflict",
-              "w4_became_disputed"
+              "w4_became_disputed",
+              "refute_by_later_member_family"
             ]
           },
           "reason": {
@@ -443,16 +451,16 @@
     },
     "rule_version": {
       "type": "string",
-      "description": "docs/05 規則版本；必須等於 run.rule_version 與 vchlib.adjudicate.RULE_VERSION（目前 05-v0.9）"
+      "description": "docs/05 規則版本；必須等於 run.rule_version 與 vchlib.adjudicate.RULE_VERSION（目前 05-v0.10）"
     },
     "rule_trace": {
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^R([0-9]|1[0-3])(:.*)?$"
+        "pattern": "^R([0-9]|1[0-5])(:.*)?$"
       },
       "minItems": 1,
-      "description": "依序觸發的規則（R0–R13），可附說明；說明裡的 ->狀態 與 名稱=數字 必須等於重算值（docs/05 §4.2，BL-01）"
+      "description": "依序觸發的規則（R0–R15），可附說明；說明裡的 ->狀態 與 名稱=數字 必須等於重算值（docs/05 §4.2，BL-01）"
     }
   },
   "required": [
@@ -485,5 +493,5 @@
     "rule_trace"
   ],
   "title": "Verdict（裁決）",
-  "description": "Aggregator 依 docs/05 §4.2 有序規則（R0–R13）與 §4.3 校準權重決定。每一版裁決都保留（append-only）：重新裁決產生新的 verdict_id，以 supersedes_verdict_id 指向前一版。"
+  "description": "Aggregator 依 docs/05 §4.2 有序規則（R0–R15）與 §4.3 校準權重決定。每一版裁決都保留（append-only）：重新裁決產生新的 verdict_id，以 supersedes_verdict_id 指向前一版。"
 }

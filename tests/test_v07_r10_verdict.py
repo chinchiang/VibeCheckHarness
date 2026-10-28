@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Review round 10 (docs/evidence/review-2026-10-27-r10.md), PR2: adjudication and calibration (rule_version 05-v0.9).
+"""Review round 10 (docs/evidence/review-2026-10-27-r10.md), PR2: adjudication and calibration (rule_version 05-v0.10).
 Each defect test failed on the PR1 head and passes with the fix; see CONTRIBUTING.md.
 
   theta_reject  a bucket's theta_reject is above every single refute weight of the bucket (E-CAL-THETA): one refuting
@@ -35,12 +35,13 @@ def test_the_examples_are_clean(b):
 
 
 def test_the_rule_version_is_05_v0_9():
-    assert adjudicate.RULE_VERSION == "05-v0.9"
+    assert adjudicate.RULE_VERSION == "05-v0.10"
 
 
 # ================================================================ theta_reject guard
-GOOD = {"calibration": {"precision": 0.99, "recall": 0.3, "ci_low": 0.93, "ci_high": 1.0, "n": 60},
-        "holdout": {"precision": 0.99, "recall": 0.3, "ci_low": 0.9, "ci_high": 1.0, "n": 45}, "generalised": True, "feasible": True}
+# r11: the split statistics come from the raw counts (60 of 60, 45 of 45), so precision and the Wilson bounds are the recomputed values
+GOOD = {"calibration": {"precision": 1.0, "recall": 0.3, "ci_low": 0.9398, "ci_high": 1.0, "n": 60, "tp": 60},
+        "holdout": {"precision": 1.0, "recall": 0.3, "ci_low": 0.9213, "ci_high": 1.0, "n": 45, "tp": 45}, "generalised": True, "feasible": True}
 
 
 def test_theta_reject_below_a_single_refute_weight_is_rejected(b):
