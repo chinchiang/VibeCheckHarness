@@ -4,6 +4,19 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.10`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
 
+## 第十二輪審查（2026-10-28）
+
+依 [2026-10-28 設計審查（第十二輪）](docs/evidence/review-2026-10-28-r12.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的八項由主審查者重跑確認。
+
+### run 紀錄的推導與反向檢查（PR1）
+- **未能測試清單由 validator 推導**（`E-RUN-GAPS`，新）：完成的 run，`gaps` 必須包含 run 的紀錄推導出的每一項——MANUAL 的 W4 需求與測試案例、日誌末端 G4 駁回、SKIPPED job（kind 依 `skip_reason`）、所有權驗證失敗、ERROR／SKIPPED／STOPPED／INVALID 的結果、GB 停止。r11 由 `gaps` 推導終態，但 `gaps` 本身沒人檢查：審查的 probe 把已核准的 job 改成 SKIPPED、清單留空，run 仍 COMPLETED、零錯誤。gap kind 補上 08 §6.1 的 SKIPPED 原因；主範例補 INV-LLM-003（MANUAL），lite 變體補 TC-027-01（MANUAL），兩者仍是 COMPLETED。
+- **S2 快照與還原以稽核事件為準**（`E-RUN-S2`）：恰一筆已錨定的 `snapshot_created`（`snapshot_ref` 相符、早於 job 開始）、恰一筆 `snapshot_restored {verified: true}`（晚於 job 結束）、沒有 `restore_failed`。之前日誌寫著還原失敗，run 紀錄仍可寫 RESTORED、run COMPLETED。
+- **回饋紀錄的反向檢查**（`E-AUDIT-FEEDBACK`，新）：每筆已錨定的 `feedback_recorded` 都要有對應的紀錄；之前刪掉回饋紀錄（連同 SARIF 抑制與抽查母體）不會報錯。
+- **`run_created` 釘住 `run_kind` 與 `trigger`**（`E-RUN-COMMIT`）：`run_kind` 決定 R14 `FIXED`、Lane A 豁免與 `reuse` 規則。
+- **金鑰登錄回滾以錨定事實偵測**（`E-KR-ROLLBACK`）：bundle 帶的登錄比任何 run 已錨定的 `key_registry_loaded.version` 舊，就是回滾（BL-43 的寫入端仍未實作）。
+- 06 §1.8 工件矩陣補 W1 工具結果一列（Z1 執行期殘餘）並更新 run 紀錄與回饋紀錄兩列；02 B6 寫明 `gaps` 由 validator 推導。
+- 新增 `tests/test_v07_r12_run.py`（25 個）與 `tests/mutations/r12_run.json`（18）。
+
 ## 第十一輪審查（2026-10-28）
 
 依 [2026-10-28 設計審查（第十一輪）](docs/evidence/review-2026-10-28-r11.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的六項由主審查者重跑確認。

@@ -317,7 +317,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:1ad3502631209e384634f5af96eebed25a3a2a8994f5c4c23a021f1a79c1ec70",
+  "report_manifest_ref": "sha256:16a2e9ed500b1fc823c127ed534d87b8b6d5c0750e2a4845ee82d9d9b4b62839",
   "gate_records": [
     {
       "gate": "G0a",
@@ -435,7 +435,13 @@
     "relay_spend_usd": 0,
     "gb_return_node": null
   },
-  "gaps": [],
+  "gaps": [
+    {
+      "kind": "manual",
+      "ref": "INV-LLM-003",
+      "reason": "W4 需求標為 MANUAL：refund 工具的防護以腳本式假模型測試，排在 M5（run.w4_manual_requirements）"
+    }
+  ],
   "audit_anchors": [
     {
       "seq": 7,
@@ -479,7 +485,7 @@
     },
     {
       "seq": 72,
-      "line_sha256": "sha256:85818872ef019f18d36048e736624b96a6197254312bdf3854a61f851b3b7842"
+      "line_sha256": "sha256:f2cc1481ca94d9ce57879aa695eb8248a3f78708499d947fd6819dde6d860c72"
     }
   ],
   "errors": [],

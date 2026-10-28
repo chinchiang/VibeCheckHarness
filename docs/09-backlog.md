@@ -56,7 +56,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-39 | M-1 | DB 目標的 `db_comment` 所有權驗證：Z3 以唯讀 oracle 憑證讀出 `COMMENT ON DATABASE` 中的 token，結果由 z3_executor 簽署 | [02 B0](02-methodology.md#b0-roe-與範圍g0b機器可驗證)、[06 §3 #18](06-security-legal-limitations.md#3-做不到不承諾的事) | MVP-1 之前 | validator 已檢查方法；Z3 端未實作 |
 | BL-41 | M-6 | G4 佇列上限的排序與「超出 G4 上限 → `MANUAL`」：B3 依序裁切，報告列出被裁掉的測試案例 | [02 B3](02-methodology.md#b3-威脅--需求--測試案例) | M4 之前 | `gate_queues.g4_max_items` 已加；裁切與報告欄位未實作，validator 未檢查 |
 | BL-42 | V-8 | `facets.CWE_BUCKETS`（CWE→桶的 curated 對照）與校準的桶定義對齊；對不到時目前只發 `W-CLUSTER-BUCKET` | [05 §3](05-bias-calibration.md#3-設計規則)、`tools/vchlib/facets.py` | 校準語料建立時（依 BL-11） | 最小對照表已有 |
-| BL-43 | §4.3 | 撤銷金鑰時自動調高 `key_registry.min_version`（`vibecheck keys rotate`），避免撤銷前的舊登錄仍被接受 | [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) | M1 | 限制已寫入文件；未實作 |
+| BL-43 | §4.3 | 撤銷金鑰時自動調高 `key_registry.min_version`（`vibecheck keys rotate`），避免撤銷前的舊登錄仍被接受 | [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) | M1 | 限制已寫入文件；r12：validator 以已錨定的 `key_registry_loaded.version` 偵測 bundle 帶舊登錄（`E-KR-ROLLBACK`），寫入端自動調高 `min_version` 仍未實作 |
 | BL-44 | §4.3 | W2 quorum 的執行期紀錄：目前沒有欄位，只能由 `missing_vote` 事件推得哪些切片 quorum 不足 | [05 §3](05-bias-calibration.md#3-設計規則) | M2 | 文件已寫明；未實作 |
 | BL-45 | §4.3 | `report_only` 叢集拉回 G3 的紀錄方式：拉回時新增的種子威脅沒有欄位標示「由 G3 審查者拉回」 | [02 W5](02-methodology.md#w5-白箱報告dfd種子威脅) | M3 | 機制已寫入文件；schema 未加欄位 |
 | BL-46 | 第 5 組 | 以網路執行 `tools/check_platform_suffixes.py`（比對 Public Suffix List），與 BL-03 的外部連結檢查一起定期重跑 | [08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明) | 每個版本發佈前 | 未執行（需要網路） |

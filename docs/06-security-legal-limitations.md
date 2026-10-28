@@ -179,11 +179,12 @@
 | models／agents／tools／licenses／calibration／crosswalk／**toolkit** | 工具包維運者 | — | — | `config_pins`（v0.7 加 toolkit） | — | 釘選值與設定一起改、再重簽委任設定 |
 | 關卡紀錄 G1～G5、GB | 核准者 | 是 | `gate_decision`；v0.7（r10）起釘住紀錄內容（`gate_record_sha256`，不含簽章），決定之後重簽改過的紀錄 → `E-AUDIT-GATE` | — | 結果由決定推導 | 核准者自己改主意：新一輪紀錄，不改舊的 |
 | 稽核紀錄 | Z1 寫入者 | 錨點由 Z3 副簽；人的事件自簽 | hash chain；v0.7（r9）Z3 的錨點編號跨 run 連續 | — | — | 同時握有 Z1 與 Z3 金鑰者；委任最後幾個錨點被截掉（§3 #16） |
-| run 紀錄（狀態、commit、job 清單、所有權結果） | Run Controller（Z1） | — | 狀態跟著 `run_status_changed`，commit 由 `run_created` 釘住，job 清單對照 `sandbox_job_*`；`run_end` 錨點之後不能再有任何行（不能重新打開），所有權結果對照已錨定的 `ownership_check` | — | `audit_anchors`、counts 推導 | — |
+| run 紀錄（狀態、commit、種類、job 清單、所有權結果、快照、`gaps`） | Run Controller（Z1） | — | 狀態跟著 `run_status_changed`，commit、`run_kind`、`trigger` 由 `run_created` 釘住（r12），job 清單對照 `sandbox_job_*`，S2 的快照與還原對照 `snapshot_created`／`snapshot_restored`／`restore_failed`（r12）；`run_end` 錨點之後不能再有任何行（不能重新打開），所有權結果對照已錨定的 `ownership_check` | — | `audit_anchors`、counts 推導；`gaps` 的最小集合由 run 的紀錄推導（r12，`E-RUN-GAPS`），終態再由 `gaps` 推導 | — |
 | 測試案例、產物、測試結果 | B3／B4 的代理與執行器 | — | `sandbox_job_end` 的三個 hash；完成的 run 中每份 w4-testcase 都要有結果，W4 的 `sandbox_job_end` 指名結果 | — | 控制結果與 class 推導 | 執行器本身被攻破（Z3） |
 | **裁決**（全部欄位） | Aggregator | — | `verdict_changed.verdict_sha256` | — | 狀態、分數、輸入全部重算 | — |
 | **報告 manifest、SARIF、HTML** | Reporter | — | `report_published.report_manifest_sha256`；manifest 的 artifacts 釘住 SARIF、HTML、裁決與稽核紀錄；每個 run 一份 manifest，必須有已錨定的事件 | — | metrics、counts 推導 | 發布之後的撤回（§1.9） |
-| 回饋紀錄 | security_reviewer／app_owner | 是（v0.7 可副簽） | 採用 run 的 `feedback_recorded` | — | 抑制狀態推導 | — |
+| 回饋紀錄 | security_reviewer／app_owner | 是（v0.7 可副簽） | 採用 run 的 `feedback_recorded`；r12 起雙向：每筆已錨定的事件都要有對應的紀錄（`E-AUDIT-FEEDBACK`） | — | 抑制狀態推導 | — |
+| W1 工具結果（`tool_invocation_end` 的 `sarif_results`） | Z1 寫入的 W1 事件 | — | 稽核錨點 | — | SARIF ref、強／弱佐證由 validator 對照（`E-SARIF-REF`） | run 進行中控制 Z1 者可以寫入不實的工具結果：R5 第 10 列的「強工具佐證」不需要任何票與人（r12 補列；與下一列同類，06 §3 #16） |
 | 叢集、發現項 | W 階段代理 | — | 裁決的 `cluster_sha256` 釘住叢集，叢集的 `member_finding_sha256` 釘住發現項，裁決再由 `verdict_changed` 錨定 | — | 指紋、嚴重度、家族、基準狀態推導 | 裁決之前的改寫（W2～W3 之間，run 進行中控制 Z1 者） |
 | 種子威脅 | W5 | — | `artifact_stored.sha256` | — | — | — |
 | DFD、inventory、redaction map、Commander 計畫 | W 階段代理 | — | 已錨定的 `artifact_stored.sha256`（審查 r11，`E-AUDIT-ARTIFACT`）；inventory 的 commit 另由 `run_created` 比對 | — | 指紋推導 | — |
