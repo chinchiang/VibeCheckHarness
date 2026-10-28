@@ -62,7 +62,7 @@
 
 1. **獨立優先**：第一輪平行、互不可見；用加權多數決，不做多輪辯論。
 2. **不自評**：一張票只有在投票者的 `family` **不在**叢集的 `families` 中、`lineage` **不在**叢集的 `lineages` 中時才有效（叢集可能由多個家族回報，所以是「不屬於任何回報者的家族」，不只是「不同於某一個報告者」）；驗證時去除來源模型資訊；候選順序隨機化。karpathy/llm-council 也把互評匿名化，以免模型「偏袒」[V][E:reference_systems-31]。
-   - **沒有合格的驗證者**：合格驗證家族 E（定義見規則 3）為空時，設 `no_eligible_verifier`，例如 3 個家族都回報了同一叢集。這種叢集沒有票；它由多個家族獨立回報，依 R6 為 `LIKELY`，所以**不進 G2**（G2 只收 `DISPUTED` 與高嚴重度的 `UNCORROBORATED`，規則 7）。確認改由可執行測試：W4 白箱測試，以及轉成種子威脅後的黑箱測試（B3–B5）[H]。
+   - **沒有合格的驗證者**：合格驗證家族 E（定義見規則 3）為空時，設 `no_eligible_verifier`，例如 3 個家族都回報了同一叢集。這種叢集沒有票；它由多個家族獨立回報，依 R6 為 `LIKELY`。審查 r11 起它**一律進 G2**（規則 7；W3 裁決為 `REJECTED` 者除外）：它的 `LIKELY` 只靠回報者本身，沒有任何回報者以外的家族驗證過，同家族的後加成員也可能讓反駁票只剩註記（R15）。同時它照常成為種子威脅，由可執行測試確認：W4 白箱測試，以及黑箱測試（B3–B5）[H]。審查 r12 之前這裡仍寫「不進 G2」，與 validator（`E-PIPELINE`）不一致。
    - 確定性 oracle 判定的 FAIL，若解讀已事先登記，不需要 Result Analyst 就是 `E_proof`（§4.2）。所以這種叢集仍能升到 `CONFIRMED_EXECUTABLE`。
    - 例外：其他家族只在 CMD-2 加派時才回報（不算獨立回報，§4.1），獨立來源可能只有 1 個 → R7 `UNCORROBORATED`，照一般的 G2 路由（規則 7）。
 3. **不跨家族 fallback**：reviewer 與 verifier 只允許同家族 fallback，且要記錄；失敗就記為缺票。
@@ -97,7 +97,7 @@
      - **弱**（工具訊號）：其他所有已解析的 SARIF 結果，以及 `E_fail_u` 測試結果（§4.2）。弱 SARIF（不論幾筆）只算 **1 個獨立來源**，`E_fail_u`（不論幾筆）也只算 1 個（R2、R6）；弱訊號本身不能確認。
      - 為什麼要分級：SAST 整體的誤報率很高。§2.3 引用的研究中，SAST 在 OWASP Benchmark 上的誤報率超過 92%（預印本）[V][E:whitebox-33]。該研究只給整體數字；「各規則之間的精準度差很多」是本設計的假設 [H]。所以只有實測精準度夠高的規則，才能單獨讓叢集確認。
 6. **校準加權**：投票權重取自各模型在校準語料上、分 CWE 桶的實測投票正確率（公式見 §4.3），不是等權。只有驗證者有權重；reviewer 不投票（§4.3）。
-7. **分歧→人工（G2）**：這是 **[H] 設計假設**，需要量測 DISPUTED 佇列的精準度（§5.3 M-6）。G2 佇列＝所有 `DISPUTED` 叢集＋rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)；v0.4 起取代成員自報的最高嚴重度）為 critical／high 的 `UNCORROBORATED` 叢集，每個 run 預設最多 30 項（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）；其他 `UNCORROBORATED` 不進 G2（見 [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。`LIKELY`（含 `no_eligible_verifier` 的多家族叢集）也不進 G2（規則 2）。Trust or Escalate（ICLR 2025）支持「信心不足就不自動判定」，但它是升級給**更強的 LLM 評審**並選擇棄權，**不是交給人**，而且用的是單一評審的校準信心，不是跨廠商分歧 [P][E:multi_llm_bias-34]。
+7. **分歧→人工（G2）**：這是 **[H] 設計假設**，需要量測 DISPUTED 佇列的精準度（§5.3 M-6）。G2 佇列＝所有 `DISPUTED` 叢集＋rubric 嚴重度（[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)；v0.4 起取代成員自報的最高嚴重度）為 critical／high 的 `UNCORROBORATED` 叢集＋`no_eligible_verifier` 的叢集（審查 r11），每個 run 預設最多 30 項（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）；其他 `UNCORROBORATED` 不進 G2（見 [02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。`LIKELY` 不進 G2，**例外**是 `no_eligible_verifier` 的多家族叢集：審查 r11 起一律進 G2（規則 2）。Trust or Escalate（ICLR 2025）支持「信心不足就不自動判定」，但它是升級給**更強的 LLM 評審**並選擇棄權，**不是交給人**，而且用的是單一評審的校準信心，不是跨廠商分歧 [P][E:multi_llm_bias-34]。
 8. **防注入**：受測 repo 一律視為不可信資料（[06 §1](06-security-legal-limitations.md#1-工具包自身的安全)）。
 
 ## 4. 叢集與裁決
@@ -241,7 +241,7 @@
   - `calibration_version` 為 null；
   - `theta_confirm` 為 null；
   - 合格驗證家族 E(叢集)（§3 規則 3）中的**每一個**驗證模型，在該叢集 CWE 桶的校準權重（支持與反駁兩邊）都是 0。
-  - **例外**（v0.4；v0.5 加第 10 列）：決定規則是 R9、R10、R0 或 R1（決定表第 1–5 列），或是強工具佐證的 R5（第 10 列），或叢集是 `black_box`，一律不是暫定。這些狀態不取決於投票，標暫定沒有意義；v0.3 會讓同為黑箱、同樣沒有票的 K-201 與 K-202 只因桶不同而一個暫定、一個不是。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
+  - **例外**（v0.4；v0.5 加第 10 列；審查 r12 加第 14–16 列）：決定規則是 R9、R10、R0 或 R1（決定表第 1–5 列）、強工具佐證的 R5（第 10 列）、R14（`FIXED` 與被反證的 `DISPUTED`，第 14、15 列）或 R16（帶入叢集的下限，第 16 列），或叢集是 `black_box`，一律不是暫定。這些狀態不取決於投票，標暫定沒有意義；v0.3 會讓同為黑箱、同樣沒有票的 K-201 與 K-202 只因桶不同而一個暫定、一個不是。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
   - v0.3 的例子（已由上面的例外取代）：黑箱叢集 K-201 的 V-201-1 沒有票，因為合格的 `nemotron_self` 在 `authz` 桶有權重而不是暫定；K-202 在 `injection` 桶，沒有任何模型有權重，V-202-1 曾是 true。v0.4 起兩者都是 false。
   - 它不改規則的計算（w＝0 時投票分支本來就不會成立，θ＝null 視為 +∞），只表示這個狀態沒有經過校準的投票支撐。報告（W5、B6）把暫定裁決標為「暫定（校準前）」，並在摘要列出暫定裁決的比例。校準前的其他預設見 [08 §11.11](08-implementation-spec.md#1111-校準前的預設)。
 - **規則版本**：第十二輪改變了 `FIXED` 的條件（仍有工具訊號或計權反駁票時是 DISPUTED，第 15 列；來源的可執行證明必須在本 run 重跑）、帶入叢集以來源狀態為下限（R16，第 16 列）、R15 只標反駁票，裁決的 `rule_version` 為 **`05-v0.11`**。第十一輪新增 `FIXED`（R14）、票的合格性以投票當時的成員判定（`voted_after_round`，R15 註記）、`no_eligible_verifier` 的叢集一律進 G2、事先登記的 PASS 也要求作者獨立，裁決的 `rule_version` 為 `05-v0.10`。第十輪改變了 S 的根內合併（取最強一票）、棄權的計分、θ_reject 的守衛、分析者不同意與作者不明的處理，裁決的 `rule_version` 為 `05-v0.9`。第九輪改變了 S 的計算（每個基底血統一個觀察）、W4 事先登記證明的作者獨立性與機率型 FAIL 的重播判定，裁決的 `rule_version` 為 `05-v0.8`。v0.7 改變了 R6 的來源計算（獨立作者的 `E_fail_u` 才算）與權重的先驗，裁決的 `rule_version` 為 `05-v0.7`。v0.6 改變了 R10（只有 G4 核准、重播命中的 B4 證明能推翻 G2）、R0 與機率型測試的判定，裁決的 `rule_version` 為 **`05-v0.6`**。v0.5 改變了 R4（多家族回報不自動駁回）、計權合格票（不含棄權）與引用相關性，`rule_version` 為 `05-v0.5`（v0.4 改變了 R0、R10、R11 與獨立家族的語意，為 `05-v0.4`；v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
@@ -313,7 +313,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 | 可重現的確定性 FAIL，解讀沒有事先登記，也沒有合格的 Result Analyst | `E_fail_u`：弱工具訊號，算 1 個獨立來源。單一家族回報、投票未達 R5 時 → `LIKELY`（R6）；它不會單獨造成 `CONFIRMED_*`；若同時有計權反駁 → `DISPUTED`（R4） |
 | 單一家族回報＋SARIF 命中，規則不在 `high_precision_rules`（校準前一律如此） | 弱工具訊號；獨立來源＝2 → 投票未達 R5 時為 `LIKELY`（R6）。例：K-014（見下） |
 | 單一家族回報＋SARIF 命中，規則在該桶的 `high_precision_rules` | 強工具佐證 → `CONFIRMED_CORROBORATED`（R5 第 10 列），不受 R8 上限 |
-| 3 個家族都在第一輪回報（`no_eligible_verifier`） | 沒有票；獨立來源 ≥ 3 → `LIKELY`（R6）；不進 G2，改由 W4 與黑箱測試確認（§3 規則 2） |
+| 3 個家族都在第一輪回報（`no_eligible_verifier`） | 沒有票；獨立來源 ≥ 3 → `LIKELY`（R6）；進 G2（審查 r11），並由 W4 與黑箱測試確認（§3 規則 2、7） |
 | 黑箱起源叢集（`origin: black_box`） | 確定性 FAIL（G4 核准即事先登記）→ `E_proof` → `CONFIRMED_EXECUTABLE`（R1）；沒有 `E_proof` → `UNCORROBORATED`（R7） |
 | G3 駁回種子威脅（D5） | 狀態不變，加註 `g3_rejected`（R13）；不產生 B3 測試案例；B6 列為「未做黑箱驗證（G3 駁回：理由）」 |
 | G2 駁回後才出現 FAIL 證明 | G4 核准、重播命中（k_r ≥ 1）的 B4 `E_proof` → `CONFIRMED_EXECUTABLE`（R10、R1）；W4 的 `E_proof`、沒有重播命中的 B4 證明與 `E_fail_u` → 維持 `REJECTED`（R10，v0.6）。報告的呈現、去重與複核流程見 [02 B6](02-methodology.md#b6-報告) 的「G2 駁回後的新證據」。兩者都加註 `post_g2_conflict` 並列入 B6 人工複核清單 |

@@ -121,9 +121,10 @@ def resign(b: Bundle, keys, rounds: int = 30) -> None:
                     [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in rec["approvers"]]
                 if sigs != rec.get("signatures"):
                     rec["signatures"], changed = sigs, True
-            if d.kind == "feedback":
+            if d.kind in ("feedback", "report-withdrawal"):
                 rec = d.data
-                signers = [rec["signed_by"]] + ([rec["co_signed_by"]] if rec.get("co_signed_by") else [])
+                signers = rec["signers"] if d.kind == "report-withdrawal" else \
+                    [rec["signed_by"]] + ([rec["co_signed_by"]] if rec.get("co_signed_by") else [])
                 sigs = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in signers]
                 if sigs != rec.get("signatures"):
                     rec["signatures"], changed = sigs, True

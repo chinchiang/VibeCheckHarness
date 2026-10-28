@@ -1,0 +1,180 @@
+{
+  "tests": "tests/test_v07_r12_flow.py",
+  "mutations": [
+    {
+      "name": "the expiry path needs resume_expired",
+      "file": "tools/vchlib/checks.py",
+      "old": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\" and expired:",
+      "new": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\":",
+      "k": "closing_without_resume_expired"
+    },
+    {
+      "name": "the expiry path only ends in COMPLETED_WITH_GAPS",
+      "file": "tools/vchlib/checks.py",
+      "old": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\" and expired:",
+      "new": "if prev in RESUMABLE_RUN_STATES and expired:",
+      "k": "cannot_end_completed_without_gaps"
+    },
+    {
+      "name": "resume_expired is the system's",
+      "file": "tools/vchlib/checks.py",
+      "old": "                   and (x.get(\"actor\") or {}).get(\"kind\") == \"system\" and (x.get(\"payload\") or {}).get(\"from_status\") == prev]",
+      "new": "                   and (x.get(\"payload\") or {}).get(\"from_status\") == prev]",
+      "k": "system_s_event"
+    },
+    {
+      "name": "resume_expired names the state it closes",
+      "file": "tools/vchlib/checks.py",
+      "old": "                   and (x.get(\"actor\") or {}).get(\"kind\") == \"system\" and (x.get(\"payload\") or {}).get(\"from_status\") == prev]",
+      "new": "                   and (x.get(\"actor\") or {}).get(\"kind\") == \"system\"]",
+      "k": "names_the_state"
+    },
+    {
+      "name": "the expiry path exists",
+      "file": "tools/vchlib/checks.py",
+      "old": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\" and expired:",
+      "new": "if False:",
+      "k": "closed_by_the_system"
+    },
+    {
+      "name": "resume_expired is anchored",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(j <= last, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the resume_expired is not anchored\")",
+      "new": "R.check(True, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the resume_expired is not anchored\")",
+      "k": "must_be_anchored"
+    },
+    {
+      "name": "expiry only after not_after",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(not_after is not None and at is not None and at > not_after, \"E-RUN-RESUME\"",
+      "new": "R.check(True, \"E-RUN-RESUME\"",
+      "k": "before_the_validity_ended or after_the_validity_ended"
+    },
+    {
+      "name": "the status change is checked too",
+      "file": "tools/vchlib/checks.py",
+      "old": "            for y in (x, e):",
+      "new": "            for y in (x,):",
+      "k": "status_change_must_also"
+    },
+    {
+      "name": "the expired gap is derived",
+      "file": "tools/vchlib/checks.py",
+      "old": "        out[(\"expired\", rid)] = \"the run was closed when the engagement validity ended (resume_expired)\"",
+      "new": "        pass",
+      "k": "expired_gap_is_derived"
+    },
+    {
+      "name": "run_resume from_status is required",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        R.error(\"E-AUDIT-ACTOR\", where, f\"run_resume payload.from_status must be SUSPENDED or STOPPED (got {p.get('from_status')!r})\")",
+      "new": "                        need = \"test_lead\"",
+      "k": "needs_from_status"
+    },
+    {
+      "name": "run_resume from_status is required by the schema",
+      "file": "docs/schemas/audit-event.schema.json",
+      "old": "\"then\":{\"properties\":{\"payload\":{\"required\":[\"from_status\"],",
+      "new": "\"then\":{\"properties\":{\"payload\":{\"required\":[],",
+      "k": "needs_from_status"
+    },
+    {
+      "name": "the withdrawn report exists",
+      "file": "tools/vchlib/checks.py",
+      "old": "if R.check(old is not None, \"E-REPORT-WITHDRAWAL\", w, f\"withdrawn_report_id {rid!r} names no report of the bundle\"):",
+      "new": "if old is not None:",
+      "k": "withdrawn_report_must_exist"
+    },
+    {
+      "name": "the withdrawn run is the report's",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(old.data.get(\"run_id\") == x.get(\"withdrawn_run_id\"), \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "withdrawn_run_is"
+    },
+    {
+      "name": "a report is withdrawn once",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(rid not in seen, \"E-REPORT-WITHDRAWAL\", w, f\"report {rid} is already withdrawn by {seen.get(rid)}\")",
+      "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w, f\"report {rid} is already withdrawn by {seen.get(rid)}\")",
+      "k": "withdrawn_once"
+    },
+    {
+      "name": "a withdrawal comes after the report",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(at is not None and gen is not None and at >= gen, \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "comes_after_the_report"
+    },
+    {
+      "name": "the customer is told after the withdrawal",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(t is not None and at is not None and t >= at, \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "customer_is_told"
+    },
+    {
+      "name": "the engagement is this one",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(x.get(\"engagement_id\") == c.engagement.get(\"engagement_id\"), \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "engagement_is_this_one"
+    },
+    {
+      "name": "signer roles in order",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(roles == list(WITHDRAWAL_ROLES), \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "test_lead_then"
+    },
+    {
+      "name": "two people sign",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(len(set(people)) == len(people) or people[0] == consolidation_person(c), \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "two_people_sign"
+    },
+    {
+      "name": "lite lets one person sign both",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.check(len(set(people)) == len(people) or people[0] == consolidation_person(c), \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "R.check(len(set(people)) == len(people), \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "lite_lets"
+    },
+    {
+      "name": "one signature per signer",
+      "file": "tools/vchlib/checks.py",
+      "old": "ok = len(sigs) == len(signers) and all(isinstance(g, dict)",
+      "new": "ok = all(isinstance(g, dict)",
+      "k": "each_signer_signs"
+    },
+    {
+      "name": "signatures verify",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    verify_signature(R, c, w, crypto.signing_payload(x), g, at, s.get(\"role\"))",
+      "new": "                    pass",
+      "k": "no_longer_verifies"
+    },
+    {
+      "name": "a superseding report is another run's",
+      "file": "tools/vchlib/checks.py",
+      "old": "ok = new is not None and new_id != rid and new.data.get(\"run_id\") != old.data.get(\"run_id\")",
+      "new": "ok = new is not None",
+      "k": "cannot_supersede_itself"
+    },
+    {
+      "name": "a superseding report is newer",
+      "file": "tools/vchlib/checks.py",
+      "old": "                                and g_new > g_old, \"E-REPORT-WITHDRAWAL\", w,",
+      "new": "                                or True, \"E-REPORT-WITHDRAWAL\", w,",
+      "k": "superseding_report_is_newer"
+    },
+    {
+      "name": "the withdrawal check runs",
+      "file": "tools/vchlib/checks.py",
+      "old": "    (\"report withdrawals (docs/06 §1.9)\", g_report_withdrawal),",
+      "new": "",
+      "k": "withdrawn_report_must_exist"
+    }
+  ]
+}

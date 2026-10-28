@@ -371,7 +371,7 @@ class StopEvent(BaseModel):
     target_id: str | None
 
 class Gap(BaseModel):                   # B6「未能測試清單」的來源
-    kind: str                           # manual / g3_rejected / g4_rejected / g5_skipped / tool_failed / ownership_failed / build_mismatch / gb_stopped / error …
+    kind: str                           # manual / g3_rejected / g4_rejected / g5_skipped / tool_failed / ownership_failed / build_mismatch / gb_stopped / error / expired …
     ref: str
     reason: str
 
@@ -527,7 +527,7 @@ stateDiagram-v2
 ```
 
 - `PhaseW`＝§5.3 的 W1–W4（含 W0.5、G1、G2、`claim_run`）；`PhaseB`＝§5.4 與 §5.5。
-- 「到期未續跑」：委任設定的 `not_after` 過後由 Run Controller 的排程清理，以既有產物產生報告，狀態為 `COMPLETED_WITH_GAPS`（若還沒到 W5，報告只含已完成的部分）[H]。ROE 到期**不會**觸發清理：因 ROE 或 `legal_review` 到期而 `SUSPENDED` 的 run，在委任設定到期前都可以用新的有效 ROE 續跑。
+- 「到期未續跑」：委任設定的 `not_after` 過後由 Run Controller 的排程清理：系統（`actor.kind: system`）寫一筆 `resume_expired`（`payload.from_status` 是暫停中的狀態），接著寫 `run_status_changed {SUSPENDED 或 STOPPED → COMPLETED_WITH_GAPS}`，以既有產物產生報告（若還沒到 W5，報告只含已完成的部分），`gaps` 加一筆 `{kind: expired, ref: <run_id>}`[H]。這是離開 `SUSPENDED`／`STOPPED` 唯一不需要人簽 `run_resume` 的路徑：兩筆事件都必須晚於 `not_after`，`resume_expired` 必須已錨定，且只能轉到 `COMPLETED_WITH_GAPS`（`E-RUN-RESUME`、`E-RUN-GAPS`；審查 r12：r11 要求每次離開暫停都要有 `not_after` 之前簽的 `run_resume`，所以這條清理路徑寫不出合法的紀錄）。ROE 到期**不會**觸發清理：因 ROE 或 `legal_review` 到期而 `SUSPENDED` 的 run，在委任設定到期前都可以用新的有效 ROE 續跑。
 - **「到期」與「驗章失效」的區別** [H]：ROE 的 `not_after` 或 `legal_review.expires_at` 在執行中到期 → `SUSPENDED`（checkpoint 保留；resume 需要一份新的有效 ROE，resume 時 G0b 重驗，`B4_preflight` 每批也檢查）。ROE 的簽章在執行中變成無效（簽署金鑰撤銷、文件被改）→ `abort_handler` → `ABORTED`。
 - 預算觸頂的偵測在進入任何消耗預算的節點之前（條件邊），以及節點執行中 Gateway 回報 `BudgetExceeded` 時；兩者都先 checkpoint 再進 `GB_budget_gate` [H]。
 
@@ -575,7 +575,7 @@ stateDiagram-v2
 - **W2 的呼叫單位是面向組** [H]：13 個審查面向分成 3 組，每組 4～5 個；每次呼叫審一個切片的一個面向組，所以 fan-out 是 `slice × 面向組 × agent`（分組見 [02 W2](02-methodology.md#w2-多家族獨立審查)）。只有必要面向與 Commander 加入的面向會被審；某一組完全沒有要審的面向時不送出該組。
 - **G2 之後的爭議** [H]：`W4_readjudicate` 產生的 `DISPUTED` 不回到 `G2_gate`（圖中沒有 W4 → G2 的邊），而是在該版裁決加註 `w4_became_disputed`（前一版不是 `DISPUTED`、W4 重新裁決後為 `DISPUTED`，與 G2 是否已決定無關），種子威脅與 run 的 `disputed_after_g2` 由此推導，G3 另列「W4 後轉為爭議」一區；`B5_readjudicate` 經 R11 產生的 `DISPUTED` 不加此註記、不進 `disputed_after_g2`，而是列入 B6 人工複核清單。G2 已 `REJECTED` 的叢集之後只註記 `post_g2_conflict`（05 R10）。
 - G2 GateRecord 的整關 `outcome` 只有 `APPROVED` 或 `EXPIRED`；逐項的 reject／needs_info 記在 `decisions[]`，不接受整關 `REJECTED`／`NEEDS_INFO`（validator 檢查）[H]。
-- G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`，以及 rubric 嚴重度為 `critical`／`high` 的 `UNCORROBORATED`；上限、排序與逾時比例告警（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
+- G2 佇列由程式碼在 `W3_adjudicate` 計算：所有 `DISPUTED`、rubric 嚴重度為 `critical`／`high` 的 `UNCORROBORATED`，以及 W3 裁決不是 `REJECTED` 的 `no_eligible_verifier` 叢集（審查 r11，`E-PIPELINE`）；上限、排序與逾時比例告警（[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）。
 - `W4_exec` 在 Z2（無網路）；`W4_testgen` 與 `W4_exec` 只透過 Blackboard／CAS 交換產物。
 - 自動觸發（`schedule`、`merge`）的 run：在 G1 前停在 `claim_run`（interrupt），認領寫入 `initiators` 與稽核事件 `initiator_claim`。v0.5 移除「沿用已簽核不變量」直接進 W1 的邊，所以沒有人認領之前只會跑 W0 與 W0.5 的草稿。
 
@@ -697,8 +697,8 @@ stateDiagram-v2
 **resume 規則** [H]：
 - `SUSPENDED`：run_owner 或任何發起者以 `vibecheck run resume` 續跑；若停在關卡，重新開啟該關卡（新的 GateRecord，`round` 不增加）。
 - `STOPPED`：需由 ROE 的 `test_lead` 簽署 resume 紀錄（稽核事件 `run_resume`，附簽章與停止原因已處理的說明）。
-- 兩種 resume 都寫成簽章的 `run_resume` 事件，`payload.from_status` 寫明是 `SUSPENDED` 還是 `STOPPED`：`SUSPENDED` 由 run_owner 或發起者以自己的金鑰簽；`STOPPED`（或沒寫 `from_status`）要 `test_lead`。
-- 兩者都只能在委任設定的 `not_after` 之前續跑（停在關卡時，重開的關卡會得到新的 `resume_deadline`＝`opened_at`＋關卡逾時）；續跑一律重驗 G0a，若 `resume_node` 在 B 階段再重驗 G0b 與所有權。B 階段的 resume 需要當時有效的 ROE：原 ROE 已到期 → 必須提供新簽署的有效 ROE，否則 resume 被拒、run 維持 `SUSPENDED`。
+- 兩種 resume 都寫成簽章的 `run_resume` 事件，`payload.from_status` 寫明是 `SUSPENDED` 還是 `STOPPED`：`SUSPENDED` 由 run_owner 或發起者以自己的金鑰簽；`STOPPED` 要 `test_lead`。`from_status` 是必填（schema；審查 r12 之前沒寫的 resume 被當成 `STOPPED`），其他值 → `E-AUDIT-ACTOR`。
+- 兩者都只能在委任設定的 `not_after` 之前續跑；過了 `not_after` 沒人續跑的 run 由系統以 `resume_expired` 關閉（§5.2「到期未續跑」）（停在關卡時，重開的關卡會得到新的 `resume_deadline`＝`opened_at`＋關卡逾時）；續跑一律重驗 G0a，若 `resume_node` 在 B 階段再重驗 G0b 與所有權。B 階段的 resume 需要當時有效的 ROE：原 ROE 已到期 → 必須提供新簽署的有效 ROE，否則 resume 被拒、run 維持 `SUSPENDED`。
 - **job 的續跑規則**：`EXECUTED` 不重跑；`INTERRUPTED` 的 S0 可重跑；S1 先重置種子資料再重跑；S2 必須重新走 G5（原 G5 核准失效）。
 
 ### 5.7 節點規格表
@@ -737,7 +737,7 @@ stateDiagram-v2
 | `B5_verify` | Z1 | 部分 | LLM 請求快取鍵；事先登記的確定性 FAIL 不呼叫 LLM；其他結果從 Result Analyst 池挑選分析者；建立黑箱起源叢集（§5.5） | 無合格 analyst → `E_fail_u`（不升級為 `E_proof`） |
 | `B6_report` | Z1 | 是（敘事） | CAS；報告清單 | 見 §5.4 |
 | `run_resume` | Z1 | 否 | resume 紀錄 ID；驗證簽章 | 簽章無效 → 維持原狀態 |
-| `suspended_wait`、`stopped_wait` | Z1 | 否 | 只做 interrupt | 到期 → B6 |
+| `suspended_wait`、`stopped_wait` | Z1 | 否 | 只做 interrupt | 委任設定到期 → 系統寫 `resume_expired` → B6 → `COMPLETED_WITH_GAPS`（gap `expired`，§5.2） |
 
 ### 5.8 節點邊界規則
 
@@ -910,6 +910,7 @@ stateDiagram-v2
 - **目標周轉**：Lite 的白箱報告 ≤ 1 個工作天（與 MVP0-X8 相同）；Team 從 claim 到 B6 報告 ≤ 10 個工作天；Full ≤ 15 個工作天。超過目標但未逾時，報告首頁列出每個關卡的實際等待時間。
 - **人力**：Team 每個 run 約需 1 位 app_owner 4～6 人時（G1 以 70 條計 3.5 人時；審查 r11 之前這裡以 10～30 條估，與 02 W0.5 的 ASVS L1 基準不符）、1～2 位 security_reviewer 6～12 人時（以預設上限計）；Full 加倍。[07 MVP0-X8](07-roadmap.md#11-分段-mvp) 的 2 小時門檻因此不含 G1。這個估算與 02 §1.7 的審查者人數一起決定一個組織能同時跑幾個 engagement。
 - 佇列上限（`gate_queues`）讓每關的人時有上限；超出上限的項目進 `over_cap` 並在報告列出，不是延長周轉。
+- G2 佇列另含 `no_eligible_verifier` 的叢集（審查 r11 起，[02 W3](02-methodology.md#w3-交叉驗證與裁決g2) 第 6 步）：verifier 家族越少，越多叢集被所有家族同時回報而沒有合格驗證者。三個家族的預設部署中，這類叢集通常是多家族都回報的高信心項目，每項審查時間應低於 DISPUTED；它們佔用同一個 `g2_max_items` 上限，所以 G2 的人時上限不變，但被擠到 `over_cap` 的 DISPUTED 可能變多。pilot 量測 G2 佇列中這類項目的比例（[07 MVP0-X8](07-roadmap.md#11-分段-mvp)）。
 
 ### 6.6 G4 核准狀態的時間語意
 

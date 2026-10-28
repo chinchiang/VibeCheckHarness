@@ -1,0 +1,37 @@
+{
+  "withdrawal_id": "WD-001",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "withdrawn_report_id": "RPT-2026-10-06-001",
+  "withdrawn_run_id": "run-2026-09-23-001",
+  "superseded_by_report_id": null,
+  "reason": "factual_error",
+  "detail": "報告附錄的受測端點清單漏列 /admin/export；撤回；修正版待 follow-up run run-2026-10-07-001 的報告，目前沒有取代的報告",
+  "withdrawn_at": "2026-10-07T09:30:00+08:00",
+  "customer_notified_at": "2026-10-07T11:00:00+08:00",
+  "signers": [
+    {
+      "person_id": "alice",
+      "role": "test_lead",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    },
+    {
+      "person_id": "alice",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
+    }
+  ],
+  "signatures": [
+    {
+      "signer": "alice",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+      "alg": "ed25519",
+      "value": "iJmVafCrlHlywZ/NSda/AA/MCEIJK51gYxXmv0XJpckkyWYXY6XoGrbrslFgFg444f7swl22Lr0Gjyx8XUnVCA=="
+    },
+    {
+      "signer": "alice",
+      "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
+      "alg": "ed25519",
+      "value": "iJmVafCrlHlywZ/NSda/AA/MCEIJK51gYxXmv0XJpckkyWYXY6XoGrbrslFgFg444f7swl22Lr0Gjyx8XUnVCA=="
+    }
+  ]
+}

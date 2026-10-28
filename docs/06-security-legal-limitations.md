@@ -182,7 +182,7 @@
 | run 紀錄（狀態、commit、種類、job 清單、所有權結果、快照、`gaps`） | Run Controller（Z1） | — | 狀態跟著 `run_status_changed`，commit、`run_kind`、`trigger` 由 `run_created` 釘住（r12），job 清單對照 `sandbox_job_*`，S2 的快照與還原對照 `snapshot_created`／`snapshot_restored`／`restore_failed`（r12）；`run_end` 錨點之後不能再有任何行（不能重新打開），所有權結果對照已錨定的 `ownership_check` | — | `audit_anchors`、counts 推導；`gaps` 的最小集合由 run 的紀錄推導（r12，`E-RUN-GAPS`），終態再由 `gaps` 推導 | — |
 | 測試案例、產物、測試結果 | B3／B4 的代理與執行器 | — | `sandbox_job_end` 的三個 hash；完成的 run 中每份 w4-testcase 都要有結果，W4 的 `sandbox_job_end` 指名結果 | — | 控制結果與 class 推導 | 執行器本身被攻破（Z3） |
 | **裁決**（全部欄位） | Aggregator | — | `verdict_changed.verdict_sha256` | — | 狀態、分數、輸入全部重算 | — |
-| **報告 manifest、SARIF、HTML** | Reporter | — | `report_published.report_manifest_sha256`；manifest 的 artifacts 釘住 SARIF、HTML、裁決與稽核紀錄；每個 run 一份 manifest，必須有已錨定的事件 | — | metrics、counts 推導 | 發布之後的撤回（§1.9） |
+| **報告 manifest、SARIF、HTML** | Reporter | — | `report_published.report_manifest_sha256`；manifest 的 artifacts 釘住 SARIF、HTML、裁決與稽核紀錄；每個 run 一份 manifest，必須有已錨定的事件 | — | metrics、counts 推導 | 發布之後的撤回是另一份簽署的 `report-withdrawal`（§1.9 第 4 點，`E-REPORT-WITHDRAWAL`），以簽章為信任錨，不在稽核鏈上 |
 | 回饋紀錄 | security_reviewer／app_owner | 是（v0.7 可副簽） | 採用 run 的 `feedback_recorded`；r12 起雙向：每筆已錨定的事件都要有對應的紀錄（`E-AUDIT-FEEDBACK`） | — | 抑制狀態推導 | — |
 | W1 工具結果（`tool_invocation_end` 的 `sarif_results`） | Z1 寫入的 W1 事件 | — | 稽核錨點 | — | SARIF ref、強／弱佐證由 validator 對照（`E-SARIF-REF`） | run 進行中控制 Z1 者可以寫入不實的工具結果：R5 第 10 列的「強工具佐證」不需要任何票與人（r12 補列；與下一列同類，06 §3 #16） |
 | 叢集、發現項 | W 階段代理 | — | 裁決的 `cluster_sha256` 釘住叢集，叢集的 `member_finding_sha256` 釘住發現項，裁決再由 `verdict_changed` 錨定 | — | 指紋、嚴重度、家族、基準狀態推導 | 裁決之前的改寫（W2～W3 之間，run 進行中控制 Z1 者） |
@@ -196,11 +196,11 @@
 
 1. **人員金鑰外洩**（`revoked_at` 加 `reason: compromised`）：登錄更新後，該金鑰**所有**簽章立即不再驗證（[03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程) 第 5 步）。後果與處理：
    - 進行中的 run：驗章失效 → `ABORTED`（02 §1.4）；白箱產物保留，以新 run 重跑 B 階段。
-   - 已結束、報告已交付的 run：報告**不自動撤回**。維運者在 5 個工作天內出具「影響清單」：該金鑰簽過的關卡紀錄、回饋與 ROE，逐份由另一位具相同角色的人重新簽署（新一輪紀錄，`carried_from` 指向舊紀錄）；重簽不了的關卡，其下游結果在報告上標為「核准已失效」並通知客戶（§1.9 第 4 點）。
+   - 已結束、報告已交付的 run：報告**不自動撤回**。維運者在 5 個工作天內出具「影響清單」：該金鑰簽過的關卡紀錄、回饋與 ROE。已結束的 run 以 `run_end` 錨點封口，不能再加新一輪關卡紀錄（審查 r12：r8 寫的「在舊 run 裡重簽、`carried_from` 指向舊紀錄」與錨定模型衝突，validator 會把它判成重開已結束的 run）。復原的做法是開一個新的 `followup` run（`parent_run_id` 指向舊 run），在新 run 裡由另一位具相同角色的人重新走受影響的關卡（新的關卡紀錄、新的簽章；不使用 `carried_from`），新 run 產生新版報告；舊報告以 `report-withdrawal`（理由 `key_compromised`，`superseded_by_report_id` 指向新報告）撤回（第 4 點）。重走不了的關卡，其下游結果在新報告上標為「核准已失效」並通知客戶。
    - 驗證器對含有已外洩金鑰簽章的 bundle 一律報錯；影響清單用 `vibecheck keys impact --fingerprint` 產生（BL-53）。
 2. **組織根金鑰輪替或外洩**：新根金鑰簽署新版金鑰登錄，舊根金鑰為它背書一次（交叉簽章）；外洩時沒有背書，所有委任設定重簽、所有 run 重跑 G0a。在 U-07 決定前，根金鑰只能離線持有。
 3. **Audit Writer 或 Z3 外洩**：稽核鏈只能偵測不能防止（§1.7）。Z3 金鑰外洩 → 撤銷並重發，之前的錨點副簽仍以舊金鑰（撤銷時間前）驗證；外洩時間之後的 run 一律視為不可信，重跑。Audit Writer 被攻破 → 同時握有 Z1 的人可以整條重寫（§3 #16），所以客戶方的 WORM 錨點是唯一的防線；沒有外部錨點的委任要在報告首頁寫明。
-4. **報告撤回**：發現已交付的報告有錯（例如被推翻的確認、失效的核准）時，發新版報告（新的 `report_id`，`supersedes` 指向舊的），舊報告在 CAS 保留但標示 `withdrawn`，並以委任設定的聯絡人通知客戶；撤回事件寫入稽核紀錄（BL-54）。
+4. **報告撤回**：發現已交付的報告有錯（例如被推翻的確認、失效的核准）時，由測試負責人與一位資安審查者簽署一份委任層級的 `report-withdrawal` 文件（[schema](schemas/report-withdrawal.schema.json)）：`withdrawn_report_id` 指向舊報告，有新版報告時 `superseded_by_report_id` 指向它（新版報告來自較晚開始的另一個 run，因為每個 run 只有一份報告），並記錄理由與通知客戶的時間（以委任設定的聯絡人通知）。舊報告在 CAS 保留。撤回不寫進舊 run 的稽核檔：那個 run 已經以 `run_end` 錨點結束，再加一行就是重開已結束的 run（`E-AUDIT-TAIL`）；所以撤回的信任錨是兩位簽署者的簽章，不是稽核鏈（`E-REPORT-WITHDRAWAL`，審查 r12）。範例：主 bundle 的 [`report-withdrawal.example.json`](schemas/examples/report-withdrawal.example.json)（BL-54）。
 5. **備份與還原**：Z1 Postgres、CAS 與稽核檔每日備份到客戶指定的儲存，保留期限依 §2.2；還原演練每季一次，演練結果寫入 `restore_drill` 事件（BL-55）。
 6. **外洩通報**：涉及客戶資料的事件依 §2.2 的通報時限，由管理層聯絡人負責（BL-56）。
 

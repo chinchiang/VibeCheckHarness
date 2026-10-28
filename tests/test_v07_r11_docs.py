@@ -32,10 +32,10 @@ def test_the_schemas_readme_lists_every_signed_event():
 
 def test_the_schemas_readme_lists_all_check_groups():
     s = text("docs/schemas/README.md")
-    section = s.split("### 檢查項目（23 組）")[1].split("\n### ")[0]
+    section = s.split("### 檢查項目（24 組）")[1].split("\n### ")[0]
     items = re.findall(r"^(\d+)\. \*\*", section, re.M)
-    assert items == [str(i) for i in range(1, 24)]
-    assert len(checks.GROUPS) == 23
+    assert items == [str(i) for i in range(1, 25)]
+    assert len(checks.GROUPS) == 24          # review r12 added report withdrawals
     assert "`g_feedback`" in section and "`g_w4_testcases`" in section
 
 

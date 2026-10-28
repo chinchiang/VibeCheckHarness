@@ -138,6 +138,16 @@ def sign_feedback(by_fp) -> int:
     return n
 
 
+def sign_withdrawals(by_fp) -> int:
+    """Review r12 (docs/06 §1.9 #4): a report withdrawal is signed by its signers, in order (TEST ONLY keys)."""
+    n = 0
+    for p in sorted(EXAMPLES.glob("report-withdrawal.*example.json")):
+        rec = jsonstrict.loads(p.read_text(encoding="utf-8"))
+        rec["signatures"] = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in rec["signers"]]
+        n += write(p, dump_json(rec))
+    return n
+
+
 def current_key(registry, person, at, by_fp):
     for e in registry["entries"]:
         if e["person_id"] != person or e.get("revoked_at"):
@@ -188,7 +198,7 @@ def main() -> int:
     by_fp = {crypto.fingerprint(crypto.raw_public(k)): k for k in keys.values()}
     print(f"placeholders replaced in {replace_placeholders(keys)} file(s)")
     for rnd in range(1, 21):
-        changed = sign_yaml(by_fp) + apply_derivations() + sign_gate_records(by_fp) + sign_feedback(by_fp) + rebuild_audit(by_fp)
+        changed = sign_yaml(by_fp) + apply_derivations() + sign_gate_records(by_fp) + sign_feedback(by_fp) + sign_withdrawals(by_fp) + rebuild_audit(by_fp)
         print(f"round {rnd}: {changed} file(s) changed")
         if changed == 0:
             print("fixpoint reached (TEST ONLY signatures)")
