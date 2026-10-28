@@ -8,7 +8,6 @@
   "trigger": "manual",
   "run_owner": "alice",
   "initiators": [
-    "alice",
     "alice"
   ],
   "status": "COMPLETED",

@@ -198,6 +198,9 @@ def v_lite(b: Bundle, keys) -> None:
                                  "statement": "單人專案：alice 同時是測試負責人、管理者、基礎設施擁有者、資安審查者、應用程式擁有者與法務聲明者"}
     for name, approvers in (eng.get("gate_approvers") or {}).items():
         eng["gate_approvers"][name] = list(dict.fromkeys(approvers))
+    for d in b.docs:
+        if d.kind == "run" and d.data.get("initiators"):
+            d.data["initiators"] = list(dict.fromkeys(d.data["initiators"]))      # review r12: run.initiators is a set
     tc = doc(b, "testcase.zap-active.example.json").data
     tc["tool_binding"].update(kind="MANUAL", adapter="manual", manual_reason="Lite 只允許 S0／S1：S2 的主動掃描改為人工執行")
     tc["safety_class_computed"], tc["safety_class_proposed"] = "S0", None
@@ -354,6 +357,113 @@ def v_suspend(b: Bundle, keys) -> None:
     frun.update({"status": "SUSPENDED", "status_reason": "G4 逾時未決定；由 run_owner 或發起者在委任到期前 resume，resume 時 G0b 重驗"})
     ck = doc(b, "checkpoint-metadata.followup.example.json").data
     ck.update({"run_status": "SUSPENDED"})
+
+
+@variant
+def v_regression(b: Bundle, keys) -> None:
+    """The regression path (review r12, docs/02 §1.6, 05 §4.2 R14 / R16): the follow-up run becomes a `regression` run.
+    Its carried cluster K-301 (from K-005, CONFIRMED_EXECUTABLE in the initial run) is first adjudicated at W3 with no
+    evidence of its own, so R16 keeps the source's status (fix_unverified). erin claims the run and approves the re-run of
+    TC-012-01 at G4, the B4 job passes with its controls, and B5 re-adjudicates K-301 as FIXED (R14: a qualified PASS
+    with a positive control, the source's executable proof re-run, no tool signal, no weighted refute). The run is still
+    RUNNING (B6 has not started), so it has no report yet."""
+    from vchlib import checks
+    from vchlib.checks import content_hash
+    rid = "run-2026-10-07-001"
+    log = doc(b, "audit-event.run-2026-10-07-001.example.jsonl")
+    log.data[0]["payload"]["run_kind"] = "regression"                      # run_created pins it (E-RUN-COMMIT)
+    frun = doc(b, "run.followup.example.json").data
+    frun["run_kind"] = "regression"
+    # erin claims the run before G4 opens (E-G4-INITIATOR), and W3 writes K-301's first version after G3
+    _append(log, 19,
+            {"event_type": "initiator_claim", "node": "claim_run", "ts": "2026-10-07T10:25:00+08:00",
+             "key": "initiator_claim:erin", "actor": {"kind": "human", "id": "erin"},
+             "payload": {"person_id": "erin", "role": "security_reviewer"}},
+            {"event_type": "verdict_changed", "node": "W3", "ts": "2026-10-07T10:26:00+08:00", "key": "verdict_changed:V-301-1",
+             "actor": {"kind": "system", "id": "aggregator"}, "payload": {"verdict_id": "V-301-1", "status": None, "verdict_sha256": None}})
+    frun["initiators"] = sorted(set(frun.get("initiators") or []) | {"erin"})
+    # B0 of this run: the ownership check B4_preflight needs (copied from the initial run's batch)
+    main_log = doc(b, "audit-event.run-2026-09-23-001.example.jsonl")
+    own = copy.deepcopy(next(e for e in main_log.data if e["event_type"] == "ownership_check"))
+    own["payload"]["batch_id"] = "own-2026-10-07-1"
+    _append(log, 21, {"event_type": "ownership_check", "node": "B0", "ts": "2026-10-07T10:27:00+08:00", "key": "ownership_check:own-2026-10-07-1",
+                      "actor": own["actor"], "zone": own["zone"], "payload": own["payload"]})
+    frun["ownership_results"] = [dict(o, batch_id="own-2026-10-07-1", checked_at="2026-10-07T10:27:00+08:00")
+                                 for o in doc(b, "run.example.json").data["ownership_results"]]
+    main_g4 = doc(b, "gate-record.g4.example.json").data
+    g4 = copy.deepcopy(main_g4)
+    g4.update({"gate_record_id": "GR-G4-0002", "run_id": rid, "round": 1, "outcome": "APPROVED",
+               "decisions": [{"item_id": "TC-012-01", "item_sha256": None, "decision": "accept", "risk_override": None,
+                              "note": "回歸：重跑來源的可執行證明", "carried_from": None}],
+               "opened_at": "2026-10-07T10:30:00+08:00", "timestamp": "2026-10-08T10:00:00+08:00", "signatures": []})
+    g4["artifact"] = {"kind": "test_plan", "sha256": None}
+    add(b, f"{EX}gate-record.followup.g4.example.json", "gate-record", g4)
+    res = copy.deepcopy(doc(b, "testresult.example.json").data)
+    res.update({"result_id": "R-TC-012-01-2", "run_id": rid, "job_id": "job-idor-002", "executed_at": "2026-10-08T20:30:00+08:00",
+                "cluster_ids": ["K-301"], "outcome": "PASS", "fail_oracles": [], "trials": {"n": 1, "k": 0, "n_effective": 1},
+                "replays": 0, "replay_k": 0, "observed_build_id": frun["repo_commit"][:12],
+                "oracle_observations": ["對照 CTL-01（A 讀自己的發票）與 CTL-02（oracle 在 B 的合法回應上判定命中）都 PASS",
+                                        "GET 回應 404，body 不含 B 的發票欄位：修正後不再違反 REQ-ASVS-8.2.2、INV-AC-007"],
+                "interpretation": {"agrees": True, "rationale": "tenantA_user 讀 tenant_b_invoice 得到 404；正對照證明 oracle 能判定命中"}})
+    add(b, f"{EX}testresult.regression.example.json", "testresult", res)
+    n = len(log.data)
+    _append(log, n,
+            {"event_type": "gate_decision", "node": "G4", "ts": "2026-10-08T10:00:00+08:00", "key": "gate_decision:GR-G4-0002",
+             "actor": {"kind": "system", "id": "gate-service"},
+             "payload": {"gate": "G4", "gate_record_id": "GR-G4-0002", "outcome": "APPROVED", "gate_record_sha256": None}},
+            {"event_type": "audit_anchor", "node": "G4", "ts": "2026-10-08T10:00:00+08:00", "key": "audit_anchor:g4",
+             "payload": {"reason": "gate_decision", "anchor_counter": 0, "z3_countersignature": None}},
+            {"event_type": "run_status_changed", "node": "G4", "ts": "2026-10-08T10:00:00+08:00", "key": "run_status_changed:running",
+             "payload": {"from": "WAITING_GATE", "to": "RUNNING"}},
+            {"event_type": "sandbox_job_start", "node": "B4", "ts": "2026-10-08T20:30:00+08:00", "key": "sandbox_job_start:job-idor-002",
+             "actor": {"kind": "system", "id": "z3-executor"}, "zone": "Z3", "payload": {"job_id": "job-idor-002"}},
+            {"event_type": "sandbox_job_end", "node": "B4", "ts": "2026-10-08T20:40:00+08:00", "key": "sandbox_job_end:job-idor-002",
+             "actor": {"kind": "system", "id": "z3-executor"}, "zone": "Z3",
+             "payload": {"job_id": "job-idor-002", "outcome": "PASS", "testcase_sha256": None, "artifact_sha256": res["artifact_sha256"]}},
+            {"event_type": "verdict_changed", "node": "B5", "ts": "2026-10-08T21:00:00+08:00", "key": "verdict_changed:V-301-2",
+             "actor": {"kind": "system", "id": "aggregator"}, "payload": {"verdict_id": "V-301-2", "status": None, "verdict_sha256": None}},
+            {"event_type": "audit_anchor", "node": "B5", "ts": "2026-10-08T21:00:00+08:00", "key": "audit_anchor:b5",
+             "payload": {"reason": "phase_end", "anchor_counter": 0, "z3_countersignature": None}})
+    for g in frun["gate_records"]:
+        if g["gate"] == "G4" and g["gate_record_id"] is None:
+            g.update({"gate_record_id": "GR-G4-0002", "outcome": "APPROVED", "decided_at": "2026-10-08T10:00:00+08:00"})
+    frun.update({"status": "RUNNING", "status_reason": None, "current_node": "B6", "resume_deadline": None,
+                 "approved_testcase_ids": ["TC-012-01"], "executed_jobs": ["job-idor-002"], "testresults": ["R-TC-012-01-2"],
+                 "verdicts": ["V-301-1", "V-301-2"]})
+    frun["jobs"] = {"job-idor-002": {"job_id": "job-idor-002", "testcase_id": "TC-012-01", "safety_class": "S1",
+                                     "target_id": "tgt-staging-api", "status": "EXECUTED", "g5_record_id": None, "snapshot_ref": None,
+                                     "restore_verified": False, "result_ref": None, "skip_reason": None}}
+    ck = doc(b, "checkpoint-metadata.followup.example.json").data
+    ck.update({"run_status": "RUNNING", "pending_interrupt": None})
+    # the two versions of K-301, each decided by the reference adjudicator on what the run holds at that point
+    base = doc(b, "verdict.example.json").data
+    v1 = copy.deepcopy(base)
+    v1.update({"verdict_id": "V-301-1", "cluster_id": "K-301", "readjudicated_by": "W3_adjudicate", "supersedes_verdict_id": None,
+               "votes": [], "missing_votes": [], "test_evidence": {"class": None, "results": []}})
+    v2 = copy.deepcopy(v1)
+    v2.update({"verdict_id": "V-301-2", "readjudicated_by": "B5_readjudicate", "supersedes_verdict_id": "V-301-1",
+               "test_evidence": {"class": "E_pass", "results": [{"result_ref": None, "class": "E_pass", "positive_control": True,
+                                                                 "reason": "回歸 PASS，正對照通過"}]}})
+    add(b, f"{EX}verdict.k-301-w3.example.json", "verdict", v1)
+    add(b, f"{EX}verdict.k-301-b5.example.json", "verdict", v2)
+    resign(b, keys)
+    v2["test_evidence"]["results"][0]["result_ref"] = content_hash(res)
+    for v in (v1, v2):
+        c = checks.Ctx(b)
+        cl = c.ix.first("cluster", cluster_id="K-301").data
+        out = checks.adj.adjudicate(checks.verdict_inputs(c, v, cl))
+        v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,
+                  "annotations": [{"kind": k, "reason": k} for k in sorted(out.annotations)],
+                  "rule_trace": [f"{r}: regression run 的帶入叢集 K-301（來源 K-005）" for r in out.rules],
+                  "independent_sources": checks.derived_independent_sources(c, v, cl),
+                  "tool_corroboration": checks.derived_tool_corroboration(c, v, cl),
+                  "tool_signal": checks.derived_tool_signal(c, v, cl),
+                  "diversity_degraded": checks.derived_diversity_degraded(c, v, cl),
+                  "no_eligible_verifier": checks.derived_no_eligible_verifier(c, cl),
+                  "provisional": checks.derived_provisional(c, v, cl)})
+        next(e for e in log.data if e["event_type"] == "verdict_changed"
+             and e["payload"]["verdict_id"] == v["verdict_id"])["payload"]["status"] = out.status
+        resign(b, keys)
 
 
 # ---------------------------------------------------------------- overlay

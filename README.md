@@ -1,6 +1,6 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
-> **狀態**：設計文件，第十一輪審查（2026-10-28）後；裁決規則版本 `05-v0.11`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十一輪；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
+> **狀態**：設計文件，第十二輪審查（2026-10-28）後；裁決規則版本 `05-v0.11`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十一輪；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
 > **第一次讀**：先看 [docs/00 總覽](docs/00-overview.md)（端到端流程、自動與人工的分界、依角色的閱讀路徑）。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
 > **語言**：正體中文；證據原文保留英文（見 [`docs/evidence/ledger.md`](docs/evidence/ledger.md)）。
@@ -151,7 +151,14 @@
 | `gate_load_warning` | 關卡負載告警 | G2 未決比例超過 `gate_queues.g2_timeout_warn_ratio` 時的稽核事件（[03 §13.1](docs/03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)） |
 | `role_consolidation` | 角色兼任 | Lite 委任中一個人兼任多個角色的已確認宣告；同一份關卡紀錄一人一角色的例外（`E-GATE-SOD`） |
 | `g5_escalation` | G5 升級 | 同一委任的另一個 run 中，已錨定的 ASI09 抽查推翻 G5 核准（`spot_check_result`，`outcome: overturned`）→ 本 run 的 G5 需要兩人（[02 §1.4](docs/02-methodology.md#14-關卡結果與-run-狀態)） |
-| `SUSPENDED` 與 resume | 暫停與恢復 | run 因 ROE 未生效、到期或 G0b 的時間窗而暫停；回到 `RUNNING` 必須有已錨定、人簽署的 `run_resume` 與新的 G0b `VERIFIED`（`E-RUN-RESUME`；`suspend` 變體走這條路） |
+| `SUSPENDED` 與 resume | 暫停與恢復 | run 因 ROE 未生效、到期或 G0b 的時間窗而暫停；回到 `RUNNING` 必須有已錨定、人簽署的 `run_resume` 與新的 G0b `VERIFIED`（`E-RUN-RESUME`）；委任設定到期仍沒人續跑 → 系統寫 `resume_expired`，以 `COMPLETED_WITH_GAPS` 結束（gap `expired`）。`suspend` 變體停在 `SUSPENDED`；resume 與到期清理由測試在它之上建構（`test_v07_r11_anchor`、`test_v07_r12_flow`；審查 r12 之前這裡寫「suspend 變體走這條路」，不正確） |
+| `voted_after_round` | 投票時的輪次 | 票投下時叢集已有哪些成員：只有 `reporter.round` 不大於它的成員決定票的合格性（`derive.members_at_vote`）；上限是該版裁決之前已錨定的 CMD-2 計畫最高輪次＋1（`E-VERDICT-VOTE`，[05 §3](docs/05-bias-calibration.md#3-設計規則)） |
+| `refute_by_later_member_family` | 後加成員的反駁註記 | R15：反駁票的家族或血統之後才成為叢集成員，票仍有效，只加註記（[05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則)） |
+| `CAL_POLICY` | 校準政策常數 | `checks.CAL_POLICY`：validator 釘住的校準參數（例如 `high_precision_min`＝0.9），`calibration.yaml` 不能放寬（`E-CAL-POLICY`） |
+| `g4_state`／`approved_since` | G4 核准狀態 | `derive.g4_state`：某一時刻測試案例的 G4 決定與「從哪一次 accept 起連續有效」；B4 job 開始時必須有效（[03 §6.6](docs/03-system-architecture.md#66-g4-核准狀態的時間語意)） |
+| `W-RESULT-G4-WITHDRAWN` | G4 核准已撤回 | 結果在有效的 G4 核准下執行，之後的 G4 round 撤回了核准：結果保留，測試案例不得再派送（警告） |
+| `fix_contradicted`／`regression_failed`／`fix_unverified` | 回歸註記 | regression run 的帶入叢集：PASS 但仍有工具訊號或反駁（`DISPUTED`）／回歸 FAIL／沒有回歸測試或沒跑，後兩者維持來源的確認狀態（R14、R16，[05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則)） |
+| `report-withdrawal` | 報告撤回 | 委任層級、測試負責人與資安審查者簽署的文件，撤回已交付的報告並可指向取代它的新報告（`E-REPORT-WITHDRAWAL`，[06 §1.9](docs/06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回h)） |
 | `evidential` | 證據價值 | 報告的 `separated`（職責分離的委任）或 `self_attested`（Lite：一人持有所有金鑰，簽章與錨點只供自查，[06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) #26） |
 
 ## 快速驗證本 repo 的資料模型
@@ -159,7 +166,7 @@
 ```bash
 python -m pip install -r requirements.lock      # CI 用的精確版本；requirements.txt 是版本範圍
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 1724 個測試，約 8–15 分鐘
+python -m pytest tests                 # 1747 個測試，約 8–15 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點

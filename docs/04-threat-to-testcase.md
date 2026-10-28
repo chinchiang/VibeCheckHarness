@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十輪審查（2026-10-27）後的設計，裁決規則版本 `05-v0.11`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#04-威脅--需求--測試案例)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.11`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#04-威脅--需求--測試案例)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 追溯鏈
 

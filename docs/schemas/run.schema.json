@@ -65,7 +65,8 @@
       "items": {
         "$ref": "common.schema.json#/$defs/person_id"
       },
-      "description": "啟動者、認領者、G4 核准者；都必須是人"
+      "uniqueItems": true,
+      "description": "啟動者、認領者、G4 核准者；都必須是人。審查 r12：不重複（lite 變體把每個人換成 alice 後曾出現兩次 alice）"
     },
     "status": {
       "enum": [

@@ -35,6 +35,15 @@
 - **G4 核准者必須先認領 run**：`E-G4-INITIATOR` 與 `E-RUN-CLAIM` 合起來就是這條規則，02 §1.5 與 08 §4.2 寫明。
 - 新增 `tests/test_v07_r12_flow.py`（26 個）與 `tests/mutations/r12_flow.json`（25）。`test_v07_r11_docs.py` 的檢查組數 23 → 24、`r11_docs.json` 的錨點隨 schemas README 的編號更新。
 
+### 範例、估算與過時文字（PR4）
+- **新增 `regression` 變體**：跟進 run 改為 `regression`，帶入的叢集 K-301 在 W3 由 R16 維持來源的 `CONFIRMED_EXECUTABLE`（`fix_unverified`），G4 核准重跑來源的可執行證明，B4 PASS 且正對照成立，B5 由 R14 判為 `FIXED`。建置時找到一個 validator 缺口：`E-TRACE` 要求結果的 `cluster_ids` 包含威脅的來源叢集（第一個 run 的 K-005），所以回歸結果永遠無法指向 R14 要裁決的帶入叢集；現在本 run 的帶入叢集代表它的來源叢集（只限結果自己的 run）。
+- **`run.initiators` 不重複**（schema `uniqueItems`）：lite 變體把每個人換成 alice 後出現兩次 alice，建置時去重。
+- **估算**：Lite 的 `claim_run`／G1／G2 目標改為「同日」（原本各 2 天，加起來超過 1 個工作天的報告目標），Lite 的 G3／G4 補 1 天；G3 由 security_reviewer 與 app_owner 共同核准，app_owner 人時改為 6～10（補 G3 的 5 人時）；07 §1.5 MVP-1 補上 M3（MVP-1 跑完整的 B0–B6），約 18 人週；02 §5.2 G0b「未提供 ROE」的純白箱 run 以 `COMPLETED` 結束（與 §1.4 一致）。
+- **過時文字**：02～08 的「現況」、README 與 00 的狀態列改為第十二輪；02 W3 第 4 步亂掉的括號（「第八輪…；第七輪審查」）改為指向 05 §4.2 的版本段落，規則範圍 R0–R16；術語表補 `voted_after_round`、`refute_by_later_member_family`、`CAL_POLICY`、`g4_state`／`approved_since`、`W-RESULT-G4-WITHDRAWN`、回歸註記、`report-withdrawal`；「suspend 變體走 resume」改正（變體停在 SUSPENDED，resume 與到期清理由測試建構）。00 的裁決清單補 `FIXED`。
+- **「範例沒有走過的路徑」表**補 `regression`／FIXED、resume、到期清理、COMPLETED_WITH_GAPS、關卡 round > 1、G3 over_cap、`W-RESULT-G4-WITHDRAWN`、報告撤回。
+- 09 新增 BL-68（同家族不同血統的相關量測）、BL-69（到期清理與報告撤回的寫入端）。
+- 新增 `tests/test_v07_r12_examples.py`（24 個）與 `tests/mutations/r12_examples.json`（13）；`test_bl60_variants.py` 加入 `regression` 變體；`test_v07_r10_docs.py`、`test_v07_r11_docs.py` 的狀態列斷言與 `r10_docs.json`、`r11_docs.json` 的錨點改為第十二輪。
+
 ## 第十一輪審查（2026-10-28）
 
 依 [2026-10-28 設計審查（第十一輪）](docs/evidence/review-2026-10-28-r11.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的六項由主審查者重跑確認。
