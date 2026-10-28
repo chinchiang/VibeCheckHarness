@@ -370,11 +370,12 @@ def test_unanchored_tail_on_running_run_is_a_warning(b):
     d, run = doc(b, AUDIT_F), doc(b, RUN_F).data
     evs = copy.deepcopy(d.data)
     extra = copy.deepcopy(next(e for e in reversed(evs) if e["event_type"] != "audit_anchor"))
-    extra.update(seq=len(evs) + 1, ts=evs[-1]["ts"], event_type="artifact_stored",
-                 payload={"artifact": "late"}, payload_refs=[], signature=None,
-                 idempotency_key=f"{extra['run_id']}:{extra['node']}:artifact_stored:late-1",
+    # r11: artifact_stored now needs a pinned artefact and its hash, so the tail is made of plain policy decisions
+    extra.update(seq=len(evs) + 1, ts=evs[-1]["ts"], event_type="policy_decision",
+                 payload={"decision": "allow"}, payload_refs=[], signature=None,
+                 idempotency_key=f"{extra['run_id']}:{extra['node']}:policy_decision:late-1",
                  actor={"kind": "system", "id": "run-controller"})
-    extra2 = dict(copy.deepcopy(extra), seq=len(evs) + 2, idempotency_key=f"{extra['run_id']}:{extra['node']}:artifact_stored:late-2")
+    extra2 = dict(copy.deepcopy(extra), seq=len(evs) + 2, idempotency_key=f"{extra['run_id']}:{extra['node']}:policy_decision:late-2")
     reload_json(d, rechain(evs + [extra, extra2]))
     R = run_all(b)
     tails = [w for w in R.warnings if w.code == "W-AUDIT-UNANCHORED-TAIL"]

@@ -4,6 +4,19 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.8`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
 
+## 第十一輪審查（2026-10-28）
+
+依 [2026-10-28 設計審查（第十一輪）](docs/evidence/review-2026-10-28-r11.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的六項由主審查者重跑確認。
+
+### run 生命週期與 W／B 階段產物的錨定（PR1）
+- **resume 需要簽章**（`E-RUN-RESUME`）：`run_status_changed` 離開 `SUSPENDED`／`STOPPED` 時，進入暫停之後必須有一筆已錨定、人簽署的 `run_resume`（`from_status` 相符；簽署人的角色照舊由 `E-AUDIT-ACTOR`／`E-SIG-ROLE` 檢查），收件時間不晚於委任設定的 `validity.not_after`；resume 之後第一個 B 階段事件前必須有新的 G0b `VERIFIED`。之前一行未錨定的系統事件就能把暫停的 run 接回 RUNNING，不需要任何金鑰。
+- **狀態鏈**（`E-RUN-STATUS`）：每筆 `run_status_changed` 的 `from` 必須是上一筆的 `to`；`WAITING_GATE → RUNNING` 之間必須有 `gate_decision`；完成的 run 的終態由 `gaps` 推導（只有 `manual` → `COMPLETED`，否則 `COMPLETED_WITH_GAPS`）。
+- **W／B 階段產物釘進錨定鏈**（`E-AUDIT-ARTIFACT`）：已錨定的 `artifact_stored` 除了種子威脅，現在也釘住 W0 inventory 與 redaction map、合併與外部 DFD（B1）、run 列出的每份 Commander 計畫（`plan_id`）；每份產物恰有一筆。之前已完成的 run 可以刪掉 inventory 的檔案、盲點與環境變數而報告仍自洽。schema 的 `artifact_stored` 分支改為對所有產物要求 `artifact` 與 `sha256`。主範例與跟進 run 的稽核檔加入這些事件（seq 重編）。切片內容仍未錨定，列為 BL-67。
+- **關卡輪數上限**（`E-GATE-ROUND`）：G1、G3 最多 3 輪，G4 最多 2 輪，其他 1 輪；schema 另設 `maximum: 3`。
+- **發起者的反向對帳**（`E-RUN-CLAIM`）：`run.initiators` 列出的每個人都要有本 run 已錨定、簽章有效的 `initiator_claim`。範例的 G4 核准者 erin 原本被列為發起者卻從未認領，現在在 G4 開啟前認領；Lane A run 沒有人認領，`initiators` 為空、G0a 紀錄的 `initiator` 為 null（`E-GATE-INITIATOR` 只對 Lane A 允許 null）。
+- **小項**：到達 W4／W5 的 initial run 必須有自己的 G1 不變量，followup／regression 以 `reuse[]` 帶入父 run 的 `invariants_ref` 才免檢（`E-W4-COVERAGE`）；還原演練只採計系統帳號寫在已錨定部分的 `restore_drill`（`E-RUN-RESTORE-DRILL`）。
+- 新增 `tests/test_v07_r11_anchor.py`（30 個）與 `tests/mutations/r11_anchor.json`；`test_v07_r9_anchor.py` 的回捲測試改用新的 G4 錨點 seq 並預期 CMD-5 計畫失去釘住（`E-AUDIT-ARTIFACT`）。
+
 ## 待辦 BL-66、BL-01、BL-47、BL-05 與 `suspend` 變體（2026-10-27）
 
 ### 每個錯誤碼都有測試（BL-66）

@@ -81,6 +81,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-62 | r10 | 審查者與抽查人的資格：金鑰登錄加 `qualifications`、核准時資格有效的 validator 檢查、練習對答的題組 | [06 §1.12](06-security-legal-limitations.md#112-審查者與抽查人的資格-h) | MVP-2 | 契約已寫；未實作 |
 | BL-63 | r10 | 人力與時程估算的實測：pilot 記錄每個里程碑的實際人週，超過估算 50% 時重估 | [07 §1.5](07-roadmap.md#15-人力與時程估算-h) | MVP-0 | 估算已寫；待量測 |
 | BL-65 | r10 | 外部錨點：把每個錨點（或每日摘要）寫到委任的管理者無法修改的系統（客戶方 WORM 儲存、簽章寄送）。委任最後幾個錨點或整個較晚的 run 被刪掉時，這是唯一的防線 | [06 §3 #16](06-security-legal-limitations.md#3-做不到不承諾的事)、§1.7 | MVP-2 | 未實作 |
+| BL-67 | r11 | 切片（slice）的內容沒有錨定：run 的 `slice_refs` 引用它，`redaction_map_sha256`、`prompt_template_sha256` 釘住輸入，但切片文字本身沒有已錨定的 `artifact_stored`（其餘 W／B 階段產物 r11 已釘住，`E-AUDIT-ARTIFACT`） | [06 §1.8](06-security-legal-limitations.md#18-工件完整性矩陣) | M2 | 未處理 |
 
 ## 5. 已完成（保留編號供追溯）
 

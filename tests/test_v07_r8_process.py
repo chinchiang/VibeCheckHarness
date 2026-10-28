@@ -28,7 +28,7 @@ def test_no_event_sits_on_a_node_outside_the_design(b):
 
 
 def test_an_unknown_node_is_a_schema_error(b, keys):
-    doc(b, AUDIT).data[29]["node"] = "W6"
+    doc(b, AUDIT).data[32]["node"] = "W6"
     rederive(b, keys)
     assert errors(b, "E-SCHEMA", AUDIT)
 

@@ -60,15 +60,15 @@
     {
       "name": "seed: artifact_stored pins the seed threats",
       "file": "tools/vchlib/checks.py",
-      "old": "        R.check(seq <= last and len(seeds) == 1 and content_hash(seeds[0].data) == sha, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
+      "old": "        R.check(seq <= last and len(match) == 1 and content_hash(match[0].data) == sha, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
       "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
       "k": "moving_the_seed"
     },
     {
       "name": "seed: seed threats need an anchored event",
       "file": "tools/vchlib/checks.py",
-      "old": "        R.check(any(seq <= last for seq, _ in stored), \"E-AUDIT-ARTIFACT\", sd.path,",
-      "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", sd.path,",
+      "old": "        R.check(len(pins) == 1, \"E-AUDIT-ARTIFACT\", d.path,",
+      "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", d.path,",
       "k": "moving_the_seed"
     },
     {

@@ -100,10 +100,10 @@ def test_every_anchor_carries_the_engagement_counter(b):
 
 
 def roll_back_to_g4(b):
-    """Cut run 001 back to its G4 anchor (seq 42) and delete what came after it: what the review r9 probe did."""
+    """Cut run 001 back to its G4 anchor (seq 48) and delete what came after it: what the review r9 probe did."""
     d = doc(b, AUDIT)
     lines = [ln for ln in d.text.split("\n") if ln.strip()]
-    reload_json(d, "".join(ln + "\n" for ln in lines[:42]))
+    reload_json(d, "".join(ln + "\n" for ln in lines[:48]))
     run = doc(b, "run.example.json").data
     run.update({"status": "RUNNING", "current_node": "B4", "status_reason": None, "jobs": {}, "executed_jobs": []})
     gone_v, gone_k = {"V-005-2", "V-011-2", "V-201-1", "V-202-1"}, {"K-201", "K-202"}
@@ -129,7 +129,8 @@ def test_rolling_a_completed_run_back_to_an_earlier_anchor_leaves_a_counter_gap(
     roll_back_to_g4(b)
     # v0.7 (review r9 PR4): the follow-up run's anchored spot check of V-005-2 also outlives the deleted verdict;
     # v0.7 (review r10): and the kept report manifest has no report_published event any more
-    assert {i.code for i in run_all(b).errors} == {"E-AUDIT-ANCHOR-GAP", "E-SPOT-CHECK", "E-AUDIT-REPORT"}
+    # r11: the roll-back also loses the anchored event pinning the CMD-5 plan (E-AUDIT-ARTIFACT)
+    assert {i.code for i in run_all(b).errors} == {"E-AUDIT-ANCHOR-GAP", "E-SPOT-CHECK", "E-AUDIT-REPORT", "E-AUDIT-ARTIFACT"}
 
 
 def test_anchor_counter_problems():
@@ -244,7 +245,7 @@ def test_a_g2_apply_version_names_the_g2_record_that_decided_the_cluster(b, keys
 
 # ================================================================ seed: the seed threats are pinned
 def test_the_seed_artifact_event_pins_the_seed_threats(b):
-    ev = next(e for e in doc(b, AUDIT).data if e["event_type"] == "artifact_stored")
+    ev = next(e for e in doc(b, AUDIT).data if e["event_type"] == "artifact_stored" and e["payload"]["artifact"] == "seed-threats")
     assert ev["payload"]["sha256"] == content_hash(doc(b, "seed-threats.example.json").data)
 
 

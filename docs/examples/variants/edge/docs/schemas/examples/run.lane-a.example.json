@@ -7,9 +7,7 @@
   "reuse": [],
   "trigger": "pull_request",
   "run_owner": "alice",
-  "initiators": [
-    "alice"
-  ],
+  "initiators": [],
   "status": "COMPLETED",
   "status_reason": null,
   "current_node": null,
@@ -169,11 +167,11 @@
   "audit_anchors": [
     {
       "seq": 6,
-      "line_sha256": "sha256:b61e9a7d88df63fefbbfb2732df14bf8c9241a0ef19af74221450bbc89fc9d6e"
+      "line_sha256": "sha256:d39780cc55708d9fcb49ea827a9746cdecc60ed7e2559266ffae243175eefe0e"
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:1bf260f117feee1c203b89f28b9f45f63e680a54683856bc113b2f2a3dfb3a72"
+      "line_sha256": "sha256:f17bfb8d19ed7e22fa0748b8e3185c9860a0730cea14b5b1c32cf2a978946b74"
     }
   ],
   "errors": [],

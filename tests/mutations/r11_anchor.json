@@ -1,0 +1,110 @@
+{
+  "tests": "tests/test_v07_r11_anchor.py",
+  "mutations": [
+    {
+      "name": "resume needs a signed run_resume",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if R.check(bool(resumes), \"E-RUN-RESUME\", where,",
+      "new": "            if R.check(True, \"E-RUN-RESUME\", where,",
+      "k": "unsigned_line"
+    },
+    {
+      "name": "the run_resume is anchored",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(j <= last, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the run_resume is not anchored\")",
+      "new": "                R.check(True, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the run_resume is not anchored\")",
+      "k": "must_be_anchored"
+    },
+    {
+      "name": "the resume precedes the engagement validity end",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(not_after is None or (at is not None and at <= not_after), \"E-RUN-RESUME\",",
+      "new": "                R.check(True, \"E-RUN-RESUME\",",
+      "k": "engagement_validity"
+    },
+    {
+      "name": "a B-phase event after the resume needs a fresh G0b",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        R.check(False, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
+      "new": "                        R.check(True, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
+      "k": "fresh_g0b"
+    },
+    {
+      "name": "the status chain links from to the previous to",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(p.get(\"from\") == prev, \"E-RUN-STATUS\", where,",
+      "new": "        R.check(True, \"E-RUN-STATUS\", where,",
+      "k": "status_chain"
+    },
+    {
+      "name": "WAITING_GATE -> RUNNING needs a decision",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(any(x.get(\"event_type\") == \"gate_decision\" for _, x in between), \"E-RUN-STATUS\", where,",
+      "new": "            R.check(True, \"E-RUN-STATUS\", where,",
+      "k": "waiting_gate_cannot"
+    },
+    {
+      "name": "every pinned artefact has its anchored event",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(len(pins) == 1, \"E-AUDIT-ARTIFACT\", d.path,",
+      "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", d.path,",
+      "k": "needs_its_anchored_event"
+    },
+    {
+      "name": "an artifact_stored event matches its document",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(seq <= last and len(match) == 1 and content_hash(match[0].data) == sha, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
+      "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
+      "k": "cannot_be_rewritten"
+    },
+    {
+      "name": "the terminal status follows the gaps",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(status == want_status, \"E-RUN-STATUS\", w,",
+      "new": "                R.check(True, \"E-RUN-STATUS\", w,",
+      "k": "non_manual_gap or needs_a_non_manual"
+    },
+    {
+      "name": "gate rounds have a limit",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(isinstance(rec.get(\"round\"), int) and 1 <= rec.get(\"round\") <= lim_r, \"E-GATE-ROUND\", w,",
+      "new": "            R.check(True, \"E-GATE-ROUND\", w,",
+      "k": "g4_round_limit"
+    },
+    {
+      "name": "the schema caps the round",
+      "file": "docs/schemas/gate-record.schema.json",
+      "old": "\"round\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":3,",
+      "new": "\"round\":{\"type\":\"integer\",\"minimum\":1,",
+      "k": "schema_caps_the_round"
+    },
+    {
+      "name": "initiators need an anchored claim",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(who in claimed, \"E-RUN-CLAIM\", w, f\"run.initiators lists {who!r}, who has no anchored signed initiator_claim in this run\")",
+      "new": "        R.check(True, \"E-RUN-CLAIM\", w, f\"run.initiators lists {who!r}, who has no anchored signed initiator_claim in this run\")",
+      "k": "initiator_without_a_claim"
+    },
+    {
+      "name": "a null initiator only on Lane A",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(run.get(\"run_kind\") == \"lane_a\", \"E-GATE-INITIATOR\", w, \"initiator null is only allowed on a Lane A run\")",
+      "new": "                R.check(True, \"E-GATE-INITIATOR\", w, \"initiator null is only allowed on a Lane A run\")",
+      "k": "lane_a_run_has_no_initiator"
+    },
+    {
+      "name": "every initial run needs its invariants",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(run.get(\"run_kind\") in (\"followup\", \"regression\") and reused, \"E-W4-COVERAGE\", w,",
+      "new": "        R.check(True, \"E-W4-COVERAGE\", w,",
+      "k": "without_its_own_invariants"
+    },
+    {
+      "name": "a drill counts only from a system actor in the anchored log",
+      "file": "tools/vchlib/checks.py",
+      "old": "                      and (x.get(\"actor\") or {}).get(\"kind\") == \"system\" and i + 1 <= a_last]",
+      "new": "                      ]",
+      "k": "restore_drill"
+    }
+  ]
+}
