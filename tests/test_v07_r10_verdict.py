@@ -39,9 +39,10 @@ def test_the_rule_version_is_05_v0_9():
 
 
 # ================================================================ theta_reject guard
-# r11: the split statistics come from the raw counts (60 of 60, 45 of 45), so precision and the Wilson bounds are the recomputed values
-GOOD = {"calibration": {"precision": 1.0, "recall": 0.3, "ci_low": 0.9398, "ci_high": 1.0, "n": 60, "tp": 60},
-        "holdout": {"precision": 1.0, "recall": 0.3, "ci_low": 0.9213, "ci_high": 1.0, "n": 45, "tp": 45}, "generalised": True, "feasible": True}
+# r11: the split statistics come from the raw counts; for theta_reject `tp` counts the TRUE DEFECTS among the rejected clusters
+# (docs/05 §5.7), so 0 of 60 and 0 of 45 give a true-defect share of 0 and Wilson uppers 0.0602 and 0.0787
+GOOD = {"calibration": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0602, "n": 60, "tp": 0},
+        "holdout": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0787, "n": 45, "tp": 0}, "generalised": True, "feasible": True}
 
 
 def test_theta_reject_below_a_single_refute_weight_is_rejected(b):
@@ -162,9 +163,14 @@ def test_a_flagged_variant_gap_with_weight_warns(b):
 # ================================================================ holdout size
 def test_a_threshold_does_not_generalise_on_a_tiny_holdout(b):
     cal = doc(b, "calibration.yaml").data
+    # r11: consistent raw counts (1 of 1), so the ONLY problem is the size; with `tp` missing the split was reported as "not a
+    # count", which passed this test without the holdout-size check
     cal["result"]["thresholds"]["theta_confirm"]["by_bucket"]["authz"]["holdout"] = \
-        {"precision": 1.0, "recall": 1.0, "ci_low": 0.2, "ci_high": 1.0, "n": 1}
-    assert any(label == "theta_confirm/authz" and "holdout" in msg for label, msg in checks.theta_problems(cal))
+        {"precision": 1.0, "recall": 1.0, "ci_low": round(checks.wilson_lower(1, 1), 4), "ci_high": round(checks.wilson_upper(1, 1), 4),
+         "n": 1, "tp": 1}
+    got = [(label, msg) for label, msg in checks.theta_problems(cal) if label == "theta_confirm/authz"]
+    assert any("generalised on a holdout of 1 clusters" in msg for _, msg in got), got
+    assert not any("not a count" in msg or "recomputed" in msg for _, msg in got), got
 
 
 # ================================================================ abstention as a coin flip

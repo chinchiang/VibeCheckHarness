@@ -1,0 +1,54 @@
+{
+  "tests": "tests/test_mutation_check.py",
+  "mutations": [
+    {
+      "name": "a baseline must select tests and pass",
+      "file": "tools/mutation_check.py",
+      "old": "    if run.code == 0 and run.passed >= 1 and run.failures == 0 and run.errors == 0:\n        return None",
+      "new": "    if True:\n        return None",
+      "k": "selects_nothing or already_fails"
+    },
+    {
+      "name": "CAUGHT needs an assertion failure and no error",
+      "file": "tools/mutation_check.py",
+      "old": "    if run.code == 1 and run.failures >= 1 and run.errors == 0:",
+      "new": "    if run.code != 0:",
+      "k": "collection_error_caused_by_the_mutation"
+    },
+    {
+      "name": "tests that still pass are MISSED",
+      "file": "tools/mutation_check.py",
+      "old": "        return \"MISSED\", run.describe()",
+      "new": "        return \"CAUGHT\", run.describe()",
+      "k": "tests_that_still_pass"
+    },
+    {
+      "name": "the source is restored after each mutation",
+      "file": "tools/mutation_check.py",
+      "old": "                finally:\n                    path.write_text(src, encoding=\"utf-8\")",
+      "new": "                finally:\n                    pass",
+      "k": "source_is_restored"
+    },
+    {
+      "name": "the child process writes no bytecode",
+      "file": "tools/mutation_check.py",
+      "old": "\"PYTHONDONTWRITEBYTECODE\": \"1\"",
+      "new": "\"PYTHONNOTHING\": \"1\"",
+      "k": "no_bytecode"
+    },
+    {
+      "name": "a stale anchor counts",
+      "file": "tools/mutation_check.py",
+      "old": "    bad += len(problems)\n    baselines",
+      "new": "    baselines",
+      "k": "stale_anchor"
+    },
+    {
+      "name": "the exit status follows the result",
+      "file": "tools/mutation_check.py",
+      "old": "    return 1 if bad else 0\n\n\nif __name__",
+      "new": "    return 0\n\n\nif __name__",
+      "k": "exit_status"
+    }
+  ]
+}

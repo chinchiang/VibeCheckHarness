@@ -67,14 +67,14 @@
     {
       "name": "theta: reject true-defect share",
       "file": "tools/vchlib/checks.py",
-      "old": "                if not (num(cs.get(\"precision\")) and 1 - cs[\"precision\"] <= cap + 1e-9):",
+      "old": "                if not (num(cs.get(\"precision\")) and cs[\"precision\"] <= cap + 1e-9):",
       "new": "                if False:",
       "k": "reject_limits"
     },
     {
       "name": "theta: reject Wilson upper",
       "file": "tools/vchlib/checks.py",
-      "old": "                if not (num(cs.get(\"ci_low\")) and 1 - cs[\"ci_low\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
+      "old": "                if not (num(cs.get(\"ci_high\")) and cs[\"ci_high\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
       "new": "                if False:",
       "k": "reject_limits"
     },

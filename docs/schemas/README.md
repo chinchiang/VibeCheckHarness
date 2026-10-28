@@ -159,10 +159,10 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RUN-FOLLOWUP` | followup／regression run 的 `parent_run_id` 必須存在，且來自父 run 的某個 follow-up 草稿；其他 run 不能有 `parent_run_id`，`reuse` 必須是 `[]` | `test_v07_r8_validator` |
 | `E-RUN-G1` | 有 G3 決定（非 EXPIRED）的 run 必須有核准的 G1（本 run 決定，或以 `carried_from` 逐項沿用祖先 run 的 G1）；沿用的 G1 決定，其不變量的 `signoff` 指向來源紀錄（`E-TRACE-INVARIANT`） | `test_v07_r9_contracts` |
 | `E-RUN-G3` | 到 G4 的 run，其 `testcase_ids` 每個測試案例的威脅都在**本 run** 的 G3 有 accept（可用 `carried_from` 沿用祖先 run 的核准，但仍由本 run 簽署） | `test_v07_r8_validator` |
-| `E-RUN-G4` | （同一條規則也涵蓋 `E-RESULT-G4`、`E-RESULT-G5`、`E-RESULT-WINDOW`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 | `test_v05_r7_bypasses` |
+| `E-RUN-G4` | （同一條規則也涵蓋 `E-RESULT-G4`、`E-RESULT-G5`、`E-RESULT-WINDOW`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於**開始那一刻仍有效的**核准（`derive.g4_state`：最新決定是 accept，從哪一次 accept 起連續核准；之後相同內容的再次 accept 不移動它；外部審查），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是日誌末端最新 G4 決定為 accept 的測試案例（目前可派送）；執行後才被撤銷的核准不使已執行的結果失效，改報 `W-RESULT-G4-WITHDRAWN` | `test_v05_r7_bypasses`、`test_v07_r11_external` |
 | `E-RUN-GATES` | `gate_records` 必須依 `opened_at` 排序，列出的關卡紀錄都必須存在 | `test_bl66_run_gates` |
 | `E-RUN-INITIATOR` | `initiators` 每一位都必須是已登錄、非自動化帳號的人員 | `test_validator` |
-| `E-RUN-JOB` | `run.jobs` 的鍵等於 `job_id`；測試案例存在且經 G4 核准（列在 `approved_testcase_ids`）；`safety_class` 等於測試案例的計算等級；目標屬於該測試案例；只有 S2 job 有 `g5_record_id`；已執行的 job 有測試結果且列在 `executed_jobs`；`executed_jobs` ⊆ `jobs` | `test_bl66_run_gates` |
+| `E-RUN-JOB` | `run.jobs` 的鍵等於 `job_id`；測試案例存在且經 G4 核准（列在 `approved_testcase_ids`，或在 job 開始時有效、事後才被撤銷）；`safety_class` 等於測試案例的計算等級；目標屬於該測試案例；只有 S2 job 有 `g5_record_id`；已執行的 job 有測試結果且列在 `executed_jobs`；`executed_jobs` ⊆ `jobs` | `test_bl66_run_gates`、`test_v07_r11_external` |
 | `E-RUN-LANE-A` | Lane A run 沒有 `roe_ref`、不經過 G0b、沒有 jobs；它的裁決都是 advisory；`lane_a_advisories` 等於該 run 的叢集；Lane A run 宣告 `pr_origin`（same_repo／fork），fork 的 PR 沒有裁決、叢集與 advisories；其他 run 的 `pr_origin` 為 null，其 `lane_a_advisories` 只能引用 same_repo Lane A run 的叢集 | `test_v07_r8_validator` |
 | `E-RUN-OWASP` | run 的 `owasp_llm_version` 必須等於委任的設定（委任為 null 時用工具包的 `owasp_llm_default`） | `test_bl66_run_gates` |
 | `E-RUN-OWNERSHIP` | `run.ownership_results` 的每一筆對應 ROE 的目標，方法等於 ROE 為該目標宣告的 `ownership_proof.method`（DB 目標是 `db_comment`）；B4 job 跑過的每個目標都有 `ok: true` 的結果。v0.7 第八輪從不讀這個欄位，範例的 DB 目標以 `dns_txt`「通過」<br>`run.ownership_results` 的每一筆都要有同一 `batch_id`、已錨定的 `ownership_check` 事件（Z3 Executor 的紀錄），事件的 `payload.results` 列出該目標、相同的方法與結果；`checked_at` 不晚於事件收件時間，事件收件早於對該目標的第一個 B4 `sandbox_job_start`。審查 r9 只比對 ROE，一個沒有任何事件、日期在所有 job 之後的批次也能通過 | `test_v07_r9_contracts`、`test_v07_r10_anchor` |
@@ -177,7 +177,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | 錯誤碼 | 規則 | 守住的測試 |
 |---|---|---|
 | `E-G4-INITIATOR` | G4 核准者必須列在 `run.initiators` | `test_validator` |
-| `E-G5-G4` | G5 的 `g4_gate_record_id` 是同一 run 的 G4、在 G5 開啟前決定、是該測試案例最新且 accept 的 G4 決定，G4 與 G5 的核准者不重疊；其他關卡為 null | `test_v05_backlog_high` |
+| `E-G5-G4` | G5 的 `g4_gate_record_id` 是同一 run 的 G4、在 G5 開啟前決定、是 G5 開啟時該測試案例最新且 accept 的 G4 決定（過期的 G4 round 不算，與其他查詢一致），G4 與 G5 的核准者不重疊；其他關卡為 null | `test_v05_backlog_high`、`test_v07_r11_external` |
 | `E-G5-INITIATOR` | G5 核准者不能是 run 的發起者，也不能是該關卡紀錄的 `initiator` | `test_validator` |
 | `E-G5-JOB` | G5 的 `job_id` 必須是該 run 中 `safety_class` 為 S2 的 job | `test_bl66_run_gates` |
 | `E-G5-TWO-PERSON` | （同一條規則也涵蓋 `E-GATE-APPROVER-ENG`、`E-GATE-SOD`、`E-GATE-RUN`、`E-GATE-ARTIFACT`）G0a／G1／G2 核准者來自 engagement gate_approvers（G0b／G3／G4／G5 來自 ROE：`E-GATE-ROE-APPROVER`；G3／G4／G5 必須在 ROE 有效期間內決定：`E-GATE-ROE-VALIDITY`；G0b 不受此限，它本身就是發現 ROE 未生效並讓 run 暫停的檢查）；同一人不兼兩個關卡角色；run 只能列自己的關卡紀錄；關卡紀錄必須有 artifact；full 的 G5 需兩位 security_reviewer；同一委任另一個 run 中，已錨定且早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）也要求兩位資安審查者（`checks.g5_escalation`） | `test_v03_gates`、`test_v06_r7_methodology` |
@@ -424,8 +424,8 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RESULT-ANALYST-ROLE` | （同一條規則也涵蓋 `E-PROVENANCE`、`E-MODEL-FALLBACK-CLASS`、`E-MODEL-RETIREMENT-DATE`）threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 | `test_v03_adjudication` |
 | `E-RESULT-BUILD` | （同一條規則也涵蓋 `E-RESULT-REQUEST-LOG`）observed_build_id＝run.repo_commit（完整或 ≥12 字元前綴）；build_identity none 的目標列入 build_unverified_targets；B4 結果需要請求紀錄 hash | `test_v03_scope` |
 | `E-RESULT-CONTROLS` | （同一條規則也涵蓋 `E-TC-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-PRECONDITION`）testcase 至少一個 reachability 對照；結果恰好涵蓋所有對照；任何對照沒有 PASS → outcome 必須是 INVALID；`precondition_reached`＝所有 reachability 對照 PASS；`positive_control`＝oracle_can_fail 對照 PASS（沒有時為 null） | `test_v03_adjudication` |
-| `E-RESULT-G4` | （同一條規則也涵蓋 `E-RESULT-G5`、`E-RESULT-WINDOW`、`E-RUN-G4`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 | `test_v05_r7_bypasses` |
-| `E-RESULT-G5` | （同一條規則也涵蓋 `E-RESULT-G4`、`E-RESULT-WINDOW`、`E-RUN-G4`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 | `test_v05_r7_bypasses` |
+| `E-RESULT-G4` | （同一條規則也涵蓋 `E-RESULT-G5`、`E-RESULT-WINDOW`、`E-RUN-G4`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於**開始那一刻仍有效的**核准（`derive.g4_state`：最新決定是 accept，從哪一次 accept 起連續核准；之後相同內容的再次 accept 不移動它；外部審查），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是日誌末端最新 G4 決定為 accept 的測試案例（目前可派送）；執行後才被撤銷的核准不使已執行的結果失效，改報 `W-RESULT-G4-WITHDRAWN` | `test_v07_r11_external`、`test_v05_r7_bypasses` |
+| `E-RESULT-G5` | （同一條規則也涵蓋 `E-RESULT-G4`、`E-RESULT-WINDOW`、`E-RUN-G4`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於**開始那一刻仍有效的**核准（`derive.g4_state`：最新決定是 accept，從哪一次 accept 起連續核准；之後相同內容的再次 accept 不移動它；外部審查），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是日誌末端最新 G4 決定為 accept 的測試案例（目前可派送）；執行後才被撤銷的核准不使已執行的結果失效，改報 `W-RESULT-G4-WITHDRAWN` | `test_v05_r7_bypasses` |
 | `E-RESULT-INVALID` | （同一條規則也涵蓋 `E-TC-CONTROLS`、`E-RESULT-CONTROLS`、`E-RESULT-PRECONDITION`）testcase 至少一個 reachability 對照；結果恰好涵蓋所有對照；任何對照沒有 PASS → outcome 必須是 INVALID；`precondition_reached`＝所有 reachability 對照 PASS；`positive_control`＝oracle_can_fail 對照 PASS（沒有時為 null） | `test_v03_adjudication` |
 | `E-RESULT-JOB` | B4 結果的 `job_id` 必須是該 run 中同一測試案例的 job；W4 結果的 `job_id` 必須是 null | `test_bl66_pipeline` |
 | `E-RESULT-ORACLE` | `fail_oracles` 非空 ⇔ outcome FAIL，且 ⊆ testcase `oracle.types` | `test_v03_adjudication` |
@@ -434,7 +434,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RESULT-REQUESTS` | `request_count` 不能超過測試案例的 `rate_limit.max_requests` | `test_v03_robustness` |
 | `E-RESULT-TARGETS` | `target_ids` ⊆ 測試案例的 `target_ids`；B4 結果至少有一個 ROE 目標，W4 結果（在 Z2 執行）不能有目標 | `test_v05_bl27_w4` |
 | `E-RESULT-TRIALS` | `trials` 滿足 k ≤ `n_effective` ≤ n；機率型 PASS 以 `n_effective`（n′）≥ 30 判定 `E_pass`；高風險威脅（有 attack tree）≥ 60；v0.6 起機率型由測試對象判定（`derive.is_probabilistic`） | `test_v04_examples`、`test_v05_round6_group4`、`test_adjudicate` 等 4 份 |
-| `E-RESULT-WINDOW` | （同一條規則也涵蓋 `E-RESULT-G4`、`E-RESULT-G5`、`E-RUN-G4`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於核准該測試案例的 G4 決定（每個測試案例看最新的決定），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是最新 G4 決定為 accept 的測試案例 | `test_v05_r7_bypasses` |
+| `E-RESULT-WINDOW` | （同一條規則也涵蓋 `E-RESULT-G4`、`E-RESULT-G5`、`E-RUN-G4`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於**開始那一刻仍有效的**核准（`derive.g4_state`：最新決定是 accept，從哪一次 accept 起連續核准；之後相同內容的再次 accept 不移動它；外部審查），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是日誌末端最新 G4 決定為 accept 的測試案例（目前可派送）；執行後才被撤銷的核准不使已執行的結果失效，改報 `W-RESULT-G4-WITHDRAWN` | `test_v05_r7_bypasses` |
 
 **裁決與回饋**
 
@@ -500,7 +500,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-JSON-STRICT` | JSON／JSONL 以嚴格模式載入：重複鍵、非有限數字、超出範圍的整數等一律拒絕；被拒的稽核檔不再做後續的鏈與錨點檢查（不連鎖報錯） | `test_review_fixes`、`test_v02_hardening`、`test_v05_round6_lowprio` |
 | `E-KIND` | 每份文件的種類必須有對應的 schema | `test_bl66_config` |
 | `E-LOAD` | 已知種類的文件因嚴格 YAML／JSON 以外的原因無法載入 | `test_bl66_config` |
-| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 19 份 |
+| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 20 份 |
 | `E-SCHEMA-FORMAT` | （同一條規則也涵蓋 `E-INPUT-SHAPE`）見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 | `test_v03_scope` |
 | `E-SCHEMA-ID` | schema 的 `$id` 必須等於檔名 | `test_bl66_config` |
 | `E-SCHEMA-META` | schema 必須通過 2020-12 meta-schema 檢查，且 `$schema` 是 2020-12 | `test_bl66_config` |
@@ -521,6 +521,12 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-TOOLS-DENYLIST` | tools.yaml 中 `toolkit_denied` 的模式集合必須等於 `safety.TOOLKIT_DENYLIST` | `test_bl66_config` |
 | `E-TOOLS-ID` | 每個工具模式的 ID 必須符合 D13 的 `tool:mode` 格式（`safety.ADAPTER_RE`） | `test_bl66_config` |
 | `E-TOOLS-ZONE` | 有 B4 可執行模式的工具必須在 Z3 | `test_bl66_config` |
+
+**其他**
+
+| 錯誤碼 | 規則 | 守住的測試 |
+|---|---|---|
+| `W-RESULT-G4-WITHDRAWN` | 外部審查：B4 結果在有效的 G4 核准下執行，之後的 G4 round 以 reject／needs_info 撤銷了這個核准。結果保留事先登記（仍可為 E_proof），該測試案例不再列在 `approved_testcase_ids`、不得再派送（警告；規則見 03 §6.6） | `test_v07_r11_external` |
 
 <!-- error-table:end -->
 

@@ -54,7 +54,7 @@
       "name": "ownership: backed by an anchored ownership_check",
       "file": "tools/vchlib/checks.py",
       "old": "        if not R.check(len(evs_) == 1 and evs_[0][0] <= last, \"E-RUN-OWNERSHIP\", w,",
-      "new": "        if not True:",
+      "new": "        if not R.check(True, \"E-RUN-OWNERSHIP\", w,",
       "k": "without_an_ownership_check_event"
     },
     {
