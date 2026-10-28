@@ -887,7 +887,8 @@
               "seed_setup_failed",
               "outside_window",
               "no_snapshot",
-              "stopped"
+              "stopped",
+              "expired"
             ]
           },
           "ref": {

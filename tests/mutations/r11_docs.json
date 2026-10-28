@@ -18,8 +18,8 @@
     {
       "name": "check groups are complete",
       "file": "docs/schemas/README.md",
-      "old": "22. **W4 測試案例**",
-      "new": "22. W4 測試案例",
+      "old": "23. **W4 測試案例**",
+      "new": "23. W4 測試案例",
       "k": "all_check_groups"
     },
     {

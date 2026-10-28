@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "report-withdrawal.schema.json",
+  "title": "ReportWithdrawal（報告撤回）",
+  "description": "審查 r12（docs/06 §1.9 第 4 點、09 BL-54）：撤回一份已交付的報告，是委任層級、由測試負責人與資安審查者簽署的文件，不寫進被撤回 run 的稽核檔（那個 run 已經以 run_end 錨點結束，不能再加行）。被撤回的報告在 CAS 保留；有新版報告時 superseded_by_report_id 指向它（另一個 run 的報告，因為每個 run 只有一份報告）。金鑰外洩的復原以新的 followup run 重新核准，舊報告以本文件撤回（E-REPORT-WITHDRAWAL）",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "withdrawal_id": {
+      "type": "string",
+      "pattern": "^WD-[0-9]{3,}$"
+    },
+    "engagement_id": {
+      "$ref": "common.schema.json#/$defs/engagement_id"
+    },
+    "withdrawn_report_id": {
+      "type": "string",
+      "description": "被撤回的報告（report-manifest 的 report_id）；同一份報告只撤回一次"
+    },
+    "withdrawn_run_id": {
+      "$ref": "common.schema.json#/$defs/run_id",
+      "description": "必須等於被撤回報告的 run_id"
+    },
+    "superseded_by_report_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "取代它的新版報告：同一委任、另一個較晚開始的 run 的報告，且晚於被撤回的報告產生；還沒有新版時為 null"
+    },
+    "reason": {
+      "enum": [
+        "confirmation_overturned",
+        "approval_invalidated",
+        "key_compromised",
+        "factual_error",
+        "other"
+      ]
+    },
+    "detail": {
+      "type": "string",
+      "minLength": 1
+    },
+    "withdrawn_at": {
+      "$ref": "common.schema.json#/$defs/datetime",
+      "description": "簽署時間；不早於被撤回報告的 generated_at"
+    },
+    "customer_notified_at": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/datetime"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "以委任設定的聯絡人通知客戶的時間（docs/06 §1.9）；不早於 withdrawn_at"
+    },
+    "signers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "person_id": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "test_lead",
+              "security_reviewer"
+            ]
+          },
+          "key_fingerprint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "person_id",
+          "role",
+          "key_fingerprint"
+        ]
+      },
+      "description": "依序：測試負責人、資安審查者，兩個不同的人（lite 已確認的 role_consolidation 除外）"
+    },
+    "signatures": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/signature"
+      },
+      "description": "每位 signers 一筆，順序相同，簽署對象是移除 signatures 後的文件（JCS）"
+    }
+  },
+  "required": [
+    "withdrawal_id",
+    "engagement_id",
+    "withdrawn_report_id",
+    "withdrawn_run_id",
+    "superseded_by_report_id",
+    "reason",
+    "detail",
+    "withdrawn_at",
+    "customer_notified_at",
+    "signers",
+    "signatures"
+  ]
+}

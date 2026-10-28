@@ -26,6 +26,15 @@
 - 版本字串 `05-v0.10` → `05-v0.11`（歷史紀錄不改）；05 §4.2 的版本段落原本把第十輪寫成 `05-v0.10`，一併更正；CHANGELOG 開頭的歷程補 v0.9～v0.11。
 - 新增 `tests/test_v07_r12_verdict.py`（29 個）與 `tests/mutations/r12_verdict.json`（19）；`test_v07_r11_verdict.py` 的 `regression_fixed` 測試改用 TC-012-01 真正的結果（來源證明的重跑），`r11_verdict.json` 一個錨點隨程式改動更新；`test_v07_r9_anchor.py` 的 K-301 輔助函式把註記寫成 `note`（schema 要 `reason`），之前沒有註記所以沒露出，R16 給 K-301 加上 `fix_unverified` 後改正。
 
+### 流程與錨定模型（PR3）
+- **到期未續跑的系統清理路徑**（`E-RUN-RESUME`、`E-RUN-GAPS`；使用者決定）：03 §5.2 寫「委任設定到期 → B6 → `COMPLETED_WITH_GAPS`」，但 r11 要求每次離開 `SUSPENDED`／`STOPPED` 都要有 `not_after` 之前人簽的 `run_resume`，這條路徑寫不出合法的紀錄。現在系統寫一筆已錨定的 `resume_expired`（`from_status` 相符），接著 `run_status_changed → COMPLETED_WITH_GAPS`，兩筆都晚於 `not_after`；`gaps` 必須有 `{kind: expired, ref: <run_id>}`（新 gap kind）。轉到其他狀態、人寫的 `resume_expired`、到期前的 `resume_expired` 都不算。
+- **`run_resume.from_status` 必填**（schema；`E-AUDIT-ACTOR`）：之前沒寫就當成 STOPPED，03 §5.6 的那句刪除。
+- **報告撤回改為委任層級的簽署文件**（新 kind `report-withdrawal`、新錯誤碼 `E-REPORT-WITHDRAWAL`；使用者決定）：06 §1.9 原本要「撤回事件寫入稽核紀錄」，但被撤回的 run 已以 `run_end` 錨點結束，再加一行就是重開 run。新文件由測試負責人與資安審查者簽署，validator 檢查被撤回的報告存在、只撤回一次、取代的報告來自較晚開始的另一個 run 且較晚產生、兩位簽署者不同人（lite 例外）。主範例撤回 `RPT-2026-10-06-001`（新增檢查組，共 24 組）。**金鑰外洩的復原**改為新的 `followup` run 重新走受影響的關卡（不在已結束的 run 裡重簽、不用 `carried_from`），舊報告以撤回文件處理；06 §1.9 #1／#4、§1.8、BL-53／54 同步。
+- **`no_eligible_verifier` 進 G2**：r11 起 validator 就要求這類叢集有 G2 決定（`E-PIPELINE`），但 05 §3 規則 2、7、§4.2 邊界情況表、02 W3 第 6 步與 §5.1、03 §5.3 仍寫「不進 G2」；全部改正，03 §6.5 註明對 G2 負擔的影響。
+- **`FIXED` 的周邊**：02 W5 寫明 `FIXED` 叢集成為種子威脅（`E-PIPELINE` 只放過 REJECTED；黑箱重播可推翻）；`W4_regression` 節點寫的裁決版本是 `readjudicated_by: W4_readjudicate`（02 §1.6、BL-49 統一）；05 §4.2 暫定例外與 07 MVP0-X4 補第 14～16 列（與 validator 一致）。
+- **G4 核准者必須先認領 run**：`E-G4-INITIATOR` 與 `E-RUN-CLAIM` 合起來就是這條規則，02 §1.5 與 08 §4.2 寫明。
+- 新增 `tests/test_v07_r12_flow.py`（26 個）與 `tests/mutations/r12_flow.json`（25）。`test_v07_r11_docs.py` 的檢查組數 23 → 24、`r11_docs.json` 的錨點隨 schemas README 的編號更新。
+
 ## 第十一輪審查（2026-10-28）
 
 依 [2026-10-28 設計審查（第十一輪）](docs/evidence/review-2026-10-28-r11.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的六項由主審查者重跑確認。

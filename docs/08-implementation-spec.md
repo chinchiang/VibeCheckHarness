@@ -508,7 +508,7 @@ class ToolAdapter(ABC):
 | `vibecheck run claim` | `RUN_ID --sign ...` | 認領自動觸發的 run（`claim_run`，D7） | 0/4/5/7 | M2 |
 | `vibecheck gate list` | `[--run RUN_ID] [--status open\|decided\|expired]` | 列出關卡 | 0 | M2 |
 | `vibecheck gate show` | `GATE_ID [--out DIR]` | 輸出呈現包：已叢集、排序，附 file:line、片段、CWE、殘餘風險 | 0/6 | M2 |
-| `vibecheck gate approve` | `GATE_ID --decisions decisions.yaml --sign ...` | 逐項 `accept`／`reject`／`needs_info` → 產生 GateRecord 並簽章 → `GateService.submit` | 0/3/4/5/7 | M2 |
+| `vibecheck gate approve` | `GATE_ID --decisions decisions.yaml --sign ...` | 逐項 `accept`／`reject`／`needs_info` → 產生 GateRecord 並簽章 → `GateService.submit`。G4 的核准者必須已認領該 run（`vibecheck run claim`；G4 核准者計入發起者，[02 §1.5](02-methodology.md#15-自動觸發與發起者)），否則拒絕 | 0/3/4/5/7 | M2 |
 | `vibecheck gate reject` | `GATE_ID --reason TEXT --sign ...` | 整個關卡 `REJECTED`（等於全部項目 reject）；理由必填。**G2 不允許整關 reject**（G2 的整關結果只有 `APPROVED` 或 `EXPIRED`；要駁回請用 `gate approve` 逐項 `reject`／`needs_info`），對 G2 執行 → 結束碼 5 | 0/4/5/7 | M2 |
 | `vibecheck audit verify` | `RUN_ID \| --engagement ID` | 重算 hash chain，並與錨點比對 | 0/8 | M1 |
 | `vibecheck calibrate run` | `--config calibration.yaml [--split calibration\|holdout]` | 執行 Calibration Lab。讀取保留切分時寫入 `holdout_access_log` | 0/3/10 | M2 |

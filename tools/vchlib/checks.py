@@ -580,7 +580,7 @@ def g_signatures(R: Report, c: Ctx):
                 R.check(sig.get("signer") == actor.get("id"), "E-SIG-SIGNER", where, "signature signer != actor.id")
                 # docs/03 §5.6: resuming a STOPPED run needs the ROE test_lead; v0.5 (review 2026-10-25 §4.3): a SUSPENDED
                 # run is resumed by its run_owner or an initiator (v0.4 demanded a test_lead for every resume, against
-                # the docs). payload.from_status names which; a resume without it is judged as STOPPED (the stricter)
+                # the docs). payload.from_status names which (required by the schema since review r12)
                 need = None
                 if ev.get("event_type") == "run_resume":
                     p = ev.get("payload") or {}
@@ -588,8 +588,10 @@ def g_signatures(R: Report, c: Ctx):
                     if p.get("from_status") == "SUSPENDED":
                         R.check(actor.get("id") == run.get("run_owner") or actor.get("id") in (run.get("initiators") or []),
                                 "E-AUDIT-ACTOR", where, f"a SUSPENDED run is resumed by its run_owner or an initiator, not {actor.get('id')}")
-                    else:
+                    elif p.get("from_status") == "STOPPED":
                         need = "test_lead"
+                    else:
+                        R.error("E-AUDIT-ACTOR", where, f"run_resume payload.from_status must be SUSPENDED or STOPPED (got {p.get('from_status')!r})")
                 verify_signature(R, c, where, crypto.event_payload(ev), sig, ts(R, ev.get("ts"), where), need)
             else:
                 R.check(ev.get("signature") is None, "E-AUDIT-SIG", where, "only human initiator_claim / run_resume / spot_check_result events are signed")
@@ -872,7 +874,7 @@ def expected_gaps(c: Ctx, rid, run: dict) -> dict:
     """(kind, ref) -> why, for every entry docs/02 B6 puts on the untested list that the run's own records imply: W4
     requirements and testcases marked MANUAL, testcases whose G4 decision at the end of the log is reject, SKIPPED jobs (by
     skip reason), failed ownership checks, results that did not run (ERROR / SKIPPED / STOPPED / INVALID) and GB decisions
-    that stopped a phase. A G3 rejection is not a gap (the threat is reported as "未做黑箱驗證", docs/04 §3)."""
+    that stopped a phase, and the run itself when it was closed as expired. A G3 rejection is not a gap (the threat is reported as "未做黑箱驗證", docs/04 §3)."""
     out = {}
     for x in run.get("w4_manual_requirements") or []:
         if isinstance(x, dict):
@@ -897,6 +899,10 @@ def expected_gaps(c: Ctx, rid, run: dict) -> dict:
     for gb in c.ix.gate_records(rid, "GB"):
         if (gb.data.get("gb") or {}).get("choice") == "stop_phase":
             out[("gb_stopped", gb.data.get("gate_record_id"))] = "GB stopped a phase"
+    audit = c.ix.audit_for(rid)
+    evs = audit.data if audit and isinstance(audit.data, list) else []
+    if any(isinstance(e, dict) and e.get("event_type") == "resume_expired" for e in evs[:anchored_seqs(evs)]):
+        out[("expired", rid)] = "the run was closed when the engagement validity ended (resume_expired)"
     return out
 
 
@@ -2512,6 +2518,64 @@ def g_feedback(R: Report, c: Ctx):
             if R.check(ok, "E-FEEDBACK", w, "a feedback record carries one signature per signer (signed_by, then co_signed_by), by their keys"):
                 for s, x in zip(sigs, signers):
                     verify_signature(R, c, w, crypto.signing_payload(f), s, at, x.get("role"))
+
+
+WITHDRAWAL_ROLES = ("test_lead", "security_reviewer")
+
+
+def g_report_withdrawal(R: Report, c: Ctx):
+    """E-REPORT-WITHDRAWAL (review r12, docs/06 §1.9 #4, BL-54): a delivered report is withdrawn by an engagement-level
+    document signed by the test lead and a security reviewer (two people unless lite consolidates them), not by a line in
+    the withdrawn run's audit log (that run ended with its run_end anchor and cannot be reopened). The withdrawn report
+    exists in the engagement and is withdrawn once; a superseding report belongs to another run of the engagement that
+    started later and was generated after the withdrawn one."""
+    seen: dict = {}
+    for d in c.docs("report-withdrawal"):
+        with doc_guard(R, d.path):
+            x, w = d.data, d.path
+            R.check(x.get("engagement_id") == c.engagement.get("engagement_id"), "E-REPORT-WITHDRAWAL", w,
+                    f"engagement_id {x.get('engagement_id')!r} is not this engagement's")
+            rid = x.get("withdrawn_report_id")
+            R.check(rid not in seen, "E-REPORT-WITHDRAWAL", w, f"report {rid} is already withdrawn by {seen.get(rid)}")
+            seen.setdefault(rid, w)
+            old = c.ix.first("report-manifest", report_id=rid)
+            at = ts(R, x.get("withdrawn_at"), w)
+            if R.check(old is not None, "E-REPORT-WITHDRAWAL", w, f"withdrawn_report_id {rid!r} names no report of the bundle"):
+                R.check(old.data.get("run_id") == x.get("withdrawn_run_id"), "E-REPORT-WITHDRAWAL", w,
+                        f"withdrawn_run_id {x.get('withdrawn_run_id')!r}, but report {rid} is run {old.data.get('run_id')}'s")
+                gen = ts(R, old.data.get("generated_at"), w)
+                R.check(at is not None and gen is not None and at >= gen, "E-REPORT-WITHDRAWAL", w,
+                        f"withdrawn_at {x.get('withdrawn_at')} is before report {rid} was generated ({old.data.get('generated_at')})")
+                new_id = x.get("superseded_by_report_id")
+                if new_id is not None:
+                    new = c.ix.first("report-manifest", report_id=new_id)
+                    ok = new is not None and new_id != rid and new.data.get("run_id") != old.data.get("run_id")
+                    if R.check(ok, "E-REPORT-WITHDRAWAL", w,
+                               f"superseded_by_report_id {new_id!r} must name the report of another run of the bundle"):
+                        s_old, s_new = run_start(c, old.data.get("run_id")), run_start(c, new.data.get("run_id"))
+                        g_old, g_new = gen, ts(R, new.data.get("generated_at"), w)
+                        R.check(s_old is not None and s_new is not None and s_new > s_old and g_new is not None and g_old is not None
+                                and g_new > g_old, "E-REPORT-WITHDRAWAL", w,
+                                f"the superseding report {new_id} must come from a run that started after run {old.data.get('run_id')} "
+                                "and be generated after the withdrawn report")
+            told = x.get("customer_notified_at")
+            if told is not None:
+                t = ts(R, told, w)
+                R.check(t is not None and at is not None and t >= at, "E-REPORT-WITHDRAWAL", w,
+                        f"customer_notified_at {told} is before the withdrawal was signed ({x.get('withdrawn_at')})")
+            signers, sigs = x.get("signers") or [], x.get("signatures") or []
+            roles = [s.get("role") for s in signers if isinstance(s, dict)]
+            people = [s.get("person_id") for s in signers if isinstance(s, dict)]
+            R.check(roles == list(WITHDRAWAL_ROLES), "E-REPORT-WITHDRAWAL", w,
+                    f"signers must be the test lead, then a security reviewer (got roles {roles})")
+            R.check(len(set(people)) == len(people) or people[0] == consolidation_person(c), "E-REPORT-WITHDRAWAL", w,
+                    f"the test lead and the security reviewer are two people (got {people}); only an acknowledged lite "
+                    "role_consolidation lets one person sign both")
+            ok = len(sigs) == len(signers) and all(isinstance(g, dict) and isinstance(s, dict) and g.get("signer") == s.get("person_id")
+                                                   and g.get("key_fingerprint") == s.get("key_fingerprint") for g, s in zip(sigs, signers))
+            if R.check(ok, "E-REPORT-WITHDRAWAL", w, "a withdrawal carries one signature per signer, in order, by their keys"):
+                for g, s in zip(sigs, signers):
+                    verify_signature(R, c, w, crypto.signing_payload(x), g, at, s.get("role"))
 
 
 def snapshot_audit(R: Report, c: Ctx, rid, jid, job: dict, start, end, jw: str):
@@ -4535,7 +4599,21 @@ def run_transitions(R: Report, c: Ctx, w: str, rid, run: dict, evs: list, last: 
         R.check(p.get("from") == prev, "E-RUN-STATUS", where,
                 f"run_status_changed from {p.get('from')!r}, but the run was {prev!r} (the previous change or RUNNING)")
         between = [(j, x) for j, x in rows if prev_i < j < i]
-        if prev in RESUMABLE_RUN_STATES:
+        expired = [(j, x) for j, x in between if x.get("event_type") == "resume_expired"
+                   and (x.get("actor") or {}).get("kind") == "system" and (x.get("payload") or {}).get("from_status") == prev]
+        if prev in RESUMABLE_RUN_STATES and p.get("to") == "COMPLETED_WITH_GAPS" and expired:
+            # review r12 (docs/03 §5.2): a SUSPENDED / STOPPED run nobody resumed before the engagement validity ended is
+            # closed by the system: an anchored resume_expired, then the change to COMPLETED_WITH_GAPS (gap kind expired,
+            # E-RUN-GAPS). r11 demanded a signed run_resume received before not_after for every exit, so the cleanup the
+            # docs describe could not be written at all
+            j, x = expired[-1]
+            R.check(j <= last, "E-RUN-RESUME", f"{w} seq {x.get('seq')}", "the resume_expired is not anchored")
+            for y in (x, e):
+                at = ts(R, y.get("ts"), where)
+                R.check(not_after is not None and at is not None and at > not_after, "E-RUN-RESUME", f"{w} seq {y.get('seq')}",
+                        f"{y.get('event_type')} at {y.get('ts')}, but the engagement validity ends {e_val}: "
+                        "a run is closed as expired only after its validity ended")
+        elif prev in RESUMABLE_RUN_STATES:
             resumes = [(j, x) for j, x in between if x.get("event_type") == "run_resume" and (x.get("actor") or {}).get("kind") == "human"
                        and isinstance(x.get("signature"), dict) and (x.get("payload") or {}).get("from_status") == prev]
             if R.check(bool(resumes), "E-RUN-RESUME", where,
@@ -5471,6 +5549,7 @@ GROUPS = [
     ("testcases vs ROE (docs/04 §5)", g_testcases),
     ("W4 testcases (docs/02 W4)", g_w4_testcases),
     ("feedback records (docs/08 §11.16)", g_feedback),
+    ("report withdrawals (docs/06 §1.9)", g_report_withdrawal),
     ("verdict recomputation (docs/05 §4.2)", g_verdicts),
     ("traceability", g_trace),
     ("audit log", g_audit),
