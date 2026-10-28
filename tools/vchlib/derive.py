@@ -808,7 +808,7 @@ def root_score(terms) -> float:
         by_root.setdefault(root, []).append(x)
     total = 0.0
     for xs in by_root.values():
-        # v0.7 (review r10, rule_version 05-v0.11): votes of one root that agree count as its strongest vote; the mean let a
+        # v0.7 (review r10, rule_version 05-v0.9): votes of one root that agree count as its strongest vote; the mean let a
         # weaker SUPPORT of the same root lower S below theta (adding evidence must never remove it). Votes of one root
         # that disagree count as their mean; a SUPPORT and a REFUTE together are R3 (DISPUTED) whatever S is.
         same = all(x >= 0 for x in xs) or all(x <= 0 for x in xs)
@@ -930,7 +930,7 @@ def cited_relevant(ix: "Index", v: dict, cluster: dict) -> bool:
 
 
 def members_at_vote(ix: "Index", v: dict, cluster: dict) -> tuple[list, list]:
-    """r11 (05-v0.11): the cluster's (families, lineages) as they stood when the vote was cast: the members whose reporter
+    """r11 (05-v0.10): the cluster's (families, lineages) as they stood when the vote was cast: the members whose reporter
     round is at most the vote's `voted_after_round`. Without the field (or without an index) every member counts, the
     stricter reading. v0.7 r10 judged every vote against the members present now, so a same-family reporter added to the
     cluster in a later round (CMD-2 extra dispatch, or a prompt injection that steers three reviewers to one spot)

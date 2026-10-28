@@ -81,14 +81,14 @@
     {
       "name": "regression_fixed needs a positive control and no FAIL",
       "file": "tools/vchlib/checks.py",
-      "old": "    return bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"}) \\\n        and any(x.get(\"class\") == \"E_pass\" and x.get(\"positive_control\") is True for x in results)",
-      "new": "    return bool(classes)",
+      "old": "    return bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"}) and any(qualified(x) for x in results) \\\n        and all(",
+      "new": "    return bool(classes) \\\n        and all(",
       "k": "derived_from_the_parent"
     },
     {
       "name": "the rule version is bumped",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.11\"",
+      "old": "RULE_VERSION = \"05-v0.12\"",
       "new": "RULE_VERSION = \"05-v0.9\"",
       "k": "rule_version_is_05_v0_10"
     },

@@ -26,8 +26,8 @@ def result(b, rid):
 
 
 def test_rule_version():
-    assert adj.RULE_VERSION == "05-v0.11"                     # review r9 PR2, r10 PR2
-    assert all(d.data.get("rule_version") == "05-v0.11" for d in b_docs("verdict"))
+    assert adj.RULE_VERSION == "05-v0.12"                     # review r9 PR2, r10 PR2
+    assert all(d.data.get("rule_version") == "05-v0.12" for d in b_docs("verdict"))
 
 
 def b_docs(kind):

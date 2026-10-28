@@ -35,7 +35,7 @@ def pin_calibration(b, keys):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_10(b):
-    assert adj.RULE_VERSION == "05-v0.11" and run_all(b).errors == []
+    assert adj.RULE_VERSION == "05-v0.12" and run_all(b).errors == []
 
 
 # ================================================================ calibration policy

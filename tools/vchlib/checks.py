@@ -47,7 +47,7 @@ M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
 # placeholder model IDs: <...>, {...}, or a TBD / TODO / FIXME / 實作時確認 token (case-insensitive)
 PLACEHOLDER_ID = re.compile(r"<[^<>]*>|\{[^{}]*\}|(?<![A-Za-z0-9])(?:TBD|TODO|FIXME)(?![A-Za-z0-9])|實作時確認", re.IGNORECASE)
 TERMINAL_RUN_STATES = ("COMPLETED", "COMPLETED_WITH_GAPS", "ABORTED", "FAILED")   # D2; SUSPENDED and STOPPED are resumable
-FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED", "FIXED")   # FIXED: r11, 05-v0.11
+FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED", "FIXED")   # FIXED: r11, 05-v0.10
 # RFC 8785 §3.2.2.3 / Appendix B number vectors and §3.2.3 key-order vector
 JCS_VECTORS = [
     ([333333333.33333329, 1e30, 4.50, 2e-3, 0.000000000000000000000000001], b"[333333333.3333333,1e+30,4.5,0.002,1e-27]"),
@@ -1934,14 +1934,24 @@ def g_runs(R: Report, c: Ctx):
                     R.check(job.get("safety_class") == tc.data.get("safety_class_computed"), "E-RUN-JOB", jw, "safety_class != testcase computed class")
                     R.check(job.get("target_id") in tc.data.get("target_ids", []), "E-RUN-JOB", jw, "target not in the testcase")
                     tr = next((x.data for x in c.docs("testresult") if x.data.get("job_id") == jid and x.data.get("run_id") == rid), None)
-                    if job.get("safety_class") == "S2":
+                    if job.get("safety_class") == "S2" and job.get("status") not in S2_RAN_STATES:
+                        # r12 external review: a job that never ran (SKIPPED after a G5 rejection or expiry, a failed snapshot,
+                        # or still waiting) has no snapshot, no restore and no sandbox events; r12 judged every S2 job as RESTORED
+                        g5 = c.record(job.get("g5_record_id"))
+                        s2_not_run(R, c, rid, jid, job, g5, jw)
+                    elif job.get("safety_class") == "S2":
                         g5 = c.record(job.get("g5_record_id"))
                         R.check(g5 is not None and g5.get("gate") == "G5" and g5.get("outcome") == "APPROVED" and g5.get("job_id") == jid,
                                 "E-RUN-S2", jw, "S2 job needs an APPROVED G5 record for this job")
-                        R.check(job.get("snapshot_ref") and job.get("restore_verified") is True and job.get("status") == "RESTORED",
-                                "E-RUN-S2", jw, "S2 job needs a snapshot, a verified restore and status RESTORED")
+                        R.check(bool(job.get("snapshot_ref")), "E-RUN-S2", jw, f"S2 job {jid} ({job.get('status')}) ran, so it has a snapshot_ref")
+                        R.check(job.get("status") in S2_END_STATES or run.get("status") not in TERMINAL_RUN_STATES, "E-RUN-S2", jw,
+                                f"S2 job {jid} is {job.get('status')} in a {run.get('status')} run: an S2 job that ran ends RESTORED or "
+                                "RESTORE_FAILED (docs/03 §5.6 abort_handler restores every snapshot)")
                         span_start, span_end = job_span(c, rid, jid)
-                        snapshot_audit(R, c, rid, jid, job, span_start, span_end, jw)
+                        restored = snapshot_audit(R, c, rid, jid, job, span_start, span_end, jw)
+                        if restored is False and run.get("status") in TERMINAL_RUN_STATES:
+                            R.check(run.get("status") == "FAILED", "E-RUN-S2", jw,
+                                    f"the restore of {jid} failed, so the run is FAILED, not {run.get('status')} (docs/03 §5.6)")
                         start = span_start or (ts(R, tr.get("executed_at"), jw) if tr else (ts(R, g5.get("timestamp"), jw) if g5 else None))
                         ok = start is not None and any(dd and dd <= start and start - dd <= dt.timedelta(days=drill_days) for dd in drills)
                         # a log rejected by the strict loader is reported once (E-JSON-STRICT), not re-reported here
@@ -2578,32 +2588,75 @@ def g_report_withdrawal(R: Report, c: Ctx):
                     verify_signature(R, c, w, crypto.signing_payload(x), g, at, s.get("role"))
 
 
-def snapshot_audit(R: Report, c: Ctx, rid, jid, job: dict, start, end, jw: str):
+S2_RAN_STATES = ("SNAPSHOTTED", "EXECUTING", "EXECUTED", "INTERRUPTED", "RESTORED", "RESTORE_FAILED", "STOPPED")
+S2_END_STATES = ("RESTORED", "RESTORE_FAILED")
+G5_SKIP_OUTCOME = {"g5_rejected": "REJECTED", "g5_expired": "EXPIRED"}
+
+
+def s2_not_run(R: Report, c: Ctx, rid, jid, job: dict, g5: dict | None, jw: str):
+    """r12 external review: an S2 job that never ran (PENDING, AWAITING_G5, SKIPPED) has no sandbox, snapshot or restore
+    event in the log, no snapshot_ref and no verified restore; one SKIPPED for its G5 names the G5 record of this job with
+    the matching outcome (docs/03 §5.4: G5 REJECTED / NEEDS_INFO / EXPIRED -> skipped and recorded)."""
+    audit = c.ix.audit_for(rid)
+    evs = audit.data if audit and isinstance(audit.data, list) else []
+    ran = [e.get("event_type") for e in evs if isinstance(e, dict) and (e.get("payload") or {}).get("job_id") == jid
+           and e.get("event_type") in ("sandbox_job_start", "sandbox_job_end", "snapshot_created", "snapshot_restored", "restore_failed")]
+    R.check(not ran and not job.get("snapshot_ref") and job.get("restore_verified") is not True, "E-RUN-S2", jw,
+            f"S2 job {jid} is {job.get('status')}, so it never ran: no snapshot_ref, no verified restore and no sandbox or "
+            f"snapshot events (the log has {ran})")
+    want = G5_SKIP_OUTCOME.get(job.get("skip_reason"))
+    if job.get("status") == "SKIPPED" and want:
+        R.check(g5 is not None and g5.get("gate") == "G5" and g5.get("job_id") == jid and g5.get("outcome") == want, "E-RUN-S2", jw,
+                f"S2 job {jid} was SKIPPED as {job.get('skip_reason')}, so its g5_record_id names this job's G5 record with outcome "
+                f"{want} (got {(g5 or {}).get('outcome')})")
+
+
+def snapshot_audit(R: Report, c: Ctx, rid, jid, job: dict, start, end, jw: str) -> bool | None:
     """E-RUN-S2 (review r12): the snapshot and the restore an S2 job claims are the snapshot service's anchored events, not
-    the run record's word: exactly one snapshot_created naming the job's snapshot_ref, received before the job started,
-    exactly one snapshot_restored with verified true, received after it ended, and no restore_failed. r11 read
-    snapshot_ref / restore_verified / status from the run record only, so a run whose log says the restore failed was
-    reported restored and COMPLETED (docs/02 B4: every snapshot restored; docs/03 §5: a failed restore -> FAILED)."""
+    the run record's word: exactly one snapshot_created naming the job's snapshot_ref, received before the job started.
+    r11 read snapshot_ref / restore_verified / status from the run record only, so a run whose log says the restore failed was
+    reported restored and COMPLETED (docs/02 B4: every snapshot restored; docs/03 §5: a failed restore -> FAILED).
+    r12 external review: the restore is judged by the job's status. RESTORED: exactly one anchored snapshot_restored with
+    verified true, after the job ended, no restore_failed, restore_verified true. RESTORE_FAILED: an anchored restore_failed,
+    no verified snapshot_restored, restore_verified false (r12 rejected this honest record). Any other state that ran
+    (INTERRUPTED, STOPPED, still executing): restore_verified follows the log. Returns True (restored), False (the restore
+    failed) or None (not yet restored, or no log to judge)."""
     audit = c.ix.audit_for(rid)
     evs = audit.data if audit and isinstance(audit.data, list) else []
     if not evs or rid in c.broken_audit_runs:
-        return
+        return None
     last = anchored_seqs(evs)
     mine = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and (e.get("payload") or {}).get("job_id") == jid]
     def of(kind):
         return [(i, e) for i, e in mine if e.get("event_type") == kind]
     snaps, restored, failed = of("snapshot_created"), of("snapshot_restored"), of("restore_failed")
-    R.check(not failed, "E-RUN-S2", jw, f"the audit log records restore_failed for {jid} (seq {[e.get('seq') for _, e in failed]}): "
-            "the job is RESTORE_FAILED and the run FAILED, not restored")
     if R.check(len(snaps) == 1 and snaps[0][0] <= last and (snaps[0][1].get("payload") or {}).get("snapshot_ref") == job.get("snapshot_ref"),
                "E-RUN-S2", jw, f"{jid} needs exactly one anchored snapshot_created naming snapshot_ref {job.get('snapshot_ref')!r} "
                f"(the log has {len(snaps)})"):
         t = ts(R, snaps[0][1].get("ts"), jw)
         R.check(start is None or (t is not None and t <= start), "E-RUN-S2", jw, f"the snapshot of {jid} was taken after the job started")
-    if R.check(len(restored) == 1 and restored[0][0] <= last and (restored[0][1].get("payload") or {}).get("verified") is True,
-               "E-RUN-S2", jw, f"{jid} needs exactly one anchored snapshot_restored with verified true (the log has {len(restored)})"):
-        t = ts(R, restored[0][1].get("ts"), jw)
-        R.check(end is None or (t is not None and t >= end), "E-RUN-S2", jw, f"the restore of {jid} was recorded before the job ended")
+    verified = [(i, e) for i, e in restored if (e.get("payload") or {}).get("verified") is True]
+    status = job.get("status")
+    if status == "RESTORE_FAILED" or (failed and status != "RESTORED"):
+        R.check(bool(failed) and all(i <= last for i, _ in failed), "E-RUN-S2", jw,
+                f"{jid} is {status}, so the log needs an anchored restore_failed (it has {len(failed)}); RESTORE_FAILED is the "
+                "snapshot service's finding, not the run record's word")
+        R.check(not verified, "E-RUN-S2", jw, f"{jid}: the log records both a verified snapshot_restored and restore_failed")
+        R.check(job.get("restore_verified") is False, "E-RUN-S2", jw,
+                f"{jid}: the restore failed, so restore_verified is false (got {job.get('restore_verified')!r})")
+        return False
+    if status == "RESTORED":
+        R.check(not failed, "E-RUN-S2", jw, f"the audit log records restore_failed for {jid} (seq {[e.get('seq') for _, e in failed]}): "
+                "the job is RESTORE_FAILED and the run FAILED, not restored")
+        R.check(job.get("restore_verified") is True, "E-RUN-S2", jw, f"{jid} is RESTORED, so restore_verified is true")
+        if R.check(len(restored) == 1 and len(verified) == 1 and restored[0][0] <= last, "E-RUN-S2", jw,
+                   f"{jid} needs exactly one anchored snapshot_restored with verified true (the log has {len(restored)})"):
+            t = ts(R, restored[0][1].get("ts"), jw)
+            R.check(end is None or (t is not None and t >= end), "E-RUN-S2", jw, f"the restore of {jid} was recorded before the job ended")
+        return True
+    R.check(job.get("restore_verified") is (bool(verified) and verified[0][0] <= last), "E-RUN-S2", jw,
+            f"{jid} is {status}: restore_verified {job.get('restore_verified')!r} does not match the log ({len(verified)} verified restore(s))")
+    return True if verified else None
 
 
 def feedback_record_event(c: Ctx, f: dict):
@@ -3252,25 +3305,35 @@ def carried_status(c: Ctx, cluster: dict, run: dict) -> str | None:
     return src.get("status") if src else None
 
 
+def result_testcase(c: Ctx, result_ref) -> str | None:
+    """The testcase id of the test result a verdict links by content hash, or None."""
+    tr = next((d.data for d in c.docs("testresult") if content_hash(d.data) == result_ref), None)
+    return tr.get("testcase_id") if tr else None
+
+
 def result_testcases(c: Ctx, verdict: dict, classes) -> set:
     """Testcase ids of a verdict's linked results of the given evidence classes."""
     out = set()
     for x in (verdict.get("test_evidence") or {}).get("results", []):
         if isinstance(x, dict) and x.get("class") in classes:
-            tr = next((d.data for d in c.docs("testresult") if content_hash(d.data) == x.get("result_ref")), None)
-            if tr:
-                out.add(tr.get("testcase_id"))
+            tc = result_testcase(c, x.get("result_ref"))
+            if tc:
+                out.add(tc)
     return out
 
 
 def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
-    """R14 (r11, 05-v0.11; docs/02 §1.6, 05 §4.2): a regression run's carried-in cluster whose source verdict (the head
+    """R14 (r11, 05-v0.10; docs/02 §1.6, 05 §4.2): a regression run's carried-in cluster whose source verdict (the head
     verdict of the parent run's cluster) was CONFIRMED_* is FIXED when its test evidence has a qualified PASS with a
     positive control and no FAIL-class evidence. v0.7 had no state for "fixed": the PASS landed on UNCORROBORATED with
     test_not_reproduced and the SARIF result stayed open.
     r12 (05-v0.11): and every testcase whose result proved the source (its E_proof results) has a linked result here, so a
     W4 PASS cannot declare fixed a defect a B4 proof established before that proof was re-run (docs/02 §1.6 "B 階段只跑對應
-    測試案例"); a contradiction by tools or votes is handled in adjudicate (row 15)."""
+    測試案例"); a contradiction by tools or votes is handled in adjudicate (row 15).
+    r12 external review (05-v0.12): each of those testcases is re-run with a qualified PASS of its own (E_pass with a
+    positive control) and nothing else. 05-v0.11 counted an ERROR (E_inc) of the proving testcase as "re-run" and let a
+    PASS of any other testcase supply the positive control, so a defect whose proof never passed again was FIXED; an
+    unclear required case now leaves the cluster at its source's status (R16, fix_unverified)."""
     if run.get("run_kind") != "regression":
         return False
     src = carried_source(c, cluster, run)
@@ -3278,10 +3341,15 @@ def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
         return False
     results = [x for x in (v.get("test_evidence") or {}).get("results", []) if isinstance(x, dict)]
     classes = {x.get("class") for x in results}
-    rerun = result_testcases(c, v, {"E_pass", "E_inc", "E_proof", "E_fail_u"})
-    return bool(classes) and not (classes & {"E_proof", "E_fail_u"}) \
-        and any(x.get("class") == "E_pass" and x.get("positive_control") is True for x in results) \
-        and result_testcases(c, src, {"E_proof"}) <= rerun
+
+    def qualified(x):
+        return x.get("class") == "E_pass" and x.get("positive_control") is True
+    by_case: dict = {}
+    for x in results:
+        by_case.setdefault(result_testcase(c, x.get("result_ref")), []).append(x)
+    required = result_testcases(c, src, {"E_proof"})
+    return bool(classes) and not (classes & {"E_proof", "E_fail_u"}) and any(qualified(x) for x in results) \
+        and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)
 
 
 def max_vote_round(c: Ctx, v: dict, cluster: dict) -> int | None:
@@ -4968,7 +5036,7 @@ def lr_weights(tpr: float, tnr: float) -> dict:
 
 
 def effective_counts(side: dict) -> tuple:
-    """v0.7 (review r10, rule_version 05-v0.11): (correct, n) with every abstention counted as a coin flip, half right and
+    """v0.7 (review r10, rule_version 05-v0.9): (correct, n) with every abstention counted as a coin flip, half right and
     half wrong: an abstention carries no information, so it is scored as a guess. The rates and the Wilson bound use
     these counts; v0.7 r9 used the answered cases only, so abstaining on the hard cases kept the accuracy and the weight
     (abstain_rate_max stays as a hard cap)."""

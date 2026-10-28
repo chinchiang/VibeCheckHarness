@@ -19,7 +19,9 @@ def rows(b):
 
 
 def test_workspace_members_may_read_a_shared_document(b):
-    (read,) = [r for r in rows(b) if r["actions"] == ["read"]]
+    reads = [r for r in rows(b) if r["actions"] == ["read"]]
+    assert len(reads) == 1, reads                      # r12 external review: an assertion, not an unpacking error
+    read = reads[0]
     assert read["ownership"] == {"kind": "membership", "field": "document.workspace_id", "via": "session.workspace_ids"}
 
 

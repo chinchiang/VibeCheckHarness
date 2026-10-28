@@ -60,8 +60,8 @@
     {
       "name": "the snapshot audit runs for S2 jobs",
       "file": "tools/vchlib/checks.py",
-      "old": "                        snapshot_audit(R, c, rid, jid, job, span_start, span_end, jw)",
-      "new": "                        pass",
+      "old": "                        restored = snapshot_audit(R, c, rid, jid, job, span_start, span_end, jw)",
+      "new": "                        restored = None",
       "k": "restore_failed_event or anchored_snapshot or unverified_restore"
     },
     {
@@ -81,8 +81,8 @@
     {
       "name": "one anchored verified snapshot_restored",
       "file": "tools/vchlib/checks.py",
-      "old": "    if R.check(len(restored) == 1 and restored[0][0] <= last and (restored[0][1].get(\"payload\") or {}).get(\"verified\") is True,",
-      "new": "    if R.check(True,",
+      "old": "        if R.check(len(restored) == 1 and len(verified) == 1 and restored[0][0] <= last, \"E-RUN-S2\", jw,",
+      "new": "        if R.check(True, \"E-RUN-S2\", jw,",
       "k": "unverified_restore"
     },
     {

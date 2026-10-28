@@ -8,7 +8,7 @@
 
 1. **先寫測試，重現錯誤**：在修正前的程式碼上執行，測試必須失敗，而且失敗的原因就是要修的那個錯誤。
 2. **再修正**：同一個測試在修正後必須通過。
-3. **證明測試抓得到這個錯誤**：一次只把一項修正換回舊程式碼，重跑測試，確認只有對應的測試失敗；換回修正版後全部通過。一次修多個錯誤時，每一項都要各自驗證。把每項突變寫進 `tests/mutations/<name>.json`（檔案、原文、換回的文字、對應測試的 `-k`），以 `python tools/mutation_check.py tests/mutations/<name>.json` 執行；清單留在 repo 裡，之後 `--anchors-only` 能檢查它是否過期（v0.7，審查 r8 M8）。工具只在**選到的測試在原始碼上全部通過、突變後至少一個斷言失敗且沒有收集或匯入錯誤**時才算 `CAUGHT`；`-k` 選不到測試、用法錯誤、收集錯誤、基準本來就失敗都是 `VERIFY`（結束碼 1），不是成功（外部審查，`tests/test_mutation_check.py`）。
+3. **證明測試抓得到這個錯誤**：一次只把一項修正換回舊程式碼，重跑測試，確認只有對應的測試失敗；換回修正版後全部通過。一次修多個錯誤時，每一項都要各自驗證。把每項突變寫進 `tests/mutations/<name>.json`（檔案、原文、換回的文字、對應測試的 `-k`），以 `python tools/mutation_check.py tests/mutations/<name>.json` 執行；清單留在 repo 裡，之後 `--anchors-only` 能檢查它是否過期（v0.7，審查 r8 M8）。工具只在**選到的測試在原始碼上全部通過、突變後至少一個斷言失敗且沒有收集或匯入錯誤**時才算 `CAUGHT`。「斷言失敗」是 junit 報告中 `<failure>` 的訊息以 `assert `、`AssertionError` 或 `Failed:`（`pytest.fail`／`pytest.raises`）開頭；測試本體中其他例外（`RuntimeError`、`KeyError`…）pytest 也計入 `failures`，但不是斷言抓到的，算 `VERIFY`（第十二輪外部審查）；`-k` 選不到測試、用法錯誤、收集錯誤、基準本來就失敗都是 `VERIFY`（結束碼 1），不是成功（外部審查，`tests/test_mutation_check.py`）。
 4. **寫進 PR 說明**：列出每個錯誤與對應的測試名稱，並說明驗證方式（例如「拿掉第 N 行的條件，`test_x` 失敗；恢復後通過」）。
 5. 放寬限制的修正（讓原本被誤判的資料通過），另外要有一個測試確認沒有放寬過頭：原本該報錯的情況仍然報錯。
 

@@ -68,19 +68,39 @@ class Run:
     """One pytest run: its exit status and the junit counts (a plain class: tests load this file by path, without
     registering the module, which `@dataclass` under postponed annotations cannot handle)."""
 
-    def __init__(self, code: int, tests: int = 0, failures: int = 0, errors: int = 0, skipped: int = 0):
+    def __init__(self, code: int, tests: int = 0, failures: int = 0, errors: int = 0, skipped: int = 0,
+                 unexpected: list | None = None):
         self.code = code              # pytest's exit status
         self.tests = tests            # test cases that ran (junit)
-        self.failures = failures      # assertion failures
+        self.failures = failures      # failed test bodies: assertions and any other exception raised in them
         self.errors = errors          # collection, import and setup errors
         self.skipped = skipped
+        self.unexpected = unexpected or []    # failures that are not assertions (r12 external review), e.g. "RuntimeError: boom"
 
     @property
     def passed(self) -> int:
         return self.tests - self.failures - self.errors - self.skipped
 
     def describe(self) -> str:
-        return f"exit {self.code}, {self.tests} ran, {self.failures} failed, {self.errors} errors, {self.skipped} skipped"
+        return f"exit {self.code}, {self.tests} ran, {self.failures} failed, {self.errors} errors, {self.skipped} skipped" + \
+            (f"; not assertions: {'; '.join(self.unexpected)}" if self.unexpected else "")
+
+
+# A failure counts as the test's assertion only when pytest reports it as one: a bare `assert` (pytest's rewritten message
+# starts with "assert "), an AssertionError, or pytest.fail / pytest.raises ("Failed: ..."). pytest's junit `failures` also
+# counts any other exception raised in a test body (r12 external review: a mutation that made the code raise RuntimeError
+# was reported CAUGHT), so each <failure> message is read.
+ASSERTION_PREFIXES = ("assert ", "AssertionError", "Failed:")
+
+
+def unexpected_failures(root) -> list[str]:
+    out = []
+    for case in root.iter("testcase"):
+        for f in case.findall("failure"):
+            msg = (f.get("message") or "").strip()
+            if not msg.startswith(ASSERTION_PREFIXES):
+                out.append(f"{case.get('name')}: {msg.splitlines()[0][:120] if msg else '(no message)'}")
+    return out
 
 
 def run_tests(repo: pathlib.Path, tests: str, k: str) -> Run:
@@ -95,9 +115,10 @@ def run_tests(repo: pathlib.Path, tests: str, k: str) -> Run:
         if not xml.is_file():
             return Run(r.returncode)
         try:
-            suites = ET.parse(xml).getroot()
-            suites = [suites] if suites.tag == "testsuite" else list(suites)
-            return Run(r.returncode, *(sum(int(s.get(a, 0)) for s in suites) for a in ("tests", "failures", "errors", "skipped")))
+            root = ET.parse(xml).getroot()
+            suites = [root] if root.tag == "testsuite" else list(root)
+            return Run(r.returncode, *(sum(int(s.get(a, 0)) for s in suites) for a in ("tests", "failures", "errors", "skipped")),
+                       unexpected=unexpected_failures(root))
         except (ET.ParseError, ValueError):
             return Run(r.returncode)
 
@@ -115,7 +136,7 @@ def classify(run: Run) -> tuple[str, str]:
     """(CAUGHT | MISSED | VERIFY, detail) for a run on the mutated source."""
     if run.code == 0:
         return "MISSED", run.describe()
-    if run.code == 1 and run.failures >= 1 and run.errors == 0:
+    if run.code == 1 and run.failures >= 1 and run.errors == 0 and not run.unexpected:
         return "CAUGHT", run.describe()
     return "VERIFY", f"not an assertion failure ({run.describe()})"
 
