@@ -4034,9 +4034,17 @@ def g_trace(R: Report, c: Ctx):
                     # may name only clusters of its own threat (the source cluster and clusters the threat cites as
                     # evidence); v0.4 checked only that the source cluster was among them, so a PASS could be attached
                     # to an unrelated cluster and turn it DISPUTED through R11
+                    # review r12: a carried-in cluster of the result's own run stands for the cluster it was carried from
+                    # (docs/02 §1.6: a regression run re-runs the parent's testcases against its carried clusters). r11
+                    # demanded the parent's cluster id, so a regression result could never reach the cluster R14 decides
+                    def canon(k):
+                        cl = (ix.first("cluster", cluster_id=k) or Doc("", "", {})).data
+                        cf = cl.get("carried_from") if cl.get("run_id") == tr.get("run_id") else None
+                        return cf.get("cluster_id") if isinstance(cf, dict) else k
                     own = {src} | {e.get("ref") for e in th.data.get("evidence") or [] if isinstance(e, dict) and e.get("kind") == "cluster"}
-                    extra = [k for k in tr.get("cluster_ids", []) if k not in own]
-                    R.check(src in tr.get("cluster_ids", []) and not extra, "E-TRACE", w,
+                    named = [canon(k) for k in tr.get("cluster_ids", [])]
+                    extra = [k for k in named if k not in own]
+                    R.check(src in named and not extra, "E-TRACE", w,
                             f"cluster_ids {tr.get('cluster_ids')} must include the threat's source cluster {src} and name only "
                             f"clusters of threat {th.data.get('threat_id')} ({sorted(own)}); not {extra}")
             for k in tr.get("cluster_ids", []):

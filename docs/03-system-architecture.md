@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十輪審查（2026-10-27）後的設計，裁決規則版本 `05-v0.11`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#03-系統架構)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.11`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#03-系統架構)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 元件總覽
 
@@ -899,16 +899,16 @@ stateDiagram-v2
 
 | 關卡 | 項目數上限（`toolkit.yaml` 預設） | 每項分鐘（假設） | 審查者人數 | 每個 run 的人時上限 | 目標周轉（Lite／Team／Full） |
 |---|---|---|---|---|---|
-| `claim_run` | 1 | 5 | 1 | 0.1 | 1 天／1 天／1 天 |
-| G1 | 適用的 ASVS L1 條目（最多 70 條，[02 W0.5](02-methodology.md#w05-安全不變量規格security-invariants-spec-g1)）＋存取矩陣 | 3 | 1（app_owner） | 3.5（70 × 3 ÷ 60） | 2 天／2 天／3 天 |
-| G2 | `g2_max_items` | 5 | 1（各等級相同；兩人規則只在 G5，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） | `g2_max_items` × 5 ÷ 60 | 2 天／2 天／3 天 |
-| G3 | `g3_max_items` | 6 | 1～2 | `g3_max_items` × 6 ÷ 60 | —／2 天／3 天 |
-| G4 | `g4_max_items`（預設 40） | 4 | 1～2 | `g4_max_items` × 4 ÷ 60 | —／1 天／2 天 |
+| `claim_run` | 1 | 5 | 1 | 0.1 | 同日／1 天／1 天 |
+| G1 | 適用的 ASVS L1 條目（最多 70 條，[02 W0.5](02-methodology.md#w05-安全不變量規格security-invariants-spec-g1)）＋存取矩陣 | 3 | 1（app_owner） | 3.5（70 × 3 ÷ 60） | 同日／2 天／3 天 |
+| G2 | `g2_max_items` | 5 | 1（各等級相同；兩人規則只在 G5，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） | `g2_max_items` × 5 ÷ 60 | 同日／2 天／3 天 |
+| G3 | `g3_max_items` | 6 | 2（security_reviewer＋app_owner，兩人都看每一項；Lite 為同一人） | `g3_max_items` × 6 ÷ 60（每人） | 1 天／2 天／3 天 |
+| G4 | `g4_max_items`（預設 40） | 4 | 1～2 | `g4_max_items` × 4 ÷ 60 | 1 天／1 天／2 天 |
 | G5 | S2 job 數 | 10 | 1（升級後 2） | job 數 × 10 ÷ 60 | 依時間窗 |
 | ASI09 抽查 | 06 §1.1 的抽樣數 | 8 | 1 | 抽樣數 × 8 ÷ 60 | run 結束後 5 個工作天 |
 
-- **目標周轉**：Lite 的白箱報告 ≤ 1 個工作天（與 MVP0-X8 相同）；Team 從 claim 到 B6 報告 ≤ 10 個工作天；Full ≤ 15 個工作天。超過目標但未逾時，報告首頁列出每個關卡的實際等待時間。
-- **人力**：Team 每個 run 約需 1 位 app_owner 4～6 人時（G1 以 70 條計 3.5 人時；審查 r11 之前這裡以 10～30 條估，與 02 W0.5 的 ASVS L1 基準不符）、1～2 位 security_reviewer 6～12 人時（以預設上限計）；Full 加倍。[07 MVP0-X8](07-roadmap.md#11-分段-mvp) 的 2 小時門檻因此不含 G1。這個估算與 02 §1.7 的審查者人數一起決定一個組織能同時跑幾個 engagement。
+- **目標周轉**：Lite 的白箱報告 ≤ 1 個工作天（與 MVP0-X8 相同），所以 Lite 的 `claim_run`、G1、G2 目標都是「同日」（審查 r12 之前表中寫 2 天，加起來就超過報告目標）；Lite 的 B 階段（MVP-2 起）G3、G4 目標各 1 天；Team 從 claim 到 B6 報告 ≤ 10 個工作天；Full ≤ 15 個工作天。超過目標但未逾時，報告首頁列出每個關卡的實際等待時間。
+- **人力**：Team 每個 run 約需 1 位 app_owner 6～10 人時（G1 以 70 條計 3.5 人時；審查 r11 之前這裡以 10～30 條估，與 02 W0.5 的 ASVS L1 基準不符；G3 由 security_reviewer 與 app_owner 共同核准，以預設上限 50 項計每人 5 人時，審查 r12 之前沒有算 app_owner 的 G3 時間）、1～2 位 security_reviewer 6～12 人時（以預設上限計）；Full 加倍。[07 MVP0-X8](07-roadmap.md#11-分段-mvp) 的 2 小時門檻因此不含 G1。這個估算與 02 §1.7 的審查者人數一起決定一個組織能同時跑幾個 engagement。
 - 佇列上限（`gate_queues`）讓每關的人時有上限；超出上限的項目進 `over_cap` 並在報告列出，不是延長周轉。
 - G2 佇列另含 `no_eligible_verifier` 的叢集（審查 r11 起，[02 W3](02-methodology.md#w3-交叉驗證與裁決g2) 第 6 步）：verifier 家族越少，越多叢集被所有家族同時回報而沒有合格驗證者。三個家族的預設部署中，這類叢集通常是多家族都回報的高信心項目，每項審查時間應低於 DISPUTED；它們佔用同一個 `g2_max_items` 上限，所以 G2 的人時上限不變，但被擠到 `over_cap` 的 DISPUTED 可能變多。pilot 量測 G2 佇列中這類項目的比例（[07 MVP0-X8](07-roadmap.md#11-分段-mvp)）。
 

@@ -1,0 +1,59 @@
+{
+  "result_id": "R-TC-012-01-2",
+  "testcase_id": "TC-012-01",
+  "run_id": "run-2026-10-07-001",
+  "phase": "B4",
+  "job_id": "job-idor-002",
+  "executed_at": "2026-10-08T20:30:00+08:00",
+  "target_ids": [
+    "tgt-staging-api"
+  ],
+  "cluster_ids": [
+    "K-301"
+  ],
+  "outcome": "PASS",
+  "fail_oracles": [],
+  "controls": [
+    {
+      "control_id": "CTL-01",
+      "outcome": "PASS"
+    },
+    {
+      "control_id": "CTL-02",
+      "outcome": "PASS"
+    }
+  ],
+  "trials": {
+    "n": 1,
+    "k": 0,
+    "n_effective": 1
+  },
+  "replays": 0,
+  "replay_k": 0,
+  "oracle_observations": [
+    "對照 CTL-01（A 讀自己的發票）與 CTL-02（oracle 在 B 的合法回應上判定命中）都 PASS",
+    "GET 回應 404，body 不含 B 的發票欄位：修正後不再違反 REQ-ASVS-8.2.2、INV-AC-007"
+  ],
+  "request_count": 5,
+  "stop_reason": null,
+  "precondition_reached": {
+    "value": true,
+    "evidence_ref": "sha256:8cb6dfb6cb7583bf9499e3a487b7ebbaacb573e1ce068c4aec3d2b754b7b3191"
+  },
+  "positive_control": {
+    "value": true,
+    "evidence_ref": "sha256:a5447905a77d65e8bd14456c6fe4940fe14f0c244c1c942b1b6cbfcddbc95574"
+  },
+  "artifact_sha256": "sha256:391007bf87c869892bccfff6bce2239f19da9479f2e5b669f4fe317550e6d78f",
+  "observed_build_id": "7d3e1a0c4b2e",
+  "request_log_sha256": "sha256:3c9e1a7b5d2f4e6a8c0b1d3f5e7a9c2b4d6f8e0a1c3b5d7f9e2a4c6b8d0f1e3a",
+  "interpreted_by": {
+    "agent_id": "result_analyst",
+    "family": "nvidia"
+  },
+  "interpretation": {
+    "agrees": true,
+    "rationale": "tenantA_user 讀 tenant_b_invoice 得到 404；正對照證明 oracle 能判定命中"
+  },
+  "observations_source": "harness"
+}

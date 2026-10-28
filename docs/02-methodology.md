@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十輪審查（2026-10-27）後的設計，裁決規則版本 `05-v0.11`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.11`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 總覽
 
@@ -362,7 +362,7 @@ flowchart TD
   3. **與工具結果相互佐證**（由程式碼）[H]：Aggregator 把對應同一位置與 CWE 桶的 SARIF 結果分成兩級：
      - **強佐證**（`tool_corroboration`）：該結果的 `(adapter, rule_id, tool_version)` 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90；設在校準檔，不在 `toolkit.yaml`）。`rule_id` 與 `tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.sarif_results[]` 與 `payload.tool_version`。校準之前這份清單是空的，所以沒有強佐證。
      - **弱訊號**（`tool_signal`）：其他所有 SARIF 結果，以及 W4／B5 的 `E_fail_u`。弱 SARIF 與 `E_fail_u` 各只算**一個**獨立來源（`independent_sources`），不能單獨確認。
-  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R13：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`。裁決的 `rule_version` 是 `05-v0.11`（第八輪審查改變了 R6 的來源計算與權重的先驗；第七輪審查）。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
+  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R16：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`（`regression` run 的帶入叢集另有 `FIXED`）。裁決的 `rule_version` 是 `05-v0.11`；各版改了什麼見 05 §4.2 的「規則版本」。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
   5. **CMD-2 加派** [H]：
      - 對 `DISPUTED` 與 `UNCORROBORATED` 叢集加派審查者或驗證者，**最多 2 輪**（`E-PLAN-ROUNDS`）。
      - Commander 收到的是程式碼建立的型別化視圖：叢集 ID、狀態、CWE 桶、嚴重度、家族、票數。視圖不含發現項的推理，也不含 repo 的文字。
@@ -720,7 +720,7 @@ flowchart TD
 
 | 步驟 | 輸入 | 輸出 | 區 | LLM | 失敗處理 | 完成條件 | schema | 里程碑 |
 |---|---|---|---|---|---|---|---|---|
-| G0b | `roe.yaml`（含 `signatures[]`、`build_identity`、`platform_policies[]`）、`key-registry.yaml`、委任設定 | G0b GateRecord（`signatures: []`＋`verification` 區塊，含 L-6 過濾後的允許工具清單）、出站白名單草稿 | Z1 | 否 | 驗章失敗 → `ABORTED`；未生效／時間窗外 → `VERIFIED`，run → `SUSPENDED`；進入 B 階段時**已過期** → `SUSPENDED`（等重新簽署的 ROE，§1.4）；**未提供** → B6 → `COMPLETED_WITH_GAPS`；resume 時 ROE／`legal_review` 已到期 → 維持 `SUSPENDED`，等新的有效 ROE | 簽章有效、三個必要角色齊全（`team`／`full` 為三個不同的人，`E-ROE-SOD`）、在委任期間內；`legal_review` 通過 L-1～L-6 | roe、key-registry、engagement、gate-record | M1 |
+| G0b | `roe.yaml`（含 `signatures[]`、`build_identity`、`platform_policies[]`）、`key-registry.yaml`、委任設定 | G0b GateRecord（`signatures: []`＋`verification` 區塊，含 L-6 過濾後的允許工具清單）、出站白名單草稿 | Z1 | 否 | 驗章失敗 → `ABORTED`；未生效／時間窗外 → `VERIFIED`，run → `SUSPENDED`；進入 B 階段時**已過期** → `SUSPENDED`（等重新簽署的 ROE，§1.4）；**未提供** → B6 → `COMPLETED`（純白箱 run；終態只由 `gaps` 推導，§1.4，審查 r12 更正）；resume 時 ROE／`legal_review` 已到期 → 維持 `SUSPENDED`，等新的有效 ROE | 簽章有效、三個必要角色齊全（`team`／`full` 為三個不同的人，`E-ROE-SOD`）、在委任期間內；`legal_review` 通過 L-1～L-6 | roe、key-registry、engagement、gate-record | M1 |
 | B0 | ROE 目標、所有權證明（DNS TXT／well-known；共享平台用 `platform_project`＋`platform_policies[]`）、`build_identity` | 每個目標的簽署驗證結果、觀察到的版本、最終出站白名單 | Z3（經 Scope Proxy） | 否 | 單一目標失敗或版本不符 → 排除並列為缺口；全部失敗 → B6 → `COMPLETED_WITH_GAPS`；Z3 無法連線，重試 3 次後 → `SUSPENDED` | 每個目標都有簽署結果；共享平台主機只用 `platform_project`（`E-ROE-PLATFORM`）；每筆 `ownership_results` 對應同一批次、已錨定的 `ownership_check` 事件（`payload.results` 列出目標、方法與結果），事件早於對該目標的第一個 B4 job（`E-RUN-OWNERSHIP`） | run（`ownership_results`）、roe、audit-event | M1（最小 Z3 出站執行器） |
 | B1 | OpenAPI／GraphQL schema（沒有時由 W0 inventory 起草）、DFD、種子威脅、ROE 測試角色 | 外部視角模型、合併視角模型、`b1_diff`、起草的 spec（送 G4） | Z3（爬行：只用 GET／HEAD／OPTIONS，有上限與 allowlist）＋Z1（建模） | 部分（System Modeler 標籤） | 爬行觸發停止條件 → 外部視角只用 schema，列為缺口 | 兩個模型與差異清單都已產出 | dfd（含 viewpoint 與差異清單）、inventory | M3 |
 | B2 | 兩個模型、`b1_diff`、種子威脅、CMD-3 分類計畫 | 威脅模型草稿、`b1_diff` 處置、高風險威脅的 attack tree | Z1 | 是（Threat Modeler ×V_tm、Critic；Commander）；Merger 為程式碼（合併鍵＝DFD 元素＋STRIDE＋CWE 桶） | modeler 低於 quorum → 標記多樣性降低；critic 失敗 → 重試後在 G3 標示「未經 critic」 | 每個種子威脅都在模型中；每個差異項已處置；每個高風險威脅有 attack tree | threat、seed-threats、commander-plan | M3 |

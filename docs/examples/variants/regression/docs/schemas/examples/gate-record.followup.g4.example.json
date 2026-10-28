@@ -1,0 +1,44 @@
+{
+  "gate_record_id": "GR-G4-0002",
+  "gate": "G4",
+  "engagement_id": "eng-acme-invoices-2026q4",
+  "run_id": "run-2026-10-07-001",
+  "round": 1,
+  "artifact": {
+    "kind": "test_plan",
+    "sha256": "sha256:fedf098de9d6e878229462390a339cf3b8bb6df486033b161949b48e9e7779ba"
+  },
+  "job_id": null,
+  "g4_gate_record_id": null,
+  "initiator": "alice",
+  "approvers": [
+    {
+      "person_id": "erin",
+      "role": "security_reviewer",
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84"
+    }
+  ],
+  "outcome": "APPROVED",
+  "decisions": [
+    {
+      "item_id": "TC-012-01",
+      "item_sha256": "sha256:dee7ee0db171662f9a282407e4ed6ea22925e6ad555142a6e7a8c6eff7ce6ae5",
+      "decision": "accept",
+      "risk_override": null,
+      "note": "回歸：重跑來源的可執行證明",
+      "carried_from": null
+    }
+  ],
+  "gb": null,
+  "verification": null,
+  "opened_at": "2026-10-07T10:30:00+08:00",
+  "timestamp": "2026-10-08T10:00:00+08:00",
+  "signatures": [
+    {
+      "signer": "erin",
+      "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
+      "alg": "ed25519",
+      "value": "QoISm96f2KjBERKKRTSpcWlgA+wk6ud8RMDv8RPmyZZ5B7ghNHfXh8TFdncEqgPu3JQhl3ml1ntnxoNqb8VLDA=="
+    }
+  ]
+}

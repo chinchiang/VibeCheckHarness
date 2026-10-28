@@ -1,0 +1,96 @@
+{
+  "tests": "tests/test_v07_r12_examples.py",
+  "mutations": [
+    {
+      "name": "a carried cluster stands for its source",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        return cf.get(\"cluster_id\") if isinstance(cf, dict) else k",
+      "new": "                        return k",
+      "k": "regression_variant_is_clean or names_the_carried_cluster"
+    },
+    {
+      "name": "only within the result's own run",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        cf = cl.get(\"carried_from\") if cl.get(\"run_id\") == tr.get(\"run_id\") else None",
+      "new": "                        cf = cl.get(\"carried_from\")",
+      "k": "only_for_its_own_runs_results"
+    },
+    {
+      "name": "run.initiators is a set",
+      "file": "docs/schemas/run.schema.json",
+      "old": "      \"uniqueItems\": true,\n      \"description\": \"啟動者、認領者、G4 核准者",
+      "new": "      \"description\": \"啟動者、認領者、G4 核准者",
+      "k": "initiators_are_unique"
+    },
+    {
+      "name": "lite dedupes initiators",
+      "file": "tools/build_variants.py",
+      "old": "            d.data[\"initiators\"] = list(dict.fromkeys(d.data[\"initiators\"]))",
+      "new": "            pass",
+      "k": "builder_writes"
+    },
+    {
+      "name": "Lite G1 target",
+      "file": "docs/03-system-architecture.md",
+      "old": "| 3.5（70 × 3 ÷ 60） | 同日／2 天／3 天 |",
+      "new": "| 3.5（70 × 3 ÷ 60） | 2 天／2 天／3 天 |",
+      "k": "one_day_report"
+    },
+    {
+      "name": "app_owner G3 hours",
+      "file": "docs/03-system-architecture.md",
+      "old": "app_owner 6～10 人時",
+      "new": "app_owner 4～6 人時",
+      "k": "count_g3"
+    },
+    {
+      "name": "MVP-1 includes M3",
+      "file": "docs/07-roadmap.md",
+      "old": "M3（B1、B2、G3；MVP-1 跑完整的 B0–B6",
+      "new": "M3（B1、B2、G3；MVP-1 跑 B0–B6",
+      "k": "includes_m3"
+    },
+    {
+      "name": "G0b row ends COMPLETED",
+      "file": "docs/02-methodology.md",
+      "old": "**未提供** → B6 → `COMPLETED`（純白箱 run",
+      "new": "**未提供** → B6 → `COMPLETED_WITH_GAPS`（純白箱 run",
+      "k": "ends_completed"
+    },
+    {
+      "name": "status line",
+      "file": "docs/05-bias-calibration.md",
+      "old": "第十二輪審查（2026-10-28）後的設計",
+      "new": "第十輪審查（2026-10-27）後的設計",
+      "k": "round_twelve"
+    },
+    {
+      "name": "glossary report-withdrawal",
+      "file": "README.md",
+      "old": "| `report-withdrawal` | 報告撤回 |",
+      "new": "| report withdrawal | 報告撤回 |",
+      "k": "r11_and_r12_terms"
+    },
+    {
+      "name": "02 W3 rule range",
+      "file": "docs/02-methodology.md",
+      "old": "有序規則 R0–R16",
+      "new": "有序規則 R0–R13",
+      "k": "names_the_current_rules"
+    },
+    {
+      "name": "unwalked paths list W-RESULT-G4-WITHDRAWN",
+      "file": "docs/schemas/README.md",
+      "old": "| G4 核准事後被撤回 | `W-RESULT-G4-WITHDRAWN` |",
+      "new": "| G4 核准事後被撤回 | 警告 |",
+      "k": "lists_the_r12_paths"
+    },
+    {
+      "name": "the regression variant exists",
+      "file": "tools/build_variants.py",
+      "old": "@variant\ndef v_regression(",
+      "new": "def v_regression(",
+      "k": "builder_writes"
+    }
+  ]
+}

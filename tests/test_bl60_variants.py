@@ -22,7 +22,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import build_variants  # noqa: E402
 
-EXPECTED_WARNINGS = {"lite": {"W-L5-LITE", "W-MODEL-PLACEHOLDER"}, "edge": {"W-MODEL-PLACEHOLDER"}, "suspend": {"W-MODEL-PLACEHOLDER"}}
+EXPECTED_WARNINGS = {"lite": {"W-L5-LITE", "W-MODEL-PLACEHOLDER"}, "edge": {"W-MODEL-PLACEHOLDER"}, "suspend": {"W-MODEL-PLACEHOLDER"},
+                     "regression": {"W-MODEL-PLACEHOLDER"}}
 
 
 @pytest.fixture(scope="module")
@@ -31,10 +32,10 @@ def variants():
 
 
 def test_both_variants_exist(variants):
-    assert set(variants) == {"lite", "edge", "suspend"}
+    assert set(variants) == {"lite", "edge", "suspend", "regression"}          # r12 added regression
 
 
-@pytest.mark.parametrize("name", ["lite", "edge", "suspend"])
+@pytest.mark.parametrize("name", ["lite", "edge", "suspend", "regression"])
 def test_a_variant_validates_cleanly(variants, name):
     R = run_all(variants[name])
     assert R.errors == []

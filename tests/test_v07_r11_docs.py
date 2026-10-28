@@ -62,7 +62,7 @@ def test_07_and_08_assume_the_same_engineers():
 
 
 def test_readme_and_overview_point_at_the_r11_record():
-    assert "第十一輪審查（2026-10-28）後" in text("README.md")
+    assert "第十二輪審查（2026-10-28）後" in text("README.md")          # r12 moved the status line on
     assert "review-2026-10-28-r11.md" in text("README.md")
     assert "review-2026-10-28-r11.md" in text("docs/00-overview.md")
     assert (ROOT / "docs/evidence/review-2026-10-28-r11.md").is_file()
