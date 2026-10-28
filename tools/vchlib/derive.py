@@ -659,11 +659,13 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
         return "E_inc", f"probabilistic PASS needs k=0 and n'>={need}"
     if not (oracle_types(tc) & DETERMINISTIC_ORACLES):
         return "E_inc", "no deterministic oracle"
-    if preregistered(ix, tc, tr, "oracle_can_fail"):
+    # r11: a pre-registered PASS needs independent authors, as a pre-registered FAIL does (E_proof); v0.7 let the
+    # reporting family's own test, written and interpreted by itself, downgrade another family's confirmation (R11)
+    if preregistered(ix, tc, tr, "oracle_can_fail") and authors_independent(ix, tr, cluster):
         return "E_pass", "qualified PASS, pre-registered interpretation"
     if eligible:
         return "E_pass", "qualified PASS, cross-family analyst"
-    return "E_inc", disagreement or "no pre-registered interpretation or eligible analyst"
+    return "E_inc", disagreement or "no pre-registered interpretation, independent authors or eligible analyst"
 
 
 def pinned_job_end(ix: Index, tr: dict) -> dict | None:
@@ -739,7 +741,7 @@ def root_score(terms) -> float:
         by_root.setdefault(root, []).append(x)
     total = 0.0
     for xs in by_root.values():
-        # v0.7 (review r10, rule_version 05-v0.9): votes of one root that agree count as its strongest vote; the mean let a
+        # v0.7 (review r10, rule_version 05-v0.10): votes of one root that agree count as its strongest vote; the mean let a
         # weaker SUPPORT of the same root lower S below theta (adding evidence must never remove it). Votes of one root
         # that disagree count as their mean; a SUPPORT and a REFUTE together are R3 (DISPUTED) whatever S is.
         same = all(x >= 0 for x in xs) or all(x <= 0 for x in xs)
@@ -860,12 +862,42 @@ def cited_relevant(ix: "Index", v: dict, cluster: dict) -> bool:
     return False
 
 
+def members_at_vote(ix: "Index", v: dict, cluster: dict) -> tuple[list, list]:
+    """r11 (05-v0.10): the cluster's (families, lineages) as they stood when the vote was cast: the members whose reporter
+    round is at most the vote's `voted_after_round`. Without the field (or without an index) every member counts, the
+    stricter reading. v0.7 r10 judged every vote against the members present now, so a same-family reporter added to the
+    cluster in a later round (CMD-2 extra dispatch, or a prompt injection that steers three reviewers to one spot)
+    silently voided a weighted REFUTE already cast."""
+    vr = v.get("voted_after_round")
+    if ix is None or type(vr) is not int or not cluster.get("member_finding_ids"):
+        return list(cluster.get("families") or []), list(cluster.get("lineages") or [])
+    fams, lins = set(), set()
+    for fid in cluster.get("member_finding_ids") or []:
+        rep = (ix.finding(fid) or {}).get("reporter") or {}
+        if type(rep.get("round")) is int and rep["round"] <= vr:
+            fams.add(rep.get("family")); lins.add(rep.get("lineage"))
+    return sorted(x for x in fams if x), sorted(x for x in lins if x)
+
+
+def later_member_overlap(ix: "Index", v: dict, cluster: dict) -> bool:
+    """r11: a weighted vote cast before a member of the voter's family or base lineage joined the cluster (R15 annotation)."""
+    fams, lins = members_at_vote(ix, v, cluster)
+    now_f, now_l = cluster.get("families") or [], cluster.get("lineages") or []
+    overlap_now = v.get("voter_family") in now_f or v.get("voter_lineage") in now_l \
+        or ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(now_l)
+    overlap_then = v.get("voter_family") in fams or v.get("voter_lineage") in lins \
+        or ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(lins)
+    return overlap_now and not overlap_then
+
+
 def vote_valid(v: dict, cluster: dict, ix: "Index | None" = None) -> bool:
-    """docs/05 §4.2: family / lineage not in the cluster; candidates anonymised and order randomised (v0.4: by the
-    run's verifier template, not by the vote's own flags); and (v0.4) a cited item relevant to the cluster."""
-    if v.get("voter_family") in cluster.get("families", []) or v.get("voter_lineage") in cluster.get("lineages", []):
+    """docs/05 §4.2: family / lineage not in the cluster (r11: as the cluster stood when the vote was cast, members_at_vote);
+    candidates anonymised and order randomised (v0.4: by the run's verifier template, not by the vote's own flags); and
+    (v0.4) a cited item relevant to the cluster."""
+    fams, lins = members_at_vote(ix, v, cluster)
+    if v.get("voter_family") in fams or v.get("voter_lineage") in lins:
         return False
-    if ix is not None and ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(cluster.get("lineages")):
+    if ix is not None and ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(lins):
         return False                                                    # v0.6 (review r7 3.9): same base lineage
     if ix is None:
         return bool(v.get("anonymized")) and bool(v.get("order_randomized"))

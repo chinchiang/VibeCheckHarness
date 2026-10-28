@@ -1,0 +1,103 @@
+{
+  "tests": "tests/test_v07_r11_verdict.py",
+  "mutations": [
+    {
+      "name": "policy constants are pinned",
+      "file": "tools/vchlib/checks.py",
+      "old": "    for msg in policy_problems(cfg):\n        R.error(\"E-CAL-POLICY\", w, msg)",
+      "new": "    for msg in []:\n        R.error(\"E-CAL-POLICY\", w, msg)",
+      "k": "policy_constant or review_probe"
+    },
+    {
+      "name": "smoothing_k is part of the policy",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if cfg.get(\"smoothing_k\") != CAL_POLICY[\"smoothing_k\"]:",
+      "new": "    if False:",
+      "k": "policy_constant and smoothing"
+    },
+    {
+      "name": "split statistics are recomputed",
+      "file": "tools/vchlib/checks.py",
+      "old": "                out += split_problems(label, \"calibration\", cs) + split_problems(label, \"holdout\", ho)",
+      "new": "                pass",
+      "k": "raw_counts or wilson_bound or tp_above_n"
+    },
+    {
+      "name": "tp is a count",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if not (type(tp) is int and type(n) is int and 0 <= tp <= n):",
+      "new": "    if not (type(tp) is int and type(n) is int):",
+      "k": "tp_above_n"
+    },
+    {
+      "name": "every weighted model is canary-checked",
+      "file": "tools/vchlib/checks.py",
+      "old": "    for mk in sorted(weighted - checked):",
+      "new": "    for mk in []:",
+      "k": "canary_result"
+    },
+    {
+      "name": "membership is judged at vote time",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if ix is None or type(vr) is not int or not cluster.get(\"member_finding_ids\"):",
+      "new": "    if True:",
+      "k": "stays_valid or follow_the_reporter_rounds"
+    },
+    {
+      "name": "a later same-family member is annotated",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "    if x.later_member_overlap:",
+      "new": "    if False:",
+      "k": "stays_valid"
+    },
+    {
+      "name": "no_eligible_verifier clusters go to G2",
+      "file": "tools/vchlib/checks.py",
+      "old": "                no_elig = w3_status not in (None, \"REJECTED\") and derived_no_eligible_verifier(c, cl)",
+      "new": "                no_elig = False",
+      "k": "needs_a_g2_decision"
+    },
+    {
+      "name": "a pre-registered PASS needs independent authors",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if preregistered(ix, tc, tr, \"oracle_can_fail\") and authors_independent(ix, tr, cluster):",
+      "new": "    if preregistered(ix, tc, tr, \"oracle_can_fail\"):",
+      "k": "reporting_family_is_inconclusive"
+    },
+    {
+      "name": "R14 decides FIXED",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "    if x.regression_fixed:                                 # R14",
+      "new": "    if False:                                              # R14",
+      "k": "decided_by_r14"
+    },
+    {
+      "name": "regression_fixed needs a confirmed source verdict",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if not src or src[0].get(\"status\") not in (\"CONFIRMED_EXECUTABLE\", \"CONFIRMED_CORROBORATED\"):",
+      "new": "    if not src:",
+      "k": "derived_from_the_parent"
+    },
+    {
+      "name": "regression_fixed needs a positive control and no FAIL",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"}) \\\n        and any(x.get(\"class\") == \"E_pass\" and x.get(\"positive_control\") is True for x in results)",
+      "new": "    return bool(classes)",
+      "k": "derived_from_the_parent"
+    },
+    {
+      "name": "the rule version is bumped",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "RULE_VERSION = \"05-v0.10\"",
+      "new": "RULE_VERSION = \"05-v0.9\"",
+      "k": "rule_version_is_05_v0_10"
+    },
+    {
+      "name": "voted_after_round is required",
+      "file": "docs/schemas/verdict.schema.json",
+      "old": "          \"weighted_valid\",\n          \"voted_after_round\"\n        ]",
+      "new": "          \"weighted_valid\"\n        ]",
+      "k": "voted_after_round_is_required"
+    }
+  ]
+}

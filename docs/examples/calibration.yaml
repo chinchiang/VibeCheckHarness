@@ -99,39 +99,39 @@ result:
     theta_confirm:
       value: 2.5                   # v0.6：對數概似比尺度；一張權重約 1.6 的票不夠，兩張獨立的支持票才夠
       feasible: true
-      calibration: {precision: 0.92, recall: 0.41, ci_low: 0.85, ci_high: 0.96, n: 64}
-      holdout: {precision: 0.9, recall: 0.38, ci_low: 0.81, ci_high: 0.95, n: 52}
+      calibration: {precision: 0.9219, recall: 0.41, ci_low: 0.8298, ci_high: 0.9662, n: 64, tp: 59}
+      holdout: {precision: 0.9038, recall: 0.38, ci_low: 0.7939, ci_high: 0.9582, n: 52, tp: 47}
       generalised: true
       by_bucket:                   # v0.6：規則只用叢集所屬桶的門檻；沒有列出的桶停用（+∞）
         authz:
           value: 2.5
           feasible: true
-          calibration: {precision: 0.93, recall: 0.44, ci_low: 0.85, ci_high: 0.97, n: 46}
-          holdout: {precision: 0.91, recall: 0.4, ci_low: 0.8, ci_high: 0.96, n: 41}
+          calibration: {precision: 0.9348, recall: 0.44, ci_low: 0.825, ci_high: 0.9776, n: 46, tp: 43}
+          holdout: {precision: 0.9024, recall: 0.4, ci_low: 0.7745, ci_high: 0.9614, n: 41, tp: 37}
           generalised: true
         llm_specific:              # 語料不足（n＜min_clusters）→ 不可行，停用
           value: null
           feasible: false
-          calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 18}
-          holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 11}
+          calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.1759, n: 18, tp: 0}
+          holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.2588, n: 11, tp: 0}
           generalised: false
     theta_reject:
       value: null                  # 找不到可行門檻 → 停用：反駁一律送 DISPUTED（人審）
       feasible: false
-      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
-      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
+      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
+      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
       generalised: false
       by_bucket: {}                # 沒有任何桶找到可行的反駁門檻
     high_precision_min:            # SARIF 規則算「強工具佐證」的 precision 95% 下界門檻（docs/05 R5 row 10）
       value: 0.9                   # 政策下限（預設 0.90），不是 θ 搜尋程序求得；分割統計不適用（n: 0）
       feasible: true
-      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
-      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0}
+      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
+      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
       generalised: false
   primary_hypothesis:
     comparator: "2a"
     delta: 0.04
-    ci_low: -0.02
+    ci_low: 0.02
     ci_high: 0.1
     mcnemar_p: 0.21
     h1: false
@@ -145,7 +145,7 @@ result:
     M-1: {value: 0.9, ci_low: 0.81, ci_high: 0.95, n: 52, exit_pass: true}
     M-2: {value: 0.41, ci_low: 0.33, ci_high: 0.49, n: 262, exit_pass: true}
     M-3: {value: 0.76, ci_low: 0.7, ci_high: 0.82, n: 12, exit_pass: true}
-    M-4: {value: 0.03, ci_low: -0.01, ci_high: 0.07, n: 120, exit_pass: true}
+    M-4: {value: 0.03, ci_low: 0.01, ci_high: 0.07, n: 120, exit_pass: true}
     M-5: {value: 0.07, ci_low: 0.04, ci_high: 0.11, n: 110, exit_pass: true}
     M-6: {value: 0.52, ci_low: 0.36, ci_high: 0.67, n: 33, exit_pass: true}
     M-7: {value: 0.03, ci_low: 0.02, ci_high: 0.05, n: 900, exit_pass: true}
@@ -168,7 +168,7 @@ result:
     recall: 0.33
     recall_diff_vs_arm3: -0.05
     precision_diff_vs_arm3: 0.03
-    ci_low: -0.09
+    ci_low: 0.09
     ci_high: -0.01
     ci_method: app_clustered_bootstrap
     hypothesis_test: null

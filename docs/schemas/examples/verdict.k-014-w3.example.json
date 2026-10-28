@@ -19,7 +19,8 @@
       "order_randomized": true,
       "valid": true,
       "weight": 1.3179,
-      "weighted_valid": true
+      "weighted_valid": true,
+      "voted_after_round": 1
     },
     {
       "voter_agent_id": "ver_3",
@@ -36,7 +37,8 @@
       "order_randomized": true,
       "valid": true,
       "weight": 0.0,
-      "weighted_valid": false
+      "weighted_valid": false,
+      "voted_after_round": 1
     }
   ],
   "missing_votes": [],
@@ -63,7 +65,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.9",
+  "rule_version": "05-v0.10",
   "rule_trace": [
     "R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.3179<theta_confirm=2.5,independent_sources=2",
     "R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY"

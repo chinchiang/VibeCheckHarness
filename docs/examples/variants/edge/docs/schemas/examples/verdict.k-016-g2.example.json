@@ -19,7 +19,8 @@
       "order_randomized": true,
       "valid": false,
       "weight": 1.3179,
-      "weighted_valid": false
+      "weighted_valid": false,
+      "voted_after_round": 1
     },
     {
       "voter_agent_id": "ver_3",
@@ -36,7 +37,8 @@
       "order_randomized": true,
       "valid": false,
       "weight": 0.0,
-      "weighted_valid": false
+      "weighted_valid": false,
+      "voted_after_round": 1
     }
   ],
   "missing_votes": [],
@@ -61,7 +63,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.9",
+  "rule_version": "05-v0.10",
   "rule_trace": [
     "R10:G2 GR-G2-0001 rejected K-016 and no G4-approved replayed black-box proof overrides it->REJECTED"
   ],

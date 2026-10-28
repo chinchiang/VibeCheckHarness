@@ -46,8 +46,8 @@
     {
       "name": "F5 routing on rubric",
       "file": "tools/vchlib/checks.py",
-      "old": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and sev in HIGH_SEVERITIES):",
-      "new": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and {f.data.get(\"severity\") for f in c.docs(\"finding\") if f.data.get(\"finding_id\") in (cl.get(\"member_finding_ids\") or [])} & set(HIGH_SEVERITIES)):",
+      "old": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and sev in HIGH_SEVERITIES) or no_elig:",
+      "new": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and {f.data.get(\"severity\") for f in c.docs(\"finding\") if f.data.get(\"finding_id\") in (cl.get(\"member_finding_ids\") or [])} & set(HIGH_SEVERITIES)) or no_elig:",
       "k": "self_reported_severity"
     },
     {
