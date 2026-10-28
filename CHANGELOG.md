@@ -28,6 +28,13 @@
 - 版本字串：`05-v0.9` → `05-v0.10`（CHANGELOG 開頭、02 W3、08 §3 原本停在 `05-v0.8`／`05-v0.7`，一併更正）。
 - 新增 `tests/test_v07_r11_verdict.py`（23 個）與 `tests/mutations/r11_verdict.json`；`r8_validator.json` 的 F5 錨點隨 G2 條件更新。
 
+### 方法與契約（PR3）
+- **Lite 的證據價值寫進報告**（`report-manifest.evidential`，必填；`E-REPORT`）：`separated`（team／full，職責分離）或 `self_attested`（Lite：一人持有所有金鑰、跑所有區域，簽章、錨點與收件時間只供自查，不可作為對外證據）；validator 依 `assurance_profile` 推導，寫錯就是錯誤。02 §1.7、06 §3 #26、08 §11.16 同步。
+- **Lite 不能記錄 `false_positive`**（`E-FEEDBACK`）：抑制 FP 要兩個人（08 §11.16），Lite 只有一個；Lite 以 `wont_fix`／`needs_info` 自簽抑制，報告標為自行抑制。
+- **`rule_trace` 文字檢查的漏洞**（BL-01；`E-VERDICT-TRACE`）：箭頭可寫 `->`、`→`、`=>`，狀態不分大小寫（之前 `->rejected` 不算宣告）；一個項目只有**最後一個**箭頭是宣告（之前 `not ->REJECTED … ->LIKELY` 是誤報）；數字可寫 `S = 1.0`、`S: 1.0`、`S≈1.0`、`θ_confirm=`、帶正負號（含 Unicode 減號）；`=` 後不是純十進位（`1.3179e3`、`0x1`）直接報錯，之前 `score=1.3179e3` 被讀成 1.3179 而通過。
+- **文件矛盾**：純白箱 run 的終態——02 §1.4 原本寫 `COMPLETED_WITH_GAPS`，與 03 §5.2 及 PR1「終態只由 `gaps` 推導」不符，改為 `COMPLETED`；02 W5 的 `report_only` 寫明嚴重度與風險由工具包計算、validator 不檢查（與 schema 說明一致）。
+- 新增 `tests/test_v07_r11_contracts.py`（30 個）與 `tests/mutations/r11_contracts.json`；`bl01_trace_text.json` 的兩個錨點隨 regex 改寫更新。
+
 ## 待辦 BL-66、BL-01、BL-47、BL-05 與 `suspend` 變體（2026-10-27）
 
 ### 每個錯誤碼都有測試（BL-66）

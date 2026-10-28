@@ -281,6 +281,14 @@
         "type": "string"
       },
       "description": "v0.4（BL-26，docs/02 W5 剪枝）：只列報告、不轉成種子威脅的叢集。每項的最新裁決必須是 UNCORROBORATED，且沒有任何種子威脅以它為 source_cluster_id（E-REPORT-QUEUE）；rubric 嚴重度與高風險條件由工具包計算，validator 不重算"
+    },
+    "evidential": {
+      "type": "string",
+      "enum": [
+        "separated",
+        "self_attested"
+      ],
+      "description": "審查 r11：證據價值。separated＝職責分離的委任（team／full）；self_attested＝Lite，一人持有所有金鑰與主機，簽章、錨點與收件時間只供自查，不可作為對外證據（docs/06 §3 #26；E-REPORT 依 assurance_profile 推導）"
     }
   },
   "required": [
@@ -297,6 +305,7 @@
     "build_unverified_targets",
     "absent_fingerprints",
     "over_cap_items",
-    "report_only_clusters"
+    "report_only_clusters",
+    "evidential"
   ]
 }

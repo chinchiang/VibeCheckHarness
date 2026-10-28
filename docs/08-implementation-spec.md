@@ -1887,7 +1887,7 @@ class SessionProvider(Protocol):
   - 下一個 run 的 SARIF `suppressions`：`false_positive` → `accepted`；`needs_info` → `underReview`；
   - Calibration Lab 的**候選**語料，來源標為 `developer_feedback`。它不是真值，要照 [05 §5.1](05-bias-calibration.md#51-語料) 的雙標註流程確認後才能使用；確認為誤報的，也用來重新檢查 `high_precision_rules`（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)）。
 - `app_owner` 是利益衝突方，所以它單獨簽署的 `false_positive` 的 `sarif_suppression` 是 `underReview`，直到一位 `security_reviewer` 以 `co_signed_by` 副簽才是 `accepted`；叢集在採用回饋的 run 中 `baseline_state: updated`（程式碼改了）時抑制失效，回到 `underReview`；被抑制的項目列入 ASI09 抽查（[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包)）。範例 FB-001 因此是 `underReview`。
-- `false_positive` 一律要兩個人（`signed_by` 與 `co_signed_by` 不同人），其中一位是**沒有**核准該叢集 G2 決定的 `security_reviewer`；單獨一位資安審查者、或推翻自己 G2 決定的審查者，都不能單獨抑制。
+- `false_positive` 一律要兩個人（`signed_by` 與 `co_signed_by` 不同人），其中一位是**沒有**核准該叢集 G2 決定的 `security_reviewer`；單獨一位資安審查者、或推翻自己 G2 決定的審查者，都不能單獨抑制。審查 r11：Lite 不能記錄 `false_positive`（`E-FEEDBACK`），只能自簽 `wont_fix`（SARIF 無抑制、報告列為「接受風險，自行抑制」）或 `needs_info`（`underReview`）；同一批項目每次 run 都會再出現，直到改用 Team 模式由兩人抑制。
 - 回饋紀錄是 `feedback.schema.json`：指紋必須是所指叢集的指紋，該叢集要屬於同一委任的 run；`duplicate` 必須指向同一委任另一個叢集的指紋；`sarif_suppression` 依標籤決定（`false_positive` → `accepted`、`needs_info` → `underReview`、其他 null）；紀錄恰好有一個簽章，由 `signed_by` 的人以登錄金鑰簽署，而且這個人要有 `security_reviewer` 或 `app_owner` 角色。範例 FB-001：app_owner 把純工具叢集 K-016 標為誤報。採用回饋的 run 以一筆已錨定的 `feedback_recorded` 稽核事件記錄它（payload 釘住 `feedback_id` 與 `feedback_sha256`），簽章以該事件的收件時間驗證；範例 FB-001 由跟進 run `run-2026-10-07-001` 記錄。
 
 **給開發者 AI 助手的修正說明**（fix brief）[H]：每個發布的問題附一份，以確定性範本產生。

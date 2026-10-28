@@ -2415,6 +2415,10 @@ def g_feedback(R: Report, c: Ctx):
                         "a duplicate names the fingerprint of another cluster of the engagement (duplicate_of)")
             else:
                 R.check(f.get("duplicate_of") is None, "E-FEEDBACK", w, "duplicate_of is only set for label duplicate")
+            # review r11 (docs/08 §11.16): false_positive always needs two people, which a Lite engagement does not
+            # have; Lite suppresses with wont_fix / needs_info, which the report marks as self-suppressed
+            R.check(not (profile(c) == "lite" and f.get("label") == "false_positive"), "E-FEEDBACK", w,
+                    "assurance_profile lite cannot record a false_positive (two people are needed); use wont_fix or needs_info")
             want = feedback_suppression(c, f)                   # v0.7 (review r8 M4)
             R.check(f.get("sarif_suppression") == want, "E-FEEDBACK", w,
                     f"label {f.get('label')} by {(f.get('signed_by') or {}).get('role')} (co-signed by "
@@ -3099,9 +3103,14 @@ def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
         and any(x.get("class") == "E_pass" and x.get("positive_control") is True for x in results)
 
 
-TRACE_STATUS = re.compile(r"->\s*(?:cap\s+)?(REJECTED|UNCORROBORATED|LIKELY|DISPUTED|CONFIRMED_CORROBORATED|CONFIRMED_EXECUTABLE)\b")
-TRACE_NUMBER = re.compile(r"\b(score|S|theta_confirm|theta_reject|independent_sources|independent_families|"
-                          r"weighted_support|weighted_refute|valid_votes)=(-?[0-9]+(?:\.[0-9]+)?)(?![0-9.])")
+# review r11: the arrow may be ->, → or =>, the status is read case-insensitively, and only the LAST arrow of an item is
+# the claim (an earlier one may sit inside "not ->X" or "would give ->X but"); a number may be written `S = 1.0`,
+# `S: 1.0`, `S≈1.0`, `θ_confirm=…`, with a sign, and anything else after `=` (an exponent, a comma, a hex digit) is an error
+TRACE_STATUS = re.compile(r"(?:->|→|=>)\s*(?:cap\s+)?([A-Za-z_]+)")
+TRACE_STATUSES = ("REJECTED", "UNCORROBORATED", "LIKELY", "DISPUTED", "CONFIRMED_CORROBORATED", "CONFIRMED_EXECUTABLE", "FIXED")
+TRACE_NUMBER = re.compile(r"(?<![A-Za-z0-9_])(score|S|theta_confirm|theta_reject|θ_confirm|θ_reject|independent_sources|independent_families|"
+                          r"weighted_support|weighted_refute|valid_votes)\s*[=:≈]\s*([+\-−]?[0-9A-Za-z.]*)")
+TRACE_PLAIN = re.compile(r"^[+\-−]?[0-9]+(?:\.[0-9]+)?$")
 
 
 def weighted_vote_counts(c: Ctx, v: dict, cluster: dict) -> dict[str, int]:
@@ -3119,14 +3128,18 @@ def trace_text_problems(items: list, out: adj.Outcome, x: adj.Inputs, counts: di
     problems = []
     for item, status in zip(items, adj.trace_statuses(out)):
         rule, _, text = str(item).partition(":")
-        for m in TRACE_STATUS.finditer(text):
-            if m.group(1) != status:
-                problems.append(f"{rule} text says ->{m.group(1)} but {rule} leaves {status}")
+        arrows = [m.group(1) for m in TRACE_STATUS.finditer(text) if m.group(1).upper() in TRACE_STATUSES]
+        if arrows and arrows[-1].upper() != status:
+            problems.append(f"{rule} text says ->{arrows[-1]} but {rule} leaves {status}")
         for m in TRACE_NUMBER.finditer(text):
-            name, raw = m.group(1), m.group(2)
+            name, raw = m.group(1).replace("θ_", "theta_"), m.group(2)
+            if not TRACE_PLAIN.match(raw):
+                problems.append(f"{rule} text says {name}={raw!r}, which is not a plain decimal")
+                continue
             want = actual[name]
+            val = float(raw.replace("−", "-"))
             tol = 0.5 * 10 ** -(len(raw.split(".")[1]) if "." in raw else 0) + 1e-9
-            if want is None or abs(float(raw) - want) > tol:
+            if want is None or abs(val - want) > tol:
                 problems.append(f"{rule} text says {name}={raw} but the recomputed value is {want}")
     return problems
 
@@ -5231,6 +5244,11 @@ def g_misc(R: Report, c: Ctx):
             if not R.check(run is not None, "E-REPORT", w, "run not found"):
                 continue
             R.check(rm.get("advisory") is (run.get("run_kind") == "lane_a"), "E-REPORT", w, "advisory iff Lane A")
+            # review r11: a Lite engagement's one person holds every key and runs every zone, so its signatures, anchors
+            # and receive times prove nothing to a third party (docs/06 §3 #26); the report says so in a field
+            want_ev = "self_attested" if profile(c) == "lite" else "separated"
+            R.check(rm.get("evidential") == want_ev, "E-REPORT", w,
+                    f"evidential must be {want_ev!r} for assurance_profile {profile(c)} (Lite evidence is self-attested), not {rm.get('evidential')!r}")
             final = verdict_heads(c, run.get("verdicts", []))       # v0.5 (V-4): a broken chain is E-VERDICT-CHAIN
             counts = {s: sum(1 for v in final if v.get("status") == s) for s in FINAL_STATUSES}
             R.check(rm.get("verdict_counts") == counts, "E-REPORT", w, f"verdict_counts must be {counts} (latest verdict per cluster)")

@@ -175,5 +175,6 @@
   "build_unverified_targets": [],
   "absent_fingerprints": [],
   "over_cap_items": [],
-  "report_only_clusters": []
+  "report_only_clusters": [],
+  "evidential": "separated"
 }
