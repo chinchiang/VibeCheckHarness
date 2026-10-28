@@ -35,7 +35,7 @@ def pin_calibration(b, keys):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_10(b):
-    assert adj.RULE_VERSION == "05-v0.10" and run_all(b).errors == []
+    assert adj.RULE_VERSION == "05-v0.11" and run_all(b).errors == []
 
 
 # ================================================================ calibration policy
@@ -197,7 +197,9 @@ def test_regression_fixed_is_derived_from_the_parent_verdict_and_the_pass(b):
     c = Ctx(b)
     run = {"run_id": "run-2026-11-01-001", "run_kind": "regression", "parent_run_id": RUN}
     cluster = {"cluster_id": "K-901", "run_id": run["run_id"], "carried_from": {"run_id": RUN, "cluster_id": "K-005", "fingerprint": "x"}}
-    v = {"test_evidence": {"class": "E_pass", "results": [{"result_ref": "sha256:" + "0" * 64, "class": "E_pass", "positive_control": True, "reason": "x"}]}}
+    # r12: the PASS re-runs the testcase whose result proved the source (V-005-2's E_proof is R-TC-012-01-1, TC-012-01)
+    proof = content_hash(doc(b, "testresult.example.json").data)
+    v = {"test_evidence": {"class": "E_pass", "results": [{"result_ref": proof, "class": "E_pass", "positive_control": True, "reason": "x"}]}}
     assert checks.regression_fixed(c, v, cluster, run)                      # V-005-2 is CONFIRMED_EXECUTABLE
     assert not checks.regression_fixed(c, v, cluster, dict(run, run_kind="followup"))
     assert not checks.regression_fixed(c, v, dict(cluster, carried_from={"run_id": RUN, "cluster_id": "K-011", "fingerprint": "x"}), run)   # V-011-2 is UNCORROBORATED

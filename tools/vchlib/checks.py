@@ -47,7 +47,7 @@ M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
 # placeholder model IDs: <...>, {...}, or a TBD / TODO / FIXME / 實作時確認 token (case-insensitive)
 PLACEHOLDER_ID = re.compile(r"<[^<>]*>|\{[^{}]*\}|(?<![A-Za-z0-9])(?:TBD|TODO|FIXME)(?![A-Za-z0-9])|實作時確認", re.IGNORECASE)
 TERMINAL_RUN_STATES = ("COMPLETED", "COMPLETED_WITH_GAPS", "ABORTED", "FAILED")   # D2; SUSPENDED and STOPPED are resumable
-FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED", "FIXED")   # FIXED: r11, 05-v0.10
+FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED", "FIXED")   # FIXED: r11, 05-v0.11
 # RFC 8785 §3.2.2.3 / Appendix B number vectors and §3.2.3 key-order vector
 JCS_VECTORS = [
     ([333333333.33333329, 1e30, 4.50, 2e-3, 0.000000000000000000000000001], b"[333333333.3333333,1e+30,4.5,0.002,1e-27]"),
@@ -2864,7 +2864,7 @@ def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
     # v0.4: provisional marks only verdicts that votes could have decided. A status fixed by R9 / R10 / R0 / R1
     # (rows 1-5) does not depend on calibration, and a black-box cluster never has votes.
     # v0.5: row 10 (strong tool corroboration, R5) is not decided by votes either
-    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row in (1, 2, 3, 4, 5, 10, 14):
+    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row in (1, 2, 3, 4, 5, 10, 14, 15, 16):
         return False
     if v.get("calibration_version") is None or v.get("theta_confirm") is None:
         return True
@@ -3166,26 +3166,78 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         phase={"W3_adjudicate": "W3", "G2_apply": "G2", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}.get(v.get("readjudicated_by")),
         prev_status=prev.data.get("status") if prev else None,
         regression_fixed=regression_fixed(c, v, cluster, run),
+        carried_status=carried_status(c, cluster, run),
         later_member_overlap=any(derive.later_member_overlap(c.ix, x, cluster) for x in votes),
     )
 
 
-def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
-    """R14 (r11, 05-v0.10; docs/02 §1.6, 05 §4.2): a regression run's carried-in cluster whose source verdict (the head
-    verdict of the parent run's cluster) was CONFIRMED_* is FIXED when its test evidence has a qualified PASS with a
-    positive control and no FAIL-class evidence. v0.7 had no state for "fixed": the PASS landed on UNCORROBORATED with
-    test_not_reproduced and the SARIF result stayed open."""
+def carried_source(c: Ctx, cluster: dict, run: dict) -> dict | None:
+    """The head verdict of the parent-run cluster a carried-in cluster stands for (carried_from), or None."""
     cf = cluster.get("carried_from") or {}
-    if run.get("run_kind") != "regression" or not isinstance(cf, dict) or cf.get("run_id") != run.get("parent_run_id"):
-        return False
+    if not isinstance(cf, dict) or not cf.get("run_id") or cf.get("run_id") != run.get("parent_run_id"):
+        return None
     parent = c.runs.get(cf.get("run_id")) or {}
     src = [h for h in verdict_heads(c, parent.get("verdicts") or []) if h.get("cluster_id") == cf.get("cluster_id")]
-    if not src or src[0].get("status") not in ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED"):
+    return src[0] if src else None
+
+
+def carried_status(c: Ctx, cluster: dict, run: dict) -> str | None:
+    """R16 (r12, 05-v0.11): the status of the source a carried-in cluster stands for (the floor while no regression test
+    shows it fixed)."""
+    src = carried_source(c, cluster, run)
+    return src.get("status") if src else None
+
+
+def result_testcases(c: Ctx, verdict: dict, classes) -> set:
+    """Testcase ids of a verdict's linked results of the given evidence classes."""
+    out = set()
+    for x in (verdict.get("test_evidence") or {}).get("results", []):
+        if isinstance(x, dict) and x.get("class") in classes:
+            tr = next((d.data for d in c.docs("testresult") if content_hash(d.data) == x.get("result_ref")), None)
+            if tr:
+                out.add(tr.get("testcase_id"))
+    return out
+
+
+def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
+    """R14 (r11, 05-v0.11; docs/02 §1.6, 05 §4.2): a regression run's carried-in cluster whose source verdict (the head
+    verdict of the parent run's cluster) was CONFIRMED_* is FIXED when its test evidence has a qualified PASS with a
+    positive control and no FAIL-class evidence. v0.7 had no state for "fixed": the PASS landed on UNCORROBORATED with
+    test_not_reproduced and the SARIF result stayed open.
+    r12 (05-v0.11): and every testcase whose result proved the source (its E_proof results) has a linked result here, so a
+    W4 PASS cannot declare fixed a defect a B4 proof established before that proof was re-run (docs/02 §1.6 "B 階段只跑對應
+    測試案例"); a contradiction by tools or votes is handled in adjudicate (row 15)."""
+    if run.get("run_kind") != "regression":
+        return False
+    src = carried_source(c, cluster, run)
+    if not src or src.get("status") not in adj.CONFIRMED:
         return False
     results = [x for x in (v.get("test_evidence") or {}).get("results", []) if isinstance(x, dict)]
     classes = {x.get("class") for x in results}
+    rerun = result_testcases(c, v, {"E_pass", "E_inc", "E_proof", "E_fail_u"})
     return bool(classes) and not (classes & {"E_proof", "E_fail_u"}) \
-        and any(x.get("class") == "E_pass" and x.get("positive_control") is True for x in results)
+        and any(x.get("class") == "E_pass" and x.get("positive_control") is True for x in results) \
+        and result_testcases(c, src, {"E_proof"}) <= rerun
+
+
+def max_vote_round(c: Ctx, v: dict, cluster: dict) -> int | None:
+    """r12: the highest round a vote of this verdict version can follow: 1 + the highest round of the run's CMD-2 plans
+    whose artifact_stored event is anchored before the version's verdict_changed event (a member of round n + 1 needs a
+    CMD-2 plan of round n, E-FINDING-ROUND). None when the version has no verdict_changed event (reported elsewhere).
+    r11 read voted_after_round as declared, so a vote cast after a same-family member joined could claim an earlier round."""
+    audit = c.ix.audit_for(cluster.get("run_id"))
+    evs = audit.data if audit and isinstance(audit.data, list) else []
+    last = anchored_seqs(evs)
+    vseq = next((i + 1 for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "verdict_changed"
+                 and (e.get("payload") or {}).get("verdict_id") == v.get("verdict_id")), None)
+    if vseq is None:
+        return None
+    pinned = {(e.get("payload") or {}).get("plan_id"): i + 1 for i, e in enumerate(evs) if isinstance(e, dict)
+              and e.get("event_type") == "artifact_stored" and (e.get("payload") or {}).get("artifact") == "commander-plan"
+              and i + 1 <= last}
+    rounds = [p.data.get("round") for p in c.docs("commander-plan") if p.data.get("decision_node") == "CMD-2"
+              and p.data.get("plan_id") in pinned and pinned[p.data.get("plan_id")] < vseq and type(p.data.get("round")) is int]
+    return 1 + max(rounds, default=0)
 
 
 # review r11: the arrow may be ->, → or =>, the status is read case-insensitively, and only the LAST arrow of an item is
@@ -3293,9 +3345,18 @@ def g_verdicts(R: Report, c: Ctx):
                             f"vote by {vt.get('voter_agent_id')}: voter_family/lineage {vt.get('voter_family')}/{vt.get('voter_lineage')} "
                             f"!= registry {m.get('family')}/{m.get('lineage')}")
                 if vt.get("valid"):
-                    R.check(vt.get("voter_family") not in cl.data.get("families", [])
-                            and c.ix.lineage_root(vt.get("voter_lineage")) not in c.ix.lineage_roots(cl.data.get("lineages")),
+                    # r12: as derive.vote_valid, against the members when the vote was cast (r11 R15); r11 kept the current
+                    # members here, so the bundle r11 was built for (a refute cast before a same-family member joined)
+                    # could satisfy neither E-DERIVED (valid true) nor this check
+                    fams_v, lins_v = derive.members_at_vote(c.ix, vt, cl.data)
+                    R.check(vt.get("voter_family") not in fams_v
+                            and c.ix.lineage_root(vt.get("voter_lineage")) not in c.ix.lineage_roots(lins_v),
                             "E-VERDICT-VOTE", w, f"self-review vote by {vt.get('voter_agent_id')} counted as valid (same family or base lineage)")
+                    bound = max_vote_round(c, v, cl.data)
+                    R.check(bound is None or type(vt.get("voted_after_round")) is not int or vt["voted_after_round"] <= bound,
+                            "E-VERDICT-VOTE", w,
+                            f"vote by {vt.get('voter_agent_id')}: voted_after_round {vt.get('voted_after_round')!r} but only rounds up to "
+                            f"{bound} were dispatched (anchored CMD-2 plans) before this verdict version was recorded")
                 anon, rand = derive.verifier_template_controls(c.ix, cl.data)
                 R.check(vt.get("anonymized") is anon and vt.get("order_randomized") is rand, "E-VERDICT-VOTE", w,
                         f"vote by {vt.get('voter_agent_id')}: anonymized/order_randomized {vt.get('anonymized')}/{vt.get('order_randomized')} "
@@ -4821,7 +4882,7 @@ def lr_weights(tpr: float, tnr: float) -> dict:
 
 
 def effective_counts(side: dict) -> tuple:
-    """v0.7 (review r10, rule_version 05-v0.10): (correct, n) with every abstention counted as a coin flip, half right and
+    """v0.7 (review r10, rule_version 05-v0.11): (correct, n) with every abstention counted as a coin flip, half right and
     half wrong: an abstention carries no information, so it is scored as a guess. The rates and the Wilson bound use
     these counts; v0.7 r9 used the answered cases only, so abstaining on the hard cases kept the accuracy and the weight
     (abstain_rate_max stays as a hard cap)."""
@@ -4883,6 +4944,7 @@ CAL_POLICY = {
     "near_zero_rules": {"w_min": 0.2, "wilson_lower_max": 0.5, "n_min": 10, "abstain_rate_max": 0.3},
     "threshold_search": {"confirm_precision_floor": 0.9, "confirm_wilson_lower_floor": 0.8,
                          "reject_true_defect_max": 0.02, "reject_wilson_upper_max": 0.08, "min_clusters": 40},
+    "high_precision_min": 0.9,                       # r12: result.thresholds.high_precision_min.value (docs/05 §5.10)
 }
 
 
@@ -4993,6 +5055,11 @@ def g_calibration(R: Report, c: Ctx):
     cfg, res = cal.get("config") or {}, cal.get("result") or {}
     for msg in policy_problems(cfg):
         R.error("E-CAL-POLICY", w, msg)
+    # r12: the strong-tool floor is policy too (docs/05 §5.10: "政策下限，不是 θ 搜尋的結果"); a file value of 0.1 with one
+    # rule at a Clopper-Pearson lower bound of 0.13 made a weak SARIF hit an R8-immune, non-provisional confirmation
+    hp = ((res.get("thresholds") or {}).get("high_precision_min") or {}).get("value")
+    R.check(hp is None or hp == CAL_POLICY["high_precision_min"], "E-CAL-POLICY", w,
+            f"thresholds.high_precision_min.value {hp!r} != {CAL_POLICY['high_precision_min']} (docs/05 §5.10; null disables strong corroboration)")
     k = cfg.get("smoothing_k", 0)
     nz = cfg.get("near_zero_rules") or {}
     rows = res.get("weights", [])

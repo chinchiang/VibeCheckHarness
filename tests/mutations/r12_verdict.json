@@ -1,0 +1,138 @@
+{
+  "tests": "tests/test_v07_r12_verdict.py",
+  "mutations": [
+    {
+      "name": "a contradicted fix is DISPUTED",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "        if x.strong_tool or x.weak_sarif or x.weighted_refute:\n            notes.add(\"fix_contradicted\")",
+      "new": "        if False:\n            notes.add(\"fix_contradicted\")",
+      "k": "contradicted_fix"
+    },
+    {
+      "name": "the floor applies to confirmed carried clusters",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "    if x.carried_status not in CONFIRMED or x.lane_a or x.g2_rejected or out.row in (14, 15) \\",
+      "new": "    if True or x.carried_status not in CONFIRMED or x.lane_a or x.g2_rejected or out.row in (14, 15) \\",
+      "k": "carried_confirmed_cluster_keeps"
+    },
+    {
+      "name": "the floor leaves disputes alone",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "            or out.status in CONFIRMED + (\"DISPUTED\",):",
+      "new": "            or out.status in CONFIRMED:",
+      "k": "floor_leaves_people and kw2"
+    },
+    {
+      "name": "the floor leaves people and Lane A alone",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": " or x.lane_a or x.g2_rejected or out.row in (14, 15)",
+      "new": " or out.row in (14, 15)",
+      "k": "floor_leaves_people and (kw0 or kw1)"
+    },
+    {
+      "name": "the floor leaves a fix alone",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": " or x.g2_rejected or out.row in (14, 15) \\",
+      "new": " or x.g2_rejected \\",
+      "k": "floor_leaves_people and kw3"
+    },
+    {
+      "name": "the floor needs a confirmed source",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "    if x.carried_status not in CONFIRMED or x.lane_a",
+      "new": "    if x.carried_status is None or x.lane_a",
+      "k": "floor_needs_a_confirmed"
+    },
+    {
+      "name": "a failed regression is annotated as such",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "\"regression_failed\" if fail_class(x) else \"fix_unverified\"",
+      "new": "\"fix_unverified\"",
+      "k": "carried_confirmed_cluster_keeps"
+    },
+    {
+      "name": "R16 leaves the final status in the trace",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "(\"R11\", \"R12\", \"R13\", \"R15\", \"R16\")",
+      "new": "(\"R11\", \"R12\", \"R13\", \"R15\")",
+      "k": "floor_trace"
+    },
+    {
+      "name": "R15 marks refutes only",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if v.get(\"stance\") != \"REFUTE\":\n        return False\n    fams, lins = members_at_vote(ix, v, cluster)",
+      "new": "    fams, lins = members_at_vote(ix, v, cluster)",
+      "k": "only_a_refute"
+    },
+    {
+      "name": "self-review is judged at vote time",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    fams_v, lins_v = derive.members_at_vote(c.ix, vt, cl.data)",
+      "new": "                    fams_v, lins_v = cl.data.get(\"families\", []), cl.data.get(\"lineages\")",
+      "k": "r11_scenario_has_no_self_review"
+    },
+    {
+      "name": "voted_after_round is bounded",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(bound is None or type(vt.get(\"voted_after_round\")) is not int or vt[\"voted_after_round\"] <= bound,",
+      "new": "                    R.check(True,",
+      "k": "cannot_exceed_the_dispatched"
+    },
+    {
+      "name": "an anchored CMD-2 plan raises the bound",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return 1 + max(rounds, default=0)",
+      "new": "    return 1",
+      "k": "anchored_cmd2_plan"
+    },
+    {
+      "name": "high_precision_min is pinned",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(hp is None or hp == CAL_POLICY[\"high_precision_min\"], \"E-CAL-POLICY\", w,",
+      "new": "    R.check(True, \"E-CAL-POLICY\", w,",
+      "k": "high_precision_min_is_pinned"
+    },
+    {
+      "name": "the source proof must be re-run",
+      "file": "tools/vchlib/checks.py",
+      "old": "        and result_testcases(c, src, {\"E_proof\"}) <= rerun",
+      "new": "        and True",
+      "k": "proof_of_the_source"
+    },
+    {
+      "name": "verdict inputs carry the source status",
+      "file": "tools/vchlib/checks.py",
+      "old": "        carried_status=carried_status(c, cluster, run),",
+      "new": "        carried_status=None,",
+      "k": "inputs_carry_the_source_status"
+    },
+    {
+      "name": "rows 15 and 16 are never provisional",
+      "file": "tools/vchlib/checks.py",
+      "old": "(1, 2, 3, 4, 5, 10, 14, 15, 16)",
+      "new": "(1, 2, 3, 4, 5, 10, 14)",
+      "k": "never_provisional"
+    },
+    {
+      "name": "the schema knows the r12 annotations",
+      "file": "docs/schemas/verdict.schema.json",
+      "old": "\"fix_unverified\"",
+      "new": "\"fix_unverified_x\"",
+      "k": "schema_knows_the_r12"
+    },
+    {
+      "name": "05 states R16",
+      "file": "docs/05-bias-calibration.md",
+      "old": "| F 下限 | R16 | 決定 |",
+      "new": "| F 下限 | R16 |",
+      "k": "05_02_06"
+    },
+    {
+      "name": "06 lists the same-family limitation",
+      "file": "docs/06-security-legal-limitations.md",
+      "old": "| 44 | **同一家族、不同基底血統的模型算兩個獨立觀察**",
+      "new": "| 44 | 同一家族",
+      "k": "05_02_06"
+    }
+  ]
+}

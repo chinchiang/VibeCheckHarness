@@ -179,7 +179,7 @@ def add_k301_verdict(b):
     cl = c.ix.first("cluster", cluster_id="K-301").data
     out = checks.adj.adjudicate(checks.verdict_inputs(c, v, cl))
     v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,
-              "annotations": [{"kind": k, "note": k} for k in sorted(out.annotations)],
+              "annotations": [{"kind": k, "reason": k} for k in sorted(out.annotations)],   # r12: R16 annotates K-301 (fix_unverified)
               "rule_trace": [f"{r}: probe" for r in out.rules],
               "independent_sources": checks.derived_independent_sources(c, v, cl),
               "tool_corroboration": checks.derived_tool_corroboration(c, v, cl),

@@ -24,7 +24,7 @@ v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a rea
     positive control (an oracle_can_fail control that PASSed). A PASS without one only adds
     test_not_reproduced: a test that was never shown able to fail cannot refute.
 
-v0.7 (rule_version 05-v0.10, review r10 PR2):
+v0.7 (rule_version 05-v0.11, review r10 PR2):
   - S counts each base lineage as its strongest vote when its votes agree (derive.root_score): the mean let a weaker
     SUPPORT of the same root lower S, so adding evidence could remove a confirmation.
   - An eligible Result Analyst that disagrees makes a pre-registered result E_inc; unknown W4 test authors are not
@@ -60,7 +60,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.10"
+RULE_VERSION = "05-v0.11"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -85,8 +85,9 @@ class Inputs:
     g3_rejected: bool = False
     phase: str | None = None                              # caller context: "W3", "W4", "B5", ...
     prev_status: str | None = None                        # status of the superseded verdict (None = first verdict)
-    regression_fixed: bool = False                        # r11 (05-v0.10): a carried-in CONFIRMED_* cluster whose regression test PASSed with a positive control
+    regression_fixed: bool = False                        # r11 (05-v0.11): a carried-in CONFIRMED_* cluster whose regression test PASSed with a positive control
     later_member_overlap: bool = False                    # r11: a weighted vote cast before a same-family / same-root member joined the cluster
+    carried_status: str | None = None                     # r12 (05-v0.11): head status of the source cluster a carried-in cluster stands for
 
 
 @dataclass
@@ -104,7 +105,7 @@ class Outcome:
 def trace_statuses(out: Outcome) -> list[str]:
     """The status each fired rule leaves (BL-01): the deciding rule and R2 leave `decided`, R8 caps to LIKELY,
     R11 and the R12 / R13 annotations leave the final status. A `->STATUS` claim in a rule_trace item must match."""
-    return ["LIKELY" if r == "R8" else out.status if r in ("R11", "R12", "R13") else (out.decided or out.status)
+    return ["LIKELY" if r == "R8" else out.status if r in ("R11", "R12", "R13", "R15", "R16") else (out.decided or out.status)
             for r in out.rules]
 
 
@@ -150,11 +151,27 @@ def _annotate(x: Inputs, out: Outcome) -> Outcome:
     return out
 
 
+CONFIRMED = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED")
+
+
 def adjudicate(x: Inputs) -> Outcome:
     """Ordered rules; every rule that fires is listed in Outcome.rules in firing order."""
-    out = _decide(x)
+    out = _floor(x, _decide(x))
     out.sources = independent_sources(x)
     return _annotate(x, out)
+
+
+def _floor(x: Inputs, out: Outcome) -> Outcome:
+    """R16 (r12, 05-v0.11; docs/02 §1.6): a carried-in cluster whose source was confirmed stays confirmed until a regression
+    test shows it fixed (R14). A carried cluster has no members of its own, so the rules above land it on UNCORROBORATED
+    or LIKELY when its regression test FAILs (E_fail_u), errors, or was never run; r11 let that downgrade a confirmed
+    defect and even put it on the report-only list. A FIXED / contradicted fix (rows 14 / 15), a DISPUTED cluster (people
+    decide), a G2 rejection and Lane A keep their outcome."""
+    if x.carried_status not in CONFIRMED or x.lane_a or x.g2_rejected or out.row in (14, 15) \
+            or out.status in CONFIRMED + ("DISPUTED",):
+        return out
+    out.annotations.add("regression_failed" if fail_class(x) else "fix_unverified")
+    return Outcome(x.carried_status, 16, out.rules + ["R16"], None, False, out.annotations, decided=out.decided or out.status)
 
 
 def _decide(x: Inputs) -> Outcome:
@@ -174,7 +191,12 @@ def _decide(x: Inputs) -> Outcome:
         if ev == "E_proof" and x.proof_overrides_g2:          # v0.6: only a G4-approved, replayed B4 proof
             return Outcome("CONFIRMED_EXECUTABLE", 5, ["R10", "R1"], None, False, notes)
         return Outcome("REJECTED", 3, ["R10"], None, False, notes)
-    if x.regression_fixed:                                 # R14 (r11, 05-v0.10): the regression test of a confirmed defect passed
+    if x.regression_fixed:                                 # R14 (r11, 05-v0.11): the regression test of a confirmed defect passed
+        # r12 (05-v0.11): not while other evidence still says the defect is there; a scanner rule that still fires or a
+        # weighted refutation makes the "fix" a dispute for people (row 15), as the same PASS does outside a regression run
+        if x.strong_tool or x.weak_sarif or x.weighted_refute:
+            notes.add("fix_contradicted")
+            return Outcome("DISPUTED", 15, ["R14"], None, False, notes)
         return Outcome("FIXED", 14, ["R14"], None, False, notes)
     if r0_applies(x):
         return Outcome("REJECTED", 4, ["R0"], None, False, notes)
