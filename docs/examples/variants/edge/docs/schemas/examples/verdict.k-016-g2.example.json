@@ -63,7 +63,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.11",
+  "rule_version": "05-v0.12",
   "rule_trace": [
     "R10:G2 GR-G2-0001 rejected K-016 and no G4-approved replayed black-box proof overrides it->REJECTED"
   ],

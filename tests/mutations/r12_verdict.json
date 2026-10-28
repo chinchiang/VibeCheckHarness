@@ -95,7 +95,7 @@
     {
       "name": "the source proof must be re-run",
       "file": "tools/vchlib/checks.py",
-      "old": "        and result_testcases(c, src, {\"E_proof\"}) <= rerun",
+      "old": "        and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)",
       "new": "        and True",
       "k": "proof_of_the_source"
     },

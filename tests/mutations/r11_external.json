@@ -11,7 +11,7 @@
     {
       "name": "CAUGHT needs an assertion failure and no error",
       "file": "tools/mutation_check.py",
-      "old": "    if run.code == 1 and run.failures >= 1 and run.errors == 0:",
+      "old": "    if run.code == 1 and run.failures >= 1 and run.errors == 0 and not run.unexpected:",
       "new": "    if run.code != 0:",
       "k": "collection_error_caused_by_the_mutation"
     },

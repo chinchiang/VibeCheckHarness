@@ -57,7 +57,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.11",
+  "rule_version": "05-v0.12",
   "rule_trace": [
     "R1:E_proof (WTC-015-01 local RLS FAIL, deterministic STATE_DIFF oracle, pre-registered by G1 INV-AC-007 and a PASSed oracle_can_pass control)->CONFIRMED_EXECUTABLE"
   ],

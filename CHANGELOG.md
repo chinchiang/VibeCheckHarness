@@ -2,11 +2,19 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.11`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.12`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）。
 
 ## 第十二輪審查（2026-10-28）
 
 依 [2026-10-28 設計審查（第十二輪）](docs/evidence/review-2026-10-28-r12.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的八項由主審查者重跑確認。
+
+### 外部審查（對 `main@48cadf9`）的四項（PR5；`rule_version` 改為 `05-v0.12`）
+- **FIXED 逐一要求必要案例的合格 PASS**（R14）：來源以可執行證明確認時，每一個證明的測試案例在本 run 都只能有合格 PASS（`E_pass` 且正對照成立）。`05-v0.11` 把那個案例的 ERROR（`E_inc`）算成「已重跑」，再拿另一個案例的 PASS 補正對照，原本證明漏洞的測試沒再通過也判 FIXED（審查以完整範例重簽後零錯誤重現）。必要案例不明時不判 FIXED，由 R16 維持來源狀態並加註 `fix_unverified`。
+- **S2 job 依狀態驗證**（`E-RUN-S2`）：r12 PR1 一律要求 RESTORED，誠實的 `restore_failed`／`RESTORE_FAILED`／run `FAILED` 過不了，G5 駁回而 SKIPPED 的 S2 job 也過不了（後者是核實時另外找到的）。現在 RESTORED、RESTORE_FAILED、其他執行過的狀態與沒有執行的狀態各有規則；還原失敗的終止 run 必須是 `FAILED`。誠實的還原失敗紀錄整包零錯誤。
+- **突變工具只把斷言算 CAUGHT**（`tools/mutation_check.py`）：pytest 的 junit `failures` 也包含測試本體中的其他例外，r11 的強化只看數量，突變讓程式丟 `RuntimeError` 也算 CAUGHT。現在讀每個 `<failure>` 的訊息，只有 `assert `、`AssertionError`、`Failed:` 開頭才算；CONTRIBUTING 同步。完整矩陣以新規則重跑：500 個突變中有 2 個原本是靠例外「抓到」的（`test_bl47_access_matrix.py` 的拆包 `ValueError`、`test_v07_r11_anchor.py` 的 `KeyError`），兩個測試改成明確的斷言後重跑，**33 份清單 500 個突變全部 CAUGHT**。
+- **08 的 `AdjudicationInputs` 與 `Inputs` 同步**：補上 `proof_overrides_g2`、`pass_positive`、`fail_u_independent`、`regression_fixed`、`later_member_overlap`、`carried_status` 六個欄位與來源，新增測試逐欄比對順序。
+- **版本字串**：只改「目前版本」的引用；r12 PR2 的全域取代把 r10／r11 的歷史標記也改成 `05-v0.11`（例如 `adjudicate.Inputs` 的 `regression_fixed` 註解、`verdict.schema.json` 與 `report-manifest.schema.json` 的「審查 r11」、03 的版本歷程「第十輪 `05-v0.11`」），一併改回正確的 `05-v0.9`／`05-v0.10`。
+- 新增 `tests/test_v07_r12_external.py`（20 個；在 `48cadf9` 上 15 個失敗，另 5 個是防誤報）與 `tests/mutations/r12_external.json`（18）；`r11_external.json`、`r11_verdict.json`、`r12_run.json`、`r12_verdict.json` 共 5 個錨點隨程式改寫更新，語意不變。
 
 ### run 紀錄的推導與反向檢查（PR1）
 - **未能測試清單由 validator 推導**（`E-RUN-GAPS`，新）：完成的 run，`gaps` 必須包含 run 的紀錄推導出的每一項——MANUAL 的 W4 需求與測試案例、日誌末端 G4 駁回、SKIPPED job（kind 依 `skip_reason`）、所有權驗證失敗、ERROR／SKIPPED／STOPPED／INVALID 的結果、GB 停止。r11 由 `gaps` 推導終態，但 `gaps` 本身沒人檢查：審查的 probe 把已核准的 job 改成 SKIPPED、清單留空，run 仍 COMPLETED、零錯誤。gap kind 補上 08 §6.1 的 SKIPPED 原因；主範例補 INV-LLM-003（MANUAL），lite 變體補 TC-027-01（MANUAL），兩者仍是 COMPLETED。

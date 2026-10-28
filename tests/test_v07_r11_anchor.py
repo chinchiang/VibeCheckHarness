@@ -265,4 +265,4 @@ def test_a_restore_drill_counts_only_from_a_system_actor_in_the_anchored_log(b, 
 def test_the_schema_caps_the_round():
     import json
     schema = json.loads((ROOT / "docs" / "schemas" / "gate-record.schema.json").read_text(encoding="utf-8"))
-    assert schema["properties"]["round"]["maximum"] == 3
+    assert schema["properties"]["round"].get("maximum") == 3   # .get: a missing cap fails the assertion, not with KeyError

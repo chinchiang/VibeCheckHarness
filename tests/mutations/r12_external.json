@@ -1,0 +1,131 @@
+{
+  "tests": "tests/test_v07_r12_external.py",
+  "mutations": [
+    {
+      "name": "each required case has its own qualified PASS",
+      "file": "tools/vchlib/checks.py",
+      "old": "        and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)",
+      "new": "        and required <= set(by_case)",
+      "k": "erroring_is_not_fixed or needs_its_own_positive_control or pass_and_an_error"
+    },
+    {
+      "name": "an unclear required case is not fixed",
+      "file": "tools/vchlib/checks.py",
+      "old": "        and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)",
+      "new": "        and all(by_case.get(tc) and any(qualified(x) for x in by_case[tc]) for tc in required)",
+      "k": "pass_and_an_error"
+    },
+    {
+      "name": "some qualified PASS is required",
+      "file": "tools/vchlib/checks.py",
+      "old": " and any(qualified(x) for x in results) \\\n        and all(",
+      "new": " \\\n        and all(",
+      "k": "source_without_an_executable_proof"
+    },
+    {
+      "name": "rule_version 05-v0.12",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "RULE_VERSION = \"05-v0.12\"",
+      "new": "RULE_VERSION = \"05-v0.11\"",
+      "k": "rule_version_is_05_v0_12"
+    },
+    {
+      "name": "a job that never ran is not judged as restored",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    if job.get(\"safety_class\") == \"S2\" and job.get(\"status\") not in S2_RAN_STATES:",
+      "new": "                    if False:",
+      "k": "g5_rejected_s2_job_is_skipped"
+    },
+    {
+      "name": "a skipped S2 job has no sandbox or snapshot events",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(not ran and not job.get(\"snapshot_ref\") and job.get(\"restore_verified\") is not True, \"E-RUN-S2\", jw,",
+      "new": "    R.check(True, \"E-RUN-S2\", jw,",
+      "k": "skipped_s2_job_must_not_have_run"
+    },
+    {
+      "name": "RESTORE_FAILED is judged by its own rule",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if status == \"RESTORE_FAILED\" or (failed and status != \"RESTORED\"):",
+      "new": "    if failed and status not in (\"RESTORED\", \"RESTORE_FAILED\"):",
+      "k": "honest_restore_failure or logged_failure or cannot_claim_verified"
+    },
+    {
+      "name": "RESTORE_FAILED needs the logged failure",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(bool(failed) and all(i <= last for i, _ in failed), \"E-RUN-S2\", jw,",
+      "new": "        R.check(True, \"E-RUN-S2\", jw,",
+      "k": "needs_the_logged_failure"
+    },
+    {
+      "name": "a failed restore is not verified",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(job.get(\"restore_verified\") is False, \"E-RUN-S2\", jw,\n                f\"{jid}: the restore failed",
+      "new": "        R.check(True, \"E-RUN-S2\", jw,\n                f\"{jid}: the restore failed",
+      "k": "cannot_claim_verified"
+    },
+    {
+      "name": "RESTORED rejects a logged restore_failed",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(not failed, \"E-RUN-S2\", jw, f\"the audit log records restore_failed for {jid}",
+      "new": "        R.check(True, \"E-RUN-S2\", jw, f\"the audit log records restore_failed for {jid}",
+      "k": "claimed_restored_is_rejected"
+    },
+    {
+      "name": "a failed restore ends the run FAILED",
+      "file": "tools/vchlib/checks.py",
+      "old": "                            R.check(run.get(\"status\") == \"FAILED\", \"E-RUN-S2\", jw,",
+      "new": "                            R.check(True, \"E-RUN-S2\", jw,",
+      "k": "cannot_end_completed"
+    },
+    {
+      "name": "a job that ran still needs its approved G5",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        R.check(g5 is not None and g5.get(\"gate\") == \"G5\" and g5.get(\"outcome\") == \"APPROVED\" and g5.get(\"job_id\") == jid,\n                                \"E-RUN-S2\", jw, \"S2 job needs an APPROVED G5 record for this job\")",
+      "new": "                        R.check(True,\n                                \"E-RUN-S2\", jw, \"S2 job needs an APPROVED G5 record for this job\")",
+      "k": "still_needs_its_approved_g5"
+    },
+    {
+      "name": "a failure must be an assertion",
+      "file": "tools/mutation_check.py",
+      "old": "    if run.code == 1 and run.failures >= 1 and run.errors == 0 and not run.unexpected:",
+      "new": "    if run.code == 1 and run.failures >= 1 and run.errors == 0:",
+      "k": "exception_in_the_test_body or exception_before_any_assertion"
+    },
+    {
+      "name": "failure messages are read",
+      "file": "tools/mutation_check.py",
+      "old": "                       unexpected=unexpected_failures(root))",
+      "new": "                       unexpected=[])",
+      "k": "exception_in_the_test_body"
+    },
+    {
+      "name": "assertions are still CAUGHT",
+      "file": "tools/mutation_check.py",
+      "old": "ASSERTION_PREFIXES = (\"assert \", \"AssertionError\", \"Failed:\")",
+      "new": "ASSERTION_PREFIXES = (\"Failed:\",)",
+      "k": "assertion_failure_is_caught"
+    },
+    {
+      "name": "08 lists regression_fixed",
+      "file": "docs/08-implementation-spec.md",
+      "old": "    regression_fixed: bool             # R14：",
+      "new": "    # regression_fixed: bool             # R14：",
+      "k": "spec_lists_every_inputs_field"
+    },
+    {
+      "name": "08 lists proof_overrides_g2",
+      "file": "docs/08-implementation-spec.md",
+      "old": "    proof_overrides_g2: bool           # R10：",
+      "new": "    # proof_overrides_g2: bool           # R10：",
+      "k": "spec_lists_every_inputs_field"
+    },
+    {
+      "name": "Inputs comment names 05-v0.10",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "# r11 (05-v0.10); per testcase since 05-v0.12",
+      "new": "# r11 (05-v0.11); per testcase since 05-v0.12",
+      "k": "right_rule_version"
+    }
+  ]
+}
