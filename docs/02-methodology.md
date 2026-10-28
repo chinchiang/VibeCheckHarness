@@ -670,7 +670,7 @@ flowchart TD
   - 回饋任務草稿：確認項 → `regression` run（白箱根因定位＋W4 回歸測試）；威脅衍生需求 → `followup` run
   - `lite`：報告首頁標示「單人模式，未經職責分離」，並附 `role_consolidation` 聲明；有 `W-L5-LITE` 時另標示「法務審查聲明為自行簽署」
 - 報告由 Reporter 撰寫敘事，**不改裁決**；Reporter 失敗時仍輸出確定性部分，敘事欄標示缺漏。
-- run 最終狀態：未能測試清單中只有 `MANUAL` → `COMPLETED`；否則 `COMPLETED_WITH_GAPS`。
+- run 最終狀態：未能測試清單中只有 `MANUAL` → `COMPLETED`；否則 `COMPLETED_WITH_GAPS`。未能測試清單（`run.gaps`）不是自填的：validator 由 run 的紀錄推導最小集合（MANUAL 的需求與測試案例、日誌末端 G4 駁回、SKIPPED job、所有權驗證失敗、沒有執行成功的結果、GB 停止），缺一項就是 `E-RUN-GAPS`（審查 r12）。
 
 ## 4. 階段之間的交接與回饋
 

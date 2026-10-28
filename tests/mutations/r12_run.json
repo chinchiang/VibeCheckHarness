@@ -1,0 +1,131 @@
+{
+  "tests": "tests/test_v07_r12_run.py",
+  "mutations": [
+    {
+      "name": "the derived gaps must be listed",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check((kind, ref) in have, \"E-RUN-GAPS\", w,",
+      "new": "                    R.check(True, \"E-RUN-GAPS\", w,",
+      "k": "missing_manual_gap or skipped_job_must"
+    },
+    {
+      "name": "a MANUAL W4 requirement is a gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "            out[(\"manual\", x.get(\"requirement_id\"))] = \"W4 requirement marked MANUAL\"",
+      "new": "            out[(\"manual\", None)] = \"W4 requirement marked MANUAL\"",
+      "k": "examples_list_their_derived"
+    },
+    {
+      "name": "a MANUAL testcase is a gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if tc and (tc.data.get(\"tool_binding\") or {}).get(\"kind\") == \"MANUAL\":\n            out[(\"manual\", tcid)]",
+      "new": "        if False:\n            out[(\"manual\", tcid)]",
+      "k": "lite_variant_lists"
+    },
+    {
+      "name": "G5 skip reasons map to g5_skipped",
+      "file": "tools/vchlib/checks.py",
+      "old": "\"g5_rejected\": \"g5_skipped\", \"g5_expired\": \"g5_skipped\",",
+      "new": "",
+      "k": "skip_reason_maps"
+    },
+    {
+      "name": "a G4 reject at the end of the log is a gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if st.decision == \"reject\":\n            out[(\"g4_rejected\", tcid)]",
+      "new": "        if False:\n            out[(\"g4_rejected\", tcid)]",
+      "k": "g4_reject_at"
+    },
+    {
+      "name": "a failed ownership check is a gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if isinstance(o, dict) and o.get(\"ok\") is False:",
+      "new": "        if False:",
+      "k": "failed_ownership"
+    },
+    {
+      "name": "a result that did not run is a gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if x.data.get(\"run_id\") == rid and x.data.get(\"outcome\") in UNRUN_OUTCOMES:",
+      "new": "        if False:",
+      "k": "did_not_run"
+    },
+    {
+      "name": "a GB stop is a gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if (gb.data.get(\"gb\") or {}).get(\"choice\") == \"stop_phase\":",
+      "new": "        if False:",
+      "k": "gb_stop"
+    },
+    {
+      "name": "the snapshot audit runs for S2 jobs",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        snapshot_audit(R, c, rid, jid, job, span_start, span_end, jw)",
+      "new": "                        pass",
+      "k": "restore_failed_event or anchored_snapshot or unverified_restore"
+    },
+    {
+      "name": "restore_failed contradicts a restore",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(not failed, \"E-RUN-S2\", jw,",
+      "new": "    R.check(True, \"E-RUN-S2\", jw,",
+      "k": "restore_failed_event"
+    },
+    {
+      "name": "one anchored snapshot_created with the job's snapshot_ref",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if R.check(len(snaps) == 1 and snaps[0][0] <= last and (snaps[0][1].get(\"payload\") or {}).get(\"snapshot_ref\") == job.get(\"snapshot_ref\"),",
+      "new": "    if R.check(True,",
+      "k": "anchored_snapshot or names_the_jobs_snapshot"
+    },
+    {
+      "name": "one anchored verified snapshot_restored",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if R.check(len(restored) == 1 and restored[0][0] <= last and (restored[0][1].get(\"payload\") or {}).get(\"verified\") is True,",
+      "new": "    if R.check(True,",
+      "k": "unverified_restore"
+    },
+    {
+      "name": "every anchored feedback_recorded has its record",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(f is not None and content_hash(f.data) == pl.get(\"feedback_sha256\"), \"E-AUDIT-FEEDBACK\",",
+      "new": "                R.check(True, \"E-AUDIT-FEEDBACK\",",
+      "k": "recorded_feedback_cannot"
+    },
+    {
+      "name": "run_created pins run_kind and trigger",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(run.get(k) == payload.get(k), \"E-RUN-COMMIT\", f\"run {rid}\",",
+      "new": "            R.check(True, \"E-RUN-COMMIT\", f\"run {rid}\",",
+      "k": "pins_the_run_kind"
+    },
+    {
+      "name": "a registry older than a run loaded is a rollback",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(type(v) is int and type(reg_v) is int and reg_v >= v, \"E-KR-ROLLBACK\",",
+      "new": "            R.check(True, \"E-KR-ROLLBACK\",",
+      "k": "older_than_a_run_loaded"
+    },
+    {
+      "name": "the skip reasons are gap kinds",
+      "file": "docs/schemas/run.schema.json",
+      "old": "\"no_lockfile\",\n              \"session_unavailable\",",
+      "new": "\"no_lockfile\",",
+      "k": "gap_kinds_in_the_schema"
+    },
+    {
+      "name": "the lite variant lists its MANUAL testcase",
+      "file": "docs/examples/variants/lite/docs/schemas/examples/run.example.json",
+      "old": "\"ref\": \"TC-027-01\"",
+      "new": "\"ref\": \"TC-027-99\"",
+      "k": "lite_variant_lists"
+    },
+    {
+      "name": "06 lists the W1 tool results",
+      "file": "docs/06-security-legal-limitations.md",
+      "old": "| W1 工具結果（`tool_invocation_end` 的 `sarif_results`） |",
+      "new": "| W1 工具結果 |",
+      "k": "w1_tool_results"
+    }
+  ]
+}

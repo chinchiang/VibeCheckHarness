@@ -881,7 +881,13 @@
               "error",
               "build_mismatch",
               "teardown_failed",
-              "no_lockfile"
+              "no_lockfile",
+              "session_unavailable",
+              "login_unavailable",
+              "seed_setup_failed",
+              "outside_window",
+              "no_snapshot",
+              "stopped"
             ]
           },
           "ref": {
@@ -897,7 +903,7 @@
           "reason"
         ]
       },
-      "description": "B6「未能測試清單」的來源"
+      "description": "B6「未能測試清單」的來源。審查 r12：validator 由 run 的紀錄推導最小集合（E-RUN-GAPS）：MANUAL 的 W4 需求與測試案例、日誌末端 G4 駁回的測試案例、SKIPPED job（kind 依 skip_reason）、所有權驗證失敗的目標、沒有執行成功的結果、GB 停止的階段；G3 駁回不是 gap"
     },
     "audit_anchors": {
       "type": "array",

@@ -860,6 +860,46 @@ def g4_latest_decisions(c: Ctx, run_id) -> dict:
     return {tc: (st.decision, st.approved_since) for tc, st in derive.g4_final_states(c.ix, run_id).items()}
 
 
+# review r12: the run's "untested" list (docs/02 B6) is derived, not taken from the run record. A skipped job's gap kind
+# follows its skip reason; reasons without a gap kind of their own keep their name.
+SKIP_GAP_KIND = {"g4_rejected": "g4_rejected", "g5_rejected": "g5_skipped", "g5_expired": "g5_skipped",
+                 "ownership_failed": "ownership_failed", "seed_reset_failed": "seed_reset_failed",
+                 "build_mismatch": "build_mismatch"}
+UNRUN_OUTCOMES = ("ERROR", "SKIPPED", "STOPPED", "INVALID")
+
+
+def expected_gaps(c: Ctx, rid, run: dict) -> dict:
+    """(kind, ref) -> why, for every entry docs/02 B6 puts on the untested list that the run's own records imply: W4
+    requirements and testcases marked MANUAL, testcases whose G4 decision at the end of the log is reject, SKIPPED jobs (by
+    skip reason), failed ownership checks, results that did not run (ERROR / SKIPPED / STOPPED / INVALID) and GB decisions
+    that stopped a phase. A G3 rejection is not a gap (the threat is reported as "未做黑箱驗證", docs/04 §3)."""
+    out = {}
+    for x in run.get("w4_manual_requirements") or []:
+        if isinstance(x, dict):
+            out[("manual", x.get("requirement_id"))] = "W4 requirement marked MANUAL"
+    for tcid in run.get("testcase_ids") or []:
+        tc = c.ix.first("testcase", testcase_id=tcid)
+        if tc and (tc.data.get("tool_binding") or {}).get("kind") == "MANUAL":
+            out[("manual", tcid)] = "MANUAL testcase"
+    for tcid, st in derive.g4_final_states(c.ix, rid).items():
+        if st.decision == "reject":
+            out[("g4_rejected", tcid)] = "rejected at G4"
+    for jid, job in (run.get("jobs") or {}).items():
+        if isinstance(job, dict) and job.get("status") == "SKIPPED":
+            out[(SKIP_GAP_KIND.get(job.get("skip_reason"), job.get("skip_reason") or "error"), job.get("testcase_id"))] = \
+                f"job {jid} SKIPPED ({job.get('skip_reason')})"
+    for o in run.get("ownership_results") or []:
+        if isinstance(o, dict) and o.get("ok") is False:
+            out[("ownership_failed", o.get("target_id"))] = "ownership check failed"
+    for x in c.docs("testresult"):
+        if x.data.get("run_id") == rid and x.data.get("outcome") in UNRUN_OUTCOMES:
+            out[("error", x.data.get("testcase_id"))] = f"result {x.data.get('result_id')} is {x.data.get('outcome')}"
+    for gb in c.ix.gate_records(rid, "GB"):
+        if (gb.data.get("gb") or {}).get("choice") == "stop_phase":
+            out[("gb_stopped", gb.data.get("gate_record_id"))] = "GB stopped a phase"
+    return out
+
+
 BLACK_BOX_KINDS = ("testcase", "testresult", "threat")          # B2-B4 artefacts (seed threats are W5 output)
 
 
@@ -1760,6 +1800,11 @@ def g_runs(R: Report, c: Ctx):
                 want_status = "COMPLETED_WITH_GAPS" if kinds else "COMPLETED"
                 R.check(status == want_status, "E-RUN-STATUS", w,
                         f"status {status} but the gaps imply {want_status} (non-MANUAL gap kinds: {kinds})")
+                # review r12: the gaps themselves are checked against what the run's records imply; r11 derived the status
+                # from a list the run record could leave empty, so a skipped approved job still ended COMPLETED
+                have = {(g.get("kind"), g.get("ref")) for g in run.get("gaps") or [] if isinstance(g, dict)}
+                for (kind, ref), why in sorted(expected_gaps(c, rid, run).items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1]))):
+                    R.check((kind, ref) in have, "E-RUN-GAPS", w, f"gaps must list {{kind: {kind}, ref: {ref}}} ({why}; docs/02 B6)")
             if status == "WAITING_GATE":
                 R.check(len(pending) == 1 and run.get("current_node") == pending[0].get("gate"), "E-RUN-STATUS", w,
                         "WAITING_GATE needs exactly one pending gate equal to current_node")
@@ -1890,6 +1935,7 @@ def g_runs(R: Report, c: Ctx):
                         R.check(job.get("snapshot_ref") and job.get("restore_verified") is True and job.get("status") == "RESTORED",
                                 "E-RUN-S2", jw, "S2 job needs a snapshot, a verified restore and status RESTORED")
                         span_start, span_end = job_span(c, rid, jid)
+                        snapshot_audit(R, c, rid, jid, job, span_start, span_end, jw)
                         start = span_start or (ts(R, tr.get("executed_at"), jw) if tr else (ts(R, g5.get("timestamp"), jw) if g5 else None))
                         ok = start is not None and any(dd and dd <= start and start - dd <= dt.timedelta(days=drill_days) for dd in drills)
                         # a log rejected by the strict loader is reported once (E-JSON-STRICT), not re-reported here
@@ -2397,6 +2443,19 @@ def g_feedback(R: Report, c: Ctx):
     signed by a registered security_reviewer / app_owner. The fingerprint is the named cluster's (a cluster of a run of
     the same engagement); duplicate names another cluster's fingerprint of the engagement; sarif_suppression follows the
     label (false_positive -> accepted, needs_info -> underReview, else null)."""
+    # review r12 (E-AUDIT-FEEDBACK): the reverse direction. Every anchored feedback_recorded names a feedback record of the
+    # bundle with that content hash; r11 only checked records against events, so deleting a recorded feedback (and with
+    # it a SARIF suppression and a member of the spot-check population) left a dangling event and no error
+    for a in c.ix.audit_docs():
+        evs = a.data if isinstance(a.data, list) else []
+        last = anchored_seqs(evs)
+        for i, e in enumerate(evs):
+            if isinstance(e, dict) and e.get("event_type") == "feedback_recorded" and i + 1 <= last:
+                pl = e.get("payload") or {}
+                f = c.ix.first("feedback", feedback_id=pl.get("feedback_id"))
+                R.check(f is not None and content_hash(f.data) == pl.get("feedback_sha256"), "E-AUDIT-FEEDBACK", f"{a.path} seq {e.get('seq')}",
+                        f"the anchored feedback_recorded names {pl.get('feedback_id')!r} (sha {pl.get('feedback_sha256')!r}), "
+                        + ("but no such feedback record is in the bundle" if f is None else "but the record's content hash differs"))
     for d in c.docs("feedback"):
         with doc_guard(R, d.path):
             f, w = d.data, d.path
@@ -2453,6 +2512,34 @@ def g_feedback(R: Report, c: Ctx):
             if R.check(ok, "E-FEEDBACK", w, "a feedback record carries one signature per signer (signed_by, then co_signed_by), by their keys"):
                 for s, x in zip(sigs, signers):
                     verify_signature(R, c, w, crypto.signing_payload(f), s, at, x.get("role"))
+
+
+def snapshot_audit(R: Report, c: Ctx, rid, jid, job: dict, start, end, jw: str):
+    """E-RUN-S2 (review r12): the snapshot and the restore an S2 job claims are the snapshot service's anchored events, not
+    the run record's word: exactly one snapshot_created naming the job's snapshot_ref, received before the job started,
+    exactly one snapshot_restored with verified true, received after it ended, and no restore_failed. r11 read
+    snapshot_ref / restore_verified / status from the run record only, so a run whose log says the restore failed was
+    reported restored and COMPLETED (docs/02 B4: every snapshot restored; docs/03 §5: a failed restore -> FAILED)."""
+    audit = c.ix.audit_for(rid)
+    evs = audit.data if audit and isinstance(audit.data, list) else []
+    if not evs or rid in c.broken_audit_runs:
+        return
+    last = anchored_seqs(evs)
+    mine = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and (e.get("payload") or {}).get("job_id") == jid]
+    def of(kind):
+        return [(i, e) for i, e in mine if e.get("event_type") == kind]
+    snaps, restored, failed = of("snapshot_created"), of("snapshot_restored"), of("restore_failed")
+    R.check(not failed, "E-RUN-S2", jw, f"the audit log records restore_failed for {jid} (seq {[e.get('seq') for _, e in failed]}): "
+            "the job is RESTORE_FAILED and the run FAILED, not restored")
+    if R.check(len(snaps) == 1 and snaps[0][0] <= last and (snaps[0][1].get("payload") or {}).get("snapshot_ref") == job.get("snapshot_ref"),
+               "E-RUN-S2", jw, f"{jid} needs exactly one anchored snapshot_created naming snapshot_ref {job.get('snapshot_ref')!r} "
+               f"(the log has {len(snaps)})"):
+        t = ts(R, snaps[0][1].get("ts"), jw)
+        R.check(start is None or (t is not None and t <= start), "E-RUN-S2", jw, f"the snapshot of {jid} was taken after the job started")
+    if R.check(len(restored) == 1 and restored[0][0] <= last and (restored[0][1].get("payload") or {}).get("verified") is True,
+               "E-RUN-S2", jw, f"{jid} needs exactly one anchored snapshot_restored with verified true (the log has {len(restored)})"):
+        t = ts(R, restored[0][1].get("ts"), jw)
+        R.check(end is None or (t is not None and t >= end), "E-RUN-S2", jw, f"the restore of {jid} was recorded before the job ended")
 
 
 def feedback_record_event(c: Ctx, f: dict):
@@ -4296,6 +4383,20 @@ def run_log_state(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
             if inv.data.get("run_id") == rid:
                 R.check(inv.data.get("repo_commit") == pinned, "E-RUN-COMMIT", inv.path,
                         f"the W0 inventory names commit {inv.data.get('repo_commit')!r}, but the run tests {pinned!r}")
+        # review r12: run_kind selects rule semantics (R14 FIXED only in a regression run, Lane A exemptions, reuse) and
+        # trigger the Lane A / scheduled rules; the anchored run_created pins both, as it pins the commit
+        payload = created[0][1].get("payload") or {}
+        for k in ("run_kind", "trigger"):
+            R.check(run.get(k) == payload.get(k), "E-RUN-COMMIT", f"run {rid}",
+                    f"run.{k} {run.get(k)!r} != {payload.get(k)!r} pinned by the anchored run_created event")
+    # review r12 (BL-43): the key registry a run loaded is an anchored fact; a bundle carrying an older registry version
+    # than any run loaded is a rollback (a registry revoking a key can be swapped for the root-signed one before it)
+    reg_v = c.registry.get("version") if isinstance(c.registry, dict) else None
+    for i, e in enumerate(evs):
+        if isinstance(e, dict) and e.get("event_type") == "key_registry_loaded" and i + 1 <= last:
+            v = (e.get("payload") or {}).get("version")
+            R.check(type(v) is int and type(reg_v) is int and reg_v >= v, "E-KR-ROLLBACK", f"{w} seq {e.get('seq')}",
+                    f"run {rid} loaded key registry version {v!r}, but the bundle's registry is version {reg_v!r} (older: a rollback)")
     artifact_pins(R, c, w, rid, run, evs, last)
     run_transitions(R, c, w, rid, run, evs, last)
 

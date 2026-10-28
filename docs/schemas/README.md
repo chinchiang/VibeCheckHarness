@@ -131,6 +131,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-AUDIT-ANCHOR-SIG` | 每個 `audit_anchor` 的 `payload.z3_countersignature` 必須是金鑰登錄中 `z3-executor`（角色 `z3_executor`）對 JCS(`{run_id, seq, prev_hash}`) 的有效簽章；v0.5 改為 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`)，`domain` 為 `vibecheck/audit_anchor/v2`，`event_sha256` 蓋住錨點事件本身（去掉副簽） | `test_v04_round5_trust`、`test_v05_round6_group3`、`test_v07_r9_anchor` |
 | `E-AUDIT-ARTIFACT` | 已錨定的 `artifact_stored` 以 `payload.sha256` 釘住 run 的 W／B 階段產物：種子威脅（W5）、W0 inventory 與 redaction map、合併與外部 DFD（B1）、run 列出的每份 Commander 計畫（`plan_id`）。每份產物恰有一筆已錨定的事件，每筆事件指名本 run 一份 hash 相符的文件。審查 r9 只釘種子威脅（改種子文件的 `run_id` 就關掉了管線檢查）；審查 r11 補上其餘：已完成的 run 原本可以刪掉 inventory 的檔案、盲點與環境變數，報告與 run 紀錄仍自洽 | `test_v07_r11_anchor`、`test_v07_r9_anchor` |
 | `E-AUDIT-CHAIN` | 每筆事件的 `prev_hash` 必須是 sha256(run_id)（第一筆）或前一筆原始行的 sha256 | `test_v02_hardening`、`test_validator` |
+| `E-AUDIT-FEEDBACK` | 審查 r12：每筆已錨定的 `feedback_recorded` 都要對應 bundle 中同 `feedback_id`、內容 hash 相符的回饋紀錄（反向檢查；之前刪掉回饋紀錄——連同 SARIF 抑制與 ASI09 抽查母體——不會報錯） | `test_v07_r12_run` |
 | `E-AUDIT-GATE` | `gate_decision` 的 `payload.gate_record_sha256` 釘住所決定的關卡紀錄（去掉 `signatures` 的 content hash）。審查 r9 只釘關卡、結果與時間，核准者用自己的金鑰就能在決定被錨定之後增刪決定項目再重簽；只重簽相同內容不算變更 | `test_v05_round6_group1`、`test_v04_legal_trust`、`test_v05_round6_lowprio` 等 6 份 |
 | `E-AUDIT-IDEMPOTENCY` | `idempotency_key` 必填，格式 `<run_id>:<node>:<鍵>`，前兩段等於事件的 run_id 與 node，同一 run 內不重複 | `test_v04_round5_adjudication` |
 | `E-AUDIT-INITIATOR` | `initiator_claim` 事件的 actor 必須列在 `run.initiators` | `test_bl66_run_gates` |
@@ -153,13 +154,14 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RUN` | run 的 `engagement_id`、`data_class`、`run_owner` 必須與委任相同，`calibration_version` 與 calibration.yaml 相同 | `test_bl66_run_gates` |
 | `E-RUN-BUDGET` | GB 以 extend 核准後，`budgets.<phase>` 必須帶 GB 的 `new_caps`；各階段已用的 token、成本與運算分鐘不能超過對應上限 | `test_bl66_run_gates` |
 | `E-RUN-CLAIM` | Lane B run 在第一個 G1 決定、W4 或 B 階段事件之前，必須有人簽署的 `initiator_claim`（[02 §1.5](../02-methodology.md#15-自動觸發與發起者)、06 D7）；審查 r11：反向也成立，`run.initiators` 列出的每個人都要有本 run 已錨定、簽章有效的 `initiator_claim`（否則 G4 核准者可以被列成從未認領的「發起者」） | `test_v07_r8_validator`、`test_v07_r11_anchor` |
-| `E-RUN-COMMIT` | 已錨定的 `run_created` 事件以 `payload.repo_commit` 釘住 run 測試的 commit；run 紀錄與本 run 的 W0 inventory 必須是同一個 commit（`E-RESULT-BUILD` 再拿它比對觀察到的 build） | `test_v07_r9_anchor` |
+| `E-RUN-COMMIT` | 已錨定的 `run_created` 事件以 `payload.repo_commit` 釘住 run 測試的 commit；run 紀錄與本 run 的 W0 inventory 必須是同一個 commit（`E-RESULT-BUILD` 再拿它比對觀察到的 build）；審查 r12：`run_kind` 與 `trigger` 也由它釘住（`run_kind` 決定 R14 `FIXED`、Lane A 豁免與 `reuse` 規則） | `test_v07_r9_anchor`、`test_v07_r12_run` |
 | `E-RUN-CONFIG` | （同一條規則也涵蓋 `E-RUN-RULE-VERSION`、`E-SLICE-IDENTITY`）run config_refs 指向正確種類的檔案；不能是 null，`invariants`／`seed_manifest` 可為 pending（`expected_node` 是產生節點 G1／G0b，且 run 尚未到達）或 not_applicable（invariants 只限 Lane A；seed_manifest 只限沒有 B 階段內容的 run）；tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.5`；切片的 prompt 範本與 redaction map 屬於本 run | `test_v03_manifest`、`test_v05_backlog_high` |
 | `E-RUN-DEADLINE` | WAITING_GATE 時，`resume_deadline` 必須等於待決關卡的 `opened_at` 加上委任對該關卡的逾時 | `test_bl66_run_gates` |
 | `E-RUN-FOLLOWUP` | followup／regression run 的 `parent_run_id` 必須存在，且來自父 run 的某個 follow-up 草稿；其他 run 不能有 `parent_run_id`，`reuse` 必須是 `[]` | `test_v07_r8_validator` |
 | `E-RUN-G1` | 有 G3 決定（非 EXPIRED）的 run 必須有核准的 G1（本 run 決定，或以 `carried_from` 逐項沿用祖先 run 的 G1）；沿用的 G1 決定，其不變量的 `signoff` 指向來源紀錄（`E-TRACE-INVARIANT`） | `test_v07_r9_contracts` |
 | `E-RUN-G3` | 到 G4 的 run，其 `testcase_ids` 每個測試案例的威脅都在**本 run** 的 G3 有 accept（可用 `carried_from` 沿用祖先 run 的核准，但仍由本 run 簽署） | `test_v07_r8_validator` |
 | `E-RUN-G4` | （同一條規則也涵蓋 `E-RESULT-G4`、`E-RESULT-G5`、`E-RESULT-WINDOW`）審查 r7 1.2：以稽核事件的收件時間判斷：B4 job 的 `sandbox_job_start` 晚於**開始那一刻仍有效的**核准（`derive.g4_state`：最新決定是 accept，從哪一次 accept 起連續核准；之後相同內容的再次 accept 不移動它；外部審查），job 的開始與結束都在 ROE 的有效期間與時段內；S2 job 的開始與結束落在 G5 決定與該時段結束之間；`approved_testcase_ids` 是日誌末端最新 G4 決定為 accept 的測試案例（目前可派送）；執行後才被撤銷的核准不使已執行的結果失效，改報 `W-RESULT-G4-WITHDRAWN` | `test_v05_r7_bypasses`、`test_v07_r11_external` |
+| `E-RUN-GAPS` | 審查 r12：完成的 run，`gaps` 必須包含由 run 的紀錄推導出的每一項（kind＋ref）：MANUAL 的 W4 需求（`w4_manual_requirements`）與 MANUAL 測試案例 → `manual`；日誌末端 G4 決定為 reject 的測試案例 → `g4_rejected`；SKIPPED job → 依 `skip_reason`（G5 駁回／逾時 → `g5_skipped`，其餘沿用原因名稱）；所有權驗證失敗 → `ownership_failed`；ERROR／SKIPPED／STOPPED／INVALID 的結果 → `error`；GB `stop_phase` → `gb_stopped`。G3 駁回不是 gap（報告另列「未做黑箱驗證」）。r11 由 `gaps` 推導終態，但 `gaps` 本身沒人檢查，跳過已核准的 job 仍能 COMPLETED | `test_v07_r12_run` |
 | `E-RUN-GATES` | `gate_records` 必須依 `opened_at` 排序，列出的關卡紀錄都必須存在 | `test_bl66_run_gates` |
 | `E-RUN-INITIATOR` | `initiators` 每一位都必須是已登錄、非自動化帳號的人員 | `test_validator` |
 | `E-RUN-JOB` | `run.jobs` 的鍵等於 `job_id`；測試案例存在且經 G4 核准（列在 `approved_testcase_ids`，或在 job 開始時有效、事後才被撤銷）；`safety_class` 等於測試案例的計算等級；目標屬於該測試案例；只有 S2 job 有 `g5_record_id`；已執行的 job 有測試結果且列在 `executed_jobs`；`executed_jobs` ⊆ `jobs` | `test_bl66_run_gates`、`test_v07_r11_external` |
@@ -169,7 +171,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-RUN-RESTORE-DRILL` | S2 job 開始前 `restore_drill_days` 天內必須有一次成功的還原演練（`restore_drill` 事件），且 job 帶 `restore_drill_ref`；審查 r11：只採計系統帳號寫在已錨定部分的事件 | `test_v07_r11_anchor`、`test_review_fixes` |
 | `E-RUN-RESUME` | 審查 r11：`run_status_changed` 離開 `SUSPENDED`／`STOPPED` 時，進入暫停之後必須有一筆已錨定、人簽署的 `run_resume`（`from_status` 相符；簽署人的角色由 `E-AUDIT-ACTOR`／`E-SIG-ROLE` 檢查：SUSPENDED 由 run_owner 或發起者、STOPPED 由測試負責人），收件時間不晚於委任設定的 `validity.not_after`；resume 之後第一個 B 階段事件之前必須有新的 G0b `VERIFIED` 決定（每次 resume 重驗 ROE，[03 §5.6](../03-system-architecture.md#56-中止補償與-resume)）。之前一行未錨定的系統事件就能把暫停的 run 接回去 | `test_v07_r11_anchor` |
 | `E-RUN-RULE-VERSION` | （同一條規則也涵蓋 `E-RUN-CONFIG`、`E-SLICE-IDENTITY`）run config_refs 指向正確種類的檔案；不能是 null，`invariants`／`seed_manifest` 可為 pending（`expected_node` 是產生節點 G1／G0b，且 run 尚未到達）或 not_applicable（invariants 只限 Lane A；seed_manifest 只限沒有 B 階段內容的 run）；tool_versions 已登錄且與稽核一致；rule_version＝`05-v0.5`；切片的 prompt 範本與 redaction map 屬於本 run | `test_v03_manifest`、`test_v07_r8_calibration` |
-| `E-RUN-S2` | S2 job 需要該 job 的 APPROVED G5 紀錄，並有快照、`restore_verified: true` 與狀態 RESTORED | `test_validator` |
+| `E-RUN-S2` | S2 job 需要該 job 的 APPROVED G5 紀錄，並有快照、`restore_verified: true` 與狀態 RESTORED；審查 r12：快照與還原以稽核事件為準——恰一筆已錨定、`snapshot_ref` 相符、早於 `sandbox_job_start` 的 `snapshot_created`，恰一筆已錨定、`verified: true`、晚於 `sandbox_job_end` 的 `snapshot_restored`，且沒有 `restore_failed`（之前日誌寫著還原失敗，run 紀錄仍可寫 RESTORED、run COMPLETED） | `test_v07_r12_run`、`test_validator` |
 | `E-RUN-STATUS` | `run.status` 必須是稽核檔最後一筆 `run_status_changed` 的 `to`（第一筆之前是 `RUNNING`）；稽核檔有 `run_end` 錨點的 run 一定是終止狀態。v0.7 第八輪只看 run 紀錄自填的狀態，把已完成的 run 改回 RUNNING 就能在 `run_end` 錨點之後繼續附加未錨定的行<br>終止狀態的 run 不能有 `current_node` 或待決關卡；WAITING_GATE 必須恰好有一個待決關卡且等於 `current_node`<br>審查 r11：每筆 `run_status_changed` 的 `from` 必須是上一筆的 `to`（第一筆之前是 `RUNNING`）；`WAITING_GATE → RUNNING` 之間必須有 `gate_decision`；完成的 run 的狀態由 `gaps` 推導（只有 `manual` → `COMPLETED`，否則 `COMPLETED_WITH_GAPS`，[02 §1.4](../02-methodology.md#14-關卡結果與-run-狀態)） | `test_v07_r11_anchor`、`test_v07_r9_anchor`、`test_bl60_suspend` |
 
 **關卡與抽查**
@@ -280,7 +282,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-KR-LOCATION` | 登錄的 `registry_id` 與 engagement／ROE 的 `key_registry_ref` 必須等於 toolkit `key_registry.location`，且該檔案存在 | `test_bl66_trust` |
 | `E-KR-MISSING` | bundle 沒有金鑰登錄 | `test_bl66_trust` |
 | `E-KR-REVOCATION` | `revoked_at` 與 `revocation_reason` 必須同時設定或同時為 null；`revoked_at` 不能晚於登錄的 `issued_at` | `test_bl66_trust` |
-| `E-KR-ROLLBACK` | 登錄的 `version` 必須是整數且 ≥ toolkit `key_registry.min_version`（防回滾） | `test_validator` |
+| `E-KR-ROLLBACK` | 登錄的 `version` 必須是整數且 ≥ toolkit `key_registry.min_version`（防回滾）；審查 r12：也必須 ≥ 每個 run 已錨定的 `key_registry_loaded.version`——bundle 帶的登錄比 run 當時載入的舊，就是回滾（BL-43 不再只靠人記得調高 `min_version`） | `test_v07_r12_run`、`test_validator` |
 | `E-KR-ROOT-PIN` | `org_root_public_key` 的指紋必須等於 toolkit `org_root_key.fingerprint` 的釘選值 | `test_validator` |
 | `E-KR-ROOT-SIG` | 登錄必須恰好有一個由釘選根金鑰（`org_root`）做的簽章，且驗證通過 | `test_bl66_trust` |
 | `E-KR-SERVICE` | `z3_executor` 角色只能由服務身分 `z3-executor` 單獨持有；服務身分不是人員，不能出現在任何人員欄位 | `test_v05_round6_group3` |
@@ -500,7 +502,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-JSON-STRICT` | JSON／JSONL 以嚴格模式載入：重複鍵、非有限數字、超出範圍的整數等一律拒絕；被拒的稽核檔不再做後續的鏈與錨點檢查（不連鎖報錯） | `test_review_fixes`、`test_v02_hardening`、`test_v05_round6_lowprio` |
 | `E-KIND` | 每份文件的種類必須有對應的 schema | `test_bl66_config` |
 | `E-LOAD` | 已知種類的文件因嚴格 YAML／JSON 以外的原因無法載入 | `test_bl66_config` |
-| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 20 份 |
+| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 21 份 |
 | `E-SCHEMA-FORMAT` | （同一條規則也涵蓋 `E-INPUT-SHAPE`）見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 | `test_v03_scope` |
 | `E-SCHEMA-ID` | schema 的 `$id` 必須等於檔名 | `test_bl66_config` |
 | `E-SCHEMA-META` | schema 必須通過 2020-12 meta-schema 檢查，且 `$schema` 是 2020-12 | `test_bl66_config` |

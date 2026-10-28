@@ -216,6 +216,9 @@ def v_lite(b: Bundle, keys) -> None:
     rm = doc(b, "report-manifest.example.json").data
     rm["artifacts"] = [a for a in rm["artifacts"] if a["ref"] not in ("V-202-1", "GR-G5-0001", "R-TC-027-01-1")]
     doc(b, "report-manifest.example.json").data["evidential"] = "self_attested"     # r11: one person holds every key
+    # r12: the MANUAL testcase is on the untested list (docs/02 B6, E-RUN-GAPS); a MANUAL entry keeps the run COMPLETED
+    run["gaps"] = run.get("gaps", []) + [{"kind": "manual", "ref": "TC-027-01", "reason": "Lite 只允許 S0／S1：S2 的主動掃描改為人工執行"}]
+    rm["gaps"] = run["gaps"]
     _refresh_report(b, run["run_id"])
 
 
