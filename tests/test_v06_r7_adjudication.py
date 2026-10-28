@@ -59,6 +59,9 @@ def test_a_w4_result_never_overrides_even_if_named_at_g4(b):
     g4 = doc(b, "gate-record.g4.example.json").data
     g4["decisions"].append(dict(g4["decisions"][0], item_id="WTC-015-01", decision="accept"))
     tr = result(b, "R-WTC-015-01-1")
+    # r11 (external review): "approved" is judged when the test ran, so the W4 result is moved after the G4 decision
+    # (2026-10-03T11:00+08:00); the phase guard of proof_can_override is what this test is about
+    tr["executed_at"] = "2026-10-04T10:00:00+08:00"
     assert derive.g4_approved(derive.Index(b), tr) and tr["replay_k"] >= 1
     assert not checks.proof_can_override(Ctx(b), tr)
 

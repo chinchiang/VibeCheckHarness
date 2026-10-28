@@ -521,19 +521,86 @@ def fail_reproduced(tc: dict, tr: dict, probabilistic: bool | None = None) -> tu
     return True, ""
 
 
+@dataclass(frozen=True)
+class G4State:
+    """What the G4 decisions of a run say about one testcase as of a moment (docs/03 §6, review r11 external)."""
+    decision: str | None = None         # the latest decision on the testcase (accept, reject, needs_info), None = never decided
+    approved_since: Any = None          # receive time of the accept that began the current unbroken run of accepts, else None
+    record_id: str | None = None        # the gate record carrying the latest decision
+
+
+def record_time(ix: "Index", rec: dict):
+    """The Audit Writer's receive time of a gate record's gate_decision, else its self-declared timestamp, else None."""
+    t = ix.decision_time(rec)
+    if t is None:
+        try:
+            t = timeutil.parse_dt(rec.get("timestamp"))
+        except (timeutil.TimeError, TypeError, ValueError):
+            t = None
+    return t
+
+
+def g4_state(ix: "Index", run_id, testcase_id, at=None) -> G4State:
+    """The one rule for "is this testcase approved at G4": walk the run's signed G4 records (EXPIRED records are unsigned
+    and decide nothing) in receive-time order, keep the latest decision on the testcase, and remember when the current
+    unbroken run of accepts began. `at` restricts the walk to decisions received at or before it (a record whose time
+    is unknown is then skipped): "authorised when the job started" is g4_state(at=start), "currently allowed to dispatch"
+    is g4_state(at=None).
+
+    A later, identical accept leaves approved_since where it was (it is not a new approval); a later reject or needs_info
+    withdraws the approval for everything that starts after it, and does not reach back to a job that ran under it.
+    Review r11 (external): derive.g4_approved skipped a whole REJECTED record while the validator honoured it, and the
+    validator measured "executed before approval" from the LATEST record, so an identical second accept turned a legitimate
+    execution into an error."""
+    state = G4State()
+    for rec in ix.gate_records(run_id, "G4"):                    # receive-time order
+        if rec.data.get("outcome") == "EXPIRED":
+            continue
+        t = record_time(ix, rec.data)
+        if at is not None and (t is None or t > at):
+            continue
+        for x in rec.data.get("decisions") or []:
+            if isinstance(x, dict) and x.get("item_id") == testcase_id:
+                since = state.approved_since if (x.get("decision") == "accept" and state.decision == "accept") else t
+                state = G4State(x.get("decision"), since if x.get("decision") == "accept" else None, rec.data.get("gate_record_id"))
+    return state
+
+
+def g4_final_states(ix: "Index", run_id) -> dict[str, G4State]:
+    """testcase_id -> its G4 state at the end of the log, for every testcase any signed G4 record decides."""
+    ids = []
+    for rec in ix.gate_records(run_id, "G4"):
+        if rec.data.get("outcome") != "EXPIRED":
+            ids += [x.get("item_id") for x in rec.data.get("decisions") or [] if isinstance(x, dict)]
+    return {i: g4_state(ix, run_id, i) for i in dict.fromkeys(ids)}
+
+
+def job_span(ix: "Index", run_id, job_id):
+    """(receive time of the job's sandbox_job_start, of its sandbox_job_end) in the run's audit log, or None for each."""
+    audit = ix.audit_for(run_id)
+    evs = [e for e in (audit.data if audit and isinstance(audit.data, list) else [])
+           if isinstance(e, dict) and (e.get("payload") or {}).get("job_id") == job_id]
+    start = next((e.get("ts") for e in evs if e.get("event_type") == "sandbox_job_start"), None)
+    end = next((e.get("ts") for e in reversed(evs) if e.get("event_type") == "sandbox_job_end"), None)
+    return (timeutil.parse_dt(start) if isinstance(start, str) else None, timeutil.parse_dt(end) if isinstance(end, str) else None)
+
+
 def g4_approved(ix: "Index", tr: dict) -> bool:
-    """The latest G4 record of the result's run that decides this testcase accepts it (black-box pre-registration).
+    """The testcase was approved at G4 when its job ran (black-box pre-registration): the state as of the job's
+    sandbox_job_start, else of the result's executed_at, else (no time at all) at the end of the log. A reject that comes
+    after the execution does not undo the pre-registration (the result keeps E_proof; the run may not dispatch the testcase
+    again and the validator warns, W-RESULT-G4-WITHDRAWN).
 
     v0.5 (review 2026-10-25 §4.3): v0.4 read only the run's last G4 record, so a second-round G4 that covered other
     testcases turned an approved one into "not approved" (E_proof -> E_fail_u)."""
-    latest = None
-    for rec in ix.gate_records(tr.get("run_id"), "G4"):          # receive-time order
-        if rec.data.get("outcome") not in ("APPROVED", "PARTIALLY_APPROVED"):
-            continue
-        for x in rec.data.get("decisions") or []:
-            if isinstance(x, dict) and x.get("item_id") == tr.get("testcase_id"):
-                latest = x.get("decision")
-    return latest == "accept"
+    start, _ = job_span(ix, tr.get("run_id"), tr.get("job_id"))
+    at = start
+    if at is None:
+        try:
+            at = timeutil.parse_dt(tr.get("executed_at"))
+        except (timeutil.TimeError, TypeError, ValueError):
+            at = None
+    return g4_state(ix, tr.get("run_id"), tr.get("testcase_id"), at).decision == "accept"
 
 
 def preregistered(ix: "Index", tc: dict, tr: dict, control_kind: str) -> bool:

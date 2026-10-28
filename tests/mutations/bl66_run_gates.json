@@ -116,8 +116,8 @@
   {
    "name": "E-RUN-JOB: job testcase approved at G4",
    "file": "tools/vchlib/checks.py",
-   "old": "                    R.check(job.get(\"testcase_id\") in run.get(\"approved_testcase_ids\", []), \"E-RUN-JOB\", jw, \"job for a testcase not approved at G4\")",
-   "new": "                    R.check(True, \"E-RUN-JOB\", jw, \"job for a testcase not approved at G4\")",
+   "old": "                    R.check(job.get(\"testcase_id\") in run.get(\"approved_testcase_ids\", []) or withdrawn_later,",
+   "new": "                    R.check(True,",
    "k": "e_run_job_testcase_not_approved"
   },
   {

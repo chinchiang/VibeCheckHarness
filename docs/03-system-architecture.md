@@ -911,6 +911,18 @@ stateDiagram-v2
 - **人力**：Team 每個 run 約需 1 位 app_owner 4～6 人時（G1 以 70 條計 3.5 人時；審查 r11 之前這裡以 10～30 條估，與 02 W0.5 的 ASVS L1 基準不符）、1～2 位 security_reviewer 6～12 人時（以預設上限計）；Full 加倍。[07 MVP0-X8](07-roadmap.md#11-分段-mvp) 的 2 小時門檻因此不含 G1。這個估算與 02 §1.7 的審查者人數一起決定一個組織能同時跑幾個 engagement。
 - 佇列上限（`gate_queues`）讓每關的人時有上限；超出上限的項目進 `over_cap` 並在報告列出，不是延長周轉。
 
+### 6.6 G4 核准狀態的時間語意
+
+「測試案例已在 G4 核准」只有一條規則（`derive.g4_state`，審查 r11 外部審查）：依 `gate_decision` 的收件時間走過該 run 已簽署的 G4 紀錄（`EXPIRED` 的紀錄未簽署、不算決定），每個測試案例取最新的決定，並記下目前這段連續 accept 從哪一次開始（`approved_since`）。兩個問題用同一條規則，只差「看到哪一刻」：
+
+| 問題 | 看到哪一刻 | 用在 |
+|---|---|---|
+| 執行當時是否已核准 | job 的 `sandbox_job_start`（沒有就 `executed_at`） | 結果是否為事先登記（E_proof 的條件）、`E-RESULT-G4`、`E-RUN-JOB`、`E-G5-G4`（G5 開啟時） |
+| 目前是否可派送 | 日誌末端 | `run.approved_testcase_ids`（`E-RUN-G4`） |
+
+- 之後相同內容的再次 accept 不是新的核准：`approved_since` 不動，已執行的 job 不會因此變成「核准前執行」。
+- 之後的 reject 或 needs_info 撤銷核准：之後開始的 job 不被允許（`E-RESULT-G4`、`E-RUN-JOB`），已在有效核准下執行的結果保留事先登記與 E_proof，validator 報 `W-RESULT-G4-WITHDRAWN`；撤銷發生在執行之前，則該 job 是在未核准時執行。
+
 ## 7. 黑箱執行安全
 
 以下都**由程式碼強制**；更完整的威脅分析見 [06 §1](06-security-legal-limitations.md#1-工具包自身的安全)。每批執行前的檢查（`B4_preflight`，含所有權、build 識別與 whoami）見 [§5.5](#55-b4-執行迴圈)。

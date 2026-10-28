@@ -253,16 +253,24 @@
               "exclusiveMinimum": 0
             },
             "confirm_precision_floor": {
-              "type": "number"
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
             },
             "confirm_wilson_lower_floor": {
-              "type": "number"
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
             },
             "reject_true_defect_max": {
-              "type": "number"
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
             },
             "reject_wilson_upper_max": {
-              "type": "number"
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
             },
             "min_clusters": {
               "type": "integer",
@@ -287,10 +295,13 @@
           "additionalProperties": false,
           "properties": {
             "w_min": {
-              "type": "number"
+              "type": "number",
+              "minimum": 0
             },
             "wilson_lower_max": {
-              "type": "number"
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
             },
             "n_min": {
               "type": "integer",
@@ -325,7 +336,9 @@
               "$ref": "common.schema.json#/$defs/person_id"
             },
             "kappa_min": {
-              "type": "number"
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
             },
             "batch_size_apps": {
               "type": "integer",
@@ -594,13 +607,19 @@
                   ]
                 },
                 "delta": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
                 },
                 "ci_low": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
                 },
                 "ci_high": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
                 },
                 "mcnemar_p": {
                   "type": "number",
@@ -632,10 +651,14 @@
                   ]
                 },
                 "psi_observed": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
                 },
                 "rho_observed": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
                 },
                 "holdout_n_final": {
                   "type": "integer",
@@ -688,22 +711,34 @@
                   "const": "5"
                 },
                 "precision": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
                 },
                 "recall": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
                 },
                 "recall_diff_vs_arm3": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
                 },
                 "precision_diff_vs_arm3": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
                 },
                 "ci_low": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
                 },
                 "ci_high": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
                 },
                 "ci_method": {
                   "const": "app_clustered_bootstrap"
@@ -735,7 +770,9 @@
                     "type": "string"
                   },
                   "kappa": {
-                    "type": "number"
+                    "type": "number",
+                    "minimum": -1,
+                    "maximum": 1
                   },
                   "accepted": {
                     "type": "boolean"
@@ -790,7 +827,9 @@
                         "type": "string"
                       },
                       "gap": {
-                        "type": "number"
+                        "type": "number",
+                        "minimum": -1,
+                        "maximum": 1
                       },
                       "flagged": {
                         "type": "boolean"
@@ -920,16 +959,24 @@
       "additionalProperties": false,
       "properties": {
         "precision": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "recall": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "ci_low": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "ci_high": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "n": {
           "type": "integer",
@@ -948,7 +995,8 @@
         "ci_high",
         "n",
         "tp"
-      ]
+      ],
+      "description": "審查 r11（外部審查）：機率欄位限制在 0..1；validator 另以 tp／n 重算（E-CAL-THETA）"
     },
     "threshold": {
       "type": "object",
@@ -1065,13 +1113,19 @@
                 ]
               },
               "value": {
-                "type": "number"
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
               },
               "ci_low": {
-                "type": "number"
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
               },
               "ci_high": {
-                "type": "number"
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
               },
               "n": {
                 "type": "integer",

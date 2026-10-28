@@ -43,6 +43,14 @@
 - 新增 [docs/evidence/review-2026-10-28-r11.md](docs/evidence/review-2026-10-28-r11.md)；09 的 BL-63、BL-65 加註。
 - 新增 `tests/test_v07_r11_docs.py`（12 個）與 `tests/mutations/r11_docs.json`。
 
+### 外部審查（對 `2823823`）的三項（PR5）
+依 [審查紀錄 §9](docs/evidence/review-2026-10-28-r11.md#9-外部審查對-2823823-的核實)：三項都成立；第 1 項的大半已由 PR2 修正，剩下的尾巴與另外兩項在這裡處理。
+- **校準的機率欄位有範圍**（`calibration.schema.json`）：`split_stats` 的 precision／recall／ci_low／ci_high、`threshold_search` 與 `wilson_lower_max` 的限制、`primary_hypothesis` 與 `exploratory` 的比率、M-11 `by_model` 的值限制在 0..1；差值與 κ 限制在 −1..1。PR2 之後重算會抓到寫錯的值，現在 schema 這一層也守住（120% 的 precision 是 `E-SCHEMA`）。
+- **θ_reject 的 `tp` 是真缺陷數**（`E-CAL-THETA`，修正 PR2 引入的錯誤）：schema 與 05 §5.7 一向定義 `tp` 為被駁回叢集中的真缺陷數，PR2 的重算也是這樣算 precision，但 `theta_problems` 把 `1 − precision` 當真缺陷比例，結果文件自己的例子（60 個駁回、0 個真缺陷）不可行、`tp = n` 反而可行。改為直接比對 precision 與 Wilson 上界 `ci_high`；r10 的測試資料改為 `tp: 0`。05 §5.7 補上最小可行數：即使 0 個真缺陷，上界 ≤ 0.08 也至少要 45 個被駁回的叢集（n＝40 為 0.0876）。
+- **G4 核准只有一條規則**（`derive.g4_state`）：`derive.g4_approved` 跳過整份 `REJECTED` 紀錄、`checks.g4_latest_decisions` 不跳過、`g5_g4_link` 又讀 `EXPIRED`；E-RESULT-G4 以**最新那份**紀錄的時間當核准時間，所以後補一筆相同內容的 accept，就把先前合法的執行誤報成「核准前執行」。現在四處共用 `g4_state(run, testcase, at)`：「執行當時是否已核准」看 job 的 `sandbox_job_start`，「目前是否可派送」看日誌末端；相同內容的再次 accept 不移動核准時間。執行後被撤銷的核准：結果保留事先登記（E_proof），測試案例不得再派送，validator 報警告 `W-RESULT-G4-WITHDRAWN`（使用者決定）。03 新增 §6.6。
+- **突變工具不再把任何非零退出碼當成功**（`tools/mutation_check.py`）：選不到測試（exit 5）、用法錯誤（4）、收集或匯入錯誤、基準本來就失敗，全部是 `VERIFY`；先在未突變的複本確認選到的測試全過，突變後必須是斷言失敗才算 `CAUGHT`；子行程不寫 `.pyc`（同大小的突變在同一秒寫入時會載入舊的快取）。全部清單在新工具下重跑，發現兩個舊問題：`r10_anchor.json` 有一項突變把一個多行呼叫換成 `if not True:`，留下語法錯誤，所有測試在載入時就失敗（exit 4），舊工具把它算成抓到，現已改成合法的突變；`r10_verdict.json` 的「保留切分太小」突變沒被抓到，因為 `test_a_threshold_does_not_generalise_on_a_tiny_holdout` 的保留切分沒有 `tp`，PR2 之後它是因「不是計數」而通過、沒有走到大小檢查，現已補上一致的原始計數並斷言大小檢查的訊息。`test_a_w4_result_never_overrides_even_if_named_at_g4` 的 W4 結果比 G4 決定早執行，把執行時間移到 G4 之後（斷言不變），因為「已核准」現在看執行當時。
+- 新增 `tests/test_v07_r11_external.py`（33 個）、`tests/test_mutation_check.py`（11 個）、`tests/mutations/r11_external_checks.json`（15）與 `r11_external.json`（7）。
+
 ## 待辦 BL-66、BL-01、BL-47、BL-05 與 `suspend` 變體（2026-10-27）
 
 ### 每個錯誤碼都有測試（BL-66）

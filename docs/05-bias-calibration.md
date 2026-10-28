@@ -545,12 +545,13 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 - **格點**：θ ∈ {0.1, 0.2, …, S_max}，S_max＝該設定下可能的最大 |S|。
 - **θ_confirm**：目標＝**最大化** R5 投票分支的 recall，**限制**：經 R5 投票分支確認的叢集 precision ≥ 0.90，且其 Wilson 95% 下界 ≥ 0.80，且該分支至少有 40 個叢集。在可行的 θ 中取**最小者**（recall 最高）。
 - **θ_reject**：目標＝**最大化**被 R4 自動 `REJECTED` 的誤報數，**限制**：被自動駁回的叢集中真實缺陷的比例 ≤ 0.02，且其 Wilson 95% 上界 ≤ 0.08，且至少 40 個被駁回的叢集。在可行的 θ 中取**最小者**。駁回的限制比確認嚴，因為被駁回的叢集不會成為種子威脅，漏報無法在黑箱階段補回。
-  - 例：60 個被駁回的叢集中 0 個是真缺陷 → Wilson 上界約 0.060 ≤ 0.08，可行。
+  - 例：60 個被駁回的叢集中 0 個是真缺陷（`tp: 0`）→ Wilson 上界約 0.060 ≤ 0.08，可行。
+  - **最小可行數**（外部審查）：即使 0 個真缺陷，Wilson 上界要 ≤ 0.08 至少需要 45 個被駁回的叢集（n＝45 時約 0.0787，n＝44 約 0.0803，n＝40 約 0.0876）；「至少 40 個」只是必要條件，可行與否由 Wilson 上界決定，所以 n 在 40～44 之間的駁回門檻永遠不可行。
 - **不可行時**：沒有任何 θ 滿足限制 → 該門檻設為 +∞（R5 投票分支或 R4 自動駁回停用，相關叢集改落在 `LIKELY`／`DISPUTED`／`UNCORROBORATED`），並在報告中說明。
 - **保留切分檢查**：保留切分上的 precision 比限制低 0.05 以上（確認分支 ＜ 0.85，或駁回分支真缺陷比例 ＞ 0.07）→ 標示「門檻未能類推」，改用 +∞，下一輪校準再調。
 - θ 只調一次；不得在看過保留切分後重選。
 - **切分統計記原始計數**（審查 r11）：`calibration`／`holdout` 各記 `tp`（該分支確認或駁回的叢集中的真缺陷數）與 `n`，validator 以 tp／n 重算 precision 與 Wilson 95% 界限（`ci_low`、`ci_high`；n＝0 時都是 0），不接受自填值；`recall` 需要語料的全部正例，仍是宣告值。
-- **validator 重算**：`feasible: true` 的門檻，其 `calibration` 統計必須滿足上面的限制（n ≥ `min_clusters`；確認分支 precision ≥ `confirm_precision_floor`、`ci_low` ≥ `confirm_wilson_lower_floor`；駁回分支的統計描述被駁回的叢集，真缺陷比例 1 − precision ≤ `reject_true_defect_max`、Wilson 上界 1 − `ci_low` ≤ `reject_wilson_upper_max`），`generalised: true` 的保留切分在限制的 0.05 以內；而且每個桶的 θ_confirm 必須高於該桶任何一張支持票的權重，否則一張票就能確認（`E-CAL-THETA`）。θ_reject 同理，必須高於該桶任何一張反駁票的權重，否則一張反駁票就能讓單一家族回報的叢集被第 8 列自動駁回；`generalised: true` 的保留切分至少 10 個叢集（與 §5.10 的保留切分下限相同），一個叢集的保留切分說明不了類推。v0.7 只看 `feasible` 與 `generalised` 這兩個自填的布林值。
+- **validator 重算**：`feasible: true` 的門檻，其 `calibration` 統計必須滿足上面的限制（n ≥ `min_clusters`；確認分支 precision ≥ `confirm_precision_floor`、`ci_low` ≥ `confirm_wilson_lower_floor`；駁回分支的統計描述被駁回的叢集，`tp` 是其中的真缺陷數，所以 precision 本身就是真缺陷比例：precision ≤ `reject_true_defect_max`、Wilson 上界 `ci_high` ≤ `reject_wilson_upper_max`；r11 初版誤把 1 − precision 當真缺陷比例，與上面的定義相反），`generalised: true` 的保留切分在限制的 0.05 以內（駁回分支：保留切分的真缺陷比例 ≤ 0.07）；而且每個桶的 θ_confirm 必須高於該桶任何一張支持票的權重，否則一張票就能確認（`E-CAL-THETA`）。θ_reject 同理，必須高於該桶任何一張反駁票的權重，否則一張反駁票就能讓單一家族回報的叢集被第 8 列自動駁回；`generalised: true` 的保留切分至少 10 個叢集（與 §5.10 的保留切分下限相同），一個叢集的保留切分說明不了類推。v0.7 只看 `feasible` 與 `generalised` 這兩個自填的布林值。
 
 ### 5.8 模型版本變更時的最小重跑集
 

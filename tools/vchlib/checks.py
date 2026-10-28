@@ -849,25 +849,15 @@ def decision_time(c: Ctx, rec: dict) -> dt.datetime | None:
 def job_span(c: Ctx, run_id, job_id) -> tuple[dt.datetime | None, dt.datetime | None]:
     """v0.5 (review r7 1.2): (receive time of the job's sandbox_job_start, of its sandbox_job_end) in the run's audit
     log, the Audit Writer's clock. A result's self-declared executed_at must lie inside it."""
-    audit = c.ix.audit_for(run_id)
-    evs = [e for e in (audit.data if audit else []) if isinstance(e, dict) and (e.get("payload") or {}).get("job_id") == job_id]
-    start = next((e.get("ts") for e in evs if e.get("event_type") == "sandbox_job_start"), None)
-    end = next((e.get("ts") for e in reversed(evs) if e.get("event_type") == "sandbox_job_end"), None)
-    return (timeutil.parse_dt(start) if isinstance(start, str) else None, timeutil.parse_dt(end) if isinstance(end, str) else None)
+    return derive.job_span(c.ix, run_id, job_id)
 
 
 def g4_latest_decisions(c: Ctx, run_id) -> dict:
-    """testcase_id -> (decision, receive time of its gate_decision) of the latest signed G4 decision on it (EXPIRED records
-    are unsigned and decide nothing). v0.4 read only the run's last G4 record."""
-    out = {}
-    for rec in c.ix.gate_records(run_id, "G4"):                 # receive-time order
-        if rec.data.get("outcome") == "EXPIRED":
-            continue
-        at = decision_time(c, rec.data)
-        for x in rec.data.get("decisions") or []:
-            if isinstance(x, dict):
-                out[x.get("item_id")] = (x.get("decision"), at)
-    return out
+    """testcase_id -> (latest signed decision on it, receive time its current unbroken run of accepts began) at the end of
+    the log: "currently allowed to dispatch". "Authorised when a job ran" is derive.g4_state(at=job start). Both come from
+    the same rule (derive.g4_state); v0.4 read only the run's last G4 record, and r11 measured the approval from the latest
+    record, not the one in force."""
+    return {tc: (st.decision, st.approved_since) for tc, st in derive.g4_final_states(c.ix, run_id).items()}
 
 
 BLACK_BOX_KINDS = ("testcase", "testresult", "threat")          # B2-B4 artefacts (seed threats are W5 output)
@@ -1468,14 +1458,8 @@ def g5_g4_link(R: Report, c: Ctx, rec: dict, w: str, job: dict | None, opened: d
     at = decision_time(c, g4) or ts(R, g4.get("timestamp"), w)
     R.check(at is not None and at <= opened, "E-G5-G4", w, f"{ref} was decided after this G5 opened")
     # the latest G4 decision on the testcase when this G5 opened: a later G4 round does not undo a G5 already decided
-    latest = None
-    for d in c.ix.gate_records(rec.get("run_id"), "G4"):
-        t = decision_time(c, d.data) or ts(R, d.data.get("timestamp"), d.path)
-        if t is None or t > opened:
-            continue
-        for x in d.data.get("decisions") or []:
-            if x.get("item_id") == tcid:
-                latest = (d.data.get("gate_record_id"), x.get("decision"))
+    st = derive.g4_state(c.ix, rec.get("run_id"), tcid, at=opened)
+    latest = (st.record_id, st.decision) if st.decision is not None else None
     R.check(latest == (ref, "accept"), "E-G5-G4", w,
             f"{ref} is not the latest G4 decision on {tcid} when this G5 opened, or does not accept it (latest: {latest})")
     both = {a.get("person_id") for a in rec.get("approvers", [])} & {a.get("person_id") for a in g4.get("approvers", [])}
@@ -1885,7 +1869,14 @@ def g_runs(R: Report, c: Ctx):
                     tc = c.ix.first("testcase", testcase_id=job.get("testcase_id"))
                     if not R.check(tc is not None, "E-RUN-JOB", jw, "testcase not found"):
                         continue
-                    R.check(job.get("testcase_id") in run.get("approved_testcase_ids", []), "E-RUN-JOB", jw, "job for a testcase not approved at G4")
+                    # approved now, or approved when the job started and withdrawn by a later G4 round (that does not undo a job
+                    # that ran under it; a job started after the withdrawal is not allowed, review r11 external)
+                    jstart, _jend = job_span(c, rid, jid)
+                    withdrawn_later = jstart is not None \
+                        and derive.g4_state(c.ix, rid, job.get("testcase_id"), at=jstart).decision == "accept" \
+                        and derive.g4_state(c.ix, rid, job.get("testcase_id")).decision != "accept"
+                    R.check(job.get("testcase_id") in run.get("approved_testcase_ids", []) or withdrawn_later,
+                            "E-RUN-JOB", jw, "job for a testcase not approved at G4")
                     if profile(c) == "lite":
                         R.check(job.get("safety_class") in ("S0", "S1"), "E-PROFILE-SAFETY", jw,
                                 f"assurance_profile lite allows only S0/S1 jobs, got {job.get('safety_class')}")
@@ -1938,12 +1929,19 @@ def g_runs(R: Report, c: Ctx):
                     else:                  # W4: Z2 sandbox test, no B4 job, no ROE window
                         R.check(tr.get("job_id") is None, "E-RESULT-JOB", x.path, "W4 results have no B4 job (job_id null)")
                     if ex and black_box:
-                        dec, g4_at = g4_latest.get(tr.get("testcase_id"), (None, None))
+                        # review r11 (external): the approval IN FORCE when the job started (derive.g4_state), not the latest G4 record
+                        start, end = job_span(c, rid, tr.get("job_id"))
+                        st = derive.g4_state(c.ix, rid, tr.get("testcase_id"), at=start or ex)
+                        g4_at = st.approved_since
                         R.check(timeutil.in_any_window(ex, roe_windows(c)) and rnb and rna and rnb <= ex <= rna, "E-RESULT-WINDOW", x.path,
                                 "executed outside the ROE validity / time windows")
-                        R.check(dec == "accept" and g4_at is not None and ex > g4_at, "E-RESULT-G4", x.path, "executed before G4 approval")
+                        R.check(st.decision == "accept" and g4_at is not None and ex > g4_at, "E-RESULT-G4", x.path,
+                                "executed before G4 approval" if st.decision != "reject" and st.decision != "needs_info"
+                                else f"executed while the G4 decision on the testcase was {st.decision}")
+                        if st.decision == "accept" and g4_latest.get(tr.get("testcase_id"), (None, None))[0] != "accept":
+                            R.warn("W-RESULT-G4-WITHDRAWN", x.path, "the G4 approval this result ran under was withdrawn by a later round: "
+                                   "the result keeps its pre-registration, the testcase may not be dispatched again")
                         # v0.5 (review r7 1.2): executed_at is self-declared; the job's sandbox_job_* receive times decide
-                        start, end = job_span(c, rid, tr.get("job_id"))
                         if start is not None and end is not None:
                             R.check(start <= ex <= end, "E-JOB-AUDIT", x.path,
                                     f"executed_at {tr.get('executed_at')} is outside its job ({start.isoformat()} .. {end.isoformat()})")
@@ -4831,9 +4829,11 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
     `feasible` and `generalised` as declared, so two booleans on a threshold measured on 5 clusters at precision 0.5 switched
     on the confirm branch. Confirm: n >= min_clusters, precision >= confirm_precision_floor, Wilson lower >=
     confirm_wilson_lower_floor, and generalised only when the holdout precision is within 0.05 of the floor. Reject (the
-    statistics describe the rejected clusters: 1 - precision is the true-defect share, 1 - ci_low its Wilson upper):
-    n >= min_clusters, 1 - precision <= reject_true_defect_max, 1 - ci_low <= reject_wilson_upper_max, and generalised only
-    when the holdout share is within 0.05. And a bucket's theta_confirm is above every single vote's support weight in
+    statistics describe the rejected clusters and `tp` counts the TRUE DEFECTS among them, as docs/05 §5.7 and the schema
+    say, so precision = tp / n is the true-defect share and ci_high its Wilson upper bound; review r11, external): n >=
+    min_clusters, precision <= reject_true_defect_max, ci_high <= reject_wilson_upper_max, and generalised only when the
+    holdout share is within 0.05. (r11 first read `1 - precision` here, which made the documented example of 60 rejected
+    clusters with no true defect infeasible and `tp = n` feasible.) And a bucket's theta_confirm is above every single vote's support weight in
     that bucket, or one vote confirms (docs/05 §4.3: "one vote is not enough")."""
     cfg, res = cal.get("config") or {}, cal.get("result") or {}
     ts = cfg.get("threshold_search") or {}
@@ -4864,13 +4864,12 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
                     out.append((label, f"generalised with holdout precision {ho.get('precision')}: below {floor} - 0.05"))
             else:
                 cap = ts.get("reject_true_defect_max", 0)
-                if not (num(cs.get("precision")) and 1 - cs["precision"] <= cap + 1e-9):
-                    out.append((label, f"feasible with true-defect share {None if not num(cs.get('precision')) else round(1 - cs['precision'], 4)}: "
-                                       f"above reject_true_defect_max {cap}"))
-                if not (num(cs.get("ci_low")) and 1 - cs["ci_low"] <= ts.get("reject_wilson_upper_max", 0) + 1e-9):
-                    out.append((label, f"feasible with Wilson upper {None if not num(cs.get('ci_low')) else round(1 - cs['ci_low'], 4)}: "
-                                       f"above reject_wilson_upper_max {ts.get('reject_wilson_upper_max')}"))
-                if t.get("generalised") is True and not (num(ho.get("precision")) and 1 - ho["precision"] <= cap + 0.05 + 1e-9):
+                if not (num(cs.get("precision")) and cs["precision"] <= cap + 1e-9):
+                    out.append((label, f"feasible with true-defect share {cs.get('precision')}: above reject_true_defect_max {cap}"))
+                if not (num(cs.get("ci_high")) and cs["ci_high"] <= ts.get("reject_wilson_upper_max", 0) + 1e-9):
+                    out.append((label, f"feasible with Wilson upper {cs.get('ci_high')}: above reject_wilson_upper_max "
+                                       f"{ts.get('reject_wilson_upper_max')}"))
+                if t.get("generalised") is True and not (num(ho.get("precision")) and ho["precision"] <= cap + 0.05 + 1e-9):
                     out.append((label, f"generalised with holdout true-defect share above {cap} + 0.05"))
     # v0.7 (review r10): theta_reject too; row 8 rejects a single-family cluster on S <= -theta_reject, so a theta_reject
     # at or below one refute weight let a single REFUTE vote reject it automatically

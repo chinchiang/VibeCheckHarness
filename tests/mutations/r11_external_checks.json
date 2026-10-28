@@ -1,0 +1,110 @@
+{
+  "tests": "tests/test_v07_r11_external.py",
+  "mutations": [
+    {
+      "name": "reject branch reads precision as the true-defect share",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if not (num(cs.get(\"precision\")) and cs[\"precision\"] <= cap + 1e-9):",
+      "new": "                if not (num(cs.get(\"precision\")) and 1 - cs[\"precision\"] <= cap + 1e-9):",
+      "k": "without_a_true_defect or only_of_true_defects"
+    },
+    {
+      "name": "reject branch uses the recomputed Wilson upper",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if not (num(cs.get(\"ci_high\")) and cs[\"ci_high\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
+      "new": "                if not (num(cs.get(\"ci_high\")) and 1 - cs[\"ci_low\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
+      "k": "smallest_error_free_rejection_set"
+    },
+    {
+      "name": "reject holdout margin",
+      "file": "tools/vchlib/checks.py",
+      "old": "ho[\"precision\"] <= cap + 0.05 + 1e-9):",
+      "new": "ho[\"precision\"] <= 1.0):",
+      "k": "high_true_defect_share"
+    },
+    {
+      "name": "schema bounds the split precision",
+      "file": "docs/schemas/calibration.schema.json",
+      "old": "        \"precision\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 1\n        },\n        \"recall\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 1\n        },\n        \"ci_low\"",
+      "new": "        \"precision\": {\n          \"type\": \"number\"\n        },\n        \"recall\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 1\n        },\n        \"ci_low\"",
+      "k": "outside_its_range and precision"
+    },
+    {
+      "name": "the walk skips EXPIRED records",
+      "file": "tools/vchlib/derive.py",
+      "old": "        if rec.data.get(\"outcome\") == \"EXPIRED\":\n            continue\n        t = record_time(ix, rec.data)",
+      "new": "        t = record_time(ix, rec.data)",
+      "k": "expired_g4_round"
+    },
+    {
+      "name": "a decision after the moment is ignored",
+      "file": "tools/vchlib/derive.py",
+      "old": "        if at is not None and (t is None or t > at):\n            continue",
+      "new": "        if False:\n            continue",
+      "k": "ignores_later_records or withdraws_the_approval or legitimate_execution"
+    },
+    {
+      "name": "an identical accept keeps approved_since",
+      "file": "tools/vchlib/derive.py",
+      "old": "                since = state.approved_since if (x.get(\"decision\") == \"accept\" and state.decision == \"accept\") else t",
+      "new": "                since = t",
+      "k": "does_not_move_the_approval or legitimate_execution"
+    },
+    {
+      "name": "a reject clears approved_since",
+      "file": "tools/vchlib/derive.py",
+      "old": "since if x.get(\"decision\") == \"accept\" else None, rec.data.get(\"gate_record_id\"))",
+      "new": "since, rec.data.get(\"gate_record_id\"))",
+      "k": "withdraws_the_approval"
+    },
+    {
+      "name": "g4_approved reads the state at the job start",
+      "file": "tools/vchlib/derive.py",
+      "old": "    return g4_state(ix, tr.get(\"run_id\"), tr.get(\"testcase_id\"), at).decision == \"accept\"",
+      "new": "    return g4_state(ix, tr.get(\"run_id\"), tr.get(\"testcase_id\"), None).decision == \"accept\"",
+      "k": "withdraws_the_approval_for_new_dispatches"
+    },
+    {
+      "name": "E-RESULT-G4 measures from the approval in force",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        st = derive.g4_state(c.ix, rid, tr.get(\"testcase_id\"), at=start or ex)",
+      "new": "                        st = derive.g4_state(c.ix, rid, tr.get(\"testcase_id\"))",
+      "k": "legitimate_execution or withdrawn_approval or reject_after"
+    },
+    {
+      "name": "the withdrawn warning",
+      "file": "tools/vchlib/checks.py",
+      "old": "R.warn(\"W-RESULT-G4-WITHDRAWN\"",
+      "new": "R.warn(\"W-RESULT-G4-WITHDRAWN-X\"",
+      "k": "withdrawn_approval"
+    },
+    {
+      "name": "a job started after the withdrawal is rejected",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        and derive.g4_state(c.ix, rid, job.get(\"testcase_id\"), at=jstart).decision == \"accept\" \\\n",
+      "new": "                        and True \\\n",
+      "k": "started_after_the_withdrawal"
+    },
+    {
+      "name": "g5 link uses the shared state",
+      "file": "tools/vchlib/checks.py",
+      "old": "    st = derive.g4_state(c.ix, rec.get(\"run_id\"), tcid, at=opened)",
+      "new": "    st = derive.g4_state(c.ix, rec.get(\"run_id\"), tcid)",
+      "k": "expired_g4_round or does_not_undo_a_g5"
+    },
+    {
+      "name": "05 states the minimum n",
+      "file": "docs/05-bias-calibration.md",
+      "old": "至少需要 45 個被駁回的叢集",
+      "new": "至少需要 40 個被駁回的叢集",
+      "k": "05_states"
+    },
+    {
+      "name": "03 states the semantics",
+      "file": "docs/03-system-architecture.md",
+      "old": "### 6.6 G4 核准狀態的時間語意",
+      "new": "### 6.6 G4 核准",
+      "k": "03_and_the_schemas"
+    }
+  ]
+}
