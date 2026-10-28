@@ -1,0 +1,89 @@
+{
+  "tests": "tests/test_v07_r11_docs.py",
+  "mutations": [
+    {
+      "name": "08 §11.18 says SKIPPED",
+      "file": "docs/08-implementation-spec.md",
+      "old": "該角色的 job `SKIPPED`，列入 `gaps`",
+      "new": "該角色的測試案例 MANUAL",
+      "k": "skips_instead_of_manual"
+    },
+    {
+      "name": "signed events include spot_check_result",
+      "file": "docs/schemas/README.md",
+      "old": "、`run_resume` 與 `spot_check_result` 帶簽章",
+      "new": " 與 `run_resume` 帶簽章",
+      "k": "every_signed_event"
+    },
+    {
+      "name": "check groups are complete",
+      "file": "docs/schemas/README.md",
+      "old": "22. **W4 測試案例**",
+      "new": "22. W4 測試案例",
+      "k": "all_check_groups"
+    },
+    {
+      "name": "G1 estimate uses 70 items",
+      "file": "docs/03-system-architecture.md",
+      "old": "3.5（70 × 3 ÷ 60）",
+      "new": "1.5",
+      "k": "asvs_l1_baseline"
+    },
+    {
+      "name": "G4 cites g4_max_items",
+      "file": "docs/03-system-architecture.md",
+      "old": "| G4 | `g4_max_items`（預設 40） | 4 |",
+      "new": "| G4 | 測試案例數 | 4 |",
+      "k": "cites_g4_max_items"
+    },
+    {
+      "name": "MVP0-X8 excludes G1",
+      "file": "docs/07-roadmap.md",
+      "old": "GB；**G1 另計**）",
+      "new": "G1 問卷與簽核、**G2 逐項決定**、GB）",
+      "k": "excludes_g1"
+    },
+    {
+      "name": "08 §9.2 assumes two engineers",
+      "file": "docs/08-implementation-spec.md",
+      "old": "兩位全職工程師 [H]（審查 r11 統一；之前這裡寫 3–4 位）",
+      "new": "以 3–4 位工程師為前提 [H]",
+      "k": "same_engineers"
+    },
+    {
+      "name": "07 §1.5 is a lower bound",
+      "file": "docs/07-roadmap.md",
+      "old": "表中的人週是**下限**",
+      "new": "表中的人週是估計",
+      "k": "same_engineers"
+    },
+    {
+      "name": "README status is r11",
+      "file": "README.md",
+      "old": "第十一輪審查（2026-10-28）後",
+      "new": "第十輪審查（2026-10-27）後",
+      "k": "point_at_the_r11_record"
+    },
+    {
+      "name": "glossary has evidential",
+      "file": "README.md",
+      "old": "| `evidential` | 證據價值 |",
+      "new": "| evidential | 證據價值 |",
+      "k": "r11_terms"
+    },
+    {
+      "name": "glossary lists FIXED",
+      "file": "README.md",
+      "old": "`REJECTED`、`FIXED`（regression",
+      "new": "`REJECTED`（regression",
+      "k": "every_final_status"
+    },
+    {
+      "name": "record lists the PRs",
+      "file": "docs/evidence/review-2026-10-28-r11.md",
+      "old": "| chinchiang/VibeCheckHarness#37 |",
+      "new": "| PR4 |",
+      "k": "lists_the_four_prs"
+    }
+  ]
+}

@@ -933,7 +933,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 
 ### 9.2 M1 前兩週的工單
 
-以 3–4 位工程師為前提 [H]。依序排列；同一週內，前置條件相同的工單可以並行。
+人力前提與 [07 §1.5](07-roadmap.md#15-人力與時程估算-h) 相同：兩位全職工程師 [H]（審查 r11 統一；之前這裡寫 3–4 位）。依序排列；同一週內，前置條件相同的工單可以並行，但同時進行的工單以兩人為上限，所以每週的工單數是排程的下限假設，實際進度由 [BL-63](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目) 的量測回填。
 
 | # | 週 | 工單 | 前置 | 驗收測試 |
 |---|---|---|---|---|
@@ -2005,10 +2005,10 @@ W4 需要安裝相依並建置受測程式 [H]：
 |---|---|---|
 | staging 環境，與正式環境分離 | 只測 staging（06 §2.1） | 不開始 B 階段 |
 | `build_identity` 標頭或端點 | B4 結果綁定 commit（`E-RESULT-BUILD`） | 列入 `build_unverified_targets` |
-| 每個測試角色的 `whoami` 端點 | 可達性對照 | 該角色的測試案例 MANUAL |
+| 每個測試角色的 `whoami` 端點 | 可達性對照 | 該角色的 job `SKIPPED`，列入 `gaps`（[02 B4](02-methodology.md#b4-執行) 的 whoami 規則、06 §3 #41；不是 `MANUAL`） |
 | 所有權 token 放置（DNS TXT、well-known、DB `COMMENT ON DATABASE`、共享平台的 `technical_proof`） | B0 所有權驗證（`E-RUN-OWNERSHIP`） | 該目標排除 |
 | seed manifest 與種子帳號 | 寫入範圍綁定種子 | 只做唯讀測試 |
-| CAPTCHA／MFA 的測試繞過 | Session Provider | 該流程 MANUAL |
+| CAPTCHA／MFA 的測試繞過 | Session Provider | 該角色登入失敗 → 同上，job `SKIPPED` 列入 `gaps` |
 | 外部整合（金流、郵件）的 sandbox | 不打到真實第三方 | 該端點列入排除 |
 | 快照與還原能力（S2） | `restore_drill` | 不核准 S2 |
 | 支援的框架與平台（§11.1 支援矩陣） | W0 盤點與切片 | 列入 `blind_spots`；主要框架不支援時不建議使用本工具包 |

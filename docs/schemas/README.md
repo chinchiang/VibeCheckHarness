@@ -83,7 +83,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 2. **RFC 8785 JCS**：自寫的 `canonical.jcs` 對 RFC 8785 測試向量，並對每份文件與參考套件 `rfc8785==0.1.4` 比對。
 3. **衍生值**：片段 hash、關卡項目 hash、artifact hash、報告清單 hash、票權重、分數、合格票等由 `vchlib.derive` 重算；稽核雜湊鏈由原始行重算。
 4. **金鑰登錄**：根公鑰指紋＝toolkit 釘選值、根簽章有效、`version ≥ min_version`（防回滾）、`registry_id`＝toolkit `location`＝engagement／ROE `key_registry_ref`、指紋＝公鑰計算值、撤銷欄位一致、自動化帳號不得持有金鑰。
-5. **Ed25519 簽章**：engagement、ROE（含 legal_review.attested_by）、G1–G5／GB 關卡紀錄、人為的 `initiator_claim`／`run_resume` 事件。公鑰只從金鑰登錄取得；`compromised` → 該金鑰全部簽章無效；其他撤銷原因 → 撤銷時間之前的簽章仍有效。G0a／G0b 是系統驗證：`signatures: []`，`verification.signer_results` 必須等於實際驗證結果。
+5. **Ed25519 簽章**：engagement、ROE（含 legal_review.attested_by）、G1–G5／GB 關卡紀錄、人為的 `initiator_claim`／`run_resume`／`spot_check_result` 事件。公鑰只從金鑰登錄取得；`compromised` → 該金鑰全部簽章無效；其他撤銷原因 → 撤銷時間之前的簽章仍有效。G0a／G0b 是系統驗證：`signatures: []`，`verification.signer_results` 必須等於實際驗證結果。
 6. **人員參照**：所有 person_id 都已登錄、不是自動化帳號，角色與金鑰相符（校準標註者是外部標註人員，不列入）。
 7. **委任**：有效期間、允許模型與資料等級、逾時不超過工具包、成本上限都有值且階段 ≤ 總額、保存期限（`retention_days` 必須在 1..工具包上限之內，否則 `E-RETENTION`，是錯誤不是警告）、Lane A 模型、程式碼擁有權聲明、OWASP LLM 版本。
 8. **ROE 與 L-1..L-6**：在委任期間內、時間窗與時區、目標與 db_access、拒絕清單（`tools.yaml` 的 `toolkit_denied`＝程式內建清單 ⊆ ROE `denied_modes`）、允許的工具已登錄、停止條件只能更嚴、relay 不超過工具包、資料等級與保存期限（toolkit.yaml `retention` 是組織上限；engagement `retention_days` 是有效值且不得超過上限，ROE 只能再縮短：`E-RETENTION`／`E-ROE-RETENTION`）、資料庫目標與 `db_access` 的主機不得在 `exclusions.hosts` 且必須是 ROE 的資料庫目標（`E-ROE-DB-SCOPE`；訊息以 `[binding rule]`／`[scope rule]`／`[exclusion rule]` 標出是哪一條）、http 目標的 `base_url` 必須可解析且主機不得在 `exclusions.hosts`（`E-ROE-TARGETS`）、endpoint 只接受 `host:port` 或 `[IPv6]:port`（schema pattern；無法解析 → `E-ROE-DB-SCOPE` "unparseable endpoint"，不會 `E-INTERNAL`）；比對主機前兩邊都先正規化（小寫、去掉結尾的 `.`、IDNA），`DB.X.` 與 `db.x` 視為同一主機、seed manifest，以及 docs/06 §2.1.1 的 L-1..L-6。
@@ -108,7 +108,9 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 18. **對照表**：curated 必須有 reviewed_by、llm-suggested 不得有；OWASP 預設版本＝toolkit。
 19. **LLM 輸出 schema**：`LLM_OUTPUTS` 每一項投影並降級後只用共通子集、不含 Harness 欄位，且每個範例的 LLM 部分通過降級 schema（`E-LLM-SCHEMA`；見本頁開頭）。
 20. **工具包**：自動化帳號、逾時、保存期限欄位、`tool:mode` 命名、B4 模式在 Z3。
-21. **其他**：DFD 連線與 b1_diff、報告 verdict_counts（每叢集最新裁決）、自測（M1 需 ST-1／ST-3／ST-7 已執行且通過）、checkpoint。
+21. **回饋**（`g_feedback`）：`feedback` 的簽署者角色、`false_positive` 的副簽與 SARIF 抑制狀態、`duplicate_of`、叢集更新後抑制失效、Lite 不能記錄 `false_positive`（`E-FEEDBACK`）。
+22. **W4 測試案例**（`g_w4_testcases`）：W4 需求來自已核准的 G1 不變量、對照步驟、`MANUAL` 標記、完成的 run 每份 w4-testcase 都有結果（`E-W4-COVERAGE`）、觀察來源（`E-W4-OBSERVATION`）。
+23. **其他**：DFD 連線與 b1_diff、報告 verdict_counts（每叢集最新裁決）、自測（M1 需 ST-1／ST-3／ST-7 已執行且通過）、checkpoint。
 
 ### 錯誤碼
 
@@ -567,7 +569,7 @@ python tools/build_variants.py --check            # CI：覆蓋是最新的，�
 
 ## 設計決定（其他文件參照用）
 
-- 稽核雜湊鏈：`prev_hash` ＝ 前一行原始 UTF-8 位元組（去掉行尾）的 SHA-256；第一筆＝`sha256(run_id)`。只有人為的 `initiator_claim` 與 `run_resume` 帶簽章，其他事件 `signature: null`；`audit_anchor` 另在 `payload.z3_countersignature` 帶 Z3 副簽。`run.audit_anchors` 依序列出每個 `audit_anchor` 事件的 `{seq, line_sha256}`（該錨點那一行本身的 SHA-256，所以錨點涵蓋到自己那一行）；它是寫入端推導的值，必須與日誌中的錨點事件完全一致，漏列 → `E-AUDIT-ANCHOR`（所以「從 run 紀錄刪掉最後一個錨點」不會降級成警告）。日誌中最後一個錨點事件之後的行是未錨定尾段：非終止狀態 → `W-AUDIT-UNANCHORED-TAIL`；終止狀態（COMPLETED、COMPLETED_WITH_GAPS、ABORTED、FAILED）→ 一個 `E-AUDIT-TAIL`（列出所有原因：尾段行數、最後一筆不是 audit_anchor、最後錨點不是 run_end）；日誌比錨定的 seq 短 → `E-AUDIT-TRUNCATED`；雜湊不符 → `E-AUDIT-ANCHOR-MISMATCH`。
+- 稽核雜湊鏈：`prev_hash` ＝ 前一行原始 UTF-8 位元組（去掉行尾）的 SHA-256；第一筆＝`sha256(run_id)`。只有人為的 `initiator_claim`、`run_resume` 與 `spot_check_result` 帶簽章（`E-AUDIT-SIG`），其他事件 `signature: null`；`audit_anchor` 另在 `payload.z3_countersignature` 帶 Z3 副簽。`run.audit_anchors` 依序列出每個 `audit_anchor` 事件的 `{seq, line_sha256}`（該錨點那一行本身的 SHA-256，所以錨點涵蓋到自己那一行）；它是寫入端推導的值，必須與日誌中的錨點事件完全一致，漏列 → `E-AUDIT-ANCHOR`（所以「從 run 紀錄刪掉最後一個錨點」不會降級成警告）。日誌中最後一個錨點事件之後的行是未錨定尾段：非終止狀態 → `W-AUDIT-UNANCHORED-TAIL`；終止狀態（COMPLETED、COMPLETED_WITH_GAPS、ABORTED、FAILED）→ 一個 `E-AUDIT-TAIL`（列出所有原因：尾段行數、最後一筆不是 audit_anchor、最後錨點不是 run_end）；日誌比錨定的 seq 短 → `E-AUDIT-TRUNCATED`；雜湊不符 → `E-AUDIT-ANCHOR-MISMATCH`。
 - 報告清單中 `audit_log` 的 sha256 ＝ `report_published` 事件的 `prev_hash`，也就是「發布報告當下之前全部紀錄」的雜湊；之後追加的事件（如 run_end anchor）不影響報告清單。
 - 關卡項目 hash 用「核准視圖」：去掉 `signatures`、`review`、`signoff` 後的 JCS，讓寫回決定不會改變被核准的 hash。
 - G0a／G0b 沒有人為簽章；它們記錄系統對 engagement／ROE 簽章的驗證結果。

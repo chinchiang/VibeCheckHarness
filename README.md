@@ -1,6 +1,6 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
-> **狀態**：設計文件，第十輪審查（2026-10-27）後；裁決規則版本 `05-v0.10`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十輪；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
+> **狀態**：設計文件，第十一輪審查（2026-10-28）後；裁決規則版本 `05-v0.10`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十一輪；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
 > **第一次讀**：先看 [docs/00 總覽](docs/00-overview.md)（端到端流程、自動與人工的分界、依角色的閱讀路徑）。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
 > **語言**：正體中文；證據原文保留英文（見 [`docs/evidence/ledger.md`](docs/evidence/ledger.md)）。
@@ -62,7 +62,7 @@
 | [docs/schemas/](docs/schemas/) | 資料模型 JSON Schema＋範例實例（`python tools/validate_schemas.py` 驗證；說明見 [schemas/README](docs/schemas/README.md)） |
 | [docs/examples/](docs/examples/) | `models.yaml`、`agents.yaml`、`engagement.yaml`、`roe.yaml`、`key-registry.yaml`、`tools.yaml`、`toolkit.yaml`、`licenses.yaml`、`invariants.yaml`、`seed-manifest.yaml`、`calibration.yaml`、`crosswalk.yaml`、自架模型啟動範例（關卡紀錄等 JSON 範例在 [docs/schemas/examples/](docs/schemas/examples/)） |
 | [tools/](tools/)、[tests/](tests/) | 驗證器、參考演算法（`tools/vchlib`：裁決規則、安全等級、Scope Proxy 位址與內容綁定、面向、JCS、Ed25519）、範例簽章工具、證據帳本與參考文獻產生器、共享平台清單與 Public Suffix List 的比對工具（選用）；pytest 測試 |
-| [docs/evidence/](docs/evidence/) | 研究證據（JSON）、自動產生的證據帳本、連結檢查，以及每一輪的審查紀錄（逐項列出問題、證據與處理）：[2026-09-26](docs/evidence/review-2026-09-26.md)、[2026-10-24](docs/evidence/review-2026-10-24.md)、[2026-10-25（第六輪）](docs/evidence/review-2026-10-25.md)、[第七輪](docs/evidence/review-2026-10-25-r7.md)、[第八輪](docs/evidence/review-2026-10-26-r8.md)、[第九輪](docs/evidence/review-2026-10-27-r9.md)、[第十輪](docs/evidence/review-2026-10-27-r10.md) |
+| [docs/evidence/](docs/evidence/) | 研究證據（JSON）、自動產生的證據帳本、連結檢查，以及每一輪的審查紀錄（逐項列出問題、證據與處理）：[2026-09-26](docs/evidence/review-2026-09-26.md)、[2026-10-24](docs/evidence/review-2026-10-24.md)、[2026-10-25（第六輪）](docs/evidence/review-2026-10-25.md)、[第七輪](docs/evidence/review-2026-10-25-r7.md)、[第八輪](docs/evidence/review-2026-10-26-r8.md)、[第九輪](docs/evidence/review-2026-10-27-r9.md)、[第十輪](docs/evidence/review-2026-10-27-r10.md)、[第十一輪](docs/evidence/review-2026-10-28-r11.md) |
 
 ## 標記說明
 
@@ -102,7 +102,7 @@
 | seed threat | 種子威脅 | 由白箱叢集轉成、交給黑箱威脅建模的威脅 |
 | slopsquatting | — | 搶註 LLM 常幻覺出來的套件名稱 |
 | 共同輸入上限 | （同等性單位） | 所有參與模型中最小的可用 context；確保各家族看到相同切片 |
-| 裁決狀態 | — | `CONFIRMED_EXECUTABLE`、`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`、`REJECTED`，定義見 [05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則) |
+| 裁決狀態 | — | `CONFIRMED_EXECUTABLE`、`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`、`REJECTED`、`FIXED`（regression run 帶入的已確認問題，回歸測試合格 PASS），定義見 [05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則) |
 | SARIF | — | OASIS 靜態分析結果交換格式 2.1.0 |
 | run 狀態 | — | `RUNNING`、`WAITING_GATE`、`SUSPENDED`、`STOPPED`、`ABORTED`、`FAILED`、`COMPLETED`、`COMPLETED_WITH_GAPS`，見 [02](docs/02-methodology.md)、[03](docs/03-system-architecture.md) |
 | 關卡結果 | — | `APPROVED`、`PARTIALLY_APPROVED`（只限 G3、G4）、`REJECTED`、`NEEDS_INFO`、`EXPIRED`；G0a／G0b 為離線驗章，結果只有 `VERIFIED`、`VERIFY_FAILED`、`EXPIRED`；另有預算關卡 GB |
@@ -143,13 +143,23 @@
 | `technical_proof` | 技術證明 | 共享平台目標除了平台專案證明之外，部署提供的 token 或回應標頭 |
 | `db_comment` | 資料庫註解證明 | DB 目標的所有權證明：token 放在 `COMMENT ON DATABASE`，Z3 以唯讀憑證讀出 |
 | infrastructure_owner | 基礎設施擁有者 | ROE 的必要簽署角色，證明對受測環境有權限 |
+| 變體 bundle | — | 由 `tools/build_variants.py` 從主範例推導、重簽、重鏈的第二組範例（`lite`、`edge`、`suspend`），每個變體走一條主範例沒走的路徑；`docs/examples/variants/` |
+| `rule_trace` | 裁決規則軌跡 | 裁決中依序列出的 `R<n>:說明`；validator 重算規則序列，說明文字中的 `->STATUS` 與 `name=number` 必須與重算一致（`E-VERDICT-TRACE`，[05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則)） |
+| `over_cap` | 超出佇列上限 | G2／G3 佇列超過 `gate_queues.*_max_items` 的項目：不進關卡、列在報告中，不延長周轉（[02 W3](docs/02-methodology.md#w3-交叉驗證與裁決g2)） |
+| `report_only` | 只列報告 | 白箱 `UNCORROBORATED` 的叢集不轉成種子威脅、只列在報告（[02 W5](docs/02-methodology.md#w5-白箱報告dfd種子威脅)；`E-REPORT-QUEUE`） |
+| `post_g2_conflict`／`w4_became_disputed` | 裁決註記 | G2 已駁回之後才出現的未確認重現失敗（維持 `REJECTED`）；W4 重新裁決時才變成 `DISPUTED` 的叢集（G3 另列） |
+| `gate_load_warning` | 關卡負載告警 | G2 未決比例超過 `gate_queues.g2_timeout_warn_ratio` 時的稽核事件（[03 §13.1](docs/03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)） |
+| `role_consolidation` | 角色兼任 | Lite 委任中一個人兼任多個角色的已確認宣告；同一份關卡紀錄一人一角色的例外（`E-GATE-SOD`） |
+| `g5_escalation` | G5 升級 | 同一委任的另一個 run 中，已錨定的 ASI09 抽查推翻 G5 核准（`spot_check_result`，`outcome: overturned`）→ 本 run 的 G5 需要兩人（[02 §1.4](docs/02-methodology.md#14-關卡結果與-run-狀態)） |
+| `SUSPENDED` 與 resume | 暫停與恢復 | run 因 ROE 未生效、到期或 G0b 的時間窗而暫停；回到 `RUNNING` 必須有已錨定、人簽署的 `run_resume` 與新的 G0b `VERIFIED`（`E-RUN-RESUME`；`suspend` 變體走這條路） |
+| `evidential` | 證據價值 | 報告的 `separated`（職責分離的委任）或 `self_attested`（Lite：一人持有所有金鑰，簽章與錨點只供自查，[06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) #26） |
 
 ## 快速驗證本 repo 的資料模型
 
 ```bash
 python -m pip install -r requirements.lock      # CI 用的精確版本；requirements.txt 是版本範圍
 python tools/validate_schemas.py      # 印出 "all checks passed (..., 1 warning(s))"：W-MODEL-PLACEHOLDER（nemotron_cloud，沒有 agent 會用到），屬預期
-python -m pytest tests                 # 1586 個測試，約 8–15 分鐘
+python -m pytest tests                 # 1598 個測試，約 8–15 分鐘
 python tools/build_evidence_ledger.py --check   # 產生的證據帳本與 JSON 一致
 python tools/build_references.py --check        # 參考文獻與文件引用一致
 python tools/check_doc_links.py                 # 文件內連結與錨點

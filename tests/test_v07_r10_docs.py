@@ -81,7 +81,7 @@ def test_no_bare_version_parentheticals():
 
 def test_the_readme_status_names_the_rule_version():
     status = next(ln for ln in text("README.md").split("\n") if ln.startswith("> **狀態**"))
-    assert adjudicate.RULE_VERSION in status and "第十輪" in status
+    assert adjudicate.RULE_VERSION in status and "第十一輪" in status   # r11: the status line names the latest round
 
 
 def test_the_glossary_has_the_recent_terms():

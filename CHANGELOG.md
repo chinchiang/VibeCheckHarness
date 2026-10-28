@@ -35,6 +35,14 @@
 - **文件矛盾**：純白箱 run 的終態——02 §1.4 原本寫 `COMPLETED_WITH_GAPS`，與 03 §5.2 及 PR1「終態只由 `gaps` 推導」不符，改為 `COMPLETED`；02 W5 的 `report_only` 寫明嚴重度與風險由工具包計算、validator 不檢查（與 schema 說明一致）。
 - 新增 `tests/test_v07_r11_contracts.py`（30 個）與 `tests/mutations/r11_contracts.json`；`bl01_trace_text.json` 的兩個錨點隨 regex 改寫更新。
 
+### 文件矛盾、估算與審查紀錄（PR4）
+- **SKIPPED／MANUAL**：08 §11.18 把 whoami 與 CAPTCHA 缺失寫成 `MANUAL`，改為 job `SKIPPED` 列入 `gaps`（與 02 B4、06 #41 一致）。
+- **帶簽章的事件**：schemas README 補上 `spot_check_result`（`E-AUDIT-SIG` 本來就要求）；「檢查項目（23 組）」補 `g_feedback`、`g_w4_testcases` 兩條。
+- **估算對齊**：03 §6.5 的 G1 以 ASVS L1 70 條估（3.5 人時，之前 10～30 條）、G4 上限改引 `g4_max_items`；07 MVP0-X8 的 2 小時門檻不含 G1、G1 另計；07 §1.5 與 08 §9.2 統一為兩位工程師，§1.5 標為下限（BL-63）。
+- README 狀態列、審查紀錄清單與術語表（補 10 個詞：變體 bundle、`rule_trace`、`over_cap`、`report_only`、`post_g2_conflict`／`w4_became_disputed`、`gate_load_warning`、`role_consolidation`、`g5_escalation`、`SUSPENDED` 與 resume、`evidential`；裁決狀態補 `FIXED`）；00 的狀態與最新審查紀錄連結。
+- 新增 [docs/evidence/review-2026-10-28-r11.md](docs/evidence/review-2026-10-28-r11.md)；09 的 BL-63、BL-65 加註。
+- 新增 `tests/test_v07_r11_docs.py`（12 個）與 `tests/mutations/r11_docs.json`。
+
 ## 待辦 BL-66、BL-01、BL-47、BL-05 與 `suspend` 變體（2026-10-27）
 
 ### 每個錯誤碼都有測試（BL-66）

@@ -2,7 +2,7 @@
 
 > 這份總覽給第一次讀的人：這套工具包要做什麼、流程怎麼走、哪些步驟是程式、哪些是 LLM、哪些一定要人，以及依角色該先讀哪幾份文件。細節都在後面的文件裡，這裡只放連結，不重複規則。標記說明見 [README](../README.md#標記說明)。
 >
-> **狀態**：設計文件 v0.5（第十輪審查後，裁決規則版本 `05-v0.10`）。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
+> **狀態**：設計文件 v0.5（第十一輪審查後，裁決規則版本 `05-v0.10`）。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
 
 ## 1. 它是什麼、不是什麼
 
@@ -104,6 +104,6 @@ flowchart LR
 | 資安審查者（關卡核准者） | [02 §1.3](02-methodology.md#13-人工關卡一覽) → [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | [04](04-threat-to-testcase.md) 的 binding 表與安全等級、[06 §1](06-security-legal-limitations.md#1-工具包自身的安全) |
 | 實作者 | [03](03-system-architecture.md) → [08](08-implementation-spec.md)（含 §11 元件規格） | [schemas/README](schemas/README.md)、[07](07-roadmap.md) 的出口準則、[09 待辦](09-backlog.md) |
 | 法務或管理層 | [06 §2](06-security-legal-limitations.md#2-法遵與授權) → [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) | [07 §3](07-roadmap.md#3-入口閘門法務與查證) 的入口閘門、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 待決事項 |
-| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（第十輪）](evidence/review-2026-10-27-r10.md) |
+| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（第十一輪）](evidence/review-2026-10-28-r11.md) |
 
 術語見 [README 術語表](../README.md#術語表)。
