@@ -85,7 +85,7 @@
         "FIXED": {
           "type": "integer",
           "minimum": 0,
-          "description": "審查 r11（05-v0.10）：regression run 中回歸測試通過的已確認叢集"
+          "description": "審查 r11（05-v0.11）：regression run 中回歸測試通過的已確認叢集"
         }
       },
       "required": [

@@ -74,7 +74,7 @@
     {
       "name": "regression_fixed needs a confirmed source verdict",
       "file": "tools/vchlib/checks.py",
-      "old": "    if not src or src[0].get(\"status\") not in (\"CONFIRMED_EXECUTABLE\", \"CONFIRMED_CORROBORATED\"):",
+      "old": "    if not src or src.get(\"status\") not in adj.CONFIRMED:",
       "new": "    if not src:",
       "k": "derived_from_the_parent"
     },
@@ -88,7 +88,7 @@
     {
       "name": "the rule version is bumped",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.10\"",
+      "old": "RULE_VERSION = \"05-v0.11\"",
       "new": "RULE_VERSION = \"05-v0.9\"",
       "k": "rule_version_is_05_v0_10"
     },

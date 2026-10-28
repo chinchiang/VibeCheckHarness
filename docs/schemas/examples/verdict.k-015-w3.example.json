@@ -45,7 +45,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.10",
+  "rule_version": "05-v0.11",
   "rule_trace": [
     "R2:weighted_support=1 (anthropic),score=1.2853<theta_confirm=2.5,independent_sources=1",
     "R7:independent_sources=1->UNCORROBORATED"

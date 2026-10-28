@@ -35,7 +35,7 @@ def test_the_examples_are_clean(b):
 
 
 def test_the_rule_version_is_05_v0_9():
-    assert adjudicate.RULE_VERSION == "05-v0.10"
+    assert adjudicate.RULE_VERSION == "05-v0.11"
 
 
 # ================================================================ theta_reject guard

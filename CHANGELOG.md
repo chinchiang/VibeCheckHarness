@@ -2,7 +2,7 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.10`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.11`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）。
 
 ## 第十二輪審查（2026-10-28）
 
@@ -16,6 +16,15 @@
 - **金鑰登錄回滾以錨定事實偵測**（`E-KR-ROLLBACK`）：bundle 帶的登錄比任何 run 已錨定的 `key_registry_loaded.version` 舊，就是回滾（BL-43 的寫入端仍未實作）。
 - 06 §1.8 工件矩陣補 W1 工具結果一列（Z1 執行期殘餘）並更新 run 紀錄與回饋紀錄兩列；02 B6 寫明 `gaps` 由 validator 推導。
 - 新增 `tests/test_v07_r12_run.py`（25 個）與 `tests/mutations/r12_run.json`（18）。
+
+### 裁決（PR2；`rule_version` 改為 `05-v0.11`）
+- **R15 的兩個檢查不一致**（`E-VERDICT-VOTE`）：r11 讓 `derive.vote_valid` 以投票當時的成員判定，`E-VERDICT-VOTE` 的自我審查檢查卻仍用叢集目前的成員；r11 設計的情境（round 1 的反駁票、round 2 加入同家族回報者）同時被 `E-DERIVED` 要求 `valid: true` 又被判自我審查，合法的 bundle 做不出來（r11 的測試只看 `weighted_valid`，沒有跑整包驗證）。改為同一條規則；`voted_after_round` 也不再採信自填值：上限是該版裁決的 `verdict_changed` 之前已錨定的 CMD-2 計畫的最高輪次＋1。R15 只標反駁票。
+- **`high_precision_min` 由 validator 釘住**（`E-CAL-POLICY`）：審查的 probe 把它改成 0.1、加一列下界 0.13 的規則、重釘並重簽，K-014 從 LIKELY 變成不受 R8 限制、非暫定的 CONFIRMED_CORROBORATED。現在必須是 0.9（或 null 停用）。
+- **`FIXED` 不壓過仍在的反證**（第 15 列）：回歸 PASS 但掃描規則仍命中或驗證者反駁 → `DISPUTED`（`fix_contradicted`），與一般 run 裡同樣的證據一致；來源以可執行證明確認時，那些測試案例必須在本 run 重跑。
+- **帶入叢集以來源狀態為下限**（R16，第 16 列；使用者決定）：帶入的叢集沒有本 run 的成員，回歸測試 FAIL、出錯或沒跑時前面的規則只會給 UNCORROBORATED／LIKELY，確認過的缺陷因此被降級、甚至進了只列報告的清單。現在維持來源的 `CONFIRMED_*`，加註 `regression_failed` 或 `fix_unverified`（02 §1.6 原本就這樣寫）。
+- **已知限制**（使用者決定維持）：同一家族、不同基底血統的模型算兩個獨立觀察（範例 openai 的 `gpt` 與 `gpt-oss`，兩張支持票 S＝2.6358 ≥ θ 2.5）；05 §4.3 與 06 §3 #44 寫明理由與 M-2 的對策。
+- 版本字串 `05-v0.10` → `05-v0.11`（歷史紀錄不改）；05 §4.2 的版本段落原本把第十輪寫成 `05-v0.10`，一併更正；CHANGELOG 開頭的歷程補 v0.9～v0.11。
+- 新增 `tests/test_v07_r12_verdict.py`（29 個）與 `tests/mutations/r12_verdict.json`（19）；`test_v07_r11_verdict.py` 的 `regression_fixed` 測試改用 TC-012-01 真正的結果（來源證明的重跑），`r11_verdict.json` 一個錨點隨程式改動更新；`test_v07_r9_anchor.py` 的 K-301 輔助函式把註記寫成 `note`（schema 要 `reason`），之前沒有註記所以沒露出，R16 給 K-301 加上 `fix_unverified` 後改正。
 
 ## 第十一輪審查（2026-10-28）
 
