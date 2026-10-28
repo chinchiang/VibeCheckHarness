@@ -4,7 +4,7 @@
 "gate":{"$ref":"common.schema.json#/$defs/gate"},
 "engagement_id":{"$ref":"common.schema.json#/$defs/engagement_id"},
 "run_id":{"$ref":"common.schema.json#/$defs/run_id"},
-"round":{"type":"integer","minimum":1,"description":"G1／G3／G4 的重擬輪次（G1 最多 3 輪）；其他關卡為 1"},
+"round":{"type":"integer","minimum":1,"maximum":3,"description":"G1／G3／G4 的重擬輪次（G1、G3 最多 3 輪，G4 最多 2 輪，E-GATE-ROUND）；其他關卡為 1"},
 "artifact":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["engagement","roe","invariants","disputed_clusters","threat_model","test_plan","s2_job","budget"]},"sha256":{"$ref":"common.schema.json#/$defs/sha256"}},"required":["kind","sha256"],"description":"被核准的產物；多項產物（G2 叢集、G3 威脅、G4 測試計畫）用 set digest＝sha256(JCS(依 id 排序的 [{id, sha256}]))"},
 "job_id":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"只有 G5：被核准的 job"},
 "g4_gate_record_id":{"anyOf":[{"type":"string","pattern":"^GR-[0-9A-Za-z-]+$"},{"type":"null"}],"description":"v0.5（BL-04）：只有 G5：本 run 中最後一份對該 job 的測試案例做出 accept 決定的 G4 紀錄；G5 核准者與該 G4 的核准者不能重疊（E-G5-G4）。其他關卡為 null"},

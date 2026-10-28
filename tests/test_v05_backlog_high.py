@@ -239,7 +239,7 @@ def test_tool_only_example_reaches_the_report(b):
     assert k["origin"] == "tool_only" and not k["member_finding_ids"] and k["tool_report_refs"] and not k["sarif_refs"]
     assert v["status"] == "UNCORROBORATED" and v["independent_sources"] == 0 and v["tool_signal"] == []
     assert "K-016" in doc(b, "report-manifest.example.json").data["report_only_clusters"]
-    assert k["tool_report_refs"][0] in doc(b, AUDIT).data[12]["payload_refs"]
+    assert k["tool_report_refs"][0] in doc(b, AUDIT).data[15]["payload_refs"]
 
 
 def test_tool_only_cluster_is_accepted(b, keys):
@@ -291,7 +291,7 @@ def test_tool_only_location_comes_from_the_tool_result(b):
 def test_tool_results_come_from_w1(b, keys):
     """docs/08 §11.2: a ToolResult is W1 output. The same Z2 result logged as a W4 invocation (idempotency key
     consistent, run.tool_results_ref re-derived to null) backs no cluster: neither K-014's signal nor K-016's report."""
-    ev = doc(b, AUDIT).data[12]
+    ev = doc(b, AUDIT).data[15]
     assert ev["event_type"] == "tool_invocation_end" and ev["node"] == "W1"
     ev["node"], ev["idempotency_key"] = "W4", ev["idempotency_key"].replace(":W1:", ":W4:")
     rederive(b, keys)

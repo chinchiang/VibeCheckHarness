@@ -613,7 +613,8 @@ def person_refs(c: Ctx):
     for u in r.get("upstream_llm_providers") or []:
         out.append(("roe.yaml upstream_llm_providers", u.get("terms_confirmed_by"), None, None))
     for d in c.docs("gate-record"):
-        out.append((f"{d.path} initiator", d.data.get("initiator"), None, None))
+        if d.data.get("initiator") is not None:                 # null only on a Lane A run (E-GATE-INITIATOR)
+            out.append((f"{d.path} initiator", d.data.get("initiator"), None, None))
         for a in d.data.get("approvers", []):
             out.append((f"{d.path} approvers", a.get("person_id"), a.get("key_fingerprint"), a.get("role")))
     for d in c.docs("run"):
@@ -1556,6 +1557,9 @@ def opened_time(R: Report, c: Ctx, rec: dict, w: str, declared: dt.datetime) -> 
     return got
 
 
+GATE_MAX_ROUNDS = {"G1": 3, "G3": 3, "G4": 2}      # docs/02 §1.4; every other gate decides once
+
+
 def g_gates(R: Report, c: Ctx):
     e, r = c.engagement, c.roe
     tmo = e.get("gate_timeouts_hours") or {}
@@ -1592,9 +1596,13 @@ def g_gates(R: Report, c: Ctx):
                 ent = c.by_fp.get(a.get("key_fingerprint"))
                 R.check(ent is not None and ent.get("person_id") == a.get("person_id") and a.get("role") in ent.get("roles", []),
                         "E-GATE-APPROVER", w, f"approver {a.get('person_id')} / {a.get('role')} / key not registered together")
-            R.check(rec.get("initiator") in c.persons and rec.get("initiator") not in c.automation, "E-GATE-INITIATOR", w,
-                    "initiator must be a registered person, not an automation account")
-            R.check(rec.get("initiator") in run.get("initiators", []), "E-GATE-INITIATOR", w, "initiator is not a run initiator")
+            if rec.get("initiator") is None:
+                # review r11: only an automatic Lane A run has no initiator (nobody claims it, docs/02 §1.5)
+                R.check(run.get("run_kind") == "lane_a", "E-GATE-INITIATOR", w, "initiator null is only allowed on a Lane A run")
+            else:
+                R.check(rec.get("initiator") in c.persons and rec.get("initiator") not in c.automation, "E-GATE-INITIATOR", w,
+                        "initiator must be a registered person, not an automation account")
+                R.check(rec.get("initiator") in run.get("initiators", []), "E-GATE-INITIATOR", w, "initiator is not a run initiator")
             if gate == "G0a":
                 want = {(s.get("person_id"), s.get("role"), s.get("key_fingerprint")) for s in e.get("signatories") or []}
                 got = {(a.get("person_id"), a.get("role"), a.get("key_fingerprint")) for a in rec.get("approvers", [])}
@@ -1662,6 +1670,10 @@ def g_gates(R: Report, c: Ctx):
                 allowed = {e.get("budget_approver") or e.get("run_owner"), e.get("run_owner")}
                 for a in rec.get("approvers", []):
                     R.check(a.get("person_id") in allowed, "E-GB-APPROVER", w, f"GB approver {a.get('person_id')} is neither run_owner nor budget_approver")
+            # review r11: the redraft limits of docs/02 §1.4 were text only (G1 at most 3 rounds, G4 at most 2, the rest 1)
+            lim_r = GATE_MAX_ROUNDS.get(gate, 1)
+            R.check(isinstance(rec.get("round"), int) and 1 <= rec.get("round") <= lim_r, "E-GATE-ROUND", w,
+                    f"{gate} round {rec.get('round')!r} exceeds the {lim_r}-round limit of docs/02 §1.4 (the run is ABORTED / the item rejected after it)")
             if gate == "G4":
                 for a in rec.get("approvers", []):
                     R.check(a.get("person_id") in run.get("initiators", []), "E-G4-INITIATOR", w,
@@ -1758,6 +1770,12 @@ def g_runs(R: Report, c: Ctx):
             pending = [g for g in run.get("gate_records", []) if g.get("gate_record_id") is None]
             if status in TERMINAL_RUN_STATES:
                 R.check(run.get("current_node") is None and not pending, "E-RUN-STATUS", w, f"{status} run has a current node or pending gate")
+            if status in COMPLETED_RUN_STATES:
+                # review r11: docs/02 §1.4 / B6: the terminal status follows the gaps (only MANUAL entries -> COMPLETED)
+                kinds = sorted({g.get("kind") for g in run.get("gaps") or [] if isinstance(g, dict)} - {"manual"})
+                want_status = "COMPLETED_WITH_GAPS" if kinds else "COMPLETED"
+                R.check(status == want_status, "E-RUN-STATUS", w,
+                        f"status {status} but the gaps imply {want_status} (non-MANUAL gap kinds: {kinds})")
             if status == "WAITING_GATE":
                 R.check(len(pending) == 1 and run.get("current_node") == pending[0].get("gate"), "E-RUN-STATUS", w,
                         "WAITING_GATE needs exactly one pending gate equal to current_node")
@@ -1854,7 +1872,11 @@ def g_runs(R: Report, c: Ctx):
                             R.check(bud.get(spent, 0) <= bud[cap], "E-RUN-BUDGET", w, f"budgets.{ph}.{spent} exceeds {cap}")
             # jobs
             audit = c.ix.audit_for(rid)
-            drills = [ts(R, x.get("ts"), w) for x in (audit.data if audit else []) if x.get("event_type") == "restore_drill" and (x.get("payload") or {}).get("ok")]
+            # review r11: a drill counts only when a system actor wrote it inside the anchored part of the log
+            a_evs = [x for x in (audit.data if audit else []) if isinstance(x, dict)]
+            a_last = anchored_seqs(a_evs)
+            drills = [ts(R, x.get("ts"), w) for i, x in enumerate(a_evs) if x.get("event_type") == "restore_drill" and (x.get("payload") or {}).get("ok")
+                      and (x.get("actor") or {}).get("kind") == "system" and i + 1 <= a_last]
             drill_days = tk.get("restore_drill_interval_days", 7)
             for jid, job in (run.get("jobs") or {}).items():
                 with doc_guard(R, f"{w} jobs.{jid}"):
@@ -2570,6 +2592,15 @@ def w4_coverage(R: Report, c: Ctx, run: dict, w: str, approved: set):
     reached = bool(tcs) or any(r.data.get("run_id") == rid and r.data.get("phase") == "W4" for r in c.docs("testresult")) \
         or any(s.data.get("run_id") == rid for s in c.docs("seed-threats"))
     if run.get("run_kind") == "lane_a" or not reached:
+        return
+    if inv.get("run_id") != rid:
+        # review r11: v0.7 took an empty invariant set for every run but the one invariants.yaml names, so a second
+        # initial run was never checked; a follow-up / regression run reuses its parent's approved invariants (reuse[])
+        parent = c.runs.get(run.get("parent_run_id")) or {}
+        reused = inv.get("run_id") == parent.get("run_id") and content_hash(inv) in (run.get("reuse") or [])
+        R.check(run.get("run_kind") in ("followup", "regression") and reused, "E-W4-COVERAGE", w,
+                f"run {rid} reached W4 / W5 but has no G1 invariants of its own (invariants.yaml is run {inv.get('run_id')!r}) "
+                "and does not reuse its parent's (reuse[] lacks the parent's invariants_ref)")
         return
     # v0.7 (review r10 W4): once the run is COMPLETED a w4-testcase covers its invariants only if it ran, i.e. it has a
     # W4 result (which E-W4-AUDIT backs with an anchored Z2 sandbox_job_end). v0.7 r9 counted a test written on paper
@@ -4230,18 +4261,107 @@ def run_log_state(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
             if inv.data.get("run_id") == rid:
                 R.check(inv.data.get("repo_commit") == pinned, "E-RUN-COMMIT", inv.path,
                         f"the W0 inventory names commit {inv.data.get('repo_commit')!r}, but the run tests {pinned!r}")
-    stored = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "artifact_stored"
-              and (e.get("payload") or {}).get("artifact") == "seed-threats"]
-    seeds = [d for d in c.docs("seed-threats") if d.data.get("run_id") == rid]
+    artifact_pins(R, c, w, rid, run, evs, last)
+    run_transitions(R, c, w, rid, run, evs, last)
+
+
+PINNED_ARTIFACTS = ("seed-threats", "inventory", "redaction-map", "dfd-merged", "dfd-external", "commander-plan")
+
+
+def pinned_documents(c: Ctx, rid, run: dict) -> list[tuple[str, str | None, Doc]]:
+    """(artifact, plan_id, document) of every W / B-phase artefact of a run that an anchored artifact_stored event must
+    pin (review r11): the seed threats (r9), the W0 inventory and redaction map, the merged and external DFD and every
+    commander plan the run lists. Their content hashes also sit in the unsigned run record (derive), which only Z1
+    write access could rewrite together with the documents; the anchored event is what a completed run cannot lose."""
+    out = []
+    for d in c.docs("seed-threats"):
+        if d.data.get("run_id") == rid:
+            out.append(("seed-threats", None, d))
+    for kind, name in (("inventory", "inventory"), ("redaction-map", "redaction-map")):
+        for d in c.docs(kind):
+            if d.data.get("run_id") == rid:
+                out.append((name, None, d))
+    for d in c.docs("dfd"):
+        if d.data.get("run_id") == rid and d.data.get("viewpoint") in ("merged", "external"):
+            out.append((f"dfd-{d.data['viewpoint']}", None, d))
+    for d in c.docs("commander-plan"):
+        if d.data.get("plan_id") in (run.get("plan_ids") or []):
+            out.append(("commander-plan", d.data.get("plan_id"), d))
+    return out
+
+
+def artifact_pins(R: Report, c: Ctx, w: str, rid, run: dict, evs: list, last: int):
+    """E-AUDIT-ARTIFACT (r9 for the seed threats; r11 for the other W / B-phase artefacts): every pinned document of the
+    run has exactly one anchored artifact_stored event whose sha256 is its content hash, and every artifact_stored event
+    names a document of the run that hashes to what it says. v0.7 pinned only the seed threats, so a completed run's
+    inventory (files, blind spots, env vars), DFD or commander plan could be rewritten with the report left intact."""
+    docs = pinned_documents(c, rid, run)
+    stored = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "artifact_stored"]
     for seq, e in stored:
-        sha = (e.get("payload") or {}).get("sha256")
-        R.check(seq <= last and len(seeds) == 1 and content_hash(seeds[0].data) == sha, "E-AUDIT-ARTIFACT", f"{w} seq {seq}",
-                f"artifact_stored pins seed threats {sha!r}, but run {rid} has {len(seeds)} seed-threats document(s)"
-                + (f" hashing to {content_hash(seeds[0].data)}" if len(seeds) == 1 else "")
+        p = e.get("payload") or {}
+        art, pid, sha = p.get("artifact"), p.get("plan_id"), p.get("sha256")
+        if not R.check(art in PINNED_ARTIFACTS, "E-AUDIT-ARTIFACT", f"{w} seq {seq}",
+                       f"artifact_stored names {art!r}; the pinned artefacts are {', '.join(PINNED_ARTIFACTS)}"):
+            continue
+        match = [d for a, q, d in docs if a == art and (art != "commander-plan" or q == pid)]
+        R.check(seq <= last and len(match) == 1 and content_hash(match[0].data) == sha, "E-AUDIT-ARTIFACT", f"{w} seq {seq}",
+                f"artifact_stored pins {art}{' ' + str(pid) if pid else ''} as {sha!r}, but run {rid} has {len(match)} such document(s)"
+                + (f" hashing to {content_hash(match[0].data)}" if len(match) == 1 else "")
                 + ("" if seq <= last else "; and the event is not anchored"))
-    for sd in seeds:
-        R.check(any(seq <= last for seq, _ in stored), "E-AUDIT-ARTIFACT", sd.path,
-                f"the seed threats of run {rid} have no anchored artifact_stored event pinning them")
+    for art, pid, d in docs:
+        pins = [seq for seq, e in stored if (e.get("payload") or {}).get("artifact") == art
+                and (art != "commander-plan" or (e.get("payload") or {}).get("plan_id") == pid) and seq <= last]
+        R.check(len(pins) == 1, "E-AUDIT-ARTIFACT", d.path,
+                f"the {art}{' ' + str(pid) if pid else ''} of run {rid} needs exactly one anchored artifact_stored event pinning it, found {len(pins)}")
+
+
+RESUMABLE_RUN_STATES = ("SUSPENDED", "STOPPED")
+
+
+def run_transitions(R: Report, c: Ctx, w: str, rid, run: dict, evs: list, last: int):
+    """E-RUN-STATUS / E-RUN-RESUME (review r11): the run's status changes form a chain (each `from` is the previous
+    `to`, RUNNING at first), and leaving SUSPENDED / STOPPED needs a human's anchored, signed run_resume after the
+    status change that entered it (docs/03 §5.6: the run_owner or an initiator for SUSPENDED, the test lead for STOPPED;
+    the signer's role is checked with the signature, E-SIG-ROLE / E-AUDIT-ACTOR), received before the engagement's
+    validity ends (docs/02 §1.4), and the first B-phase event after it follows a fresh VERIFIED G0b decision (every
+    resume re-verifies the ROE). Leaving WAITING_GATE for RUNNING needs a gate_decision in between. v0.7 accepted any
+    run_status_changed line, so one unanchored system event resumed a suspended run with nobody's signature."""
+    e_val = (c.engagement.get("validity") or {}).get("not_after") if isinstance(c.engagement, dict) else None
+    not_after = ts(R, e_val, w) if isinstance(e_val, str) else None
+    prev, prev_i = "RUNNING", 0
+    rows = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict)]
+    for i, e in rows:
+        if e.get("event_type") != "run_status_changed":
+            continue
+        p = e.get("payload") or {}
+        where = f"{w} seq {e.get('seq')}"
+        R.check(p.get("from") == prev, "E-RUN-STATUS", where,
+                f"run_status_changed from {p.get('from')!r}, but the run was {prev!r} (the previous change or RUNNING)")
+        between = [(j, x) for j, x in rows if prev_i < j < i]
+        if prev in RESUMABLE_RUN_STATES:
+            resumes = [(j, x) for j, x in between if x.get("event_type") == "run_resume" and (x.get("actor") or {}).get("kind") == "human"
+                       and isinstance(x.get("signature"), dict) and (x.get("payload") or {}).get("from_status") == prev]
+            if R.check(bool(resumes), "E-RUN-RESUME", where,
+                       f"leaving {prev} needs a human's signed run_resume (from_status {prev}) after the change that entered it"):
+                j, x = resumes[-1]
+                R.check(j <= last, "E-RUN-RESUME", f"{w} seq {x.get('seq')}", "the run_resume is not anchored")
+                at = ts(R, x.get("ts"), where)
+                R.check(not_after is None or (at is not None and at <= not_after), "E-RUN-RESUME", f"{w} seq {x.get('seq')}",
+                        f"run_resume received at {x.get('ts')}, after the engagement validity ended ({e_val})")
+                after = [(k, y) for k, y in rows if k > j]
+                for k, y in after:
+                    yp = y.get("payload") or {}
+                    if y.get("event_type") == "gate_decision" and yp.get("gate") == "G0b" and yp.get("outcome") == "VERIFIED":
+                        break
+                    if y.get("node") in B_NODES or (y.get("event_type") == "gate_decision" and yp.get("gate") in ("G3", "G4", "G5")) \
+                            or y.get("event_type") in ("sandbox_job_start", "sandbox_job_end") and y.get("node") not in ("W0", "W1", "W4"):
+                        R.check(False, "E-RUN-RESUME", f"{w} seq {y.get('seq')}",
+                                f"B-phase event {y.get('event_type')} after the resume at seq {x.get('seq')} without a new VERIFIED G0b (every resume re-verifies the ROE)")
+                        break
+        if prev == "WAITING_GATE" and p.get("to") == "RUNNING":
+            R.check(any(x.get("event_type") == "gate_decision" for _, x in between), "E-RUN-STATUS", where,
+                    "WAITING_GATE -> RUNNING without a gate_decision in between: the gate the run waited for was never decided")
+        prev, prev_i = p.get("to"), i
 
 
 JOB_RAN_STATES = ("EXECUTED", "RESTORED", "RESTORE_FAILED")       # finished with a result (INTERRUPTED has none)
@@ -4478,6 +4598,13 @@ def run_structure(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
         if gated:
             R.check(bool(claims) and min(claims) < min(gated), "E-RUN-CLAIM", w,
                     "no human initiator_claim before the first G1 decision / W4 / B-phase event: a person claims the run first (docs/02 §1.5)")
+    # review r11: the other direction: run.initiators lists only people with an anchored, signed claim (v0.7 checked
+    # that claimants are listed, so a G4 approver could be made an "initiator" without ever claiming the run)
+    last = anchored_seqs(evs)
+    claimed = {(e.get("actor") or {}).get("id") for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "initiator_claim"
+               and (e.get("actor") or {}).get("kind") == "human" and isinstance(e.get("signature"), dict) and i + 1 <= last}
+    for who in run.get("initiators") or []:
+        R.check(who in claimed, "E-RUN-CLAIM", w, f"run.initiators lists {who!r}, who has no anchored signed initiator_claim in this run")
 
 
 def audit_anchor_tail(R: Report, w: str, run: dict, d: Doc) -> tuple[int, int]:

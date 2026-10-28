@@ -186,7 +186,8 @@
 | 回饋紀錄 | security_reviewer／app_owner | 是（v0.7 可副簽） | 採用 run 的 `feedback_recorded` | — | 抑制狀態推導 | — |
 | 叢集、發現項 | W 階段代理 | — | 裁決的 `cluster_sha256` 釘住叢集，叢集的 `member_finding_sha256` 釘住發現項，裁決再由 `verdict_changed` 錨定 | — | 指紋、嚴重度、家族、基準狀態推導 | 裁決之前的改寫（W2～W3 之間，run 進行中控制 Z1 者） |
 | 種子威脅 | W5 | — | `artifact_stored.sha256` | — | — | — |
-| DFD、inventory、切片、Commander 計畫 | W 階段代理 | — | `artifact_stored`（只有 ref）；inventory 的 commit 由 `run_created` 比對 | — | 切片 id、指紋推導 | 內容本身沒有錨定（第八輪審查記下，見 r9 紀錄 §8） |
+| DFD、inventory、redaction map、Commander 計畫 | W 階段代理 | — | 已錨定的 `artifact_stored.sha256`（審查 r11，`E-AUDIT-ARTIFACT`）；inventory 的 commit 另由 `run_created` 比對 | — | 指紋推導 | — |
+| 切片 | W 階段代理 | — | `redaction_map_sha256`、`prompt_template_sha256` 釘住輸入；切片本身由 run 的 `slice_refs` 引用（未錨定） | — | 切片 id 推導 | 內容本身沒有錨定（BL-67） |
 
 ### 1.9 營運手冊：金鑰外洩、備份與報告撤回[H]
 

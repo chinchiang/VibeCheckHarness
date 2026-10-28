@@ -264,7 +264,7 @@ def v_edge(b: Bundle, keys) -> None:
         if x["item_id"] == "K-016":
             x["decision"] = "reject"
             x["note"] = "審查者讀過程式碼：K-016 的輸入在進入查詢前已由型別化的參數綁定，駁回"
-    # G2_apply writes the post-G2 version of K-016 (docs/05 R10); the event sits after the G2 anchor (seq 26)
+    # G2_apply writes the post-G2 version of K-016 (docs/05 R10); the event sits after the G2 anchor (seq 29)
     v1 = doc(b, "verdict.k-016-w3.example.json").data
     v2 = copy.deepcopy(v1)
     v2.update({"verdict_id": "V-016-2", "readjudicated_by": "G2_apply", "supersedes_verdict_id": "V-016-1",
@@ -274,7 +274,7 @@ def v_edge(b: Bundle, keys) -> None:
     run = doc(b, "run.example.json").data
     run["verdicts"].insert(run["verdicts"].index("V-016-1") + 1, "V-016-2")
     rlog = doc(b, "audit-event.run-2026-09-23-001.example.jsonl")
-    _append(rlog, 26, {"event_type": "verdict_changed", "node": "G2", "ts": "2026-09-28T10:05:00+08:00",
+    _append(rlog, 29, {"event_type": "verdict_changed", "node": "G2", "ts": "2026-09-28T10:05:00+08:00",
                        "key": "verdict_changed:V-016-2", "actor": {"kind": "system", "id": "aggregator"},
                        "payload": {"verdict_id": "V-016-2", "status": "REJECTED", "verdict_sha256": None}})
     rm = doc(b, "report-manifest.example.json").data
@@ -320,7 +320,7 @@ def v_suspend(b: Bundle, keys) -> None:
     g4 = copy.deepcopy(doc(b, "gate-record.followup.g3.example.json").data)
     main_g4 = doc(b, "gate-record.g4.example.json").data
     # the G4 reviewer (erin) claims the run before G4 opens, as in the initial run (E-G4-INITIATOR)
-    _append(log, 18, {"event_type": "initiator_claim", "node": "claim_run", "ts": "2026-10-07T10:25:00+08:00",
+    _append(log, 19, {"event_type": "initiator_claim", "node": "claim_run", "ts": "2026-10-07T10:25:00+08:00",
                       "key": "initiator_claim:erin", "actor": {"kind": "human", "id": "erin"},
                       "payload": {"person_id": "erin", "role": "security_reviewer"}})
     frun0 = doc(b, "run.followup.example.json").data
