@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.13`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十三輪審查（2026-10-29）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 總覽
 
@@ -97,6 +97,18 @@ flowchart TD
 | `FAILED` | 無法恢復的技術錯誤（例如 W0 失敗、快照還原失敗） | 是 |
 | `COMPLETED` | 全部完成，未能測試清單中只有設計上的 `MANUAL` 項 | 是 |
 | `COMPLETED_WITH_GAPS` | 完成，但有計畫中的覆蓋沒做到（例如 G3 全部駁回、目標所有權失敗、版本識別不符、G5 駁回、執行錯誤或 `INVALID` 結果、GB 停止階段） | 是 |
+
+**合法轉移**（第十三輪外部審查；[03 §5.2](03-system-architecture.md#52-主狀態圖) 的狀態圖收斂成這張表，validator 以 `checks.RUN_TRANSITIONS` 強制，`E-RUN-STATUS`）[H]：每筆 `run_status_changed` 的 `from → to` 必須是下表的一列；終止狀態沒有任何出口（之前只檢查 `from` 接得上上一筆，`RUNNING → ABORTED → RUNNING` 再接著跑黑箱也過）。工作事件（`sandbox_job_start`、`tool_invocation_start`）只能發生在 `RUNNING`；`gate_decision` 只能發生在 `RUNNING` 或 `WAITING_GATE`。
+
+| 來源 | 可轉到 |
+|---|---|
+| `RUNNING` | `WAITING_GATE`、`SUSPENDED`、`STOPPED`、`ABORTED`、`FAILED`、`COMPLETED`、`COMPLETED_WITH_GAPS` |
+| `WAITING_GATE` | `RUNNING`、`SUSPENDED`、`STOPPED`、`ABORTED`、`FAILED` |
+| `SUSPENDED` | `RUNNING`、`COMPLETED_WITH_GAPS`、`FAILED` |
+| `STOPPED` | `RUNNING`、`COMPLETED_WITH_GAPS`、`FAILED` |
+| `ABORTED`、`FAILED`、`COMPLETED`、`COMPLETED_WITH_GAPS` | （終止，無出口） |
+
+**W 階段的前置條件**（第十三輪外部審查；validator 以 `checks.G1_GATED_NODES`、`AFTER_W1_NODES` 強制，`E-GATE-ORDER`）[H]：`W1`～`W5` 節點的每個事件之前都要有 `APPROVED` 的 G1 決定（G1 的「進入 W1」）；`W2`～`W5` 的事件都晚於 W1 的第一個事件（W1 靜態分析先跑；CMD-2 加派回 W2 仍晚於 W1）；W4 另需 G2 決定（既有）。例外：`run_kind: lane_a` 沒有 G1（§1.5）。之前只檢查關卡彼此的先後與 W4，W1 在 G1 之前掃描、W3 在 G1 之前裁決都過。
 
 **各關卡結果的處理**（[H]，依共同設計決定 D2）：
 
@@ -362,7 +374,7 @@ flowchart TD
   3. **與工具結果相互佐證**（由程式碼）[H]：Aggregator 把對應同一位置與 CWE 桶的 SARIF 結果分成兩級：
      - **強佐證**（`tool_corroboration`）：該結果的 `(adapter, rule_id, tool_version)` 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90；設在校準檔，不在 `toolkit.yaml`）。`rule_id` 與 `tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.sarif_results[]` 與 `payload.tool_version`。校準之前這份清單是空的，所以沒有強佐證。
      - **弱訊號**（`tool_signal`）：其他所有 SARIF 結果，以及 W4／B5 的 `E_fail_u`。弱 SARIF 與 `E_fail_u` 各只算**一個**獨立來源（`independent_sources`），不能單獨確認。
-  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R16：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`（`regression` run 的帶入叢集另有 `FIXED`）。裁決的 `rule_version` 是 `05-v0.13`；各版改了什麼見 05 §4.2 的「規則版本」。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
+  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R16：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`（`regression` run 的帶入叢集另有 `FIXED`）。裁決的 `rule_version` 是 `05-v0.14`；各版改了什麼見 05 §4.2 的「規則版本」。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
   5. **CMD-2 加派** [H]：
      - 對 `DISPUTED` 與 `UNCORROBORATED` 叢集加派審查者或驗證者，**最多 2 輪**（`E-PLAN-ROUNDS`）。
      - Commander 收到的是程式碼建立的型別化視圖：叢集 ID、狀態、CWE 桶、嚴重度、家族、票數。視圖不含發現項的推理，也不含 repo 的文字。

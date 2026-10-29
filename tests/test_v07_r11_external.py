@@ -60,7 +60,7 @@ def test_a_value_inside_its_range_stays_valid(b):
 # ================================================================ calibration: theta_reject counts true defects
 def stats(tp, n):
     return {"precision": round(tp / n, 4) if n else 0.0, "recall": 0.3, "ci_low": round(wilson_lower(tp, n), 4),
-            "ci_high": round(wilson_upper(tp, n), 4), "n": n, "tp": tp}
+            "ci_high": round(wilson_upper(tp, n), 4), "n": n, "tp": tp, "n_apps": n}     # r13: one cluster per application
 
 
 def reject(cal_tp, cal_n, ho_tp=0, ho_n=45, generalised=True):

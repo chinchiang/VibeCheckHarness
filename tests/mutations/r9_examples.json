@@ -46,15 +46,15 @@
     {
       "name": "README lists every record",
       "file": "README.md",
-      "old": "、[第十二輪](docs/evidence/review-2026-10-28-r12.md) |",
+      "old": "、[第十三輪](docs/evidence/review-2026-10-29-r13.md) |",
       "new": " |",
       "k": "readme_lists_every_review_record"
     },
     {
       "name": "00 links the latest record",
       "file": "docs/00-overview.md",
-      "old": "、[最新的審查紀錄（第十二輪）](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |",
-      "new": "、[第十一輪](evidence/review-2026-10-28-r11.md) |",
+      "old": "、[最新的審查紀錄（第十三輪，外部審查）](evidence/review-2026-10-29-r13.md)、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |",
+      "new": "、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |",
       "k": "overview_links_the_latest"
     },
     {
@@ -67,7 +67,7 @@
     {
       "name": "03 rule_version history",
       "file": "docs/03-system-architecture.md",
-      "old": "`rule_version` 為目前的 `05-v0.13`（歷程：`05-v0.3`，`05-v0.4`，`05-v0.5`，第七輪 `05-v0.6`，第八輪 `05-v0.7`，第九輪 `05-v0.8`，第十輪 `05-v0.9`，第十一輪 `05-v0.10`，第十二輪 `05-v0.11`，第十二輪外部審查 `05-v0.12`，第十二輪第二次外部審查 `05-v0.13`；",
+      "old": "`rule_version` 為目前的 `05-v0.14`（歷程：`05-v0.3`，`05-v0.4`，`05-v0.5`，第七輪 `05-v0.6`，第八輪 `05-v0.7`，第九輪 `05-v0.8`，第十輪 `05-v0.9`，第十一輪 `05-v0.10`，第十二輪 `05-v0.11`，第十二輪外部審查 `05-v0.12`，第十二輪第二次外部審查 `05-v0.13`，第十三輪外部審查 `05-v0.14`；",
       "new": "`rule_version` 為 `05-v0.3`（",
       "k": "current_rule_version"
     }

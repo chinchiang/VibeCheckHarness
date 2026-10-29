@@ -52,7 +52,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 
 | 編號 | 來源 | 工作 | 規格 | 時點 | 狀態 |
 |---|---|---|---|---|---|
-| BL-36 | T-9 | Z3 副簽前重算上一個錨點後的鏈，並核對 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權結果）與 job 帳本；三種 z3 簽章各自的 domain tag（錨點已定為 `vibecheck/audit_anchor/v2`，所有權結果與 job 帳本另訂） | [03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh) | Z3 Executor 實作時（MVP-0 派送之前） | validator 已驗 v2 副簽；Z3 端未實作 |
+| BL-36 | T-9 | Z3 副簽前重算上一個錨點後的鏈，並核對 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權結果）與 job 帳本；三種 z3 簽章各自的 domain tag（錨點已定為 `vibecheck/audit_anchor/v2`，所有權結果與 job 帳本另訂） | [03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)、[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h) | 最小錨點副簽服務（鏈重算、編號）在 MVP-0；Z3 自產事件的核對在 MVP-1（第十三輪外部審查：MVP-0 沒有 Z3 自產事件） | validator 已驗 v2 副簽；服務未實作 |
 | BL-37 | T-8 | Audit Writer 寫入端去重：重複的 `idempotency_key` 不寫新行，回傳原本那一行的 `seq` | [03 §5.8](03-system-architecture.md#58-節點邊界規則)、[08 §6.3](08-implementation-spec.md#63-冪等鍵) | Audit Writer 實作時 | validator 已把重複當錯誤；寫入端未實作 |
 | BL-38 | H-6、§4.3 | Scope Proxy 實作物件綁定與白名單比對，並與參考實作做 parity 測試：`safety.request_binding_problem`、`server_action_problem`、`allowlist_match` | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) | MVP-1 黑箱執行之前（與 BL-32 同時） | 參考實作與單元測試已有；Proxy 未實作 |
 | BL-39 | M-1 | DB 目標的 `db_comment` 所有權驗證：Z3 以唯讀 oracle 憑證讀出 `COMMENT ON DATABASE` 中的 token，結果由 z3_executor 簽署 | [02 B0](02-methodology.md#b0-roe-與範圍g0b機器可驗證)、[06 §3 #18](06-security-legal-limitations.md#3-做不到不承諾的事) | MVP-1 之前 | validator 已檢查方法；Z3 端未實作 |

@@ -4,8 +4,8 @@
     {
       "name": "README names the latest round",
       "file": "README.md",
-      "old": "最新一份是第十二輪；",
-      "new": "最新一份是第十一輪；",
+      "old": "最新一份是第十三輪（外部審查）；",
+      "new": "最新一份是第十二輪；",
       "k": "readme_names_the_latest"
     },
     {
@@ -109,7 +109,7 @@
     {
       "name": "rule_version 05-v0.13",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.13\"",
+      "old": "RULE_VERSION = \"05-v0.14\"",
       "new": "RULE_VERSION = \"05-v0.12\"",
       "k": "rule_version_is_05_v0_13"
     },

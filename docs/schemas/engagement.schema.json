@@ -181,6 +181,33 @@
             ]
           },
           "description": "v0.5（09 BL-14，docs/08 §11.12）：每個模型家族的 USD 上限（family 名稱必須是 models.yaml 的家族；不能超過 run_total.max_cost_usd，E-ENG-BUDGET）。沒有列出的家族，上限等於所在階段的上限"
+        },
+        "price_assumptions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "input_usd_per_mtok": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "output_usd_per_mtok": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "input_usd_per_mtok",
+              "output_usd_per_mtok",
+              "source"
+            ]
+          },
+          "description": "第十三輪外部審查（docs/08 §11.12）：價格未知（models.yaml pricing: null）的雲端模型的保守單價上界，鍵是 model_key。沒有價格也沒有假設上界的雲端模型不得用於 run（E-ENG-PRICING）；估算與 USD 上限以這個上界計算，報告標示「依假設上界估算」。簽署委任設定的人為這個上界負責"
         }
       },
       "required": [

@@ -374,8 +374,17 @@ def v_regression(b: Bundle, keys) -> None:
     log.data[0]["payload"]["run_kind"] = "regression"                      # run_created pins it (E-RUN-COMMIT)
     frun = doc(b, "run.followup.example.json").data
     frun["run_kind"] = "regression"
+    # r13: the regression path is G1 -> W1 -> W4 (docs/02 §1.6); W1 re-scans before anything at W3 (E-GATE-ORDER)
+    frun["tool_versions"] = frun.get("tool_versions", []) + [copy.deepcopy(next(
+        t for t in doc(b, "run.example.json").data["tool_versions"] if t["adapter"] == "opengrep:scan"))]   # E-RUN-CONFIG
+    _append(log, 11,
+            {"event_type": "tool_invocation_start", "node": "W1", "ts": "2026-10-07T10:01:40+08:00", "key": "inv-w1-opengrep-002:start",
+             "zone": "Z2", "payload": {"adapter": "opengrep:scan", "tool_version": "1.6.0", "invocation_id": "inv-w1-opengrep-002"}},
+            {"event_type": "tool_invocation_end", "node": "W1", "ts": "2026-10-07T10:01:50+08:00", "key": "inv-w1-opengrep-002:end",
+             "zone": "Z2", "payload": {"adapter": "opengrep:scan", "tool_version": "1.6.0", "invocation_id": "inv-w1-opengrep-002",
+                                       "ok": True, "results": 0, "format": "sarif-2.1.0", "sarif_results": []}})
     # erin claims the run before G4 opens (E-G4-INITIATOR), and W3 writes K-301's first version after G3
-    _append(log, 19,
+    _append(log, 21,
             {"event_type": "initiator_claim", "node": "claim_run", "ts": "2026-10-07T10:25:00+08:00",
              "key": "initiator_claim:erin", "actor": {"kind": "human", "id": "erin"},
              "payload": {"person_id": "erin", "role": "security_reviewer"}},
@@ -386,7 +395,7 @@ def v_regression(b: Bundle, keys) -> None:
     main_log = doc(b, "audit-event.run-2026-09-23-001.example.jsonl")
     own = copy.deepcopy(next(e for e in main_log.data if e["event_type"] == "ownership_check"))
     own["payload"]["batch_id"] = "own-2026-10-07-1"
-    _append(log, 21, {"event_type": "ownership_check", "node": "B0", "ts": "2026-10-07T10:27:00+08:00", "key": "ownership_check:own-2026-10-07-1",
+    _append(log, 23, {"event_type": "ownership_check", "node": "B0", "ts": "2026-10-07T10:27:00+08:00", "key": "ownership_check:own-2026-10-07-1",
                       "actor": own["actor"], "zone": own["zone"], "payload": own["payload"]})
     frun["ownership_results"] = [dict(o, batch_id="own-2026-10-07-1", checked_at="2026-10-07T10:27:00+08:00")
                                  for o in doc(b, "run.example.json").data["ownership_results"]]

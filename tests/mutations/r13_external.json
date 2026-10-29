@@ -1,0 +1,215 @@
+{
+  "tests": "tests/test_v07_r13_external.py",
+  "mutations": [
+    {
+      "name": "a terminal state can be left again",
+      "file": "tools/vchlib/checks.py",
+      "old": "    \"ABORTED\": (), \"FAILED\": (), \"COMPLETED\": (), \"COMPLETED_WITH_GAPS\": (),\n",
+      "new": "    \"ABORTED\": (\"RUNNING\",), \"FAILED\": (\"RUNNING\",), \"COMPLETED\": (\"RUNNING\",), \"COMPLETED_WITH_GAPS\": (\"RUNNING\",),\n",
+      "k": "terminal_state_is_never_left"
+    },
+    {
+      "name": "work while the run is not RUNNING",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(prev == \"RUNNING\", \"E-RUN-STATUS\", f\"{w} seq {e.get('seq')}\",\n                    f\"{e.get('event_type')} while the run is {prev}: work only happens",
+      "new": "            R.check(True, \"E-RUN-STATUS\", f\"{w} seq {e.get('seq')}\",\n                    f\"{e.get('event_type')} while the run is {prev}: work only happens",
+      "k": "work_only_happens_while"
+    },
+    {
+      "name": "a gate decided while SUSPENDED",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(prev in GATE_STATES, \"E-RUN-STATUS\",",
+      "new": "            R.check(True, \"E-RUN-STATUS\",",
+      "k": "gate_is_decided_while"
+    },
+    {
+      "name": "the code's table drifts from the docs",
+      "file": "tools/vchlib/checks.py",
+      "old": "    \"WAITING_GATE\": (\"RUNNING\", \"SUSPENDED\", \"STOPPED\", \"ABORTED\", \"FAILED\"),\n",
+      "new": "    \"WAITING_GATE\": (\"RUNNING\", \"SUSPENDED\", \"STOPPED\", \"ABORTED\", \"FAILED\", \"COMPLETED\"),\n",
+      "k": "transition_table_in_the_docs"
+    },
+    {
+      "name": "the docs' table drifts from the code",
+      "file": "docs/02-methodology.md",
+      "old": "| `SUSPENDED` | `RUNNING`、`COMPLETED_WITH_GAPS`、`FAILED` |\n",
+      "new": "| `SUSPENDED` | `RUNNING`、`COMPLETED`、`FAILED` |\n",
+      "k": "transition_table_in_the_docs"
+    },
+    {
+      "name": "W nodes without G1",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if node in G1_GATED_NODES and not lane_a:\n",
+      "new": "        if node in () and not lane_a:\n",
+      "k": "cannot_scan_before_g1 or cannot_adjudicate_before_g1"
+    },
+    {
+      "name": "W3 before W1",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(first_w1 is not None and first_w1 < t, \"E-GATE-ORDER\", where,",
+      "new": "                R.check(True, \"E-GATE-ORDER\", where,",
+      "k": "w3_follows_the_first_w1"
+    },
+    {
+      "name": "exact binary digits above 2^53",
+      "file": "tools/vchlib/canonical.py",
+      "old": "        if v.is_integer() and abs(v) < 2 ** 53:\n",
+      "new": "        if v.is_integer() and abs(v) < 1e21:\n",
+      "k": "integer_valued_doubles or random_doubles"
+    },
+    {
+      "name": "the boundary vectors are dropped",
+      "file": "tools/vchlib/checks.py",
+      "old": "    ([1000000000000000100.0, -1000000000000000100.0, 9007199254740993.0, 1.2345678901234568e+20, 1234567890123456789.0, 1e20, 123456789012345680000.0],\n     b\"[1000000000000000100,-1000000000000000100,9007199254740992,123456789012345680000,1234567890123456800,100000000000000000000,123456789012345680000]\"),\n",
+      "new": "",
+      "k": "vectors_cover_the_boundary"
+    },
+    {
+      "name": "EXPIRED bound by the human deadline again",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(rec.get(\"outcome\") == \"EXPIRED\" or at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
+      "new": "                R.check(at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
+      "k": "expired_record_written_after"
+    },
+    {
+      "name": "every outcome exempt from the deadline",
+      "file": "tools/vchlib/checks.py",
+      "old": "                R.check(rec.get(\"outcome\") == \"EXPIRED\" or at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
+      "new": "                R.check(True or at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
+      "k": "human_decision_after_the_deadline"
+    },
+    {
+      "name": "unknown-priced cloud models run",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if m.get(\"hosting\") == \"cloud\" and m.get(\"pricing\") is None:\n",
+      "new": "        if False and m.get(\"hosting\") == \"cloud\" and m.get(\"pricing\") is None:\n",
+      "k": "unknown_priced_cloud_model_needs or fallback_chain_counts"
+    },
+    {
+      "name": "self-hosted models need a price too",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if m.get(\"hosting\") == \"cloud\" and m.get(\"pricing\") is None:\n",
+      "new": "        if m.get(\"hosting\") in (\"cloud\", \"self\") and m.get(\"pricing\") is None:\n",
+      "k": "cloud_model_turned_self_hosted or self_hosted_model_needs_no_price"
+    },
+    {
+      "name": "a zero price bound",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0, \"E-ENG-PRICING\", w,",
+      "new": "            R.check(isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0, \"E-ENG-PRICING\", w,",
+      "k": "price_bound_must_be_positive"
+    },
+    {
+      "name": "a price assumption for no model",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not R.check(c.model(k) is not None, \"E-ENG-PRICING\", w, f\"budgets.price_assumptions.{k}: unknown model\"):\n",
+      "new": "        if not R.check(True, \"E-ENG-PRICING\", w, f\"budgets.price_assumptions.{k}: unknown model\"):\n",
+      "k": "price_assumption_names_a_model"
+    },
+    {
+      "name": "the models.yaml fallback chain is not followed",
+      "file": "tools/vchlib/checks.py",
+      "old": "            todo += list((c.model(k) or {}).get(\"fallback\") or [])\n",
+      "new": "            pass\n",
+      "k": "fallback_chain_counts"
+    },
+    {
+      "name": "hosting optional in the schema",
+      "file": "docs/schemas/model-registry.schema.json",
+      "old": "      \"earliest_retirement\",\n      \"hosting\"\n    ]",
+      "new": "      \"earliest_retirement\"\n    ]",
+      "k": "hosting_is_required"
+    },
+    {
+      "name": "no design effect",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return n / (1 + (n / n_apps - 1) * icc)\n",
+      "new": "    return float(n)\n",
+      "k": "effective_n_is_the_design_effect or bounds_shrink or example_bounds_are_recomputed or forty_hits"
+    },
+    {
+      "name": "feasible on three applications",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if not (num(cs.get(\"n_apps\")) and cs[\"n_apps\"] >= min_apps):\n",
+      "new": "            if False:\n",
+      "k": "feasible_threshold_needs_ten"
+    },
+    {
+      "name": "clustering not pinned",
+      "file": "tools/vchlib/checks.py",
+      "old": "    for block, sec in ((\"near_zero_rules\", \"§4.3\"), (\"threshold_search\", \"§5.7\"), (\"clustering\", \"§5.7\")):\n",
+      "new": "    for block, sec in ((\"near_zero_rules\", \"§4.3\"), (\"threshold_search\", \"§5.7\")):\n",
+      "k": "clustering_policy_is_pinned"
+    },
+    {
+      "name": "high-precision lower bound on raw n",
+      "file": "tools/vchlib/checks.py",
+      "old": "    low = clopper_pearson_lower(tp / (tp + fp) * n_eff if tp + fp else 0, n_eff)\n",
+      "new": "    low = clopper_pearson_lower(tp, tp + fp)\n",
+      "k": "forty_hits_from_ten"
+    },
+    {
+      "name": "high-precision rows from nine applications",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if apps < min_apps:\n        out.append(f\"n_apps {apps} < clustering.min_apps {min_apps}\")\n",
+      "new": "",
+      "k": "forty_hits_from_ten"
+    },
+    {
+      "name": "Clopper-Pearson via the beta function drifts",
+      "file": "tools/vchlib/checks.py",
+      "old": "        lo, hi = (mid, hi) if betainc(k, n - k + 1, mid) < alpha / 2 else (lo, mid)\n",
+      "new": "        lo, hi = (mid, hi) if betainc(k, n - k + 1, mid) < alpha else (lo, mid)\n",
+      "k": "clopper_pearson_still_matches"
+    },
+    {
+      "name": "rule_version 05-v0.14",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "RULE_VERSION = \"05-v0.14\"",
+      "new": "RULE_VERSION = \"05-v0.13\"",
+      "k": "rule_version_is_05_v0_14"
+    },
+    {
+      "name": "MVP-0 without the countersign service",
+      "file": "docs/07-roadmap.md",
+      "old": "• **最小錨點副簽服務**（每個 `audit_anchor`",
+      "new": "• **Z3 副簽**（每個 `audit_anchor`",
+      "k": "mvp0_ships_the_anchor"
+    },
+    {
+      "name": "the Lite contract loses G1",
+      "file": "docs/07-roadmap.md",
+      "old": "| **每次 run** | 一個畫面：確認（或修改）W0.5 擬出的不變量清單，簽署 | G1 |",
+      "new": "| **每次 run** | 一個畫面：確認（或修改）W0.5 擬出的不變量清單，簽署 | 關卡一 |",
+      "k": "lite_contract_names"
+    },
+    {
+      "name": "the cost cap is called fail-closed again",
+      "file": "docs/08-implementation-spec.md",
+      "old": "**USD 上限只能對有單價的模型強制**",
+      "new": "**USD 上限 fail-closed**",
+      "k": "cost_cap_is_enforced_only"
+    },
+    {
+      "name": "all verdicts provisional again",
+      "file": "docs/00-overview.md",
+      "old": "由投票決定的裁決都是暫定的",
+      "new": "所有裁決都是暫定的",
+      "k": "stale_sentences_are_gone"
+    },
+    {
+      "name": "05 without n_eff",
+      "file": "docs/05-bias-calibration.md",
+      "old": "**Wilson 界限以 n_eff＝n／DE 重算**",
+      "new": "**Wilson 界限以 n 計算**",
+      "k": "calibration_doc_defines_n_eff"
+    },
+    {
+      "name": "02 without the prerequisites",
+      "file": "docs/02-methodology.md",
+      "old": "**W 階段的前置條件**（第十三輪外部審查；validator 以 `checks.G1_GATED_NODES`",
+      "new": "**W 階段的順序**（第十三輪外部審查；validator 以 `checks.G1_GATED_NODES`",
+      "k": "phase_prerequisites_are_documented"
+    }
+  ]
+}

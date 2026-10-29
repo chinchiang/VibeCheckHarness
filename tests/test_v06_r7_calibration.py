@@ -89,7 +89,8 @@ def test_bucket_thresholds_are_checked(b):
 
 
 HP = {"adapter": "opengrep:scan", "rule_id": "r", "tool_version": "1.6.0", "cwe_bucket": "authz",
-      "n": 54, "tp": 53, "fp": 1, "precision_lower95": 0.9011, "holdout_n": 12, "holdout_tp": 12}
+      "n": 54, "tp": 53, "fp": 1, "precision_lower95": 0.9011, "holdout_n": 12, "holdout_tp": 12,
+      "n_apps": 54, "holdout_n_apps": 12}                                # r13: one hit per application, so n_eff = n
 
 
 def test_a_measured_rule_passes():
@@ -100,10 +101,10 @@ def test_a_measured_rule_passes():
 
 @pytest.mark.parametrize("change, why", [
     ({"precision_lower95": 0.95}, "recomputed"),                     # a declared bound the counts do not give
-    ({"n": 53}, "tp + fp"),
-    ({"n": 39, "tp": 39, "fp": 0, "precision_lower95": 0.9097}, "< 40"),
+    ({"n": 53, "n_apps": 53}, "tp + fp"),
+    ({"n": 39, "tp": 39, "fp": 0, "precision_lower95": 0.9097, "n_apps": 39}, "< 40"),
     ({"tp": 52, "fp": 2, "precision_lower95": 0.8725}, "high_precision_min"),
-    ({"holdout_n": 8, "holdout_tp": 8}, "holdout"),
+    ({"holdout_n": 8, "holdout_tp": 8, "holdout_n_apps": 8}, "holdout"),
     ({"holdout_tp": 10}, "holdout"),                                 # 10/12 = 0.83 < 0.85
 ])
 def test_a_rule_is_recomputed_from_its_counts(change, why):
@@ -193,9 +194,9 @@ def test_strong_tool_corroboration_uses_the_counts(b):
     k = c0.ix.first("cluster", cluster_id="K-014").data
     ref = k["sarif_refs"][0]
     cal = doc(b, CAL).data["result"]
-    cal["high_precision_rules"] = [dict(K014_RULE, n=120, tp=117, fp=3, precision_lower95=0.9287, holdout_n=30, holdout_tp=29)]
+    cal["high_precision_rules"] = [dict(K014_RULE, n=120, tp=117, fp=3, precision_lower95=0.9287, holdout_n=30, holdout_tp=29, n_apps=120, holdout_n_apps=30)]
     assert checks.sarif_is_strong(Ctx(b), k, ref)
-    cal["high_precision_rules"] = [dict(K014_RULE, n=40, tp=39, fp=1, precision_lower95=0.95, holdout_n=30, holdout_tp=29)]
+    cal["high_precision_rules"] = [dict(K014_RULE, n=40, tp=39, fp=1, precision_lower95=0.95, holdout_n=30, holdout_tp=29, n_apps=40, holdout_n_apps=30)]
     assert not checks.sarif_is_strong(Ctx(b), k, ref)                 # the declared 0.95 is not what 39/40 gives
 
 

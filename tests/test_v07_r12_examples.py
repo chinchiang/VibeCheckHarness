@@ -128,7 +128,7 @@ def test_a_white_box_only_run_without_roe_ends_completed():
                                   "06-security-legal-limitations", "07-roadmap", "08-implementation-spec"])
 def test_status_lines_name_round_twelve(name):
     status = text(f"docs/{name}.md").split("## 現況", 1)[1].split("\n## ", 1)[0]
-    assert "第十二輪審查（2026-10-28）後的設計" in status
+    assert "第十三輪審查（2026-10-29）後的設計" in status             # r13 moved the status lines on
 
 
 def test_the_glossary_has_the_r11_and_r12_terms():

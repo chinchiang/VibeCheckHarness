@@ -25,7 +25,7 @@
     {
       "name": "rule_version 05-v0.12",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.13\"",
+      "old": "RULE_VERSION = \"05-v0.14\"",
       "new": "RULE_VERSION = \"05-v0.11\"",
       "k": "rule_version_is_05_v0_12"
     },

@@ -38,7 +38,7 @@ def text(name):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_11(b):
-    assert adj.RULE_VERSION == "05-v0.13" and run_all(b).errors == []
+    assert adj.RULE_VERSION == "05-v0.14" and run_all(b).errors == []
 
 
 # ================================================================ R15: one membership rule

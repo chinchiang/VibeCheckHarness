@@ -2,7 +2,7 @@
 
 > 這份總覽給第一次讀的人：這套工具包要做什麼、流程怎麼走、哪些步驟是程式、哪些是 LLM、哪些一定要人，以及依角色該先讀哪幾份文件。細節都在後面的文件裡，這裡只放連結，不重複規則。標記說明見 [README](../README.md#標記說明)。
 >
-> **狀態**：設計文件 v0.5（第十二輪審查後，裁決規則版本 `05-v0.13`）。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
+> **狀態**：設計文件 v0.5（第十三輪審查後，裁決規則版本 `05-v0.14`）。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
 
 ## 1. 它是什麼、不是什麼
 
@@ -93,7 +93,7 @@ flowchart LR
 
 1. **多家族只能降低偏誤，不能消除**；是否勝過「單一最佳模型多次取樣」必須自己量（#1）。
 2. **PASS 不代表沒有漏洞**（#28）；LLM 功能的 0/n 只給違反率上界，n＝20 時約 13.9%（#32）。
-3. **校準完成前，所有裁決都是暫定的**（#38）。
+3. **校準完成前，由投票決定的裁決都是暫定的**（#38；有可執行證明或由規則 R0／R1／R9／R10 決定的裁決不標 `provisional`）。
 4. **staging 不等於正式環境**；只存在平台後台的設定看不到（#27、#29）。
 5. **單人模式沒有職責分離**（#26）；簽章只證明誰核准，不證明有仔細審（#39）。
 6. **受測程式碼與目標回應都可能對工具包的 LLM 注入**；只能隔離、降低並持續量測（#11、#33）。
@@ -106,6 +106,6 @@ flowchart LR
 | 資安審查者（關卡核准者） | [02 §1.3](02-methodology.md#13-人工關卡一覽) → [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | [04](04-threat-to-testcase.md) 的 binding 表與安全等級、[06 §1](06-security-legal-limitations.md#1-工具包自身的安全) |
 | 實作者 | [03](03-system-architecture.md) → [08](08-implementation-spec.md)（含 §11 元件規格） | [schemas/README](schemas/README.md)、[07](07-roadmap.md) 的出口準則、[09 待辦](09-backlog.md) |
 | 法務或管理層 | [06 §2](06-security-legal-limitations.md#2-法遵與授權) → [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) | [07 §3](07-roadmap.md#3-入口閘門法務與查證) 的入口閘門、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 待決事項 |
-| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（第十二輪）](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |
+| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（第十三輪，外部審查）](evidence/review-2026-10-29-r13.md)、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |
 
 術語見 [README 術語表](../README.md#術語表)。

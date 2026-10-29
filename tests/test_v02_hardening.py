@@ -139,7 +139,8 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     capped by R8, although V-014-1 is diversity_degraded)."""
     # v0.6 (review r7 3.5): the row carries its raw counts; 117/120 has a Clopper-Pearson lower bound of 0.9287
     rule = {"adapter": "opengrep:scan", "rule_id": "vc.authz.update-without-owner", "tool_version": "1.6.0", "cwe_bucket": "authz",
-            "n": 120, "tp": 117, "fp": 3, "precision_lower95": 0.9287, "holdout_n": 30, "holdout_tp": 29}
+            "n": 120, "tp": 117, "fp": 3, "precision_lower95": 0.9287, "holdout_n": 30, "holdout_tp": 29,
+            "n_apps": 120, "holdout_n_apps": 30}      # r13: one hit per application, so n_eff = n
     doc(b, "calibration.yaml").data["result"]["high_precision_rules"] = [rule]
     _repin_calibration(b, keys)                        # v0.5: calibration.yaml is pinned by the engagement
     rederive(b, keys)                                  # run.config_refs hashes calibration.yaml (v0.3, B11)
