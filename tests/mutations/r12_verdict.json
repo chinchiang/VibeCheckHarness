@@ -130,8 +130,8 @@
     {
       "name": "06 lists the same-family limitation",
       "file": "docs/06-security-legal-limitations.md",
-      "old": "| 44 | **同一家族、不同基底血統的模型算兩個獨立觀察**",
-      "new": "| 44 | 同一家族",
+      "old": "| 44 | **同家族的模型預設算一個觀察，可能低估獨立性**",
+      "new": "| 44 | 同家族",
       "k": "05_02_06"
     }
   ]

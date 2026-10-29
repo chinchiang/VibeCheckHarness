@@ -60,6 +60,9 @@ config:
     min_clusters: 40
   smoothing_k: 10
   near_zero_rules: {w_min: 0.2, wilson_lower_max: 0.5, n_min: 10, abstain_rate_max: 0.3}   # v0.7（審查 r9）：棄權率上限
+  independence:                    # 第十二輪第二次外部審查（05-v0.13）：同家族算一個觀察；M-2 量測前 lineage_split 為空（docs/05 §4.3）
+    unit: family
+    lineage_split: []
   annotation:
     annotator_ids: [ivan, judy]
     adjudicator_id: alice

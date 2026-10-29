@@ -38,7 +38,7 @@ def text(name):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_11(b):
-    assert adj.RULE_VERSION == "05-v0.12" and run_all(b).errors == []
+    assert adj.RULE_VERSION == "05-v0.13" and run_all(b).errors == []
 
 
 # ================================================================ R15: one membership rule
@@ -182,9 +182,9 @@ def test_rows_15_and_16_are_never_provisional(b, monkeypatch):
 def test_05_02_06_state_the_r12_rules():
     s = text("05-bias-calibration.md")
     assert "| F 下限 | R16 | 決定 |" in s and "| 15 | 否 | 否 |" in s and "| 16 | 否 | 否 |" in s
-    assert "**已知限制（審查 r12，使用者決定維持）**" in s
+    assert "**獨立觀察的單位**（第十二輪第二次外部審查" in s        # the r12 limitation became a conservative default (05-v0.13)
     assert "`fix_contradicted`" in text("02-methodology.md") and "`regression_failed`" in text("02-methodology.md")
-    assert "| 44 | **同一家族、不同基底血統的模型算兩個獨立觀察**" in text("06-security-legal-limitations.md")
+    assert "| 44 | **同家族的模型預設算一個觀察，可能低估獨立性**" in text("06-security-legal-limitations.md")
 
 
 def test_a_carried_clusters_inputs_carry_the_source_status(b):

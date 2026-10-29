@@ -175,6 +175,55 @@ class Index:
             done.update(path)
         return cycles
 
+    def independence_split_families(self) -> set:
+        """Second external review of r12 (05-v0.13): the families whose base lineages calibration.yaml shows to err
+        independently: every pair of the family's lineage roots has an M-2 entry in config.independence.lineage_split
+        with kappa_ci_upper below INDEPENDENCE_SPLIT["kappa_ci_upper_max"] on at least INDEPENDENCE_SPLIT["n_min"]
+        clusters (docs/05 §4.3, §5.3 M-2). Every other family is one observation."""
+        ind = ((self.calibration.get("config") or {}).get("independence") or {}) if isinstance(self.calibration, dict) else {}
+        ok = set()
+        for x in ind.get("lineage_split") or []:
+            if isinstance(x, dict) and independence_evidence_ok(x):
+                ok.add((x.get("family"), frozenset(self.lineage_roots(x.get("lineages")))))
+        roots: dict = {}
+        for m in self.models.values():
+            if isinstance(m, dict) and isinstance(m.get("family"), str) and isinstance(m.get("lineage"), str):
+                roots.setdefault(m["family"], set()).add(self.lineage_root(m["lineage"]))
+        out = set()
+        for fam, rs in roots.items():
+            pairs = [frozenset((a, b)) for i, a in enumerate(sorted(rs)) for b in sorted(rs)[i + 1:]]
+            if pairs and all((fam, p) in ok for p in pairs):
+                out.add(fam)
+        return out
+
+    def independence_key(self, model_key):
+        """Second external review of r12 (05-v0.13): the observation a model's vote or report belongs to. Models that share
+        a base lineage are always one observation (a fine-tune inherits its base's blind spots, across families too);
+        models of one family are one observation unless independence_split_families() lists the family. Votes and reports
+        of one key count once in S, in the independent sources and in diversity. 05-v0.12 grouped by base lineage only,
+        so openai's gpt and gpt-oss were two observations. None for an unknown model."""
+        m = self.models.get(model_key) if isinstance(model_key, str) else None
+        if not isinstance(m, dict) or not isinstance(m.get("lineage"), str):
+            return None
+        parent: dict = {}
+
+        def find(x):
+            while parent.get(x, x) != x:
+                x = parent[x]
+            return x
+
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[max(ra, rb)] = min(ra, rb)
+        split = self.independence_split_families()
+        for k, x in self.models.items():
+            if isinstance(x, dict) and isinstance(x.get("lineage"), str):
+                union(f"model:{k}", f"root:{self.lineage_root(x['lineage'])}")
+                if isinstance(x.get("family"), str) and x["family"] not in split:
+                    union(f"model:{k}", f"family:{x['family']}")
+        return find(f"model:{model_key}")
+
     def root_of_agent(self, agent_id):
         """The base lineage of the model an agents.yaml entry runs (None when unresolved)."""
         m = self.model_of_agent(agent_id)
@@ -290,7 +339,8 @@ def independent_families(ix: Index, cluster: dict) -> list[str]:
         a = ix.agents.get(rep.get("agent_id")) if isinstance(rep.get("agent_id"), str) else None
         if (f and rep.get("round") == 1 and isinstance(a, dict) and a.get("role") == "reviewer"
                 and f.get("run_id") == cluster.get("run_id") and has_supporting_evidence(f) and isinstance(rep.get("family"), str)):
-            root = ix.root_of_agent(rep.get("agent_id")) or ix.lineage_root(rep.get("lineage"))
+            # 05-v0.13: one observation per independence key (one family unless M-2 evidence splits it)
+            root = ix.independence_key((ix.agents.get(rep.get("agent_id")) or {}).get("model")) or ix.lineage_root(rep.get("lineage"))
             fams.setdefault(root, set()).add(rep.get("family"))
     return sorted(min(fs) for fs in fams.values())
 
@@ -798,6 +848,18 @@ def vote_terms(ix: "Index", vote: dict, cluster: dict, version) -> tuple[bool, f
     return valid, wgt, counts
 
 
+# Second external review of r12 (05-v0.13): the M-2 evidence that splits one family into independent observations (docs/05
+# §4.3): kappa's upper confidence bound below the "diversity too low" bar of M-2 (κ ≥ 0.6, docs/05 §5.3), measured on at
+# least as many clusters as a calibration threshold needs (threshold_search.min_clusters)
+INDEPENDENCE_SPLIT = {"kappa_ci_upper_max": 0.6, "n_min": 40}
+
+
+def independence_evidence_ok(x: dict) -> bool:
+    upper, n, lins = x.get("kappa_ci_upper"), x.get("n"), x.get("lineages")
+    return (isinstance(upper, (int, float)) and not isinstance(upper, bool) and upper < INDEPENDENCE_SPLIT["kappa_ci_upper_max"]
+            and type(n) is int and n >= INDEPENDENCE_SPLIT["n_min"] and isinstance(lins, list) and len(set(lins)) == 2)
+
+
 def root_score(terms) -> float:
     """S from [(base lineage, w * stance)]: each root counts once (v0.7, review r9; v0.7 r10: its strongest vote). S adds
     log likelihood ratios, which is only valid for independent observations; two verifiers of one base lineage share
@@ -824,8 +886,7 @@ def derived_score(ix: "Index", v: dict, cluster: dict) -> float:
     for vote in v.get("votes", []):
         _, wgt, counts = vote_terms(ix, vote, cluster, v.get("calibration_version"))
         if counts:
-            m = ix.models.get(vote.get("voter_model_key")) if isinstance(vote.get("voter_model_key"), str) else None
-            root = ix.lineage_root(m.get("lineage")) if isinstance(m, dict) else vote.get("voter_model_key")
+            root = ix.independence_key(vote.get("voter_model_key")) or vote.get("voter_model_key")   # 05-v0.13: per observation
             terms.append((root, wgt * STANCE.get(vote.get("stance"), 0)))
     return root_score(terms)
 

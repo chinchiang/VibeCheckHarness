@@ -2,11 +2,20 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.12`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.13`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）。
 
 ## 第十二輪審查（2026-10-28）
 
 依 [2026-10-28 設計審查（第十二輪）](docs/evidence/review-2026-10-28-r12.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件），最嚴重的八項由主審查者重跑確認。
+
+### 第二次外部審查（對 `main@782cba3`）（PR6；`rule_version` 改為 `05-v0.13`）
+- **獨立性單位可設定，預設保守**（BL-68）：同家族不同血統（openai `gpt`／`gpt-oss`）原本算兩個獨立觀察，有共模失效的風險。現在 S、獨立來源數與多樣性都以 `Index.independence_key` 分組：同一血統根一律合併；同一家族預設合併，只有 `calibration.yaml` 的 `independence.lineage_split` 記錄該家族每一對血統的 M-2 證據（`kappa_ci_upper < 0.6`、`n ≥ 40`）時才拆開。`independence.unit` 釘為 `family`，證據不足的拆分由 `E-CAL-POLICY` 拒絕。範例沒有 M-2 資料，維持保守；範例裁決的狀態都沒有變（沒有同時含兩個 openai 模型且都計分的投票）。
+- **`rfc8785` 改為選用**：`checks.py` 不再在模組頂層載入它；缺少時給 `W-JCS-REFERENCE-MISSING` 警告，自製 `canonical.jcs` 仍以 RFC 8785 向量檢查。CI 仍安裝並跑對照（有測試守住）。`validate_schemas` 缺少 `cryptography`、`jsonschema`、`referencing`、`yaml` 時印出套件名稱與安裝指令，結束碼 2，不再是 traceback。
+- **README 狀態列**改為「最新一份是第十二輪」；測試由 `docs/evidence/review-*-rN.md` 推導最新輪次，之後新增紀錄忘了改會被擋下。
+- **雙軸定位與 MVP-0 入口**：README 與 00 寫明主定位是「針對 AI 生成應用的安全測試控制框架」，`lite` 給單人開發者、`team`／`full` 給企業；07 §1.3 的 Lite 白箱快速模式由降階備案改為 MVP-0 的預設入口，關卡仍是人的決定，不自動核准；07 MVP-2 寫明 Supabase、Firebase 等託管 DB 預期只跑 S0／S1。
+- **規格凍結**：CONTRIBUTING 與 09 開頭宣告本 PR 合併後設計規格凍結，之後只接受實作中發現的矛盾或缺口、外部審查核實成立的缺陷。
+- 審查的「校準語料空，所有投票裁決都暫定」與「零設定模式自動核准 G0／G1」兩項不採納，理由見[審查紀錄 §10](docs/evidence/review-2026-10-28-r12.md#10-第二次外部審查對-main782cba3rule_version-05-v013)。
+- 新增 `tests/test_v07_r12_external2.py`（23 個；在 `782cba3` 上 20 個失敗，另 3 個是防誤報）與 `tests/mutations/r12_external2.json`（21）；`test_v07_r12_verdict.py` 兩個斷言、`r8_validator.json` 兩個與 `r12_verdict.json` 一個錨點隨新語意的文字更新。
 
 ### 外部審查（對 `main@48cadf9`）的四項（PR5；`rule_version` 改為 `05-v0.12`）
 - **FIXED 逐一要求必要案例的合格 PASS**（R14）：來源以可執行證明確認時，每一個證明的測試案例在本 run 都只能有合格 PASS（`E_pass` 且正對照成立）。`05-v0.11` 把那個案例的 ERROR（`E_inc`）算成「已重跑」，再拿另一個案例的 PASS 補正對照，原本證明漏洞的測試沒再通過也判 FIXED（審查以完整範例重簽後零錯誤重現）。必要案例不明時不判 FIXED，由 R16 維持來源狀態並加註 `fix_unverified`。

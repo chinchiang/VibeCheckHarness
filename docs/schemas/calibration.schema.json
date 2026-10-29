@@ -356,6 +356,63 @@
             "batch_size_apps",
             "max_relabel_rounds"
           ]
+        },
+        "independence": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "第十二輪第二次外部審查（05-v0.13）：獨立觀察的單位（docs/05 §4.3）。unit 固定為 family：同一家族的模型算一個觀察，與共用基底血統的模型（含其他家族的微調）也算一個觀察；只有 lineage_split 中有 M-2 證據（該家族每一對血統根的 kappa 信賴上界 < 0.6、n ≥ 40）時，那個家族才拆成各血統。validator 釘住（E-CAL-POLICY）",
+          "properties": {
+            "unit": {
+              "const": "family"
+            },
+            "lineage_split": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "family": {
+                    "type": "string"
+                  },
+                  "lineages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "uniqueItems": true
+                  },
+                  "kappa": {
+                    "type": "number"
+                  },
+                  "kappa_ci_upper": {
+                    "type": "number"
+                  },
+                  "n": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "family",
+                  "lineages",
+                  "kappa",
+                  "kappa_ci_upper",
+                  "n",
+                  "source"
+                ]
+              }
+            }
+          },
+          "required": [
+            "unit",
+            "lineage_split"
+          ]
         }
       },
       "required": [
@@ -368,7 +425,8 @@
         "threshold_search",
         "smoothing_k",
         "near_zero_rules",
-        "annotation"
+        "annotation",
+        "independence"
       ]
     },
     "result": {

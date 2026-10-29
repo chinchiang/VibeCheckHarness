@@ -18,7 +18,6 @@ import re
 import traceback
 from dataclasses import dataclass, field
 
-import rfc8785
 from urllib.parse import urlsplit
 from jsonschema import Draft202012Validator, FormatChecker, validators
 from jsonschema.exceptions import SchemaError
@@ -409,9 +408,22 @@ def g_schemas(R: Report, c: Ctx):
 # ============================================================== 2 JCS
 def g_jcs(R: Report, c: Ctx):
     docs = getattr(c, "original", c.b).docs
+    # second external review of r12: the reference library is only needed for this parity check (canonical.jcs is the
+    # repo's own RFC 8785 implementation), so a validator without it warns and still checks its own JCS against the RFC
+    # vectors; it was imported at module level and the whole validator crashed. CI installs requirements.lock, so the
+    # parity check always runs there (tests/test_v07_r12_external2.py).
+    try:
+        import rfc8785
+    except ImportError:
+        rfc8785 = None
+        R.warn("W-JCS-REFERENCE-MISSING", "requirements.txt", "rfc8785 is not installed: canonical.jcs is checked against the "
+               "RFC 8785 vectors only, not against the reference library (pip install -r requirements.lock)")
     for value, expected in JCS_VECTORS:
         R.check(jcs(value) == expected, "E-JCS", "canonical.py", f"RFC 8785 vector mismatch: {jcs(value)!r} != {expected!r}")
-        R.check(rfc8785.dumps(value) == expected, "E-JCS", "rfc8785", "reference library disagrees with the RFC 8785 vector")
+        if rfc8785 is not None:
+            R.check(rfc8785.dumps(value) == expected, "E-JCS", "rfc8785", "reference library disagrees with the RFC 8785 vector")
+    if rfc8785 is None:
+        return
     for d in docs:
         if d.data is None:
             continue
@@ -2904,6 +2916,12 @@ def g2_latest(c: Ctx, cluster: dict) -> tuple[dict | None, str | None]:
     return rec, dec
 
 
+def vote_observation(c: Ctx, vt: dict, m: dict):
+    """Second external review of r12 (05-v0.13): the independent observation a vote belongs to (derive.Index.independence_key:
+    one family unless M-2 evidence splits it; a shared base lineage always merges)."""
+    return c.ix.independence_key(vt.get("voter_model_key")) or c.ix.lineage_root(m.get("lineage"))
+
+
 def vote_model(c: Ctx, vt: dict) -> dict | None:
     """models.yaml entry that cast a vote, resolved through the registries (never the vote's own
     voter_family): voter_agent_id -> agents.yaml model; voter_model_key must be that model, or,
@@ -2970,8 +2988,9 @@ def derived_diversity_degraded(c: Ctx, v: dict, cluster: dict) -> bool:
         # only verifier-role votes count (others: E-VERDICT-VOTER-ROLE, ignored); v0.7 (review r8, external review 3):
         # weighted_valid is recomputed and diversity counts base lineages, as independent_families and E(cluster) do
         if m is not None and derive.vote_terms(c.ix, x, cluster, v.get("calibration_version"))[2]:
-            roots.add(c.ix.lineage_root(m.get("lineage")))
-    return len(roots) < min(2, len(c.ix.lineage_roots(m.get("lineage") for m in eligible_verifier_models(c, cluster).values())))
+            roots.add(vote_observation(c, x, m))
+    # 05-v0.13: diversity counts independent observations (one family unless M-2 evidence splits it), as S does
+    return len(roots) < min(2, len({c.ix.independence_key(k) or k for k in eligible_verifier_models(c, cluster)}))
 
 
 def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
@@ -5099,6 +5118,7 @@ CAL_POLICY = {
     "threshold_search": {"confirm_precision_floor": 0.9, "confirm_wilson_lower_floor": 0.8,
                          "reject_true_defect_max": 0.02, "reject_wilson_upper_max": 0.08, "min_clusters": 40},
     "high_precision_min": 0.9,                       # r12: result.thresholds.high_precision_min.value (docs/05 §5.10)
+    "independence_unit": "family",                   # second external review of r12 (05-v0.13): docs/05 §4.3
 }
 
 
@@ -5111,6 +5131,17 @@ def policy_problems(cfg: dict) -> list[str]:
         for key, want in CAL_POLICY[block].items():
             if have.get(key) != want:
                 out.append(f"{block}.{key} {have.get(key)!r} != {want} (docs/05 {sec})")
+    # second external review of r12 (05-v0.13): one family is one observation; a family is split into its base lineages
+    # only by M-2 evidence in lineage_split (derive.independence_evidence_ok), never by switching the unit
+    ind = cfg.get("independence") if isinstance(cfg.get("independence"), dict) else {}
+    if ind.get("unit") != CAL_POLICY["independence_unit"]:
+        out.append(f"independence.unit {ind.get('unit')!r} != {CAL_POLICY['independence_unit']!r} (docs/05 §4.3: a family is "
+                   "split only by M-2 evidence in lineage_split)")
+    for i, x in enumerate(ind.get("lineage_split") or []):
+        if not (isinstance(x, dict) and derive.independence_evidence_ok(x)):
+            out.append(f"independence.lineage_split[{i}] is not M-2 evidence of independence: kappa_ci_upper must be below "
+                       f"{derive.INDEPENDENCE_SPLIT['kappa_ci_upper_max']} on n >= {derive.INDEPENDENCE_SPLIT['n_min']} clusters "
+                       "for a pair of two lineages (docs/05 §4.3)")
     return out
 
 

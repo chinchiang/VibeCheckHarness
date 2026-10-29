@@ -27,7 +27,7 @@ def errs(bundle, code):
 
 # ================================================================ A1 tool tiers (pure rules)
 def test_rule_version_is_bumped():
-    assert adj.RULE_VERSION == "05-v0.12"           # bumped again by review r10 PR2
+    assert adj.RULE_VERSION == "05-v0.13"           # bumped again by review r10 PR2
 
 
 def test_weak_sarif_alone_never_confirms():

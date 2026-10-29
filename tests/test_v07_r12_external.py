@@ -88,8 +88,8 @@ def test_the_bundle_cannot_declare_fixed_while_the_proof_case_errors(reg):
 
 
 def test_the_rule_version_is_05_v0_12(b):
-    assert adj.RULE_VERSION == "05-v0.12"
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.12"}
+    assert adj.RULE_VERSION == "05-v0.13"                     # bumped again by the second external review (05-v0.13)
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.13"}
 
 
 # ================================================================ 2. S2 jobs are judged by their status
