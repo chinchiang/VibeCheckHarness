@@ -95,14 +95,14 @@
     {
       "name": "ext3 independent families by root",
       "file": "tools/vchlib/derive.py",
-      "old": "            root = ix.root_of_agent(rep.get(\"agent_id\")) or ix.lineage_root(rep.get(\"lineage\"))",
+      "old": "            root = ix.independence_key((ix.agents.get(rep.get(\"agent_id\")) or {}).get(\"model\")) or ix.lineage_root(rep.get(\"lineage\"))",
       "new": "            root = rep.get(\"family\")",
       "k": "count_base_lineages"
     },
     {
       "name": "ext3 diversity by root",
       "file": "tools/vchlib/checks.py",
-      "old": "    return len(roots) < min(2, len(c.ix.lineage_roots(m.get(\"lineage\") for m in eligible_verifier_models(c, cluster).values())))",
+      "old": "    return len(roots) < min(2, len({c.ix.independence_key(k) or k for k in eligible_verifier_models(c, cluster)}))",
       "new": "    return len(roots) < min(2, len(eligible_verifier_families(c, cluster)))",
       "k": "base_lineages_of_the_pool"
     },

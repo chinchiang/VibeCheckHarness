@@ -31,7 +31,7 @@
     }
   ],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.12",
+  "rule_version": "05-v0.13",
   "rule_trace": [
     "R2: regression run 的帶入叢集 K-301（來源 K-005）",
     "R7: regression run 的帶入叢集 K-301（來源 K-005）",

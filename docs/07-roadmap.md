@@ -13,7 +13,7 @@
 
 ## 現況
 
-第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.12`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#07-實作路線圖)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.13`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#07-實作路線圖)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 總覽
 
@@ -39,7 +39,7 @@
 |---|---|---|---|---|
 | **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W0.5／認領與 G1（G1 在 W1 之前，由本 run 核准）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋 | Z3、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11；§3 中 MVP-0 用到的元件的入口閘門（MVP0-X7） |
 | **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`；ROE 只對 `localhost`、`127.0.0.1`、`[::1]` 允許 `http://`，其他一律 `https://`，`E-ROE-URL`），跑 B0–B6：<br>• G0b 與 `legal_review`<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M1-X1～X3；M3-X1、X5；M4-X2～X5、X7 |
-| **MVP-2 staging（S0／S1）** | 真實 staging，包括：<br>• `legal_review` 涵蓋 staging 的範圍與條款（G0b 已在 MVP-1 交付）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X8、X9；M4-X3、X8 |
+| **MVP-2 staging（S0／S1）** | 真實 staging（Supabase、Firebase 等託管 DB 通常無法快照還原，這類目標之後也預期只有 S0／S1，[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #36），包括：<br>• `legal_review` 涵蓋 staging 的範圍與條款（G0b 已在 MVP-1 交付）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X8、X9；M4-X3、X8 |
 | **MVP-3 以後** | 依序加入：<br>• staging 的 S2＋G5（Full 模式需兩人核准）<br>• LLM 功能測試，先做 G4 核准的腳本式多輪（M5）<br>• Calibration Lab 與 `high_precision_rules`（M2-X1）<br>• CI Lane B 完整版<br>• 靜態 HTML 報告<br>• adaptive relay（只限 Full，[09 BL-10](09-backlog.md)） | — | 依功能而定 | M2-X1～X3、X5、X7～X9、X12；M4 其餘；M5 全部 |
 
 **出場條件**：
@@ -88,8 +88,9 @@
 
 Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自建組織根金鑰與金鑰登錄、以 Ed25519 簽署委任設定、回答 G1 問卷，B 階段還要三角色 ROE、法務聲明、seed manifest、whoami 端點與 `build_identity` 標頭。這些對目標使用者（不讀程式碼的 vibe coder）可能是放棄的理由，必須實測（MVP0-X8）。
 
-**pilot 未達門檻時的降階路徑**（擇一或並用，選擇記入 08 §10 的待決事項）：
-- **Lite 白箱快速模式**：只跑 MVP-0（白箱、不連網、沒有 G0b 與 B 階段）。`vibecheck init` 在本機產生一把金鑰，建立只有一個人的金鑰登錄與委任設定，使用者只需確認一次；報告首頁標示「單人、自行簽署、只有白箱」。安全底線（先遮罩再送 LLM、跨境聲明、設定檔釘選）不變。
+**Lite 白箱快速模式是 MVP-0 的預設入口**（第十二輪第二次外部審查；之前是 pilot 未達門檻時的降階備案）：只跑 MVP-0（白箱、不連網、沒有 G0b 與 B 階段）。`vibecheck init` 在本機產生一把金鑰，建立只有一個人的金鑰登錄與委任設定，使用者只需確認一次；報告首頁標示「單人、自行簽署、只有白箱」。安全底線（先遮罩再送 LLM、跨境聲明、設定檔釘選）不變。**不自動核准**任何關卡（審查建議的「零設定模式自動核准 G0／G1」不採用）：G0a 的委任設定與 G1 的不變量是使用者自己的決定，自動核准會讓簽章只證明「工具跑過」，而不是「有人確認過範圍與規格」；確認一次就是這個決定。MVP0-X8 量測的就是這個入口。
+
+**pilot 未達門檻時的其他降階路徑**（擇一或並用，選擇記入 08 §10 的待決事項）：
 - **精簡 Lite 流程（候選，v0.6 審查 r7；本輪不實作）**：只做 S0（被動讀取，不需要 seed manifest、whoami 與 G5）、使用本機產生的單一金鑰、ROE 由範本自動填入目標與時段，使用者只確認一次並簽署。代價是黑箱只剩被動檢查；是否採用涉及產品範圍，留待 pilot（§1.3）的結果決定。
 - **G1 問卷精簡**：只問存取控制矩陣的核心題（每個角色 × 有個資的資源），其他條目用 ASVS L1 基準與預設值，在報告中標示「未經使用者確認」。
 - **託管控制面**：由可信的第三方代管 Z1／Z2 與金鑰登錄，使用者只用硬體金鑰或 passkey 簽署。這改變信任模型（託管方看得到遮罩後的程式碼），需要另外的法務與威脅模型審查，不在 v0.4 範圍。

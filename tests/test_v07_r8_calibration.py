@@ -23,8 +23,8 @@ def errors(b, code, where=None):
 
 
 def test_rule_version(b):
-    assert adj.RULE_VERSION == "05-v0.12"                     # bumped again by review r10 PR2
-    assert all(d.data.get("rule_version") == "05-v0.12" for d in b.docs if d.kind == "verdict")
+    assert adj.RULE_VERSION == "05-v0.13"                     # bumped again by review r10 PR2
+    assert all(d.data.get("rule_version") == "05-v0.13" for d in b.docs if d.kind == "verdict")
     assert not errors(b, "E-VERDICT-RULE-VERSION") and not errors(b, "E-RUN-RULE-VERSION")
 
 

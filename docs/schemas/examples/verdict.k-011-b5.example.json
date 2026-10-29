@@ -57,7 +57,7 @@
     }
   ],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.12",
+  "rule_version": "05-v0.13",
   "rule_trace": [
     "R2:weighted_support=0 (ver_1 has weight 0 in llm_specific),score=0,theta_confirm null (provisional)",
     "R7:independent_families=1->UNCORROBORATED",

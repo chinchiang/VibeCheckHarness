@@ -1,0 +1,152 @@
+{
+  "tests": "tests/test_v07_r12_external2.py",
+  "mutations": [
+    {
+      "name": "README names the latest round",
+      "file": "README.md",
+      "old": "最新一份是第十二輪；",
+      "new": "最新一份是第十一輪；",
+      "k": "readme_names_the_latest"
+    },
+    {
+      "name": "rfc8785 is optional",
+      "file": "tools/vchlib/checks.py",
+      "old": "    except ImportError:\n        rfc8785 = None\n",
+      "new": "    except ImportError:\n        raise\n",
+      "k": "runs_without_the_reference"
+    },
+    {
+      "name": "a missing reference is reported",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.warn(\"W-JCS-REFERENCE-MISSING\", \"requirements.txt\",",
+      "new": "        (lambda *a: None)(\"W-JCS-REFERENCE-MISSING\", \"requirements.txt\",",
+      "k": "runs_without_the_reference or own_jcs_still"
+    },
+    {
+      "name": "the own JCS is still checked without the reference",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(jcs(value) == expected, \"E-JCS\", \"canonical.py\",",
+      "new": "        R.check(rfc8785 is None or jcs(value) == expected, \"E-JCS\", \"canonical.py\",",
+      "k": "own_jcs_still"
+    },
+    {
+      "name": "core dependencies are checked",
+      "file": "tools/vchlib/cli.py",
+      "old": "    missing = missing_dependencies()\n",
+      "new": "    missing = []\n",
+      "k": "missing_core_dependency"
+    },
+    {
+      "name": "one family is one observation",
+      "file": "tools/vchlib/derive.py",
+      "old": "                if isinstance(x.get(\"family\"), str) and x[\"family\"] not in split:",
+      "new": "                if False:",
+      "k": "one_observation_by_default or calibration_is_conservative or weak_evidence"
+    },
+    {
+      "name": "a shared base lineage always merges",
+      "file": "tools/vchlib/derive.py",
+      "old": "                union(f\"model:{k}\", f\"root:{self.lineage_root(x['lineage'])}\")",
+      "new": "                pass",
+      "k": "shared_base_lineage"
+    },
+    {
+      "name": "M-2 evidence splits a family",
+      "file": "tools/vchlib/derive.py",
+      "old": "            if pairs and all((fam, p) in ok for p in pairs):",
+      "new": "            if False:",
+      "k": "evidence_splits"
+    },
+    {
+      "name": "the kappa bound is strict",
+      "file": "tools/vchlib/derive.py",
+      "old": "upper < INDEPENDENCE_SPLIT[\"kappa_ci_upper_max\"]",
+      "new": "upper <= INDEPENDENCE_SPLIT[\"kappa_ci_upper_max\"]",
+      "k": "weak_evidence"
+    },
+    {
+      "name": "the sample size matters",
+      "file": "tools/vchlib/derive.py",
+      "old": "            and type(n) is int and n >= INDEPENDENCE_SPLIT[\"n_min\"]",
+      "new": "            and type(n) is int",
+      "k": "weak_evidence"
+    },
+    {
+      "name": "S groups by the independence key",
+      "file": "tools/vchlib/derive.py",
+      "old": "            root = ix.independence_key(vote.get(\"voter_model_key\")) or vote.get(\"voter_model_key\")",
+      "new": "            root = vote.get(\"voter_model_key\")",
+      "k": "score_groups_by"
+    },
+    {
+      "name": "diversity uses the independence key",
+      "file": "tools/vchlib/checks.py",
+      "old": "            roots.add(vote_observation(c, x, m))",
+      "new": "            roots.add(c.ix.lineage_root(m.get(\"lineage\")))",
+      "k": "same_key"
+    },
+    {
+      "name": "sources use the independence key",
+      "file": "tools/vchlib/derive.py",
+      "old": "            root = ix.independence_key((ix.agents.get(rep.get(\"agent_id\")) or {}).get(\"model\")) or ix.lineage_root(rep.get(\"lineage\"))",
+      "new": "            root = ix.root_of_agent(rep.get(\"agent_id\")) or ix.lineage_root(rep.get(\"lineage\"))",
+      "k": "same_key"
+    },
+    {
+      "name": "the unit is pinned",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if ind.get(\"unit\") != CAL_POLICY[\"independence_unit\"]:",
+      "new": "    if False:",
+      "k": "pins_the_split_rule"
+    },
+    {
+      "name": "split evidence is checked",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not (isinstance(x, dict) and derive.independence_evidence_ok(x)):",
+      "new": "        if not isinstance(x, dict):",
+      "k": "split_without_evidence"
+    },
+    {
+      "name": "rule_version 05-v0.13",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "RULE_VERSION = \"05-v0.13\"",
+      "new": "RULE_VERSION = \"05-v0.12\"",
+      "k": "rule_version_is_05_v0_13"
+    },
+    {
+      "name": "two-axis positioning",
+      "file": "README.md",
+      "old": "**針對 AI 生成應用的安全測試控制框架**",
+      "new": "**AI 生成應用的測試工具包**",
+      "k": "two_axes"
+    },
+    {
+      "name": "Lite quick mode is the MVP-0 entry",
+      "file": "docs/07-roadmap.md",
+      "old": "**Lite 白箱快速模式是 MVP-0 的預設入口**",
+      "new": "**Lite 白箱快速模式是降階備案**",
+      "k": "mvp0_entry"
+    },
+    {
+      "name": "BaaS expects S0/S1",
+      "file": "docs/07-roadmap.md",
+      "old": "Supabase、Firebase 等託管 DB 通常無法快照還原，這類目標之後也預期只有 S0／S1",
+      "new": "Supabase、Firebase 也可以跑 S2",
+      "k": "baas_targets"
+    },
+    {
+      "name": "specification freeze",
+      "file": "CONTRIBUTING.md",
+      "old": "## 規格凍結（第十二輪第二次外部審查起）",
+      "new": "## 規格修訂",
+      "k": "specification_is_frozen"
+    },
+    {
+      "name": "a vote's observation is its independence key",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return c.ix.independence_key(vt.get(\"voter_model_key\")) or c.ix.lineage_root(m.get(\"lineage\"))",
+      "new": "    return c.ix.lineage_root(m.get(\"lineage\"))",
+      "k": "same_key"
+    }
+  ]
+}

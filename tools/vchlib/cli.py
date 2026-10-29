@@ -6,8 +6,20 @@ import argparse
 import pathlib
 import sys
 
-from .bundle import load_bundle, load_variant
-from .checks import run_all
+CORE_DEPENDENCIES = ("cryptography", "jsonschema", "referencing", "yaml")   # signatures, schemas, $ref, YAML
+
+
+def missing_dependencies() -> list[str]:
+    """Second external review of r12: the validator needs these to verify anything (signatures, schemas); a missing one
+    is named, not shown as a traceback. rfc8785 is optional (only the JCS parity check, W-JCS-REFERENCE-MISSING)."""
+    import importlib
+    out = []
+    for name in CORE_DEPENDENCIES:
+        try:
+            importlib.import_module(name)
+        except ImportError:
+            out.append(name)
+    return out
 
 SIGNATURE_NOTE = ("signatures: real Ed25519 over RFC 8785 JCS, verified against the key registry; "
                   "the example keys are TEST ONLY fixtures (tests/fixtures/TEST_ONLY_private_keys) "
@@ -23,6 +35,13 @@ def main(argv=None) -> int:
                          "litellm ID) reachable from any agents.yaml agent is E-MODEL-PLACEHOLDER instead of a warning")
     ap.add_argument("--variant", help="validate a variant bundle (docs/examples/variants/<name>, BL-60) instead of the main one")
     args = ap.parse_args(argv)
+    missing = missing_dependencies()
+    if missing:
+        print(f"validate_schemas: missing required package(s): {', '.join(missing)}; "
+              "install them with: python -m pip install -r requirements.lock", file=sys.stderr)
+        return 2
+    from .bundle import load_bundle, load_variant
+    from .checks import run_all
     for s in (sys.stdout, sys.stderr):
         try:
             s.reconfigure(encoding="utf-8", errors="replace")
