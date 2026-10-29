@@ -167,6 +167,14 @@
           }
         ]
       },
+      "hosting": {
+        "type": "string",
+        "enum": [
+          "cloud",
+          "self"
+        ],
+        "description": "第十三輪外部審查（docs/08 §11.12）：cloud＝供應商 API（按 token 計費）；self＝自架（Z4，API 費用 0，只計運算時間）。cloud 且 pricing 為 null 的模型，委任設定必須給 budgets.price_assumptions 的保守上界才可用（E-ENG-PRICING）"
+      },
       "rate_limits": {
         "anyOf": [
           {
@@ -227,7 +235,8 @@
       "data_classes",
       "purpose",
       "fallback",
-      "earliest_retirement"
+      "earliest_retirement",
+      "hosting"
     ]
   }
 }

@@ -32,7 +32,7 @@
     {
       "name": "rule_version back",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.13\"",
+      "old": "RULE_VERSION = \"05-v0.14\"",
       "new": "RULE_VERSION = \"05-v0.6\"",
       "k": "rule_version"
     },

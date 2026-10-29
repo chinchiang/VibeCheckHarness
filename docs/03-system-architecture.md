@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.13`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#03-系統架構)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十三輪審查（2026-10-29）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#03-系統架構)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 元件總覽
 
@@ -410,7 +410,7 @@ class RunState(BaseModel):
     config_refs: ConfigRefs
     prompt_templates: list[PromptTemplateRef] = []
     tool_versions: list[ToolVersion] = []
-    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.13"
+    rule_version: str                   # 裁決規則版本（05 §4.2）；目前為 "05-v0.14"
     baseline_run_id: str | None = None  # 比對叢集 fingerprint 的基準 run（baseline_state，§6.3）
     # --- W 階段 ---
     inventory_ref: ArtifactRef | None = None
@@ -475,7 +475,7 @@ class RunState(BaseModel):
 平行節點的更新以 reducer 合併：`new = reducer(current, update)`；列表用 `operator.add` 串接，不會覆蓋 [V][S-03]。
 
 - run manifest 的欄位（`config_refs`、`prompt_templates`、`tool_versions`、`rule_version`、`baseline_run_id`）在 `run_init` 寫入後不再改變；同一 run 中途換設定檔或 prompt 範本必須開新的 run [H]。
-- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.13`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
+- `rule_version` 必須等於 validator 裁決程式的版本（`vchlib.adjudicate.RULE_VERSION`，目前為 `05-v0.14`），而且本 run 每一版裁決的 `rule_version` 都與它相同（`E-RUN-RULE-VERSION`；裁決本身另由 `E-VERDICT-RULE-VERSION` 檢查）。v0.2 的 validator 接受任意字串。
 
 ### 5.2 主狀態圖
 
@@ -850,6 +850,7 @@ stateDiagram-v2
 
 - **開啟時間以收件時間為準**[H]：GateRecord 的 `opened_at` 在核准者簽的紀錄裡，v0.4 從不與稽核比對，偽造它可以躲過逾時、讓偽造的 EXPIRED 看起來已經逾時，或移動 G5 的時間窗。v0.5 起關卡的開啟時間是該關卡（G5 另加同一個 `job_id`）在其 `gate_decision` 之前最後一筆 `gate_opened` 事件的收件時間；`opened_at` 必須與它相差不超過時鐘容差，沒有對應事件也是錯誤（`E-GATE-OPENED`）。逾時、`E-GATE-EXPIRED-EARLY` 與 G5 時間窗都以這兩個收件時間計算。G0a／G0b 是系統驗章，沒有開啟事件。
 - **委任設定省略的關卡**：`engagement.gate_timeouts_hours` 沒有列某個關卡時，該關卡沿用 `toolkit.yaml` 的上限，不是不檢查。
+- **期限約束人的決定，不約束系統寫逾時的時間**（第十三輪外部審查）[H]：逾時是人工核准的截止：APPROVED／REJECTED／NEEDS_INFO 的 `gate_decision` 收件時間不得晚於開啟時間加逾時（`E-GATE-TIMEOUT`）。EXPIRED 由 Gate Service 的排程寫入，只要求**不早於**期限（`E-GATE-EXPIRED-EARLY`）；晚於期限寫入是排程延遲，不是紀錄錯誤（之前兩個條件同時套在 EXPIRED 上，逾時紀錄只能剛好寫在期限那一刻，`suspend` 範例的 G4 延後 1 秒就是錯誤）。排程的目標是期限後 1 小時內寫入，記在 [08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h) 之前的 Run Controller 排程說明，不由 validator 強制。
 - **EXPIRED 沒有簽章**：逾時沒有人做決定，EXPIRED 紀錄由 Gate Service 寫入，`signatures` 必須是 `[]`（有簽章 → `E-GATE-EXPIRED-SIG`），也不要求核准者簽章；它的證明是上面的兩個收件時間與兩者之間的逾時。v0.4 文件說「EXPIRED 是唯一沒有簽章的結果」，validator 卻對每位未簽的核准者報 `E-SIG-MISSING`，已修正。
 
 ### 6.3 核准者來源與逐項核准
@@ -1214,7 +1215,7 @@ erDiagram
 | `inventory.schema.json` | W0 盤點。`frameworks[]`（含支援程度）、endpoint 的 `kind`／`auth_required`／`middleware_refs`、`db`（表、RLS、policy、函式、storage）、`auth`、`env_vars[]`（只有名稱與公開前綴旗標）、`blind_spots[]`、`features[]` |
 | `finding.schema.json` | reviewer 發現項（含 Evidence）。evidence 分三種 `kind`（`code_snippet`、`inventory_fact`、`config_fact`），各用 `file`／`line_start`／`line_end`／`snippet`、`fact_ref`（W0 inventory 的 JSON Pointer）或 `file`＋`key_path`，後兩種以 `asserted` 寫主張的值，用不到的欄位為 null；`match` 為 `MATCHED`／`MATCHED_SHIFTED`／`NOT_FOUND`／`NOT_CHECKED`（對遮罩後文字做容錯比對）；13 個面向 |
 | `cluster.schema.json` | 叢集鍵、成員、家族。`origin`（`white_box`／`black_box`；v0.5 加 `tool_only` 與 `tool_report_refs`，BL-13）與 `threat_id`（只有黑箱起源叢集有值）、`canonical_location.endpoint`（`{target_id, method, path_template}`，黑箱起源叢集的位置）、`fingerprint`、`baseline_state`（`new`／`unchanged`／`updated`／`absent`／null）、`reopened` |
-| `verdict.schema.json` | 驗證票與裁決狀態。`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為目前的 `05-v0.13`（歷程：`05-v0.3`，`05-v0.4`，`05-v0.5`，第七輪 `05-v0.6`，第八輪 `05-v0.7`，第九輪 `05-v0.8`，第十輪 `05-v0.9`，第十一輪 `05-v0.10`，第十二輪 `05-v0.11`，第十二輪外部審查 `05-v0.12`，第十二輪第二次外部審查 `05-v0.13`；見 [CHANGELOG](../CHANGELOG.md)） |
+| `verdict.schema.json` | 驗證票與裁決狀態。`tool_corroboration`（只含強佐證）、`tool_signal`（弱訊號）、`independent_sources`、`provisional`（校準前的暫定裁決）、`votes[].cited_evidence`（必填）；`rule_version` 為目前的 `05-v0.14`（歷程：`05-v0.3`，`05-v0.4`，`05-v0.5`，第七輪 `05-v0.6`，第八輪 `05-v0.7`，第九輪 `05-v0.8`，第十輪 `05-v0.9`，第十一輪 `05-v0.10`，第十二輪 `05-v0.11`，第十二輪外部審查 `05-v0.12`，第十二輪第二次外部審查 `05-v0.13`，第十三輪外部審查 `05-v0.14`；見 [CHANGELOG](../CHANGELOG.md)） |
 | `threat.schema.json` | 威脅（含分類版本、證據、簽核狀態、種子來源、attack tree 參照） |
 | `requirement.schema.json` | 需求（ASVS／AISVS／G1 不變量）與 crosswalk 連結來源 |
 | `testcase.schema.json` | 測試案例（tool_binding、oracle、安全等級、機率規則）。`oracle.types`（陣列，含 `LLM_GRADER`）、`controls[]`（至少一個 `reachability`）、`script_turns[]` |
@@ -1321,7 +1322,7 @@ erDiagram
 - **`ts`**：Audit Writer 寫入該行時的時鐘（收件時間），不是事件來源自填的時間；關卡決定的所有時間規則以它為準（§6.1 步驟 4）。
 - **hash chain**：`prev_hash` ＝ 前一行原始位元組（不含換行）的 sha256；第一行的 `prev_hash` ＝ sha256(`run_id`)。只有 Audit Writer 一個寫入者，以檔案鎖序列化。
 - **錨定**：每個 `gate_decision` 之後**緊接**一個 `audit_anchor` 事件；run 結束時以 `payload.reason: run_end` 的 `audit_anchor` 收尾。另外每 500 個事件與每個階段結束也寫一個 [H]。每個 `audit_anchor` 事件以 `{seq, line_sha256}` 寫入 run 紀錄的 `audit_anchors`（Postgres）：`seq` 是該錨點事件的序號，`line_sha256` 是該錨點事件**自己那一行**原始位元組（不含換行）的 sha256；因為這一行含 `prev_hash`，錨點同時承諾它之前的整條鏈；可選擇另外寫到 WORM 儲存或外部系統 [H]。
-- **Z3 副簽**（v0.4；v0.5 擴充）：每個 `audit_anchor` 的 `payload.z3_countersignature` 是 Z3 Executor 服務金鑰（金鑰登錄中角色 `z3_executor` 的 `z3-executor`）對 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`) 的 Ed25519 簽章；`domain` 固定為 `vibecheck/audit_anchor/v2`，`event_sha256` 是錨點事件本身（去掉 `payload.z3_countersignature`）的 JCS 的 sha256。v0.4 只簽 `{run_id, seq, prev_hash}`，最後一個錨點自己的 `ts`、`payload` 可以改而不被發現（後面沒有行用 `prev_hash` 釘住它）；v0.5 起錨點本身也被簽章蓋住（審查 2026-10-25 T-9）。validator 以金鑰登錄驗證，缺少或無效 → `E-AUDIT-ANCHOR-SIG`。
+- **Z3 副簽**（v0.4；v0.5 擴充）：每個 `audit_anchor` 的 `payload.z3_countersignature` 是 Z3 Executor 服務金鑰（金鑰登錄中角色 `z3_executor` 的 `z3-executor`）對 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`) 的 Ed25519 簽章；`domain` 固定為 `vibecheck/audit_anchor/v2`，`event_sha256` 是錨點事件本身（去掉 `payload.z3_countersignature`）的 JCS 的 sha256。v0.4 只簽 `{run_id, seq, prev_hash}`，最後一個錨點自己的 `ts`、`payload` 可以改而不被發現（後面沒有行用 `prev_hash` 釘住它）；v0.5 起錨點本身也被簽章蓋住（審查 2026-10-25 T-9）。validator 以金鑰登錄驗證，缺少或無效 → `E-AUDIT-ANCHOR-SIG`。副簽在每一種部署都存在：MVP-0（白箱、不連網）以最小的錨點副簽服務提供（[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)；第十三輪外部審查指出 07 把 Z3 整個列為 MVP-0 不包含，與這條規則矛盾）。
 - **Z3 簽之前先核對**[H]：v0.4 的 Z3 只看 `seq` 是否遞增、`prev_hash` 是否接得上，看不到鏈的內容，所以 run 進行中控制 Z1 的人可以先偽造幾行再請 Z3 簽。v0.5 起 Run Controller 送的是**上一個錨點之後的原始行**：Z3 自己保存上一個錨點的 hash，重算這一段的 `prev_hash` 鏈，並核對其中 Z3 自己產生的事件（`tool_invocation_*`、`sandbox_job_*`、所有權驗證結果）與它的 job 帳本和輸出紀錄逐筆一致，才簽。限制：Z1 自己產生的事件（例如 `gate_decision`、`verdict_changed`）Z3 無法判斷真假，副簽只證明「這些行在簽章時已經存在，之後沒有被改」。所以這些事件各自釘住它們所說的內容——`gate_decision` 的 `gate_record_sha256`（關卡紀錄去掉簽章的 content hash）、`verdict_changed` 的 `verdict_sha256`、`report_published` 的 `report_manifest_sha256`、`ownership_check` 的 `results`（每個目標、方法與結果）——之後改了內容就對不上；`run_end` 錨點之後不能再有任何行（`E-AUDIT-TAIL`）。
 - **未錨定的行不是證據**[H]：最後一個 `audit_anchor` 之後的行還沒有 Z3 副簽，任何能寫 Z1 的人都能附加。裁決用到的工具輸出（`sarif_refs` 解析到的 `tool_invocation_end`）必須在最後一個錨點之前，否則該參照不成立（`E-SARIF-REF`，不計入佐證）。v0.7擴及裁決本身：一版裁決的 `verdict_changed` 在最後一個錨點之後，就還不是裁決（`E-AUDIT-VERDICT`），也不提供收件時間。
 - **錨點編號**[H]：Z3 Executor 對本委任每個副簽的錨點編上遞增的 `payload.anchor_counter`（1、2、3…，依收件順序，跨所有 run；計數器存在 Z3，不在 Z1）。編號在副簽範圍內（`event_sha256` 蓋住 payload）。validator 檢查所有 run 的編號不重複、不缺號、依收件時間遞增（`E-AUDIT-ANCHOR-GAP`）。v0.7 第八輪的錨點清單是從稽核檔推回 run 紀錄的，所以只控制 Z1 的人可以把已完成的 run 截回較早的錨點、刪掉之後產生的未簽署文件，validator 看不出來；現在被刪掉的編號會在之後的錨點（同一個 run 或其他 run）留下缺號。限制：委任中**最後**幾個錨點被截掉時，沒有之後的錨點可以比對；報告交付給客戶時附上當下的編號（§1.7 的外部錨點）才看得出來。

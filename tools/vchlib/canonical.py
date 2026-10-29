@@ -95,7 +95,11 @@ def _canon(v: Any, out: list[str]) -> None:
     elif isinstance(v, int):
         out.append(str(v))
     elif isinstance(v, float):
-        if v.is_integer() and abs(v) < 1e21:
+        # Below 2^53 every integer-valued double is exact, so its integer digits are its shortest representation.
+        # From 2^53 up the double no longer holds every integer: ECMAScript prints the shortest digits that round-trip
+        # (1000000000000000100.0 -> "1000000000000000100"), while str(int(v)) prints the exact binary value
+        # ("1000000000000000128"), which the RFC 8785 reference and JavaScript do not (third external review, r13).
+        if v.is_integer() and abs(v) < 2 ** 53:
             out.append(str(int(v)))
         else:
             out.append(_number(v))

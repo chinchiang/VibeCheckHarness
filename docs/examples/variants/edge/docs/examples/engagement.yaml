@@ -57,6 +57,19 @@
       "max_cost_usd": 120
     "openai":
       "max_cost_usd": 60
+  "price_assumptions":
+    "claude_sonnet":
+      "input_usd_per_mtok": 6
+      "output_usd_per_mtok": 30
+      "source": "假設上界（Opus 4.8 公告價 ×1.2，E:providers-52）；pilot 前查證"
+    "claude_opus_48":
+      "input_usd_per_mtok": 6
+      "output_usd_per_mtok": 30
+      "source": "假設上界（公告價 $5／$25 ×1.2，E:providers-52）；pilot 前查證"
+    "gpt_flagship":
+      "input_usd_per_mtok": 10
+      "output_usd_per_mtok": 40
+      "source": "假設上界；pilot 前查證（E:providers-46 未列價格）"
 "publishing":
   "enabled": false
   "platform": null
@@ -117,10 +130,10 @@
     "mechanism": "contract"
     "reference": "doc:dpa-openai-2026-09#cross-border"
 "config_pins":
-  "models": "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+  "models": "sha256:dda12dc5f12ec65008fb87bad5c5d04f5195db742db95a6e6dc2742a008acf43"
   "agents": "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
   "tools": "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
-  "calibration": "sha256:b3d1d0f5194c1323167a69eda9f2b6df5da6914cf497790a3ff887272cfb5277"
+  "calibration": "sha256:24a62426a7ff49d42ec538ef40f2e7839f733e46a74ff83c8ad32fd8ebc0804d"
   "crosswalk": "sha256:865d77a32541ebe394671103092781f2d672d8b1d74fd6bbe4d662fc91fc7b13"
   "licenses": "sha256:dc6f7c0fb8f1e7e895610d28778e8e3d2da7d2abfbf9e238443f127fdb4f48dc"
   "toolkit": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327"
@@ -130,8 +143,8 @@
 - "signer": "frank"
   "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
   "alg": "ed25519"
-  "value": "SVfEQq85mM8FLbDCG5egQMA8r62U7GUChzGKDlZiSr+/W2aBjbfGiaVmdIloUoyXXvu+vJzx7/inaKgaQqbbCg=="
+  "value": "Fz5tRyJkOZs27YW8VJRo7i0N1L2zQbmgFw7auWbKIx2uyjDl0xvKjCQKc2aNmAoo1dcXg58m38a5cBowPBBuBA=="
 - "signer": "carol"
   "key_fingerprint": "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
   "alg": "ed25519"
-  "value": "frGyOl/q11tmVnHh3NP0+rxRNCXLW1sD0npkt43m8Alt+OyNhgmgXfY9+BMfXCOCNoERfTN/Fe4VpKVJM/gyDw=="
+  "value": "14Gvxe0o5jiJF07ulmh/55GpXEm33fMJGEBK16emTC7nYoqplsoTX+OHcEfpkOenx+vTpkobHk18S0SIbLZnBA=="

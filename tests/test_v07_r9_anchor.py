@@ -173,7 +173,8 @@ def add_k301_verdict(b):
     v.update({"verdict_id": "V-301-1", "cluster_id": "K-301"})
     add_doc(b, "verdict.k-301-w3.example.json", "verdict", v)
     doc(b, "run.followup.example.json").data["verdicts"] = ["V-301-1"]
-    ev = tail_event(b, FAUDIT, "verdict_changed", "W3", {"verdict_id": "V-301-1"}, "verdict-V-301-1")
+    # r13: the follow-up run has no W1 events, so a W3 event there is E-GATE-ORDER; the B-phase run writes it at B5
+    ev = tail_event(b, FAUDIT, "verdict_changed", "B5", {"verdict_id": "V-301-1"}, "verdict-V-301-1")
     refix_nokey(b)
     c = checks.Ctx(checks.quarantine(checks.Report(), b))
     cl = c.ix.first("cluster", cluster_id="K-301").data

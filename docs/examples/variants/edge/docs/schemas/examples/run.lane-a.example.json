@@ -16,11 +16,11 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327",
   "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
-  "engagement_ref": "sha256:1dd308adf07b4d91ced8ddf8a92c47fb25337143cb9a1ee4a44b4109686cfe1b",
+  "engagement_ref": "sha256:c8721ea33fba899ecf7ee491eef0f2c14812bd9ae47488f87000035ae4e330d7",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
-      "sha256": "sha256:803f9432bd66f3c17777ff2b27a06d688c4440c0e63a3f5f2ee07aa9290a8b46"
+      "sha256": "sha256:dda12dc5f12ec65008fb87bad5c5d04f5195db742db95a6e6dc2742a008acf43"
     },
     "agents": {
       "path": "docs/examples/agents.yaml",
@@ -32,7 +32,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:b3d1d0f5194c1323167a69eda9f2b6df5da6914cf497790a3ff887272cfb5277"
+      "sha256": "sha256:24a62426a7ff49d42ec538ef40f2e7839f733e46a74ff83c8ad32fd8ebc0804d"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -51,7 +51,7 @@
     }
   ],
   "tool_versions": [],
-  "rule_version": "05-v0.13",
+  "rule_version": "05-v0.14",
   "roe_ref": null,
   "repo_commit": "9b7e3d2f1a4c6e8b0d2f4a6c8e0b2d4f6a8c0e1b",
   "owasp_llm_version": "2026",
@@ -122,7 +122,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:1dd308adf07b4d91ced8ddf8a92c47fb25337143cb9a1ee4a44b4109686cfe1b",
+      "subject_hash": "sha256:c8721ea33fba899ecf7ee491eef0f2c14812bd9ae47488f87000035ae4e330d7",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"
@@ -167,11 +167,11 @@
   "audit_anchors": [
     {
       "seq": 6,
-      "line_sha256": "sha256:c2d16be45dc3538da8217a05092e7a02c9b85c2b46ed3981a52b82136a0e23c4"
+      "line_sha256": "sha256:0757c0f53ba45cf36f812babfef593befee7c6868100b497c102220328d3a45b"
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:9b566f48ded79570a9806963710bd16a90cb3bd6ecb80fde0ca8e1434dbd9b69"
+      "line_sha256": "sha256:658ccf7006b72342e5a7ce1ae72b96a4ad099acb66c143ab997a7697c6509611"
     }
   ],
   "errors": [],

@@ -35,14 +35,14 @@ def test_the_examples_are_clean(b):
 
 
 def test_the_rule_version_is_05_v0_9():
-    assert adjudicate.RULE_VERSION == "05-v0.13"
+    assert adjudicate.RULE_VERSION == "05-v0.14"
 
 
 # ================================================================ theta_reject guard
 # r11: the split statistics come from the raw counts; for theta_reject `tp` counts the TRUE DEFECTS among the rejected clusters
 # (docs/05 §5.7), so 0 of 60 and 0 of 45 give a true-defect share of 0 and Wilson uppers 0.0602 and 0.0787
-GOOD = {"calibration": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0602, "n": 60, "tp": 0},
-        "holdout": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0787, "n": 45, "tp": 0}, "generalised": True, "feasible": True}
+GOOD = {"calibration": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0602, "n": 60, "tp": 0, "n_apps": 60},
+        "holdout": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0787, "n": 45, "tp": 0, "n_apps": 45}, "generalised": True, "feasible": True}
 
 
 def test_theta_reject_below_a_single_refute_weight_is_rejected(b):

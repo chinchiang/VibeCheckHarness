@@ -16,6 +16,7 @@ claude_sonnet:
   purpose: [production, evaluation]
   earliest_retirement: null
   pricing: null                # 價格未列出（實作時查證）；engagement 的 max_cost_usd 仍必填（fail-closed）
+  hosting: cloud               # 第十三輪外部審查：供應商 API：價格未知時需要 engagement 的 price_assumptions（E-ENG-PRICING）
   rate_limits: null
   tokenizer: null
   fallback: [claude_opus_48]
@@ -32,6 +33,7 @@ claude_opus_48:
   purpose: [production, evaluation]
   earliest_retirement: "2027-05-28"        # 最早退役日 [V][E:providers-52]
   pricing: null
+  hosting: cloud               # 第十三輪外部審查：供應商 API：價格未知時需要 engagement 的 price_assumptions（E-ENG-PRICING）
   rate_limits: null
   tokenizer: null
   fallback: []
@@ -48,6 +50,7 @@ gpt_flagship:
   purpose: [production, evaluation]
   earliest_retirement: null
   pricing: null
+  hosting: cloud               # 第十三輪外部審查：供應商 API：價格未知時需要 engagement 的 price_assumptions（E-ENG-PRICING）
   rate_limits: null
   tokenizer: null
   fallback: []
@@ -65,6 +68,7 @@ gpt_oss_self:
   purpose: [production, evaluation]
   earliest_retirement: null
   pricing: null
+  hosting: self               # 第十三輪外部審查：自架（Z4）：API 費用 0
   rate_limits: null
   tokenizer: null
   fallback: []
@@ -81,6 +85,7 @@ nemotron_self:
   purpose: [production, evaluation]
   earliest_retirement: null
   pricing: null
+  hosting: self               # 第十三輪外部審查：自架（Z4）：API 費用 0
   rate_limits: null
   tokenizer: null
   fallback: []
@@ -97,6 +102,7 @@ nemotron_cloud:
   purpose: [evaluation, prototyping]   # 禁止正式用途；不當成常駐預設驗證者
   earliest_retirement: null
   pricing: null
+  hosting: cloud               # 第十三輪外部審查：供應商 API：價格未知時需要 engagement 的 price_assumptions（E-ENG-PRICING）
   rate_limits: null
   tokenizer: null
   fallback: []

@@ -12,7 +12,7 @@
 
 ## 現況
 
-第十二輪審查（2026-10-28）後的設計，裁決規則版本 `05-v0.13`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#08-實作規格)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十三輪審查（2026-10-29）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#08-實作規格)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 套件配置
 
@@ -356,7 +356,7 @@ class AdjudicationInputs(BaseModel):   # 欄位與 tools/vchlib/adjudicate.py �
 # status_cap, advisory, annotations, sources)，與 vchlib 相同。裁決的 provisional 推導為：calibration_version
 # 為 null、theta_confirm 為 null，或叢集的每個合格驗證者模型（E 的模型，由登錄推得，不看出席的票）在該桶的
 # 權重都是 0（E-VERDICT-PROVISIONAL，§11.11）。裁決與 run 的 rule_version 都必須等於 vchlib 的
-# RULE_VERSION（目前 "05-v0.13"；E-VERDICT-RULE-VERSION、E-RUN-RULE-VERSION）
+# RULE_VERSION（目前 "05-v0.14"；E-VERDICT-RULE-VERSION、E-RUN-RULE-VERSION）
 
 class Aggregator(Protocol):
     def adjudicate(self, cluster: BaseModel, x: AdjudicationInputs,
@@ -625,7 +625,7 @@ class ToolAdapter(ABC):
 | 發現項（finding） | 證據的 `kind`（`code_snippet`、`inventory_fact`、`config_fact`）、`fact_ref`、`key_path`、`asserted`；`match` 新增 `MATCHED_SHIFTED`；`facet`（13 個面向） | 不是程式片段的證據；審查面向 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-INVENTORY-REF`；所屬叢集的桶必須在 `FACET_BUCKETS[facet]` 中（`E-FINDING-FACET`） | §11.1、[05 §3](05-bias-calibration.md#3-設計規則) |
 | 切片（slice） | `redaction_map_sha256`、`prompt_template_sha256` | 新的 `slice_id` | `slice_id` 重算（`E-DERIVED`）；範本不是 run 的 `prompt_templates` 之一，或遮罩表不是 run 的 `redaction_map_ref` → `E-SLICE-IDENTITY` | §11.3 |
 | 叢集（cluster） | `origin`（`white_box`、`black_box`；v0.5 加 `tool_only` 與 `tool_report_refs`）、`threat_id`、`canonical_location.endpoint`、`fingerprint`、`baseline_state`、`reopened` | 黑箱起源的叢集；跨 run 的指紋 | `E-CLUSTER-ORIGIN`、`E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | §11.16 |
-| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為目前的 `RULE_VERSION`（目前 `05-v0.13`；v0.5 起 `05-v0.5`） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
+| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為目前的 `RULE_VERSION`（目前 `05-v0.14`；v0.5 起 `05-v0.5`） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
 | 測試案例（testcase） | `oracle.types[]`、`controls[]`、`script_turns`、`request_allowlist[].step_id`、`request_allowlist[].graphql_operation` | 對照組、多輪腳本、寫入範圍 | `E-TC-CONTROLS`、`E-TC-SCRIPT`、`E-TC-MUTATION-SCOPE`、`E-TC-REQ-UNAPPROVED` | §11.6、§11.15 |
 | 測試結果（testresult） | `controls[]`、`fail_oracles[]`、`outcome: INVALID`、`observed_build_id`、`request_log_sha256`、`interpretation` | 對照結果、build 識別、解讀 | `E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-ORACLE`、`E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG`、`E-RESULT-ANALYST`、`E-RESULT-ANALYST-ROLE` | §11.7、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) |
 | report-manifest | `metrics`（`results_total`、`results_invalid`、`control_pass_rate`）、`build_unverified_targets[]`、`absent_fingerprints[]` | 報告的確定性計數 | `E-REPORT-METRICS`、`E-RESULT-BUILD`、`E-CLUSTER-BASELINE` | §11.16、§11.17 |
@@ -1700,7 +1700,7 @@ class SessionProvider(Protocol):
 **執行前估算**（`vibecheck run estimate`，§4.2）[H]：
 1. 先跑 W0（確定性，不用 LLM），得到實際的切片數 S、端點數、G1 題目數等。
 2. 依上表與 `agents.yaml` 的綁定，算出每個階段、每個家族的呼叫數與 token 數；有價格的模型換算成 USD。
-3. 與委任設定的 `budgets` 比較。任何一項預估超過上限 → 結束碼 10，並列出超過的項目。價格未知的模型列為「費用未知」。
+3. 與委任設定的 `budgets` 比較。任何一項預估超過上限 → 結束碼 10，並列出超過的項目。價格未知（`pricing: null`）的雲端模型：有 `budgets.price_assumptions` 的以假設上界估算並標示「依假設上界」；沒有的 → 結束碼 10（`E-ENG-PRICING`），不執行。
 4. `run start` 時自動做同樣的估算，結果存入 CAS，並寫進 `run_created` 稽核事件。預估超過任一上限 → `run start` 拒絕（結束碼 5）；要執行，就先提高委任設定的上限（重新簽署）。
 
 **上限** [H]：
@@ -1713,8 +1713,12 @@ class SessionProvider(Protocol):
 | relay | ROE 的 `relay.max_spend_usd_per_job`、`relay.max_spend_usd_per_run` | ROE |
 | 受測應用的上游 LLM | ROE 的 `upstream_llm_providers[].spend_cap_usd` | ROE |
 
-- **價格未知的模型**：token 上限照常強制；USD 上限只能對有價格的模型強制。run 用到任何價格未知的雲端模型時，委任設定仍必須有明確的 `max_cost_usd`（fail-closed），報告註明「費用不完整」。
-  - validator 不另外檢查 `pricing` 是否為 null：engagement `budgets` 的 `run_total`、`W`、`B` 每一層的 `max_cost_usd` **一律**必填（schema 要求是數字；缺值 → `E-ENG-BUDGET`），而且階段上限不能超過 `run_total`（`E-ENG-BUDGET`）。所以不論價格是否已知，都不會有沒有費用上限的 run。範例 `models.yaml` 的 `pricing` 全部是 null（`tests/test_v03_gates.py` 的 `test_unpriced_models_need_an_explicit_cost_cap`）。
+- **價格未知的模型**（第十三輪外部審查改寫）[H]：token 上限一律強制；**USD 上限只能對有單價的模型強制**——「上限填有」與「能守住上限」是兩種保證，之前這裡允許價格未知的雲端模型照跑、只在報告寫「費用不完整」，卻仍稱 fail-closed。現在：
+  - `models.yaml` 每個模型標 `hosting: cloud | self`。`self`（Z4 自架）的 API 費用是 0，只計運算時間。
+  - `hosting: cloud` 且 `pricing: null` 的模型**預設不可用於 run**：`agents.yaml` 用到它（含 `fallback_models` 與 `models.yaml` 的 `fallback` 鏈）而委任設定沒有該模型的 `budgets.price_assumptions` → `E-ENG-PRICING`；`run estimate`／`run start` 結束碼 10。
+  - `budgets.price_assumptions.<model_key>`＝`{input_usd_per_mtok, output_usd_per_mtok, source}`，是簽署委任設定的人負責的**保守單價上界**（兩個單價都 > 0；鍵必須是 `models.yaml` 的模型）。估算、每次呼叫的費用累計與所有 USD 上限（run、階段、家族）都以這個上界計算，所以上限在上界成立時可以強制。
+  - 報告與 `run estimate` 對每個預算項標示「**強制**」（所有用到的模型都有查證價格）或「**依假設上界估算**」（至少一個模型用 `price_assumptions`），並列出各模型用的是查證價格還是假設上界。
+  - `max_cost_usd` 每一層仍必填（schema；缺值 → `E-ENG-BUDGET`），階段上限不能超過 `run_total`。範例 `models.yaml` 的 `pricing` 全部是 null，範例委任設定對用到的三個雲端模型給了假設上界（`tests/test_v03_gates.py` 的 `test_unpriced_models_need_an_explicit_cost_cap`、`tests/test_v07_r13_external.py`）。
 
 **錯誤預算** [H]：重試、schema 修復與 fallback 也要花錢。每個階段最多把該階段預算的 20% 花在這些「錯誤處理」呼叫上。超過之後，該階段不再重試或修復：失敗直接記為缺票或 `MANUAL`，並寫稽核事件。這不進 GB：它不是覆蓋範圍的取捨，而是停止在壞掉的呼叫上花錢；缺票照常列入報告。
 
@@ -1735,7 +1739,7 @@ class SessionProvider(Protocol):
 | `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`；已產生的是 `{path, sha256}`，`invariants` 與 `seed_manifest` 另可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}` | `run_init`（`invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之前才有內容） |
 | `prompt_templates[]` | `{template_id, version, sha256}` | `run_init`：列出本 run 的 agent 會用到的全部範本 |
 | `tool_versions[]` | `{adapter, version, image_digest}`；工具包自有程式碼的 adapter 填 Z2 映像的 digest | 每個工具第一次執行時 |
-| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.13`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
+| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.14`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
 | `baseline_run_id` | 計算 `baseline_state` 用的基準 run（§11.16）；null＝沒有基準 | `run start` 的選項；`followup`、`regression` 預設為 `parent_run_id`（範例跟進 run 的基準是 `run-2026-09-23-001`） |
 
 **schema 與 validator**：`config_refs` 的六個鍵都必填，不能是沒有說明的 null（`E-RUN-CONFIG`）。
@@ -1771,7 +1775,7 @@ class SessionProvider(Protocol):
 - **啟動檢查**：Gateway 在行程啟動與 `run_init` 時重算每個範本的 hash；與登錄檔不符 → `ConfigInvalid`，行程拒絕啟動。
 - **使用**：每個 LLM 請求的快取鍵含範本的 sha256（[03 §5.8](03-system-architecture.md#58-節點邊界規則)）；W2 reviewer 範本的 sha256 也進 `slice_id`（§11.3）。
 - **改版**：任何修改都是新的 `version`；舊版保留，讓舊的 run 能重現。
-- **與校準的關係**：`calibration.yaml` 的 `models[]` 記錄校準時的範本 hash（[05 §5.9](05-bias-calibration.md#59-校準設定與結果的欄位)）。run 中 verifier 的範本 hash 與校準時不同 → `calibrate check` 列出受影響的桶（結束碼 10），該 agent 在這個 run 的權重為 0。這等同 [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的「system prompt 範本 hash 改變」。目前由 `calibrate check` 強制，validator 還沒檢查。
+- **與校準的關係**：`calibration.yaml` 的 `models[]` 記錄校準時的範本 hash（[05 §5.9](05-bias-calibration.md#59-校準設定與結果的欄位)）。run 中 verifier 的範本 hash 與校準時不同 → `calibrate check` 列出受影響的桶（結束碼 10），該 agent 在這個 run 的權重為 0。這等同 [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的「system prompt 範本 hash 改變」。`calibrate check` 與 validator 都強制：驗證者的範本 hash 與校準時不同，該票的權重為 0（`derive.vote_terms` 的不合格理由；第十三輪外部審查改正了這裡「validator 還沒檢查」的過時說法）。
 
 **稽核**：`config_loaded` 事件列出每個設定檔的路徑與 hash；每次 LLM 呼叫的稽核紀錄含範本 ID 與版本（[03 §13](03-system-architecture.md#13-可觀測性與稽核)）。
 
@@ -2024,3 +2028,18 @@ W4 需要安裝相依並建置受測程式 [H]：
 
 - **W4 的 MANUAL 需求**：`run.w4_manual_requirements` 會免除 W4 測試，所以列入的每一條要在 G4 由 `security_reviewer` 逐項核准，未核准的 MANUAL 視同沒有 W4 測試；schema 欄位與 validator 檢查尚未實作（BL-59）。
 - **執行時釘住的結果 hash**：`sandbox_job_end` 的 `result_sha256` 在 job 結束時計算，那時還沒有 B5 Result Analyst 的 `interpreted_by`／`interpretation`；實作時釘的是去掉這兩個欄位的測試結果 hash，解讀另由 `verdict_changed` 錨定。範例是事後一起簽的，所以目前兩者相同（BL-59）。
+
+### 11.19 錨點副簽服務（MVP-0 的最小 Z3）[H]
+
+**為什麼要有**：每個 `audit_anchor` 都必須有 Z3 服務金鑰的副簽（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)，`E-AUDIT-ANCHOR-SIG`），沒有例外；第十三輪外部審查指出 [07 §1.1](07-roadmap.md#11-分段-mvp) 把「Z3」整個列在 MVP-0 不包含，實作者無法確定最低部署。MVP-0 交付的是**只做錨點副簽**的最小 Z3：
+
+| 項目 | 規定 |
+|---|---|
+| 身分 | 金鑰登錄中 `person_id: z3-executor`、角色只有 `z3_executor`（`E-KR-SERVICE`：服務身分不得兼任任何人員角色，不能當發起者或核准者） |
+| 金鑰存放 | 獨立行程，以不同的 OS 使用者（或作業系統 keychain）持有私鑰；Z1（Run Controller、Audit Writer）的行程讀不到。Team／Full 放在另一台主機；Lite 可以在同一台機器，但仍是獨立行程與使用者 |
+| 介面 | `countersign(run_id, lines_since_last_anchor) → z3_countersignature`：Z3 保存每個 run 上一個錨點的 hash，重算這段的 `prev_hash` 鏈與錨點事件的 `event_sha256`，以 `vibecheck/audit_anchor/v2` domain tag 簽 `{domain, run_id, seq, prev_hash, event_sha256}`，並編上本委任遞增的 `anchor_counter`（計數器存在 Z3）。鏈接不上或編號倒退 → 拒簽，寫稽核事件 `anchor_rejected` |
+| 不做 | MVP-0 沒有 Z3 自產的事件（`tool_invocation_*` 在 Z2、沒有 `sandbox_job_*`、沒有所有權驗證），所以 03 §13.1 的「核對 Z3 自己產生的事件」留到 MVP-1 的完整 Z3（[09 BL-36](09-backlog.md)）；沒有網路出站 |
+| 信任界線 | 副簽只證明「這些行在簽章時已存在、之後沒被改」。Lite 的一人同時持有 Z1 與 Z3 的金鑰，整條鏈仍可重寫（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16、#26），報告維持 `evidential: self_attested`；Team／Full 的 Z3 主機由不同的人管理才有對外證據力 |
+| 可用性 | 服務不可用時 Audit Writer 不能寫錨點：節點照 `audit_anchor_interval` 的規則 fail-closed（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)），run 停在當前節點等待 |
+
+**Run Controller 的排程**：關卡逾時的 EXPIRED 紀錄、委任設定到期的 `resume_expired` 清理（[03 §5.2](03-system-architecture.md#52-主狀態圖)）都由 Run Controller 的排程寫入，目標是期限後 1 小時內；validator 只要求 EXPIRED 不早於期限（[03 §6.2](03-system-architecture.md#62-關卡逾時預設值)）。

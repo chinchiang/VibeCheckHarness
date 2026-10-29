@@ -292,7 +292,7 @@ def test_derived_from_names_a_registry_lineage(b):
 
 # ================================================================ external 4: calibration counts and thresholds
 HP_RULE = {"adapter": "semgrep", "rule_id": "python.lang.security.audit.sqli", "tool_version": "1.0.0", "cwe_bucket": "injection",
-           "tp": 48, "fp": 2, "n": 50, "precision_lower95": 0.8684, "holdout_n": 12, "holdout_tp": 12}
+           "tp": 48, "fp": 2, "n": 50, "precision_lower95": 0.8684, "holdout_n": 12, "holdout_tp": 12, "n_apps": 50, "holdout_n_apps": 12}
 
 
 def test_a_consistent_high_precision_rule_is_accepted(b):

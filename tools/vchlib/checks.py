@@ -55,6 +55,10 @@ JCS_VECTORS = [
      '{"\\r":"Carriage Return","1":"One","\u0080":"Control","ö":"Latin Small Letter O With Diaeresis",'
      '"€":"Euro Sign","\U0001f600":"Emoji: Grinning Face","דּ":"Hebrew Letter Dalet With Dagesh"}'.encode("utf-8")),
     ([-0.0, 1e21, 1e-7, 9007199254740991, 0.1, 100], b"[0,1e+21,1e-7,9007199254740991,0.1,100]"),
+    # third external review (r13): integer-valued doubles at and above 2^53 print their shortest round-trip digits padded
+    # with zeros (ECMAScript Number::toString, RFC 8785 §3.2.2.3), not the exact binary value (1000000000000000128)
+    ([1000000000000000100.0, -1000000000000000100.0, 9007199254740993.0, 1.2345678901234568e+20, 1234567890123456789.0, 1e20, 123456789012345680000.0],
+     b"[1000000000000000100,-1000000000000000100,9007199254740992,123456789012345680000,1234567890123456800,100000000000000000000,123456789012345680000]"),
 ]
 
 
@@ -665,6 +669,45 @@ def g_persons(R: Report, c: Ctx):
 
 
 # ============================================================== 7 engagement
+def models_in_use(c: Ctx) -> set:
+    """The models agents.yaml can call: each agent's model, its cross-family fallback_models, and the models.yaml
+    fallback chain of each of them."""
+    out, todo = set(), []
+    for a in (c.agents or {}).values():
+        if isinstance(a, dict):
+            todo += [a.get("model")] + list(a.get("fallback_models") or [])
+    while todo:
+        k = todo.pop()
+        if isinstance(k, str) and k not in out:
+            out.add(k)
+            todo += list((c.model(k) or {}).get("fallback") or [])
+    return out
+
+
+def pricing_rules(R: Report, c: Ctx, w: str, bud: dict):
+    """E-ENG-PRICING (third external review, r13; docs/08 §11.12): a USD cap can only be enforced on a model whose unit
+    prices are known. A cloud model with pricing null may run only when the engagement states a conservative upper
+    bound for it (budgets.price_assumptions[model_key], signed with the engagement); the estimate and the caps then use
+    that bound. Until r13 the docs called the cap "fail-closed" while an unknown-priced model ran against a cap nobody
+    could enforce (the report only said "費用不完整"). Self-hosted models (hosting: self) bill no API fee."""
+    assumed = bud.get("price_assumptions") or {}
+    for k, px in assumed.items():
+        if not R.check(c.model(k) is not None, "E-ENG-PRICING", w, f"budgets.price_assumptions.{k}: unknown model"):
+            continue
+        for f in ("input_usd_per_mtok", "output_usd_per_mtok"):
+            v = (px or {}).get(f)
+            R.check(isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0, "E-ENG-PRICING", w,
+                    f"budgets.price_assumptions.{k}.{f} must be a positive unit price (an upper bound the signer stands behind)")
+    for k in sorted(models_in_use(c)):
+        m = c.model(k)
+        if m is None:                                                        # E-MODEL-UNKNOWN elsewhere
+            continue
+        if m.get("hosting") == "cloud" and m.get("pricing") is None:
+            R.check(k in assumed, "E-ENG-PRICING", w,
+                    f"model {k} is a cloud model with pricing null and no budgets.price_assumptions.{k}: the USD cap cannot be "
+                    "enforced on it, so the run is refused (docs/08 §11.12; state a conservative price bound or price the model)")
+
+
 def g_engagement(R: Report, c: Ctx):
     e, tk, w = c.engagement, c.toolkit, "engagement.yaml"
     if not e:
@@ -704,6 +747,7 @@ def g_engagement(R: Report, c: Ctx):
         mx = (cap or {}).get("max_cost_usd")
         R.check(not isinstance(total.get("max_cost_usd"), (int, float)) or not isinstance(mx, (int, float)) or mx <= total["max_cost_usd"],
                 "E-ENG-BUDGET", w, f"budgets.families.{fam}.max_cost_usd {mx} exceeds run_total.max_cost_usd {total.get('max_cost_usd')}")
+    pricing_rules(R, c, w, bud)
     # v0.5 (BL-17, docs/08 §11.16): publishing is off unless the engagement names a platform and least-privilege scopes
     pub = e.get("publishing") or {}
     if pub.get("enabled") is True:
@@ -1672,7 +1716,11 @@ def g_gates(R: Report, c: Ctx):
             # v0.5 (review 2026-10-25 V-10): a key the engagement leaves out falls back to the toolkit maximum
             limit = tmo.get(gate) if tmo.get(gate) is not None else (c.toolkit.get("gate_timeouts_hours") or {}).get(gate)
             if limit is not None and gate != "G5":
-                R.check(at - opened <= dt.timedelta(hours=limit), "E-GATE-TIMEOUT", w, f"decided {at - opened} after opening; timeout {limit} h")
+                # third external review (r13): the timeout is the deadline of a HUMAN decision; the system's EXPIRED
+                # record is written at or after it (below), and writing it late is a scheduling delay, not a forgery.
+                # v0.5-r12 applied the deadline to EXPIRED too, so an honest EXPIRED one second after it was an error
+                R.check(rec.get("outcome") == "EXPIRED" or at - opened <= dt.timedelta(hours=limit), "E-GATE-TIMEOUT", w,
+                        f"decided {at - opened} after opening; timeout {limit} h")
                 # v0.4: EXPIRED is the one unsigned outcome; it is only valid once the timeout has really elapsed by the
                 # Audit Writer's clock. Otherwise a forged EXPIRED could skip G2 (the run continues past a timed-out G2).
                 # v0.5: both ends of that interval are receive times (gate_opened and gate_decision events)
@@ -3148,26 +3196,63 @@ def sarif_is_strong(c: Ctx, cluster: dict, ref) -> bool:
 HIGH_PRECISION_MIN_N, HOLDOUT_MIN_N, HOLDOUT_MARGIN = 40, 10, 0.05
 
 
-def clopper_pearson_lower(k: int, n: int, alpha: float = 0.05) -> float:
+def _betacf(a: float, b: float, x: float) -> float:
+    """Continued fraction of the regularized incomplete beta function (modified Lentz)."""
+    tiny = 1e-300
+    qab, qap, qam = a + b, a + 1, a - 1
+    c, d = 1.0, 1 - qab * x / qap
+    d = 1 / (d if abs(d) > tiny else tiny)
+    h = d
+    for m in range(1, 300):
+        m2 = 2 * m
+        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
+        d = 1 + aa * d
+        d = 1 / (d if abs(d) > tiny else tiny)
+        c = 1 + aa / (c if abs(c) > tiny else tiny)
+        h *= d * c
+        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
+        d = 1 + aa * d
+        d = 1 / (d if abs(d) > tiny else tiny)
+        c = 1 + aa / (c if abs(c) > tiny else tiny)
+        delta = d * c
+        h *= delta
+        if abs(delta - 1) < 1e-14:
+            break
+    return h
+
+
+def betainc(a: float, b: float, x: float) -> float:
+    """Regularized incomplete beta I_x(a, b), no SciPy. For integers it is the binomial tail P(X >= a | n = a + b - 1, x)."""
+    if x <= 0:
+        return 0.0
+    if x >= 1:
+        return 1.0
+    ln_bt = math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b) + a * math.log(x) + b * math.log(1 - x)
+    bt = math.exp(ln_bt)
+    if x < (a + 1) / (a + b + 2):
+        return bt * _betacf(a, b, x) / a
+    return 1 - bt * _betacf(b, a, 1 - x) / b
+
+
+def clopper_pearson_lower(k, n, alpha: float = 0.05) -> float:
     """Lower end of the two-sided (1 - alpha) Clopper-Pearson interval for k successes in n: the p with
-    P(X >= k | n, p) = alpha / 2 (docs/05 §5.10). Bisection on the binomial tail, no SciPy."""
-    if not (isinstance(k, int) and isinstance(n, int)) or n <= 0 or k <= 0:
+    P(X >= k | n, p) = I_p(k, n - k + 1) = alpha / 2 (docs/05 §5.10). Bisection on the regularized incomplete beta, no
+    SciPy; k and n may be real (r13, 05-v0.14: the design-effect-adjusted counts of docs/05 §5.7)."""
+    if not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (k, n)) or n <= 0 or k <= 0:
         return 0.0
     k = min(k, n)
-
-    def tail(p):
-        return sum(math.comb(n, i) * p ** i * (1 - p) ** (n - i) for i in range(k, n + 1))
     lo, hi = 0.0, 1.0
     for _ in range(60):
         mid = (lo + hi) / 2
-        lo, hi = (mid, hi) if tail(mid) < alpha / 2 else (lo, mid)
+        lo, hi = (mid, hi) if betainc(k, n - k + 1, mid) < alpha / 2 else (lo, mid)
     return lo
 
 
 def high_precision_problems(h: dict, lim: float) -> list[str]:
     """v0.6 (review r7 3.5): a high_precision_rules row is recomputed from its raw counts, never trusted: n = tp + fp
-    >= 40, precision_lower95 = the Clopper-Pearson lower bound of tp / n (+-0.0005) and >= high_precision_min, and the
-    holdout split has n >= 10 with a point precision >= high_precision_min - 0.05 (docs/05 §5.10)."""
+    >= 40 from at least clustering.min_apps applications, precision_lower95 = the Clopper-Pearson lower bound of tp / n on
+    the design-effect-adjusted n_eff (r13, 05-v0.14; docs/05 §5.7) (+-0.0005) and >= high_precision_min, and the holdout
+    split has n >= 10 with a point precision >= high_precision_min - 0.05 (docs/05 §5.10)."""
     tp, fp, n = h.get("tp"), h.get("fp"), h.get("n")
     if not all(isinstance(x, int) for x in (tp, fp, n)):
         return ["tp, fp and n are required counts"]
@@ -3176,13 +3261,20 @@ def high_precision_problems(h: dict, lim: float) -> list[str]:
             or h.get("holdout_tp") > h.get("holdout_n"):
         return [f"counts tp {tp!r} / fp {fp!r} / n {n!r} / holdout {h.get('holdout_tp')!r}/{h.get('holdout_n')!r} must be non-negative "
                 "integers with holdout_tp <= holdout_n (E-CAL-COUNT)"]       # v0.7 (review r8, external review 4)
+    apps, h_apps = h.get("n_apps"), h.get("holdout_n_apps")
+    if not (type(apps) is int and 1 <= apps <= max(n, 1) and type(h_apps) is int and 1 <= h_apps <= max(h.get("holdout_n"), 1)):
+        return [f"n_apps {apps!r} / holdout_n_apps {h_apps!r} must count the distinct applications of each split (1..n)"]
     if n != tp + fp:
         out.append(f"n {n} != tp + fp {tp + fp}")
     if n < HIGH_PRECISION_MIN_N:
         out.append(f"n {n} < {HIGH_PRECISION_MIN_N}")
-    low = clopper_pearson_lower(tp, tp + fp)
+    min_apps = CAL_POLICY["clustering"]["min_apps"]
+    if apps < min_apps:
+        out.append(f"n_apps {apps} < clustering.min_apps {min_apps}")
+    n_eff = effective_n(tp + fp, apps)
+    low = clopper_pearson_lower(tp / (tp + fp) * n_eff if tp + fp else 0, n_eff)
     if abs((h.get("precision_lower95") or 0) - round(low, 4)) > 5e-4:
-        out.append(f"precision_lower95 {h.get('precision_lower95')} != recomputed {round(low, 4)}")
+        out.append(f"precision_lower95 {h.get('precision_lower95')} != recomputed {round(low, 4)} (n_eff {n_eff:.2f} on {apps} applications)")
     if low < lim:
         out.append(f"lower bound {round(low, 4)} < high_precision_min {lim}")
     hn, htp = h.get("holdout_n"), h.get("holdout_tp")
@@ -4672,27 +4764,51 @@ def artifact_pins(R: Report, c: Ctx, w: str, rid, run: dict, evs: list, last: in
 
 
 RESUMABLE_RUN_STATES = ("SUSPENDED", "STOPPED")
+# Third external review (r13; docs/02 §1.4, docs/03 §5.2): the legal run status transitions. A terminal state has no
+# exit; SUSPENDED / STOPPED leave only by a resume (E-RUN-RESUME) or the expiry cleanup; WAITING_GATE waits for a
+# gate (it cannot complete by itself). r11 only checked that each `from` matched the previous `to`, so
+# RUNNING -> ABORTED -> RUNNING followed by the rest of the B phase validated.
+RUN_TRANSITIONS = {
+    "RUNNING": ("WAITING_GATE", "SUSPENDED", "STOPPED", "ABORTED", "FAILED", "COMPLETED", "COMPLETED_WITH_GAPS"),
+    "WAITING_GATE": ("RUNNING", "SUSPENDED", "STOPPED", "ABORTED", "FAILED"),
+    "SUSPENDED": ("RUNNING", "COMPLETED_WITH_GAPS", "FAILED"),
+    "STOPPED": ("RUNNING", "COMPLETED_WITH_GAPS", "FAILED"),
+    "ABORTED": (), "FAILED": (), "COMPLETED": (), "COMPLETED_WITH_GAPS": (),
+}
+WORK_EVENTS = ("sandbox_job_start", "tool_invocation_start")        # work only happens while the run is RUNNING
+GATE_STATES = ("RUNNING", "WAITING_GATE")                            # gates are decided while RUNNING or WAITING_GATE
 
 
 def run_transitions(R: Report, c: Ctx, w: str, rid, run: dict, evs: list, last: int):
     """E-RUN-STATUS / E-RUN-RESUME (review r11): the run's status changes form a chain (each `from` is the previous
-    `to`, RUNNING at first), and leaving SUSPENDED / STOPPED needs a human's anchored, signed run_resume after the
-    status change that entered it (docs/03 §5.6: the run_owner or an initiator for SUSPENDED, the test lead for STOPPED;
-    the signer's role is checked with the signature, E-SIG-ROLE / E-AUDIT-ACTOR), received before the engagement's
-    validity ends (docs/02 §1.4), and the first B-phase event after it follows a fresh VERIFIED G0b decision (every
-    resume re-verifies the ROE). Leaving WAITING_GATE for RUNNING needs a gate_decision in between. v0.7 accepted any
-    run_status_changed line, so one unanchored system event resumed a suspended run with nobody's signature."""
+    `to`, RUNNING at first) along the legal transitions (RUN_TRANSITIONS, third external review: a terminal state is
+    never left, and work events only happen while the run is RUNNING), and leaving SUSPENDED / STOPPED needs a human's
+    anchored, signed run_resume after the status change that entered it (docs/03 §5.6: the run_owner or an initiator
+    for SUSPENDED, the test lead for STOPPED; the signer's role is checked with the signature, E-SIG-ROLE /
+    E-AUDIT-ACTOR), received before the engagement's validity ends (docs/02 §1.4), and the first B-phase event after it
+    follows a fresh VERIFIED G0b decision (every resume re-verifies the ROE). Leaving WAITING_GATE for RUNNING needs a
+    gate_decision in between. v0.7 accepted any run_status_changed line, so one unanchored system event resumed a
+    suspended run with nobody's signature."""
     e_val = (c.engagement.get("validity") or {}).get("not_after") if isinstance(c.engagement, dict) else None
     not_after = ts(R, e_val, w) if isinstance(e_val, str) else None
     prev, prev_i = "RUNNING", 0
     rows = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict)]
     for i, e in rows:
+        if e.get("event_type") in WORK_EVENTS:
+            R.check(prev == "RUNNING", "E-RUN-STATUS", f"{w} seq {e.get('seq')}",
+                    f"{e.get('event_type')} while the run is {prev}: work only happens while the run is RUNNING (docs/02 §1.4)")
+        if e.get("event_type") == "gate_decision":
+            R.check(prev in GATE_STATES, "E-RUN-STATUS", f"{w} seq {e.get('seq')}",
+                    f"gate_decision while the run is {prev}: a gate is decided while the run is RUNNING or WAITING_GATE (docs/02 §1.4)")
         if e.get("event_type") != "run_status_changed":
             continue
         p = e.get("payload") or {}
         where = f"{w} seq {e.get('seq')}"
         R.check(p.get("from") == prev, "E-RUN-STATUS", where,
                 f"run_status_changed from {p.get('from')!r}, but the run was {prev!r} (the previous change or RUNNING)")
+        R.check(p.get("to") in RUN_TRANSITIONS.get(prev, ()), "E-RUN-STATUS", where,
+                f"run_status_changed {prev} -> {p.get('to')!r} is not a legal transition (docs/02 §1.4: {prev} may only go to "
+                f"{list(RUN_TRANSITIONS.get(prev, ())) or 'nothing, it is terminal'})")
         between = [(j, x) for j, x in rows if prev_i < j < i]
         expired = [(j, x) for j, x in between if x.get("event_type") == "resume_expired"
                    and (x.get("actor") or {}).get("kind") == "system" and (x.get("payload") or {}).get("from_status") == prev]
@@ -4902,6 +5018,12 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
 B_NODES = ("B0", "B1", "B2", "B3", "B4", "B5", "B6")
 GATE_ORDER = ("G0a", "G1", "G2", "G0b", "G3", "G4", "G5")        # docs/02 §1.3: first decision of each gate in this order
 W_GATED_NODES = ("W4",)                                          # nodes that need the G2 decisions and the human claim
+# Third external review (r13; docs/02 §1.4 G1 "進入 W1", docs/03 §5.3): the white-box phase runs G1 -> W1 -> W2 / W3 -> (G2)
+# -> W4 -> W5. Every event at these nodes needs an APPROVED G1 before it, and the nodes after W1 follow W1's first event
+# (a re-dispatch back to W2 still follows W1). A Lane A run has no G1 (docs/02 §1.5). r8-r12 only ordered the gates
+# among themselves and W4 after G2, so W1 scanned, or W3 adjudicated, before G1 approved the invariants.
+G1_GATED_NODES = ("W1", "W2", "W3", "W4", "W5")
+AFTER_W1_NODES = ("W2", "W3", "W4", "W5")
 
 
 def run_structure(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
@@ -4942,11 +5064,21 @@ def run_structure(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
         return ds[-1] if ds else None
 
     b_events, w4_events, g1_or_later = [], [], []
+    lane_a = run.get("run_kind") == "lane_a"
+    first_w1 = min((at(id(e)) for e in evs if isinstance(e, dict) and e.get("node") == "W1" and at(id(e)) is not None), default=None)
     for e in evs:
         if not isinstance(e, dict) or at(id(e)) is None:
             continue
         t, node, et, p = at(id(e)), e.get("node"), e.get("event_type"), e.get("payload") or {}
         where = f"{w} seq {e.get('seq')}"
+        if node in G1_GATED_NODES and not lane_a:
+            R.check(last_before("G1", t) == "APPROVED", "E-GATE-ORDER", where,
+                    f"event {et} at node {node} without an APPROVED G1 before it (last G1 decision: {last_before('G1', t)}): "
+                    "the white-box phase starts after G1 approves the invariants (docs/02 §1.4)")
+            if node in AFTER_W1_NODES:
+                R.check(first_w1 is not None and first_w1 < t, "E-GATE-ORDER", where,
+                        f"event {et} at node {node} before the first W1 event ({first_w1.isoformat() if first_w1 else None}): "
+                        "W1 runs before W2-W5 (docs/03 §5.3)")
         if node in B_NODES or (et == "gate_decision" and p.get("gate") in ("G3", "G4", "G5")) or et in ("sandbox_job_start", "sandbox_job_end") and node not in ("W0", "W1", "W4"):
             b_events.append(t)
             R.check(last_before("G0b", t) == "VERIFIED", "E-GATE-ORDER", where,
@@ -5119,14 +5251,26 @@ CAL_POLICY = {
                          "reject_true_defect_max": 0.02, "reject_wilson_upper_max": 0.08, "min_clusters": 40},
     "high_precision_min": 0.9,                       # r12: result.thresholds.high_precision_min.value (docs/05 §5.10)
     "independence_unit": "family",                   # second external review of r12 (05-v0.13): docs/05 §4.3
+    # third external review (r13, 05-v0.14; docs/05 §5.7): defects of one application are correlated, so a bucket's
+    # interval is computed on n_eff = n / (1 + (n / n_apps - 1) * icc) and needs at least min_apps distinct applications
+    "clustering": {"min_apps": 10, "icc": 0.05},
 }
+
+
+def effective_n(n, n_apps, icc=None) -> float:
+    """docs/05 §5.7 (05-v0.14): the design-effect-adjusted sample size of n clusters drawn from n_apps applications with
+    intra-application correlation icc (the same rho as §5.5 step 5): n_eff = n / (1 + (m - 1) * icc), m = n / n_apps."""
+    icc = CAL_POLICY["clustering"]["icc"] if icc is None else icc
+    if not n or not n_apps:
+        return 0.0
+    return n / (1 + (n / n_apps - 1) * icc)
 
 
 def policy_problems(cfg: dict) -> list[str]:
     out = []
     if cfg.get("smoothing_k") != CAL_POLICY["smoothing_k"]:
         out.append(f"smoothing_k {cfg.get('smoothing_k')!r} != {CAL_POLICY['smoothing_k']} (docs/05 §4.3)")
-    for block, sec in (("near_zero_rules", "§4.3"), ("threshold_search", "§5.7")):
+    for block, sec in (("near_zero_rules", "§4.3"), ("threshold_search", "§5.7"), ("clustering", "§5.7")):
         have = cfg.get(block) or {}
         for key, want in CAL_POLICY[block].items():
             if have.get(key) != want:
@@ -5162,13 +5306,19 @@ def split_problems(label: str, split: str, s: dict) -> list[tuple[str, str]]:
     stays declared."""
     out = []
     num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
-    tp, n = s.get("tp"), s.get("n")
+    tp, n, apps = s.get("tp"), s.get("n"), s.get("n_apps")
     if not (type(tp) is int and type(n) is int and 0 <= tp <= n):
         return [(label, f"{split}: tp {tp!r} of n {n!r} is not a count")]
-    want = {"precision": tp / n if n else 0.0, "ci_low": wilson_lower(tp, n), "ci_high": wilson_upper(tp, n)}
+    # third external review (r13, 05-v0.14): the clusters of one application are correlated, so the Wilson bounds use the
+    # design-effect-adjusted n_eff (docs/05 §5.7); n_apps counts the distinct applications the n clusters come from
+    if not (type(apps) is int and 0 <= apps <= n and (apps > 0 or n == 0)):
+        return [(label, f"{split}: n_apps {apps!r} must count the distinct applications of the n {n} clusters (1..n)")]
+    n_eff = effective_n(n, apps)
+    want = {"precision": tp / n if n else 0.0, "ci_low": wilson_lower(tp / n * n_eff if n else 0, n_eff),
+            "ci_high": wilson_upper(tp / n * n_eff if n else 0, n_eff)}
     for k, v in want.items():
         if not (num(s.get(k)) and abs(s[k] - round(v, 4)) <= 5e-4):
-            out.append((label, f"{split}.{k} {s.get(k)!r} but recomputed {v:.4f} from tp {tp} of n {n}"))
+            out.append((label, f"{split}.{k} {s.get(k)!r} but recomputed {v:.4f} from tp {tp} of n {n} (n_eff {n_eff:.2f} on {apps} applications)"))
     return out
 
 
@@ -5201,6 +5351,10 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
                 out.append((label, f"generalised on a holdout of {ho.get('n')} clusters: needs n >= {HOLDOUT_MIN_N}"))
             if not (num(cs.get("n")) and cs["n"] >= ts.get("min_clusters", 0)):
                 out.append((label, f"feasible on {cs.get('n')} clusters: the search needs min_clusters {ts.get('min_clusters')}"))
+            # r13 (05-v0.14): 40 clusters from three applications are not 40 observations (docs/05 §5.7)
+            min_apps = (cfg.get("clustering") or {}).get("min_apps", CAL_POLICY["clustering"]["min_apps"])
+            if not (num(cs.get("n_apps")) and cs["n_apps"] >= min_apps):
+                out.append((label, f"feasible on {cs.get('n_apps')} applications: the search needs clustering.min_apps {min_apps}"))
             if name == "theta_confirm":
                 floor = ts.get("confirm_precision_floor", 0)
                 if not (num(cs.get("precision")) and cs["precision"] >= floor):

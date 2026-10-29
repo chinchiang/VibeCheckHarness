@@ -58,6 +58,7 @@ config:
     reject_true_defect_max: 0.02
     reject_wilson_upper_max: 0.08
     min_clusters: 40
+  clustering: {min_apps: 10, icc: 0.05}   # 第十三輪外部審查（05-v0.14）：每個可行切分至少 10 個應用；界限以 n_eff＝n／(1＋(n／n_apps−1)·icc) 計算
   smoothing_k: 10
   near_zero_rules: {w_min: 0.2, wilson_lower_max: 0.5, n_min: 10, abstain_rate_max: 0.3}   # v0.7（審查 r9）：棄權率上限
   independence:                    # 第十二輪第二次外部審查（05-v0.13）：同家族算一個觀察；M-2 量測前 lineage_split 為空（docs/05 §4.3）
@@ -102,34 +103,34 @@ result:
     theta_confirm:
       value: 2.5                   # v0.6：對數概似比尺度；一張權重約 1.6 的票不夠，兩張獨立的支持票才夠
       feasible: true
-      calibration: {precision: 0.9219, recall: 0.41, ci_low: 0.8298, ci_high: 0.9662, n: 64, tp: 59}
-      holdout: {precision: 0.9038, recall: 0.38, ci_low: 0.7939, ci_high: 0.9582, n: 52, tp: 47}
+      calibration: {precision: 0.9219, recall: 0.41, ci_low: 0.8212, ci_high: 0.9681, n: 64, tp: 59, n_apps: 16}
+      holdout: {precision: 0.9038, recall: 0.38, ci_low: 0.7839, ci_high: 0.9606, n: 52, tp: 47, n_apps: 13}
       generalised: true
       by_bucket:                   # v0.6：規則只用叢集所屬桶的門檻；沒有列出的桶停用（+∞）
         authz:
           value: 2.5
           feasible: true
-          calibration: {precision: 0.9348, recall: 0.44, ci_low: 0.825, ci_high: 0.9776, n: 46, tp: 43}
-          holdout: {precision: 0.9024, recall: 0.4, ci_low: 0.7745, ci_high: 0.9614, n: 41, tp: 37}
+          calibration: {precision: 0.9348, recall: 0.44, ci_low: 0.8148, ci_high: 0.979, n: 46, tp: 43, n_apps: 12}
+          holdout: {precision: 0.9024, recall: 0.4, ci_low: 0.7639, ci_high: 0.9636, n: 41, tp: 37, n_apps: 11}
           generalised: true
         llm_specific:              # 語料不足（n＜min_clusters）→ 不可行，停用
           value: null
           feasible: false
-          calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.1759, n: 18, tp: 0}
-          holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.2588, n: 11, tp: 0}
+          calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.1943, n: 18, tp: 0, n_apps: 5}
+          holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.2836, n: 11, tp: 0, n_apps: 3}
           generalised: false
     theta_reject:
       value: null                  # 找不到可行門檻 → 停用：反駁一律送 DISPUTED（人審）
       feasible: false
-      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
-      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
+      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0, n_apps: 0}
+      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0, n_apps: 0}
       generalised: false
       by_bucket: {}                # 沒有任何桶找到可行的反駁門檻
     high_precision_min:            # SARIF 規則算「強工具佐證」的 precision 95% 下界門檻（docs/05 R5 row 10）
       value: 0.9                   # 政策下限（預設 0.90），不是 θ 搜尋程序求得；分割統計不適用（n: 0）
       feasible: true
-      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
-      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0}
+      calibration: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0, n_apps: 0}
+      holdout: {precision: 0.0, recall: 0.0, ci_low: 0.0, ci_high: 0.0, n: 0, tp: 0, n_apps: 0}
       generalised: false
   primary_hypothesis:
     comparator: "2a"
