@@ -95,8 +95,8 @@
     {
       "name": "jobs: orphan sandbox_job event",
       "file": "tools/vchlib/checks.py",
-      "old": "            R.check(jid in jobs, \"E-JOB-AUDIT\", f\"{w} seq {e.get('seq')}\",",
-      "new": "            R.check(True, \"E-JOB-AUDIT\", f\"{w} seq {e.get('seq')}\",",
+      "old": "            R.check(jid in jobs, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")",
+      "new": "            R.check(True, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")",
       "k": "orphan_sandbox_job"
     },
     {

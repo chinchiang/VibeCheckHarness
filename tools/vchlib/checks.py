@@ -561,6 +561,11 @@ def g_signatures(R: Report, c: Ctx):
                         f"verification.key_registry_version {kv!r} must be 1..{c.registry.get('version')} (the loaded registry version)")
                 if rec.get("outcome") == "VERIFIED":
                     R.check(all(r["ok"] for r in real) and real, "E-GATE-G0-VERIFY", d.path, "VERIFIED although a signature failed")
+                if rec.get("outcome") == "VERIFY_FAILED":
+                    # r14 (internal review A5): a failure names what failed: a signature that does not verify or a reason
+                    # (docs/06 L-5 legal_attester_is_test_lead, an expired key, ...); r12 accepted an all-ok, reasonless failure
+                    R.check(any(not r["ok"] for r in real) or any(r.get("reason") for r in ver.get("signer_results") or [] if isinstance(r, dict)),
+                            "E-GATE-G0-VERIFY", d.path, "VERIFY_FAILED although every signature verifies and no signer_results entry gives a reason")
                 continue
             if rec.get("outcome") == "EXPIRED":
                 # v0.5 (review 2026-10-25 T-3): nobody decided an expired gate, so nobody signs it. The record is the
@@ -939,13 +944,26 @@ def expected_gaps(c: Ctx, rid, run: dict) -> dict:
         tc = c.ix.first("testcase", testcase_id=tcid)
         if tc and (tc.data.get("tool_binding") or {}).get("kind") == "MANUAL":
             out[("manual", tcid)] = "MANUAL testcase"
-    for tcid, st in derive.g4_final_states(c.ix, rid).items():
-        if st.decision == "reject":
-            out[("g4_rejected", tcid)] = "rejected at G4"
+    g4_states = derive.g4_final_states(c.ix, rid)
+    for tcid, st in g4_states.items():
+        # r14 (internal review A6; docs/02 §1.4 G4 row): a final needs_info is a rejection after the second round, and
+        # the testcase never ran; r12 counted only a final reject
+        if st.decision in ("reject", "needs_info"):
+            out[("g4_rejected", tcid)] = f"{st.decision} at G4"
+    if any(g.data.get("outcome") != "EXPIRED" for g in c.ix.gate_records(rid, "G4")):
+        # r14 (A6): a black-box testcase of the run that no signed G4 decision ever covered was never approved either
+        for tcid in run.get("testcase_ids") or []:
+            tc = c.ix.first("testcase", testcase_id=tcid)
+            if tc and (tc.data.get("tool_binding") or {}).get("kind") != "MANUAL" and tcid not in g4_states:
+                out[("g4_rejected", tcid)] = "no G4 decision covers the testcase"
     for jid, job in (run.get("jobs") or {}).items():
         if isinstance(job, dict) and job.get("status") == "SKIPPED":
             out[(SKIP_GAP_KIND.get(job.get("skip_reason"), job.get("skip_reason") or "error"), job.get("testcase_id"))] = \
                 f"job {jid} SKIPPED ({job.get('skip_reason')})"
+        elif isinstance(job, dict) and job.get("status") in ("INTERRUPTED", "STOPPED"):
+            # r14 (internal review A3): a job the run stopped before it finished has no result; r12's list named only
+            # SKIPPED jobs, so an approved job that never finished left a COMPLETED run with no gap
+            out[("stopped", job.get("testcase_id"))] = f"job {jid} {job.get('status')} before it finished"
     for o in run.get("ownership_results") or []:
         if isinstance(o, dict) and o.get("ok") is False:
             out[("ownership_failed", o.get("target_id"))] = "ownership check failed"
@@ -1755,8 +1773,15 @@ def g_gates(R: Report, c: Ctx):
                 R.check(all(x == "accept" for x in decs), "E-GATE-OUTCOME", w, "APPROVED with non-accept decisions")
             if gate == "GB":
                 gb = rec.get("gb") or {}
-                ok_outcome = {"extend": "APPROVED", "stop_phase": "REJECTED", "abort": "APPROVED"}.get(gb.get("choice"))
-                R.check(rec.get("outcome") == ok_outcome, "E-GATE-OUTCOME", w, f"GB choice {gb.get('choice')} needs outcome {ok_outcome}")
+                if rec.get("outcome") == "EXPIRED":
+                    # r14 (internal review A10; docs/02 §1.3, 03 §5.2 GB EXPIRED -> SUSPENDED): nobody chose, so the record
+                    # carries no choice and no new caps; r12 mapped every choice to APPROVED / REJECTED, so the documented
+                    # expiry path could not be written at all
+                    R.check(gb.get("choice") is None and gb.get("new_caps") is None, "E-GATE-OUTCOME", w,
+                            f"an EXPIRED GB record carries no choice and no new_caps (got {gb.get('choice')!r}): nobody decided")
+                else:
+                    ok_outcome = {"extend": "APPROVED", "stop_phase": "REJECTED", "abort": "APPROVED"}.get(gb.get("choice"))
+                    R.check(rec.get("outcome") == ok_outcome, "E-GATE-OUTCOME", w, f"GB choice {gb.get('choice')} needs outcome {ok_outcome}")
                 allowed = {e.get("budget_approver") or e.get("run_owner"), e.get("run_owner")}
                 for a in rec.get("approvers", []):
                     R.check(a.get("person_id") in allowed, "E-GB-APPROVER", w, f"GB approver {a.get('person_id')} is neither run_owner nor budget_approver")
@@ -1835,11 +1860,53 @@ def run_ownership(R: Report, c: Ctx, w: str, run: dict):
     ok = {o.get("target_id") for o in results if o.get("ok") is True}
     used = set()
     for jid, job in (run.get("jobs") or {}).items():
-        if isinstance(job, dict) and job.get("status") in JOB_RAN_STATES:
+        # r14 (internal review A2): a job that started touched the target whether or not it finished with a result
+        if isinstance(job, dict) and (job.get("status") in JOB_RAN_STATES or job_span(c, run.get("run_id"), jid)[0] is not None):
             tc = c.ix.first("testcase", testcase_id=job.get("testcase_id"))
             used |= set((tc.data if tc else {}).get("target_ids") or [])
     for tid in sorted(used - ok):
         R.error("E-RUN-OWNERSHIP", w, f"a B4 job ran against {tid}, which has no ok ownership result in this run (B4_preflight)")
+
+
+def job_start_rules(R: Report, c: Ctx, rid, jid, job: dict, jw: str):
+    """r14 (internal review A2; docs/02 §1.3-§1.4, 03 §5.5): a B4 job is judged by its own sandbox_job_start, whether or
+    not a result exists. The approval in force when it started must be an accept (derive.g4_state at the start; E-JOB-G4),
+    and the start must fall inside the ROE validity (E-RUN-WINDOW covers the time windows for every Z3 event). Until r14
+    the G4 and window rules lived in the per-testresult loop, so an INTERRUPTED job with no result, started before G4
+    and on a Saturday, validated."""
+    start, _ = job_span(c, rid, jid)
+    if start is None:
+        return
+    st = derive.g4_state(c.ix, rid, job.get("testcase_id"), at=start)
+    R.check(st.decision == "accept" and st.approved_since is not None and start > st.approved_since, "E-JOB-G4", jw,
+            f"job {jid} started at {start.isoformat()} while the G4 decision in force on {job.get('testcase_id')} was "
+            f"{st.decision!r} (approved since {st.approved_since.isoformat() if st.approved_since else None})")
+
+
+# r14 (internal review A4; docs/02 §1.4 G0b row, B0, 03 §5.4): every activity that touches the target runs inside the ROE
+# validity and its time windows: the ownership check, every Z3 sandbox job, snapshots, restores and restore drills. Until
+# r14 only a B4 result's executed_at was compared with the windows, so the shipped example verified ownership at 09:30
+# against windows of 20:00-23:00 and a job without a result ran outside them.
+TARGET_EVENTS = ("ownership_check", "snapshot_created", "snapshot_restored", "restore_failed", "restore_drill")
+
+
+def target_activity_windows(R: Report, c: Ctx, w: str, rid, evs: list):
+    if not c.roe:
+        return
+    rv = c.roe.get("validity") or {}
+    rnb, rna = ts(R, rv.get("not_before"), "roe.yaml"), ts(R, rv.get("not_after"), "roe.yaml")
+    windows = roe_windows(c)
+    for e in evs:
+        if not isinstance(e, dict):
+            continue
+        et = e.get("event_type")
+        if not (et in TARGET_EVENTS or (et in ("sandbox_job_start", "sandbox_job_end") and e.get("zone") == "Z3")):
+            continue
+        at = ts(R, e.get("ts"), f"{w} seq {e.get('seq')}")
+        R.check(at is not None and rnb is not None and rna is not None and rnb <= at <= rna and timeutil.in_any_window(at, windows),
+                "E-RUN-WINDOW", f"{w} seq {e.get('seq')}",
+                f"{et} at {e.get('ts')} touches the target outside the ROE validity ({rv.get('not_before')} .. {rv.get('not_after')}) "
+                "or its time windows (docs/02 B0, §1.4: target activity waits for the window)")
 
 
 def g_runs(R: Report, c: Ctx):
@@ -2018,12 +2085,14 @@ def g_runs(R: Report, c: Ctx):
                         R.check(ok or rid in c.broken_audit_runs, "E-RUN-RESTORE-DRILL", jw,
                                 f"no successful restore drill within {drill_days} days before the S2 job")
                         R.check(run.get("restore_drill_ref") is not None, "E-RUN-RESTORE-DRILL", jw, "restore_drill_ref missing")
-                        if tr and g5:
+                        if g5:
                             # v0.5 (review r7 1.2): the G5 decision and the job are both judged by receive time
+                            # r14 (internal review A2): the job's own span is judged whether or not a result exists
                             g5_at = decision_time(c, g5) or ts(R, g5.get("timestamp"), jw)
                             end = timeutil.window_end(g5_at, roe_windows(c)) if g5_at else None
-                            ex = ts(R, tr.get("executed_at"), jw)
-                            R.check(g5_at and ex and end and g5_at <= ex < end, "E-RESULT-G5", jw, "S2 job must start after its G5 and inside the same window")
+                            if tr:
+                                ex = ts(R, tr.get("executed_at"), jw)
+                                R.check(g5_at and ex and end and g5_at <= ex < end, "E-RESULT-G5", jw, "S2 job must start after its G5 and inside the same window")
                             if span_start is not None:
                                 R.check(g5_at is not None and end is not None and g5_at <= span_start and (span_end is None or span_end < end),
                                         "E-RESULT-G5", jw, f"the sandbox_job_start ({span_start.isoformat()}) / end must lie between its G5 "
@@ -2033,6 +2102,7 @@ def g_runs(R: Report, c: Ctx):
                     if job.get("status") in ("EXECUTED", "RESTORED"):
                         R.check(tr is not None, "E-RUN-JOB", jw, "executed job without a testresult")
                         R.check(jid in run.get("executed_jobs", []), "E-RUN-JOB", jw, "executed job not listed in executed_jobs")
+                    job_start_rules(R, c, rid, jid, job, jw)
             R.check(set(run.get("executed_jobs", [])) <= set((run.get("jobs") or {})), "E-RUN-JOB", w, "executed_jobs not in jobs")
             # testresults of this run
             rv = c.roe.get("validity") or {}
@@ -2262,6 +2332,20 @@ def run_manifest(R: Report, c: Ctx, d: Doc):
     base = run.get("baseline_run_id")
     if base is not None:
         R.check(base in c.runs and base != rid, "E-CLUSTER-BASELINE", w, f"baseline_run_id {base!r} is not another run of the bundle")
+    # r14 (internal review A9; docs/02 §1.6): an initial run has no baseline; a followup / regression run's baseline is an
+    # ancestor (reachable over parent_run_id) that started earlier. r12 accepted a later run or the Lane A run, which
+    # flipped the SARIF baselineState of every cluster
+    if run.get("run_kind") == "initial":
+        R.check(base is None, "E-RUN-BASELINE", w, f"an initial run has no baseline, got {base!r}")
+    elif base is not None and base in c.runs:
+        ancestors, p, hops = set(), run.get("parent_run_id"), 0
+        while p is not None and p in c.runs and p not in ancestors and hops < 100:
+            ancestors.add(p)
+            p, hops = c.runs[p].get("parent_run_id"), hops + 1
+        R.check(base in ancestors, "E-RUN-BASELINE", w, f"baseline_run_id {base!r} is not an ancestor of {rid} (parent chain {sorted(ancestors)})")
+        mine, theirs = run_start(c, rid), run_start(c, base)
+        R.check(mine is None or theirs is None or theirs < mine, "E-RUN-BASELINE", w,
+                f"baseline_run_id {base!r} started at {theirs}, not before this run ({mine})")
     # E6: slices of this run use one of its prompt templates and its redaction map
     shas = {t.get("sha256") for t in run.get("prompt_templates") or []}
     for s in c.docs("slice"):
@@ -4555,6 +4639,7 @@ def g_audit(R: Report, c: Ctx):
             job_audit(R, c, w, rid, run, evs)
             run_structure(R, c, w, rid, run, evs)
             ownership_events(R, c, w, rid, run, evs)
+            target_activity_windows(R, c, w, rid, evs)
             report_events(R, c, rid, evs)
 
 
@@ -4638,12 +4723,22 @@ def ownership_events(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
     checks_ = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "ownership_check"]
     first_job: dict = {}
     jobs = run.get("jobs") or {}
-    for e in evs:
-        if isinstance(e, dict) and e.get("event_type") == "sandbox_job_start" and e.get("node") in B_NODES:
+    resumes = [i for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "run_resume"]
+    for i, e in enumerate(evs):
+        if isinstance(e, dict) and e.get("event_type") == "sandbox_job_start" and (e.get("node") in B_NODES or e.get("zone") == "Z3"):
             job = jobs.get((e.get("payload") or {}).get("job_id"))
             tc = c.ix.first("testcase", testcase_id=job.get("testcase_id")) if isinstance(job, dict) else None
             for tid in (tc.data if tc else {}).get("target_ids") or []:
                 first_job.setdefault(tid, e)
+                # r14 (internal review A7; docs/03 §5.6): a resume in the B phase re-checks ownership before the next job
+                # against each target; r10-r13 only tied the FIRST job per target to a check
+                since = max((r for r in resumes if r < i), default=None)
+                if since is not None:
+                    later = [x for k, x in checks_ if since < k - 1 < i and any(isinstance(r, dict) and r.get("target_id") == tid and r.get("ok") is True
+                                                                                  for r in (x.get("payload") or {}).get("results") or [])]
+                    R.check(bool(later), "E-RUN-OWNERSHIP", f"{w} seq {e.get('seq')}",
+                            f"{tid}: job {(e.get('payload') or {}).get('job_id')} runs after the resume at seq {evs[since].get('seq')} "
+                            "without a new ok ownership_check for the target (every B-phase resume re-verifies ownership, docs/03 §5.6)")
     for o in run.get("ownership_results") or []:
         if not isinstance(o, dict):
             continue
@@ -4698,7 +4793,9 @@ def run_log_state(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
         # review r12: run_kind selects rule semantics (R14 FIXED only in a regression run, Lane A exemptions, reuse) and
         # trigger the Lane A / scheduled rules; the anchored run_created pins both, as it pins the commit
         payload = created[0][1].get("payload") or {}
-        for k in ("run_kind", "trigger"):
+        # r14 (internal review A9): baseline_run_id decides every cluster's baseline_state (SARIF baselineState), so it is
+        # pinned by run_created too; run_manifest checks what it may point at (E-RUN-BASELINE)
+        for k in ("run_kind", "trigger", "baseline_run_id"):
             R.check(run.get(k) == payload.get(k), "E-RUN-COMMIT", f"run {rid}",
                     f"run.{k} {run.get(k)!r} != {payload.get(k)!r} pinned by the anchored run_created event")
     # review r12 (BL-43): the key registry a run loaded is an anchored fact; a bundle carrying an older registry version
@@ -4794,6 +4891,11 @@ def run_transitions(R: Report, c: Ctx, w: str, rid, run: dict, evs: list, last: 
     prev, prev_i = "RUNNING", 0
     rows = [(i + 1, e) for i, e in enumerate(evs) if isinstance(e, dict)]
     for i, e in rows:
+        if prev in TERMINAL_RUN_STATES and e.get("event_type") != "audit_anchor":
+            # r14 (internal review A8): after the terminal status only the run_end anchor follows; r13 stopped work events
+            # and gate decisions, so verdicts, Commander drafts and report_published were still written after COMPLETED
+            R.check(False, "E-RUN-STATUS", f"{w} seq {e.get('seq')}",
+                    f"{e.get('event_type')} after the run became {prev}: a terminal status is followed only by the run_end anchor")
         if e.get("event_type") in WORK_EVENTS:
             R.check(prev == "RUNNING", "E-RUN-STATUS", f"{w} seq {e.get('seq')}",
                     f"{e.get('event_type')} while the run is {prev}: work only happens while the run is RUNNING (docs/02 §1.4)")
@@ -4835,6 +4937,18 @@ def run_transitions(R: Report, c: Ctx, w: str, rid, run: dict, evs: list, last: 
                 R.check(not_after is None or (at is not None and at <= not_after), "E-RUN-RESUME", f"{w} seq {x.get('seq')}",
                         f"run_resume received at {x.get('ts')}, after the engagement validity ended ({e_val})")
                 after = [(k, y) for k, y in rows if k > j]
+                # r14 (internal review A7; docs/02 §1.6, 03 §5.2 run_resume -> G0a_engagement_check): every resume re-verifies
+                # the engagement before anything else happens; r11-r13 asked only for a fresh G0b before the B phase
+                for k, y in after:
+                    yp = y.get("payload") or {}
+                    if y.get("event_type") == "gate_decision" and yp.get("gate") == "G0a":
+                        R.check(yp.get("outcome") == "VERIFIED", "E-RUN-RESUME", f"{w} seq {y.get('seq')}",
+                                f"the G0a re-verification after the resume at seq {x.get('seq')} is {yp.get('outcome')}")
+                        break
+                    if y.get("event_type") in WORK_EVENTS + ("gate_decision", "verdict_changed", "ownership_check") or y.get("node") in B_NODES:
+                        R.check(False, "E-RUN-RESUME", f"{w} seq {y.get('seq')}",
+                                f"{y.get('event_type')} after the resume at seq {x.get('seq')} without a new VERIFIED G0a first (every resume re-verifies the engagement)")
+                        break
                 for k, y in after:
                     yp = y.get("payload") or {}
                     if y.get("event_type") == "gate_decision" and yp.get("gate") == "G0b" and yp.get("outcome") == "VERIFIED":
@@ -4940,6 +5054,12 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
             R.check(bool(results.get(jid)), "E-JOB-AUDIT", where, f"job {jid} is {job.get('status')} but no testresult names it")
         # v0.7 (review r8 F2a): a job in any other state (PENDING, EXECUTING, INTERRUPTED, STOPPED, ...) never finished; a
         # result naming it is rejected below ("never executed"). v0.6 reconciled only SKIPPED and the ran states.
+        # r14 (internal review A3): a completed run has no job still waiting or executing (a job the run stopped is a gap,
+        # expected_gaps); r12 let a G4-approved job sit PENDING with no events, no result and no gap in a COMPLETED run
+        if run.get("status") in COMPLETED_RUN_STATES:
+            R.check(job.get("status") not in ("PENDING", "SNAPSHOTTED", "EXECUTING"), "E-JOB-AUDIT", where,
+                    f"job {jid} is {job.get('status')} in a {run.get('status')} run: a completed run has executed, stopped or "
+                    "SKIPPED (with a reason) every job")
     for jid, trs in results.items():
         # v0.7 (review r8 F2a / F2b): every B4 result, not only the last one named for a job, is reconciled with the
         # executor's events: one result per job, a job that ran, and exactly one anchored sandbox_job_end whose
@@ -4977,11 +5097,23 @@ def job_audit(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
     # v0.7 (review r9 jobs): every B-phase sandbox_job event names a job of run.jobs (W0 / W1 / W4 jobs are not in it), and a
     # completed run has a job, executed or SKIPPED with its reason, for every testcase G4 approved. v0.6 ignored an anchored
     # sandbox_job_end whose job had been dropped from run.jobs together with its FAIL result
+    # r14 (internal review A1): the node label is the executor's claim; the zone says where the job ran. A Z3 job is a B4
+    # job of run.jobs whatever its node says, and a W0 / W1 / W4 job runs in Z2. r9-r13 selected B-phase jobs by node
+    # only, so a Z3 job labelled W1 (or G4, END, ...) escaped run.jobs, G0b / G4 / G5, the windows and the ownership rule
     for e in evs:
-        if isinstance(e, dict) and e.get("event_type") in ("sandbox_job_start", "sandbox_job_end") and e.get("node") in B_NODES:
-            jid = (e.get("payload") or {}).get("job_id")
-            R.check(jid in jobs, "E-JOB-AUDIT", f"{w} seq {e.get('seq')}",
-                    f"{e.get('event_type')} names job {jid}, which is not in run.jobs")
+        if not (isinstance(e, dict) and e.get("event_type") in ("sandbox_job_start", "sandbox_job_end")):
+            continue
+        where = f"{w} seq {e.get('seq')}"
+        jid = (e.get("payload") or {}).get("job_id")
+        if e.get("zone") == "Z3":
+            R.check(e.get("node") == "B4", "E-JOB-AUDIT", where,
+                    f"{e.get('event_type')} in zone Z3 at node {e.get('node')!r}: a target-facing job is a B4 job (docs/03 §5.5)")
+            R.check(jid in jobs, "E-JOB-AUDIT", where, f"{e.get('event_type')} names job {jid}, which is not in run.jobs")
+        elif e.get("node") in B_NODES:
+            R.check(False, "E-JOB-AUDIT", where, f"{e.get('event_type')} at node {e.get('node')} runs in zone Z3, not {e.get('zone')!r}")
+        else:
+            R.check(e.get("node") in ("W0", "W1", "W4") and e.get("zone") == "Z2", "E-JOB-AUDIT", where,
+                    f"{e.get('event_type')} at node {e.get('node')!r} in zone {e.get('zone')!r}: white-box jobs run in Z2 at W0 / W1 / W4")
     # v0.7 (review r10 W4): a W4 / Z2 sandbox_job_end names a W4 result of this run for its testcase (a W4 job that
     # ended without a result was silently dropped), and a completed run has an end for every W4 job it started
     w4_results = {r.data.get("result_id"): r.data for r in c.docs("testresult") if r.data.get("run_id") == rid and r.data.get("phase") == "W4"}
@@ -5079,10 +5211,22 @@ def run_structure(R: Report, c: Ctx, w: str, rid, run: dict, evs: list):
                 R.check(first_w1 is not None and first_w1 < t, "E-GATE-ORDER", where,
                         f"event {et} at node {node} before the first W1 event ({first_w1.isoformat() if first_w1 else None}): "
                         "W1 runs before W2-W5 (docs/03 §5.3)")
-        if node in B_NODES or (et == "gate_decision" and p.get("gate") in ("G3", "G4", "G5")) or et in ("sandbox_job_start", "sandbox_job_end") and node not in ("W0", "W1", "W4"):
+        if node in B_NODES or (et == "gate_decision" and p.get("gate") in ("G3", "G4", "G5")) or et in ("sandbox_job_start", "sandbox_job_end") \
+                and (node not in ("W0", "W1", "W4") or e.get("zone") == "Z3"):          # r14 (A1): a Z3 job is B-phase whatever its label
             b_events.append(t)
             R.check(last_before("G0b", t) == "VERIFIED", "E-GATE-ORDER", where,
                     f"B-phase event {et} at node {node} without a VERIFIED G0b before it (last G0b decision: {last_before('G0b', t)})")
+        if et == "gate_decision" and p.get("gate") in ("G0a", "G0b") and p.get("outcome") == "VERIFY_FAILED":
+            # r14 (internal review A5; docs/02 §1.4): a failed verification ends the run (ABORTED; L-5 suspends it): the
+            # next non-anchor line is the status change, nothing else happens first. r12 only asked that the LAST G0a /
+            # G0b decision before an event was VERIFIED, so a VERIFY_FAILED followed by a VERIFIED one ran to COMPLETED
+            later = [x for x in evs[evs.index(e) + 1:] if isinstance(x, dict) and x.get("event_type") not in
+                     ("audit_anchor", "engagement_verify_failed", "roe_verify_failed", "signature_invalid")]
+            nxt = later[0] if later else None
+            R.check(nxt is not None and nxt.get("event_type") == "run_status_changed"
+                    and (nxt.get("payload") or {}).get("to") in ("ABORTED", "SUSPENDED"), "E-GATE-ORDER", where,
+                    f"{p.get('gate')} VERIFY_FAILED must be followed by run_status_changed to ABORTED (or SUSPENDED, docs/06 L-5), "
+                    f"not by {nxt.get('event_type') if nxt else 'nothing'}")
         if node in W_GATED_NODES:
             w4_events.append(t)
         if node not in ("START", "G0a", "claim_run") and et not in ("run_created", "initiator_claim") and node is not None:

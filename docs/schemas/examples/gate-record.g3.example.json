@@ -68,20 +68,20 @@
   ],
   "gb": null,
   "verification": null,
-  "opened_at": "2026-10-01T18:00:00+08:00",
+  "opened_at": "2026-10-01T21:00:00+08:00",
   "timestamp": "2026-10-02T10:15:00+08:00",
   "signatures": [
     {
       "signer": "erin",
       "key_fingerprint": "ed25519:SHA256:hom1eqFPOT4E9nvMUkOtnuG7ELvShEC5fHB1ZavQl84",
       "alg": "ed25519",
-      "value": "3bMBUnpFkRSoyViX4ijcS+bWbdEJwbE/edpkGSNf4+J2ynUzUa0DDaL1LJ2rkpKC33j4B19kpyLkP8teMzEcDw=="
+      "value": "AdrRmD7MbX8THXeWl3aengH8sceLBBRjN59c12cJJQzn6w7eBEbgN/GjIfnldVyyPCcMoRKRCE6vRDYHS1z1Bg=="
     },
     {
       "signer": "frank",
       "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0",
       "alg": "ed25519",
-      "value": "OqHomFbkxZep9Ubgaa0zrEHmhYju4etFVh/Civ9sOaPTR93P6hJEX3b7V3iAVI5Nd+Sv02oiJT5VtSH697JKDg=="
+      "value": "HreiB0qPw0em6OHKX+8GRwCI0nNURT76MSvuzWJaMzpqV5wDR2+Dqsw9kNORDkTM5niuGWT9CmTws21nVw3BDQ=="
     }
   ]
 }

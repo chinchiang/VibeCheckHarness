@@ -32,7 +32,7 @@
     {
       "name": "a G4 reject at the end of the log is a gap",
       "file": "tools/vchlib/checks.py",
-      "old": "        if st.decision == \"reject\":\n            out[(\"g4_rejected\", tcid)]",
+      "old": "        if st.decision in (\"reject\", \"needs_info\"):\n            out[(\"g4_rejected\", tcid)]",
       "new": "        if False:\n            out[(\"g4_rejected\", tcid)]",
       "k": "g4_reject_at"
     },

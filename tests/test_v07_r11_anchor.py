@@ -19,7 +19,7 @@ import pytest
 from conftest import doc, rederive
 from test_v07_r9_anchor import AUDIT, FAUDIT, refix_nokey
 import sign_examples
-from vchlib.bundle import load_variant, reload_json
+from vchlib.bundle import Doc, load_variant, reload_json
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -85,11 +85,27 @@ def anchor(log, when, node="G4"):
                  "payload": {"reason": "phase_end", "anchor_counter": 0, "z3_countersignature": None}})
 
 
-def signed_resume(s, keys, who="alice", when="2026-10-12T09:00:00+08:00", from_status="SUSPENDED"):
+def g0a_reverify(s, when, record_id="GR-G0a-0003", outcome="VERIFIED"):
+    """r14 (internal review A7; docs/03 §5.2 run_resume -> G0a_engagement_check): the engagement re-verification a resume
+    writes: a copy of the run's G0a record decided at `when`, listed in run.gate_records, with its gate_decision event."""
+    src = doc(s, "gate-record.followup.g0a.example.json")
+    rec = copy.deepcopy(src.data)
+    rec.update({"gate_record_id": record_id, "outcome": outcome, "opened_at": when, "timestamp": when})
+    s.docs.append(Doc(src.path.replace("g0a", "g0a-resume"), "gate-record", rec, ""))
+    run = doc(s, FRUN).data
+    run["gate_records"].append({"gate": "G0a", "gate_record_id": record_id, "outcome": outcome, "round": 1,
+                                "subject_hash": rec["artifact"]["sha256"], "job_id": None, "opened_at": when, "decided_at": when})
+    append(doc(s, FAUDIT), {"event_type": "gate_decision", "node": "G0a", "ts": when,
+                            "payload": {"gate": "G0a", "gate_record_id": record_id, "outcome": outcome, "gate_record_sha256": None}})
+
+
+def signed_resume(s, keys, who="alice", when="2026-10-12T09:00:00+08:00", from_status="SUSPENDED", reverify=True):
     log = doc(s, FAUDIT)
     append(log, {"event_type": "run_resume", "node": "G4", "ts": when, "actor": {"kind": "human", "id": who},
                  "payload": {"from_status": from_status, "person_id": who, "reason": "ROE 重新簽署後恢復"}})
     resume_line(s, when)
+    if reverify:                                                      # r14: every resume re-verifies the engagement (G0a)
+        g0a_reverify(s, when)
     anchor(log, when)
     rederive(s, keys)
 

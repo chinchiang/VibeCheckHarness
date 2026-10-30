@@ -187,7 +187,7 @@
       "target_id": "tgt-staging-api",
       "method": "dns_txt",
       "ok": true,
-      "checked_at": "2026-10-01T09:30:00+08:00",
+      "checked_at": "2026-10-01T20:30:00+08:00",
       "batch_id": "own-2026-10-01-1",
       "signed_result_ref": "sha256:22e6399178522507134530b6da13fcff195f6a65cfb4973c1c88968bae841521"
     },
@@ -195,7 +195,7 @@
       "target_id": "tgt-staging-app",
       "method": "well_known_path",
       "ok": true,
-      "checked_at": "2026-10-01T09:30:00+08:00",
+      "checked_at": "2026-10-01T20:30:00+08:00",
       "batch_id": "own-2026-10-01-1",
       "signed_result_ref": "sha256:09f71321ae9f341a484d4ae241f002d48babd0dae265ea44f1b610b30e64c130"
     },
@@ -203,7 +203,7 @@
       "target_id": "tgt-canary",
       "method": "dns_txt",
       "ok": true,
-      "checked_at": "2026-10-01T09:30:00+08:00",
+      "checked_at": "2026-10-01T20:30:00+08:00",
       "batch_id": "own-2026-10-01-1",
       "signed_result_ref": "sha256:65fc31e7792457fff205fe0987cd0634e6ed854c666a4911fd4b8e175652aa02"
     },
@@ -211,7 +211,7 @@
       "target_id": "tgt-staging-db",
       "method": "db_comment",
       "ok": true,
-      "checked_at": "2026-10-01T09:30:00+08:00",
+      "checked_at": "2026-10-01T20:30:00+08:00",
       "batch_id": "own-2026-10-01-1",
       "signed_result_ref": "sha256:dd6b69e37959711407e107c89b7ec007b8dd986f13371014397125af6bb88dc4"
     }
@@ -299,7 +299,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:8cada9c5238bb8d2dd47964cd33852308cd50ad39eb72dcd2c2688c3b8dfc955",
+  "report_manifest_ref": "sha256:59fc2cd50b7e600736150ceb75fb6b3f7bd4ba76a78e6d7255f247fb4f49fe89",
   "gate_records": [
     {
       "gate": "G0a",
@@ -349,7 +349,7 @@
       "subject_hash": "sha256:ec1386984a79b0c5c709b4b84e48da2381b877aa68b0a4d686eb05e763c50f5e",
       "job_id": null,
       "opened_at": "2026-10-01T08:59:00+08:00",
-      "decided_at": "2026-10-01T09:00:00+08:00"
+      "decided_at": "2026-10-01T20:00:00+08:00"
     },
     {
       "gate": "G3",
@@ -358,7 +358,7 @@
       "round": 1,
       "subject_hash": "sha256:bf9de98ebd52b958f715dc30a8ea3bffe186da8f0ac8ae9a4437a56702303284",
       "job_id": null,
-      "opened_at": "2026-10-01T18:00:00+08:00",
+      "opened_at": "2026-10-01T21:00:00+08:00",
       "decided_at": "2026-10-02T10:15:00+08:00"
     },
     {
@@ -422,43 +422,43 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:05ba2001119ed4658bce3f3b676d22a88885a66ea6fd40621b3e46beedfd3364"
+      "line_sha256": "sha256:d61f86e46da98d9ae0fcd4c14d9bd8743538477688f82ca9dd6dd753ad1a08bf"
     },
     {
       "seq": 13,
-      "line_sha256": "sha256:8e013c3bfe397567a840a230f84925600f5bd894897a3ff934bd478d41570823"
+      "line_sha256": "sha256:edbb980ec0ee1fb5a07dadb6c3a6dc2ef4f7658ce480d6d15a3f02b8a08829dc"
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:2d9b066cdbdc18b81123baa4d34fafe1af6c60be3802d41da1a7281d45cc492e"
+      "line_sha256": "sha256:48ba25b84eef2acfeeddd22afbf7bd9f4bd3b9ffe533b4a20db1e3e774d0eabf"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:44eec5714823e04f403f8123bfc6c605c7100c10407a03e90174c995d51b44b2"
+      "line_sha256": "sha256:b88450fbb4674d972c2bd81f6852e662f362b18cff4588cea30c091fcd14be81"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:6cb20419ad68e9de27993112c70b293cc2e867313d4c76ca28875ecc30e0aabb"
+      "line_sha256": "sha256:f7c7065998663864f2e137972febeb23509976011ecf47ff3472d573a44bb167"
     },
     {
       "seq": 37,
-      "line_sha256": "sha256:b3107fc1119d19f18fe12a031e2377269dd395a63066ba25da41699c09a4afd4"
+      "line_sha256": "sha256:b4384c0813903f9c01bee2be68c31153028ce09e661f802db11be1b23af681ed"
     },
     {
       "seq": 43,
-      "line_sha256": "sha256:b7ca349ffcc211f474e2d46fa8e28ada6e7e015ccac98995c89c9a0db5291b21"
+      "line_sha256": "sha256:281d9d0789126c32c955b9d2dd99d22d63483f3bc39a5b3d80560f77245f3796"
     },
     {
       "seq": 48,
-      "line_sha256": "sha256:3f418e94302d5e923768e1b82f04befedb59f6c6b3032bf4ef0d48e335725241"
+      "line_sha256": "sha256:ee47b7fec65049d603597f38f986d976829b2a3c5f276d8dd40a720da0df89b7"
     },
     {
       "seq": 55,
-      "line_sha256": "sha256:9f8eb4ca591828d63eeb72bd2f338745e6f5bee717706dfce2533b0bf661d53b"
+      "line_sha256": "sha256:211580ac9faf48b487c111131c934b52cf8a0bdc910ff202926334ae52ef6fa3"
     },
     {
       "seq": 63,
-      "line_sha256": "sha256:556d251927fd20985a1d7178534751da8211cb237b67f5bd13126689dd8f7bee"
+      "line_sha256": "sha256:6b26c34007fd49c59c1749a812a178cd88e12d0bdb7306317be4ae4a93e4edbb"
     }
   ],
   "errors": [],
