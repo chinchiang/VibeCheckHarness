@@ -167,11 +167,11 @@
   "audit_anchors": [
     {
       "seq": 6,
-      "line_sha256": "sha256:b0de82a24434940db180d1524cd6680c6787e385ccbe2540bf4bdb327bfaa02b"
+      "line_sha256": "sha256:fdf1a9b74aabb1e0c5321a9b5a957ea01db2ae4b7827356a06de26b5121dec74"
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:077a6b3b71d1cce7fcabf055f7d85d665a90d512628b9cf41caacfa3b2c6df23"
+      "line_sha256": "sha256:81a044b7f058b00fee7f34c776700f6b9dd92d2a60d47d855a38afedde09f2ff"
     }
   ],
   "errors": [],

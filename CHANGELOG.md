@@ -4,6 +4,22 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.14`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）。
 
+## 第十四輪審查（2026-10-30）
+
+依 [2026-10-30 設計審查（第十四輪，內部三組審查）](docs/evidence/review-2026-10-30-r14.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）對 `main@6b4dfb0`，最嚴重的項目由主審查者重跑確認；三處設計變更（W4 事先登記、帶入叢集不投票、Lite 單機 profile 待訂）是使用者決定。
+
+### validator 繞過的十項（PR1；`rule_version` 不變）
+- **Z3 job 事件的 zone 與 node 必須一致**（`E-JOB-AUDIT`）：之前把 Z3 job 的事件標成 W0／W1／W4 就逃過全部 B4 規則（不在 `run.jobs` 也不報、不需要 G0b／G4／G5、不受所有權時序與時窗約束）。現在 zone `Z3` 的 `sandbox_job_*` 必須 node `B4` 且 job 在 `run.jobs`，B 節點不得在其他 zone，W0／W1／W4 的 job 必須 zone `Z2`；`run_structure` 的 B 階段判定改為「zone Z3 或 node ∈ B0–B6」。
+- **沒有結果的 job 也受 G4、時窗與所有權約束**（`E-JOB-G4`、`E-RUN-WINDOW`）：G4 核准、時窗與所有權檢查原本都在「每筆 testresult」的迴圈內，INTERRUPTED 或沒寫結果的 job 全部跳過。現在每個有 `sandbox_job_start` 的 job 在開始時都要有生效的 G4 核准、事件要在 ROE 有效期與時窗內，G5 的 S2 時窗不再只對有結果的 job 檢查。
+- **完成的 run 不得留下沒跑的 job**（`E-JOB-AUDIT`、`E-RUN-GAPS`）：G4 核准卻沒跑的 job 原本不是缺口，run 照樣 COMPLETED。現在完成的 run 不得有 PENDING／SNAPSHOTTED／EXECUTING 的 job；INTERRUPTED／STOPPED 是 `stopped` 缺口；G4 最終 `needs_info`、或 `testcase_ids` 裡沒有任何 G4 決定涵蓋的案例，是 `g4_rejected` 缺口。
+- **對目標的所有活動都在時窗內**（`E-RUN-WINDOW`）：`ownership_check`、`snapshot_*`、`restore_*`、`restore_drill` 與 Z3 的 job 事件都必須在 ROE 有效期與時窗內。出貨的主範例原本 G0b 09:00、B0 09:30 落在時窗外；G0b、B0、B1、G3 與 `restore_drill` 的時間移進 20:00–23:00 的時窗，`regression` 變體的跟進 run 補一筆時窗內的 `ownership_check`。
+- **`VERIFY_FAILED` 之後必須停**（`E-GATE-ORDER`、`E-GATE-G0-VERIFY`）：G0a／G0b `VERIFY_FAILED` 之後的下一筆非錨點事件必須是 `run_status_changed → ABORTED`／`SUSPENDED`；紀錄至少一個 `signer_results[].ok == false` 或有 `reason`。
+- **resume 重驗 G0a 與所有權**（`E-RUN-RESUME`、`E-RUN-OWNERSHIP`）：每個 `run_resume` 之後、下一個工作或關卡事件之前要有 VERIFIED 的 G0a；resume 之後的每個 Z3 job 開始前要有該目標的 ok `ownership_check`（02 §1.6、03 §5.4 本來就這樣寫，validator 沒檢查）。
+- **終止狀態之後只允許 run_end 錨點**（`E-RUN-STATUS`）：之前 B5 裁決、報告草稿與 `report_published` 都可以寫在終態之後。
+- **`baseline_run_id` 必須是更早的祖先**（`E-RUN-BASELINE`，新）：`initial` run 必須 null；其餘必須沿 `parent_run_id` 可達且更早開始；`run_created` payload 新增必填 `baseline_run_id`，由錨定的事件釘住（`E-RUN-COMMIT`）。三個範例 log 補上。
+- **GB `EXPIRED` 紀錄寫得出來**（`E-GATE-OUTCOME`）：`gb.choice` 可為 null；EXPIRED 的紀錄不得帶 `choice`／`new_caps`，其餘仍走 choice→outcome 映射。之前 02 §1.3 的 GB EXPIRED → SUSPENDED 路徑無法記錄。
+- 新增 `tests/test_v07_r14_validator.py`（34 個；在 `6b4dfb0` 上 32 個失敗，另 2 個是防誤報）與 `tests/mutations/r14_validator.json`（27，全部 CAUGHT）；`test_v07_r11_anchor.py` 的 `signed_resume` 預設補一筆 G0a 重驗；狀態列與 `r9_examples`、`r10_docs`、`r11_docs`、`r12_examples`、`r12_external2` 的錨點隨第十四輪更新，`r9_anchor`、`r11_anchor`、`r12_run` 的錨點隨程式文字更新。
+
 ## 第十三輪審查（2026-10-29）
 
 依 [2026-10-29 第三次外部審查（第十三輪）](docs/evidence/review-2026-10-29-r13.md)：規格凍結後的第一次外部審查（對 `main@6f50a79`），四項程式缺陷以記憶體 probe 重現成立，四項規格矛盾與兩處過時文字也成立；依凍結規則屬於「外部審查核實成立的缺陷」。

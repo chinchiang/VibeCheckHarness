@@ -21,7 +21,7 @@
   "required":["item_id","item_sha256","decision","risk_override","note","carried_from"]},"minItems":1},
 "gb":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{
   "phase":{"enum":["W","B","run_total"]},
-  "choice":{"enum":["extend","stop_phase","abort"],"description":"extend→APPROVED；stop_phase→REJECTED；abort→APPROVED 且 run 轉 ABORTED"},
+  "choice":{"anyOf":[{"enum":["extend","stop_phase","abort"]},{"type":"null"}],"description":"extend→APPROVED；stop_phase→REJECTED；abort→APPROVED 且 run 轉 ABORTED；第十四輪：outcome EXPIRED 時為 null（沒有人決定，new_caps 也是 null；E-GATE-OUTCOME）"},
   "new_caps":{"anyOf":[{"$ref":"common.schema.json#/$defs/budget_caps"},{"type":"null"}],"description":"extend 時必填"},
   "tradeoffs":{"type":"array","items":{"type":"string"},"description":"例如降低 V、移除校準權重最低的家族；寫入報告"}},
   "required":["phase","choice","new_caps","tradeoffs"]},{"type":"null"}],"description":"只有 GB"},

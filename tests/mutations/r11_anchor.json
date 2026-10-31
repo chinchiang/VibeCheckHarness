@@ -25,8 +25,8 @@
     {
       "name": "a B-phase event after the resume needs a fresh G0b",
       "file": "tools/vchlib/checks.py",
-      "old": "                        R.check(False, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
-      "new": "                        R.check(True, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
+      "old": "                        R.check(False, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",\n                                f\"B-phase event {y.get('event_type')} after the resume",
+      "new": "                        R.check(True, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",\n                                f\"B-phase event {y.get('event_type')} after the resume",
       "k": "fresh_g0b"
     },
     {

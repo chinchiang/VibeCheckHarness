@@ -4,7 +4,7 @@
     {
       "name": "README names the latest round",
       "file": "README.md",
-      "old": "最新一份是第十三輪（外部審查）；",
+      "old": "最新一份是第十四輪（內部三組審查）；",
       "new": "最新一份是第十二輪；",
       "k": "readme_names_the_latest"
     },

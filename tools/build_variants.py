@@ -395,9 +395,11 @@ def v_regression(b: Bundle, keys) -> None:
     main_log = doc(b, "audit-event.run-2026-09-23-001.example.jsonl")
     own = copy.deepcopy(next(e for e in main_log.data if e["event_type"] == "ownership_check"))
     own["payload"]["batch_id"] = "own-2026-10-07-1"
-    _append(log, 23, {"event_type": "ownership_check", "node": "B0", "ts": "2026-10-07T10:27:00+08:00", "key": "ownership_check:own-2026-10-07-1",
+    # r14 (A4): target activity waits for the ROE window (Tue 20:00-23:00), so the check runs while the run waits at G4
+    waiting = next(i for i, e in enumerate(log.data, 1) if e["event_type"] == "run_status_changed" and e["payload"].get("to") == "WAITING_GATE")
+    _append(log, waiting + 1, {"event_type": "ownership_check", "node": "B0", "ts": "2026-10-07T20:30:00+08:00", "key": "ownership_check:own-2026-10-07-1",
                       "actor": own["actor"], "zone": own["zone"], "payload": own["payload"]})
-    frun["ownership_results"] = [dict(o, batch_id="own-2026-10-07-1", checked_at="2026-10-07T10:27:00+08:00")
+    frun["ownership_results"] = [dict(o, batch_id="own-2026-10-07-1", checked_at="2026-10-07T20:30:00+08:00")
                                  for o in doc(b, "run.example.json").data["ownership_results"]]
     main_g4 = doc(b, "gate-record.g4.example.json").data
     g4 = copy.deepcopy(main_g4)

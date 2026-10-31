@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十三輪審查（2026-10-29）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#03-系統架構)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#03-系統架構)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 元件總覽
 
@@ -612,7 +612,7 @@ stateDiagram-v2
   G4_gate --> suspended_wait: EXPIRED
 ```
 
-- `G0b_roe_check` 在 B 階段入口、每次 `run_resume` 之後都會執行。
+- `G0b_roe_check` 在 B 階段入口、每次 `run_resume` 之後都會執行。validator（第十四輪內部審查，`E-RUN-RESUME`、`E-RUN-OWNERSHIP`）：每次 resume 都重驗 G0a——`run_resume` 之後、下一個工作或關卡事件之前要有新的 `VERIFIED` G0a 決定；B 階段的 resume 另需對每個目標在下一個 job 之前有新的 ok `ownership_check`。之前只要求 B 階段事件前有新的 G0b。
 - **G0b 之前不讀 ROE** [H]：G0b 之前的節點（`run_init`、`G0a_engagement_check`、`W0_inventory`、Phase W、`LA_*`）不使用 ROE 的任何欄位，只用 G0a 已驗章的委任設定與工具包設定。W0 能不能用 `trufflehog:scan`，只看工具包層級的法務閘門是否已結案（adapter 是否註冊，[08 §2.3](08-implementation-spec.md#23-擴充介面)），不看 `legal_review`。
 - `G0b_roe_check` 同時檢查 ROE 的 `legal_review` 聲明（[06 §2.1.1](06-security-legal-limitations.md#211-roe-的法務審查聲明legal_reviewg0b-檢查h) 規則 L-1～L-6）[H]：L-1～L-4 失敗 → 「驗章失敗」邊（`roe_verify_failed`，理由如 `legal_review_missing`）；L-5（聲明者就是 `test_lead`）→ G0b 記為 `VERIFY_FAILED`（G0 的結果只有 `VERIFIED`／`VERIFY_FAILED`／`EXPIRED`），但 run 不走中止邊，而是等待 ROE 修正（`suspended_wait`）；L-6 → 法務閘門元件從允許清單移除並記為缺口；過濾後的允許工具清單寫入 G0b GateRecord 的 `verification` 區塊，B 階段（`CMD4_testplan`、`B3_derive`、B4 的 adapter）只用這份清單。`B4_preflight` 也檢查 ROE 與聲明都未到期，到期 → `suspended_wait`（不是 `abort_handler`）。
 - `B2_merge_critic` 在交 G3 前檢查兩個條件：每個種子威脅都在模型中；每個 `b1_diff` 項目都已處置。任一不成立就不開 G3（修復 ≤2 次後以程式碼補上 `seed-only` 威脅或「未處置」標記交 G3）[H]。
@@ -1328,7 +1328,7 @@ erDiagram
 - **錨點編號**[H]：Z3 Executor 對本委任每個副簽的錨點編上遞增的 `payload.anchor_counter`（1、2、3…，依收件順序，跨所有 run；計數器存在 Z3，不在 Z1）。編號在副簽範圍內（`event_sha256` 蓋住 payload）。validator 檢查所有 run 的編號不重複、不缺號、依收件時間遞增（`E-AUDIT-ANCHOR-GAP`）。v0.7 第八輪的錨點清單是從稽核檔推回 run 紀錄的，所以只控制 Z1 的人可以把已完成的 run 截回較早的錨點、刪掉之後產生的未簽署文件，validator 看不出來；現在被刪掉的編號會在之後的錨點（同一個 run 或其他 run）留下缺號。限制：委任中**最後**幾個錨點被截掉時，沒有之後的錨點可以比對；報告交付給客戶時附上當下的編號（§1.7 的外部錨點）才看得出來。
 - **run 紀錄跟著稽核檔**[H]：`run.status` 是最後一筆 `run_status_changed` 的 `to`，有 `run_end` 錨點的 run 一定是終止狀態（`E-RUN-STATUS`）；已錨定的 `run_created` 釘住 `repo_commit`，run 紀錄與 W0 inventory 必須相同（`E-RUN-COMMIT`）；已錨定的 `artifact_stored` 釘住 run 的 W／B 階段產物的 content hash：種子威脅（W5）、inventory 與 redaction map（W0）、合併與外部 DFD（B1）、每份 Commander 計畫（`plan_id`；審查 r11，之前只有種子威脅，已完成的 run 仍可改寫 inventory 的盲點與檔案）（`E-AUDIT-ARTIFACT`）；每筆 `run_status_changed` 的 `from` 接上一筆的 `to`，離開 `SUSPENDED`／`STOPPED` 必須有已錨定、人簽署的 `run_resume`，之後第一個 B 階段事件前要有新的 G0b `VERIFIED`（`E-RUN-RESUME`）；裁決以 `cluster_sha256` 釘住叢集，叢集以 `member_finding_sha256` 釘住成員發現項，所以已錨定的 `verdict_changed` 蓋住它所裁決的發現項。
 - **每個裁決版本都要有事件**：每一版裁決在其叢集所屬 run 的稽核檔中都要有一筆 `verdict_changed`（`payload.verdict_id` 與 `status` 相符）；沒有 → `E-AUDIT-VERDICT`。v0.4 只檢查已存在的事件，所以刪掉事件就能讓不一致的裁決躲過比對。
-- **B4 job 對帳**：`run.jobs` 中的 job、稽核檔的 `sandbox_job_start`／`sandbox_job_end` 與測試結果三者一致：有事件的 job 不能是 `SKIPPED`；已執行的 job（`EXECUTED`、`RESTORED`、`RESTORE_FAILED`）要有 `sandbox_job_end`，也要有 `job_id` 相符、`outcome` 與事件相同的測試結果（`E-JOB-AUDIT`）。v0.4 從不對帳，刪掉 FAIL 的結果再把 job 標成 `SKIPPED` 就能通過。
+- **B4 job 對帳**：`run.jobs` 中的 job、稽核檔的 `sandbox_job_start`／`sandbox_job_end` 與測試結果三者一致：有事件的 job 不能是 `SKIPPED`；已執行的 job（`EXECUTED`、`RESTORED`、`RESTORE_FAILED`）要有 `sandbox_job_end`，也要有 `job_id` 相符、`outcome` 與事件相同的測試結果（`E-JOB-AUDIT`）。v0.4 從不對帳，刪掉 FAIL 的結果再把 job 標成 `SKIPPED` 就能通過。**節點標籤不是權威，zone 才是**（第十四輪內部審查）：zone `Z3` 的 `sandbox_job_*` 事件一律是 B4 job，必須在 `run.jobs` 裡並受 G0b／G4／G5、時間窗與所有權規則約束，不論 `node` 寫成 W1、G4 還是 END；W0／W1／W4 的 job 必須在 zone `Z2`。完成的 run 不得有 `PENDING`／`EXECUTING` 的 job。終止狀態之後只允許 `run_end` 錨點，沒有任何其他事件（`E-RUN-STATUS`）。
 - **報告清單**：`report-manifest` 中 `audit_log` 產物的 sha256，等於 `report_published` 事件的 `prev_hash`，也就是發布之前的整份稽核紀錄。
 - **驗證**：`vibecheck audit verify <run-id>` 重算整條鏈並與錨點比對。
 - **尾端保護**（validator 強制）[H]：

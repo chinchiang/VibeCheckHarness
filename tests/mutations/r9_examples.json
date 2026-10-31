@@ -46,14 +46,14 @@
     {
       "name": "README lists every record",
       "file": "README.md",
-      "old": "、[第十三輪](docs/evidence/review-2026-10-29-r13.md) |",
+      "old": "、[第十三輪](docs/evidence/review-2026-10-29-r13.md)、[第十四輪](docs/evidence/review-2026-10-30-r14.md) |",
       "new": " |",
       "k": "readme_lists_every_review_record"
     },
     {
       "name": "00 links the latest record",
       "file": "docs/00-overview.md",
-      "old": "、[最新的審查紀錄（第十三輪，外部審查）](evidence/review-2026-10-29-r13.md)、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |",
+      "old": "、[最新的審查紀錄（第十四輪）](evidence/review-2026-10-30-r14.md)、[第十三輪](evidence/review-2026-10-29-r13.md)、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |",
       "new": "、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |",
       "k": "overview_links_the_latest"
     },

@@ -68,20 +68,20 @@
   ],
   "gb": null,
   "verification": null,
-  "opened_at": "2026-10-01T18:00:00+08:00",
+  "opened_at": "2026-10-01T21:00:00+08:00",
   "timestamp": "2026-10-02T10:15:00+08:00",
   "signatures": [
     {
       "signer": "alice",
       "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
       "alg": "ed25519",
-      "value": "j7F+CAccmMlB5UxTuezetiBVA6KEKbPw008ImTIjzdw6V4UBCCJGXLldJuBg64MFXfdasu0q6QV0V/BGn15zBA=="
+      "value": "BqnC7UGHo62tsqhy8TCFARm0kjGWDvWSFVC8UaTUpnSqiEJ0ncT1Q+/4v0gEHB7b4xT1eSi+NvJUBv9xKAJgBw=="
     },
     {
       "signer": "alice",
       "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o",
       "alg": "ed25519",
-      "value": "j7F+CAccmMlB5UxTuezetiBVA6KEKbPw008ImTIjzdw6V4UBCCJGXLldJuBg64MFXfdasu0q6QV0V/BGn15zBA=="
+      "value": "BqnC7UGHo62tsqhy8TCFARm0kjGWDvWSFVC8UaTUpnSqiEJ0ncT1Q+/4v0gEHB7b4xT1eSi+NvJUBv9xKAJgBw=="
     }
   ]
 }

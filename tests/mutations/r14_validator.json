@@ -1,0 +1,194 @@
+{
+  "tests": "tests/test_v07_r14_validator.py",
+  "mutations": [
+    {
+      "name": "A1: a Z3 job may hide behind any node",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if e.get(\"zone\") == \"Z3\":\n            R.check(e.get(\"node\") == \"B4\", \"E-JOB-AUDIT\", where,",
+      "new": "        if e.get(\"zone\") == \"Z3\":\n            R.check(True, \"E-JOB-AUDIT\", where,",
+      "k": "z3_job_cannot_hide"
+    },
+    {
+      "name": "A1: a Z3 job labelled W1 is not in run.jobs",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(jid in jobs, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")\n        elif e.get(\"node\") in B_NODES:",
+      "new": "            R.check(True, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")\n        elif e.get(\"node\") in B_NODES:",
+      "k": "z3_job_cannot_hide"
+    },
+    {
+      "name": "A1: a Z3 job labelled W1 needs no G0b",
+      "file": "tools/vchlib/checks.py",
+      "old": "                and (node not in (\"W0\", \"W1\", \"W4\") or e.get(\"zone\") == \"Z3\"):",
+      "new": "                and (node not in (\"W0\", \"W1\", \"W4\")):",
+      "k": "labelled_w1_is_still_a_b_phase"
+    },
+    {
+      "name": "A1: a B4 job in Z2",
+      "file": "tools/vchlib/checks.py",
+      "old": "        elif e.get(\"node\") in B_NODES:\n            R.check(False, \"E-JOB-AUDIT\", where,",
+      "new": "        elif e.get(\"node\") in B_NODES:\n            R.check(True, \"E-JOB-AUDIT\", where,",
+      "k": "b4_job_runs_in_z3"
+    },
+    {
+      "name": "A1: a W4 job outside Z2",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(e.get(\"node\") in (\"W0\", \"W1\", \"W4\") and e.get(\"zone\") == \"Z2\", \"E-JOB-AUDIT\", where,",
+      "new": "            R.check(True, \"E-JOB-AUDIT\", where,",
+      "k": "w4_job_runs_in_z2"
+    },
+    {
+      "name": "A2: the G4 approval in force at the job start",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(st.decision == \"accept\" and st.approved_since is not None and start > st.approved_since, \"E-JOB-G4\", jw,",
+      "new": "    R.check(True, \"E-JOB-G4\", jw,",
+      "k": "needs_its_g4_approval_first"
+    },
+    {
+      "name": "A2 / A4: target activity outside the window",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(at is not None and rnb is not None and rna is not None and rnb <= at <= rna and timeutil.in_any_window(at, windows),\n                \"E-RUN-WINDOW\",",
+      "new": "        R.check(True,\n                \"E-RUN-WINDOW\",",
+      "k": "still_keeps_the_window or ownership_check_runs_inside or restore_drill_runs_inside or before_the_roe_is_valid"
+    },
+    {
+      "name": "A2: only Z3 jobs with a result touched the target",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if isinstance(job, dict) and (job.get(\"status\") in JOB_RAN_STATES or job_span(c, run.get(\"run_id\"), jid)[0] is not None):",
+      "new": "        if isinstance(job, dict) and job.get(\"status\") in JOB_RAN_STATES:",
+      "k": "started_job_needs_an_ownership_result"
+    },
+    {
+      "name": "A3: an interrupted job is no gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        elif isinstance(job, dict) and job.get(\"status\") in (\"INTERRUPTED\", \"STOPPED\"):",
+      "new": "        elif False:",
+      "k": "interrupted_job_is_a_gap"
+    },
+    {
+      "name": "A3: a PENDING job in a completed run",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(job.get(\"status\") not in (\"PENDING\", \"SNAPSHOTTED\", \"EXECUTING\"), \"E-JOB-AUDIT\", where,",
+      "new": "            R.check(True, \"E-JOB-AUDIT\", where,",
+      "k": "pending_approved_job_cannot_sit"
+    },
+    {
+      "name": "A4: the ownership check is not target activity",
+      "file": "tools/vchlib/checks.py",
+      "old": "TARGET_EVENTS = (\"ownership_check\", \"snapshot_created\", \"snapshot_restored\", \"restore_failed\", \"restore_drill\")",
+      "new": "TARGET_EVENTS = (\"snapshot_created\", \"snapshot_restored\", \"restore_failed\")",
+      "k": "ownership_check_runs_inside_the_window or restore_drill_runs_inside"
+    },
+    {
+      "name": "A5: a VERIFY_FAILED need not abort",
+      "file": "tools/vchlib/checks.py",
+      "old": "            R.check(nxt is not None and nxt.get(\"event_type\") == \"run_status_changed\"\n                    and (nxt.get(\"payload\") or {}).get(\"to\") in (\"ABORTED\", \"SUSPENDED\"), \"E-GATE-ORDER\", where,",
+      "new": "            R.check(True, \"E-GATE-ORDER\", where,",
+      "k": "verify_failed_g0b_must_abort"
+    },
+    {
+      "name": "A5: an all-ok VERIFY_FAILED",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(any(not r[\"ok\"] for r in real) or any(r.get(\"reason\") for r in ver.get(\"signer_results\") or [] if isinstance(r, dict)),",
+      "new": "                    R.check(True,",
+      "k": "verify_failed_record_names_what_failed"
+    },
+    {
+      "name": "A6: needs_info at the end of G4 is no gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if st.decision in (\"reject\", \"needs_info\"):\n            out[(\"g4_rejected\", tcid)] = f\"{st.decision} at G4\"",
+      "new": "        if st.decision in (\"reject\",):\n            out[(\"g4_rejected\", tcid)] = f\"{st.decision} at G4\"",
+      "k": "final_needs_info_at_g4_is_a_gap"
+    },
+    {
+      "name": "A6: an undecided testcase is no gap",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if tc and (tc.data.get(\"tool_binding\") or {}).get(\"kind\") != \"MANUAL\" and tcid not in g4_states:",
+      "new": "            if False:",
+      "k": "no_g4_decision_covers"
+    },
+    {
+      "name": "A7: no G0a after a resume",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    if y.get(\"event_type\") in WORK_EVENTS + (\"gate_decision\", \"verdict_changed\", \"ownership_check\") or y.get(\"node\") in B_NODES:\n                        R.check(False, \"E-RUN-RESUME\",",
+      "new": "                    if y.get(\"event_type\") in WORK_EVENTS + (\"gate_decision\", \"verdict_changed\", \"ownership_check\") or y.get(\"node\") in B_NODES:\n                        R.check(True, \"E-RUN-RESUME\",",
+      "k": "resume_without_a_new_g0a_is_rejected"
+    },
+    {
+      "name": "A7: a failed G0a re-verification",
+      "file": "tools/vchlib/checks.py",
+      "old": "                        R.check(yp.get(\"outcome\") == \"VERIFIED\", \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
+      "new": "                        R.check(True, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
+      "k": "failed_g0a_re_verification"
+    },
+    {
+      "name": "A7: no ownership re-check after a B-phase resume",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(bool(later), \"E-RUN-OWNERSHIP\", f\"{w} seq {e.get('seq')}\",",
+      "new": "                    R.check(True, \"E-RUN-OWNERSHIP\", f\"{w} seq {e.get('seq')}\",",
+      "k": "re_checks_ownership_before_the_next_job"
+    },
+    {
+      "name": "A8: events after the terminal status",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if prev in TERMINAL_RUN_STATES and e.get(\"event_type\") != \"audit_anchor\":",
+      "new": "        if False:",
+      "k": "run_end_anchor_follows_a_terminal_status"
+    },
+    {
+      "name": "A9: an initial run with a baseline",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(base is None, \"E-RUN-BASELINE\", w, f\"an initial run has no baseline, got {base!r}\")",
+      "new": "        R.check(True, \"E-RUN-BASELINE\", w, f\"an initial run has no baseline, got {base!r}\")",
+      "k": "initial_run_has_no_baseline"
+    },
+    {
+      "name": "A9: a baseline that is no ancestor",
+      "file": "tools/vchlib/checks.py",
+      "old": "        R.check(base in ancestors, \"E-RUN-BASELINE\", w,",
+      "new": "        R.check(True, \"E-RUN-BASELINE\", w,",
+      "k": "baseline_is_an_ancestor"
+    },
+    {
+      "name": "A9: the baseline is not pinned",
+      "file": "tools/vchlib/checks.py",
+      "old": "        for k in (\"run_kind\", \"trigger\", \"baseline_run_id\"):",
+      "new": "        for k in (\"run_kind\", \"trigger\"):",
+      "k": "baseline_is_pinned_by_run_created"
+    },
+    {
+      "name": "A9: run_created without the baseline",
+      "file": "docs/schemas/audit-event.schema.json",
+      "old": "\"required\":[\"repo_commit\",\"baseline_run_id\"]",
+      "new": "\"required\":[\"repo_commit\"]",
+      "k": "run_created_without_the_baseline"
+    },
+    {
+      "name": "A10: an EXPIRED GB still mapped through its choice",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if rec.get(\"outcome\") == \"EXPIRED\":\n                    # r14 (internal review A10",
+      "new": "                if False:\n                    # r14 (internal review A10",
+      "k": "expired_gb_record_can_be_written"
+    },
+    {
+      "name": "A10: an EXPIRED GB with a choice",
+      "file": "tools/vchlib/checks.py",
+      "old": "                    R.check(gb.get(\"choice\") is None and gb.get(\"new_caps\") is None, \"E-GATE-OUTCOME\", w,",
+      "new": "                    R.check(True, \"E-GATE-OUTCOME\", w,",
+      "k": "expired_gb_record_carries_no_choice"
+    },
+    {
+      "name": "A10: the schema forbids a null choice",
+      "file": "docs/schemas/gate-record.schema.json",
+      "old": "\"choice\":{\"anyOf\":[{\"enum\":[\"extend\",\"stop_phase\",\"abort\"]},{\"type\":\"null\"}],",
+      "new": "\"choice\":{\"anyOf\":[{\"enum\":[\"extend\",\"stop_phase\",\"abort\"]}],",
+      "k": "expired_gb_record_can_be_written"
+    },
+    {
+      "name": "docs: 02 without the r14 rules",
+      "file": "docs/02-methodology.md",
+      "old": "都必須在 ROE 有效期間與時間窗內（`E-RUN-WINDOW`）",
+      "new": "都必須在 ROE 有效期間與時間窗內",
+      "k": "02_and_03_state_the_r14_rules"
+    }
+  ]
+}
