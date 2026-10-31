@@ -1,0 +1,243 @@
+{
+  "tests": "tests/test_v07_r14_verdict.py",
+  "mutations": [
+    {
+      "name": "B1: the chain stops at the direct source",
+      "file": "tools/vchlib/checks.py",
+      "old": "        proof = result_testcases(c, src, {\"E_proof\"})\n        if proof:\n            return proof\n",
+      "new": "        return result_testcases(c, src, {\"E_proof\"})\n",
+      "k": "follow_the_carried_chain"
+    },
+    {
+      "name": "B1: an empty requirement is still fixable",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return bool(required) and bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"})",
+      "new": "    return bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"})",
+      "k": "never_fixed"
+    },
+    {
+      "name": "B1: no E_fail_u fallback",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if not fallback:\n            fallback = result_testcases(c, src, {\"E_fail_u\"})\n",
+      "new": "        pass\n",
+      "k": "only_a_reproduced_fail_requires"
+    },
+    {
+      "name": "B1: regression_fixed needs a confirmed source verdict (moved from r11_verdict)",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if not src or src.get(\"status\") not in adj.CONFIRMED:",
+      "new": "    if not src:",
+      "k": "non_confirmed_source_with_a_proof"
+    },
+    {
+      "name": "B7: a carried cluster may vote",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if cl.data.get(\"carried_from\"):\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
+      "new": "            if False:\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
+      "k": "carried_cluster_accepts_no_votes"
+    },
+    {
+      "name": "B7: a refute still contradicts a fix",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "        if x.strong_tool or x.weak_sarif:\n            notes.add(\"fix_contradicted\")",
+      "new": "        if x.strong_tool or x.weak_sarif or x.weighted_refute:\n            notes.add(\"fix_contradicted\")",
+      "k": "row_15_is_decided_by_tool_signals"
+    },
+    {
+      "name": "B2: the verifier pool ignores shared observations",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if m and m.get(\"family\") not in fams and c.ix.lineage_root(m.get(\"lineage\")) not in lins and isinstance(m.get(\"family\"), str) \\\n                and not derive.shares_observation(c.ix, a.get(\"model\"), cluster):",
+      "new": "        if m and m.get(\"family\") not in fams and c.ix.lineage_root(m.get(\"lineage\")) not in lins and isinstance(m.get(\"family\"), str):",
+      "k": "merged_with_the_reporter"
+    },
+    {
+      "name": "B2: a vote ignores shared observations",
+      "file": "tools/vchlib/derive.py",
+      "old": "    if ix is not None and shares_observation(ix, v.get(\"voter_model_key\"), cluster,",
+      "new": "    if False and shares_observation(ix, v.get(\"voter_model_key\"), cluster,",
+      "k": "merged_with_the_reporter"
+    },
+    {
+      "name": "C3: a code-generated oracle needs only oracle_can_pass",
+      "file": "tools/vchlib/derive.py",
+      "old": "            return controls_of_kind_pass(tc, tr, \"oracle_can_pass\") is True and controls_of_kind_pass(tc, tr, \"oracle_can_fail\") is True",
+      "new": "            return controls_of_kind_pass(tc, tr, \"oracle_can_pass\") is True",
+      "k": "code_generated_oracle_needs_both_controls"
+    },
+    {
+      "name": "C3: an LLM-written oracle is pre-registered without G2",
+      "file": "tools/vchlib/derive.py",
+      "old": "        return cluster is not None and g2_accepted(ix, cluster) and controls_of_kind_pass(tc, tr, control_kind) is True",
+      "new": "        return controls_of_kind_pass(tc, tr, control_kind) is True",
+      "k": "llm_written_w4_fail_is_not_proof_before_g2 or analyst_cannot_stand_in or annotated_oracle_unreviewed"
+    },
+    {
+      "name": "C3: an analyst stands in for G2",
+      "file": "tools/vchlib/derive.py",
+      "old": "        if oracle_unreviewed(ix, tc, tr, cluster):\n            return \"E_fail_u\", \"reproduced FAIL, LLM-written W4 oracle not yet accepted at G2 (oracle_unreviewed)\"\n",
+      "new": "",
+      "k": "analyst_cannot_stand_in or llm_written_w4_fail_is_not_proof_before_g2 or annotated_oracle_unreviewed"
+    },
+    {
+      "name": "C3: unit tests count as code-generated",
+      "file": "tools/vchlib/derive.py",
+      "old": "CODE_ORACLE_KINDS = (\"local_rls\", \"fake_model\")",
+      "new": "CODE_ORACLE_KINDS = (\"local_rls\", \"fake_model\", \"unit\")",
+      "k": "llm_written_w4_fail_is_not_proof_before_g2 or analyst_cannot_stand_in or annotated_oracle_unreviewed"
+    },
+    {
+      "name": "C3: no oracle_unreviewed annotation",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "    if x.oracle_unreviewed:\n        out.annotations.add(\"oracle_unreviewed\")",
+      "new": "    if False:\n        out.annotations.add(\"oracle_unreviewed\")",
+      "k": "annotated_oracle_unreviewed"
+    },
+    {
+      "name": "C3: the schema forgets the annotation",
+      "file": "docs/schemas/verdict.schema.json",
+      "old": ",\n              \"oracle_unreviewed\"\n",
+      "new": "\n",
+      "k": "verdict_schema_knows_oracle_unreviewed"
+    },
+    {
+      "name": "B5: apps need not sum to n",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if sum(apps.values()) != n:\n        return f\"{split}.apps sum to {sum(apps.values())}, not n {n}\"\n",
+      "new": "",
+      "k": "split_names_its_applications"
+    },
+    {
+      "name": "B5: apps need not be corpus applications",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if corpus_split is not None:\n        wrong = sorted(k for k in apps if corpus_split.get(k) != split)",
+      "new": "    if False:\n        wrong = sorted(k for k in apps if corpus_split.get(k) != split)",
+      "k": "split_names_its_applications or high_precision_rows_name"
+    },
+    {
+      "name": "B5: the schema accepts n_apps again",
+      "file": "docs/schemas/calibration.schema.json",
+      "old": "      \"required\": [\n        \"precision\",\n        \"recall\",\n        \"ci_low\",\n        \"ci_high\",\n        \"n\",\n        \"tp\",\n        \"apps\"\n      ],",
+      "new": "      \"additionalProperties\": true,\n      \"required\": [\n        \"precision\",\n        \"recall\",\n        \"ci_low\",\n        \"ci_high\",\n        \"n\",\n        \"tp\",\n        \"apps\"\n      ],",
+      "k": "self_declared_n_apps"
+    },
+    {
+      "name": "B6: the equal-size design effect",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return 1 + (sum(m * m for m in counts) / n - 1) * icc\n",
+      "new": "    return 1 + (n / len(counts) - 1) * icc\n",
+      "k": "design_effect_uses_the_actual_counts or unequal_applications_is_lower"
+    },
+    {
+      "name": "B6: icc is pinned, not a floor",
+      "file": "tools/vchlib/checks.py",
+      "old": "    R.check(not res or have_icc == want_icc, \"E-CAL-POLICY\", w,",
+      "new": "    R.check(True, \"E-CAL-POLICY\", w,",
+      "k": "icc_is_a_floor"
+    },
+    {
+      "name": "B6: no floor on icc",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if not (isinstance(v, (int, float)) and not isinstance(v, bool) and v >= want):",
+      "new": "                if False:",
+      "k": "icc_is_a_floor"
+    },
+    {
+      "name": "B6: the holdout generalises on its point estimate",
+      "file": "tools/vchlib/checks.py",
+      "old": "                if t.get(\"generalised\") is True and not (num(ho.get(\"ci_low\")) and ho[\"ci_low\"] >= ts.get(\"confirm_wilson_lower_floor\", 0)):",
+      "new": "                if False:",
+      "k": "holdout_generalises_on_its_confidence_bound"
+    },
+    {
+      "name": "B6: the holdout needs no ten applications",
+      "file": "tools/vchlib/checks.py",
+      "old": "            if t.get(\"generalised\") is True and split_n_apps(ho) < min_apps:\n",
+      "new": "            if False:\n",
+      "k": "holdout_generalises_on_its_confidence_bound"
+    },
+    {
+      "name": "B6: the high-precision holdout needs no bound",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if h_low < lim - HOLDOUT_MARGIN:\n",
+      "new": "        if False:\n",
+      "k": "high_precision_holdout_of_ten"
+    },
+    {
+      "name": "B3: h1 is declared",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if ph.get(\"h1\") is not h1:\n",
+      "new": "    if False:\n",
+      "k": "primary_hypothesis_is_derived"
+    },
+    {
+      "name": "B3: the holdout size is declared",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if not (type(hn) is int and hn >= need):\n",
+      "new": "    if False:\n",
+      "k": "primary_hypothesis_is_derived"
+    },
+    {
+      "name": "B3: no design effect in the sample size",
+      "file": "tools/vchlib/checks.py",
+      "old": "    n1 = math.ceil(n0 * (1 + (m - 1) * rho) - 1e-9)\n",
+      "new": "    n1 = n0\n",
+      "k": "required_holdout_n_matches"
+    },
+    {
+      "name": "B3: the exploratory interval is not checked",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if all(num(x) for x in (elo, ehi, ed)) and not elo <= ed <= ehi:\n",
+      "new": "    if False:\n",
+      "k": "primary_hypothesis_is_derived"
+    },
+    {
+      "name": "B3: the outcome is declared",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if ph.get(\"outcome\") != want:\n",
+      "new": "    if False:\n",
+      "k": "primary_hypothesis_is_derived"
+    },
+    {
+      "name": "B9: doc_sha256 is not compared",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if pre.get(\"doc_sha256\") != want:\n",
+      "new": "    if False:\n",
+      "k": "preregistration_controls"
+    },
+    {
+      "name": "B9: frozen_at may follow the first holdout access",
+      "file": "tools/vchlib/checks.py",
+      "old": "        if accesses and fro > min(accesses):\n",
+      "new": "        if False:\n",
+      "k": "preregistration_controls"
+    },
+    {
+      "name": "B9: an empty access log is fine",
+      "file": "tools/vchlib/checks.py",
+      "old": "    if any(type(x) is int and x > 0 for x in ho_n) and not accesses:\n",
+      "new": "    if False:\n",
+      "k": "preregistration_controls"
+    },
+    {
+      "name": "B8: abstentions as coin flips",
+      "file": "tools/vchlib/checks.py",
+      "old": "    return side.get(\"correct\", 0), side.get(\"n\", 0) + na\n",
+      "new": "    return side.get(\"correct\", 0) + na / 2 if na else side.get(\"correct\", 0), side.get(\"n\", 0) + na\n",
+      "k": "abstention_is_a_denominator or example_weights_count_abstentions"
+    },
+    {
+      "name": "rule_version 05-v0.15",
+      "file": "tools/vchlib/adjudicate.py",
+      "old": "RULE_VERSION = \"05-v0.15\"",
+      "new": "RULE_VERSION = \"05-v0.14\"",
+      "k": "rule_version_is_05_v0_15"
+    },
+    {
+      "name": "docs: 06 without #45",
+      "file": "docs/06-security-legal-limitations.md",
+      "old": "| 45 | **LLM 撰寫的 W4 測試在人審前不能單獨確認**",
+      "new": "| 45 | **LLM 撰寫的 W4 測試在人審前不能確認**",
+      "k": "02_05_06_state_the_r14_rules"
+    }
+  ]
+}

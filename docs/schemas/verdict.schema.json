@@ -360,7 +360,7 @@
     },
     "provisional": {
       "type": "boolean",
-      "description": "推導值：calibration_version 為 null，或本裁決每張票的 weight 都是 0（沒有票也算），或 theta_confirm 為 null（E-VERDICT-PROVISIONAL）"
+      "description": "推導值（E-VERDICT-PROVISIONAL，docs/05 §4.2）：calibration_version 為 null，或 theta_confirm 為 null，或叢集每個合格驗證者模型在該桶兩邊的權重都是 0；由 R9／R10／R0／R1（第 1–5 列）、強工具佐證的 R5（第 10 列）、R14（第 14、15 列）、R16（第 16 列）決定的裁決與黑箱叢集一律 false"
     },
     "score": {
       "type": "number",
@@ -428,7 +428,8 @@
               "refute_by_later_member_family",
               "fix_contradicted",
               "regression_failed",
-              "fix_unverified"
+              "fix_unverified",
+              "oracle_unreviewed"
             ]
           },
           "reason": {
@@ -454,7 +455,7 @@
     },
     "rule_version": {
       "type": "string",
-      "description": "docs/05 規則版本；必須等於 run.rule_version 與 vchlib.adjudicate.RULE_VERSION（目前 05-v0.14）"
+      "description": "docs/05 規則版本；必須等於 run.rule_version 與 vchlib.adjudicate.RULE_VERSION（目前 05-v0.15）"
     },
     "rule_trace": {
       "type": "array",
@@ -463,7 +464,7 @@
         "pattern": "^R([0-9]|1[0-6])(:.*)?$"
       },
       "minItems": 1,
-      "description": "依序觸發的規則（R0–R15），可附說明；說明裡的 ->狀態 與 名稱=數字 必須等於重算值（docs/05 §4.2，BL-01）"
+      "description": "依序觸發的規則（R0–R16），可附說明；說明裡的 ->狀態 與 名稱=數字 必須等於重算值（docs/05 §4.2，BL-01）"
     }
   },
   "required": [

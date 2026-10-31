@@ -35,7 +35,7 @@ def pin_calibration(b, keys):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_10(b):
-    assert adj.RULE_VERSION == "05-v0.14" and run_all(b).errors == []
+    assert adj.RULE_VERSION == "05-v0.15" and run_all(b).errors == []
 
 
 # ================================================================ calibration policy
@@ -71,9 +71,9 @@ def test_a_thresholds_split_statistics_come_from_its_raw_counts(b, keys):
 
 def test_a_wilson_bound_that_does_not_match_the_counts_is_an_error(b, keys):
     ho = doc(b, "calibration.yaml").data["result"]["thresholds"]["theta_confirm"]["holdout"]
-    ho["ci_low"] = 0.9                                           # tp 47 of n 52 from 13 applications gives 0.7839 (r13: n_eff)
+    ho["ci_low"] = 0.9                                           # tp 48 of n 52 from 13 applications, icc 0.06, gives 0.8064 (r13 / r14: n_eff)
     pin_calibration(b, keys)
-    assert any("holdout.ci_low 0.9 but recomputed 0.7839" in i.msg for i in errors(b, "E-CAL-THETA"))
+    assert any("holdout.ci_low 0.9 but recomputed 0.8064" in i.msg for i in errors(b, "E-CAL-THETA"))
 
 
 def test_tp_above_n_is_not_a_count(b, keys):

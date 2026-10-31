@@ -16,16 +16,9 @@
       "k": "pass_and_an_error"
     },
     {
-      "name": "some qualified PASS is required",
-      "file": "tools/vchlib/checks.py",
-      "old": " and any(qualified(x) for x in results) \\\n        and all(",
-      "new": " \\\n        and all(",
-      "k": "source_without_an_executable_proof"
-    },
-    {
       "name": "rule_version 05-v0.12",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.14\"",
+      "old": "RULE_VERSION = \"05-v0.15\"",
       "new": "RULE_VERSION = \"05-v0.11\"",
       "k": "rule_version_is_05_v0_12"
     },

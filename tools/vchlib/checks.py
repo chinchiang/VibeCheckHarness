@@ -12,6 +12,7 @@ Signatures are real Ed25519 over RFC 8785 JCS; the example keys are TEST ONLY fi
 """
 from __future__ import annotations
 
+import copy
 import datetime as dt
 import math
 import re
@@ -3072,7 +3073,8 @@ def vote_model(c: Ctx, vt: dict) -> dict | None:
 
 def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
     """model key -> models.yaml entry of every agents.yaml `verifier` whose registry family is not in
-    cluster.families and whose registry lineage is not in cluster.lineages (never self-declared)."""
+    cluster.families, whose registry lineage is not in cluster.lineages (never self-declared) and whose independence key
+    is none of the members' (r14, 05-v0.15)."""
     fams, lins = set(cluster.get("families") or []), c.ix.lineage_roots(cluster.get("lineages"))   # v0.6: base lineages
     # v0.5 (review 2026-10-25 §4.3): a verifier that may not receive the run's data class (engagement allowed_models)
     # can never vote on it; counting it inflated |E| and left C-class clusters diversity_degraded for good
@@ -3085,7 +3087,10 @@ def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
         if allowed and a.get("model") not in allowed:
             continue
         m = c.model(a.get("model"))
-        if m and m.get("family") not in fams and c.ix.lineage_root(m.get("lineage")) not in lins and isinstance(m.get("family"), str):
+        # r14 (05-v0.15, internal review B2): nor a model that shares an independent observation with a reporter
+        # (derive.member_observation_keys): the same grouping S, the sources and diversity already use
+        if m and m.get("family") not in fams and c.ix.lineage_root(m.get("lineage")) not in lins and isinstance(m.get("family"), str) \
+                and not derive.shares_observation(c.ix, a.get("model"), cluster):
             out[a.get("model")] = m
     return out
 
@@ -3272,8 +3277,10 @@ def sarif_is_strong(c: Ctx, cluster: dict, ref) -> bool:
         return False
     version = (e.get("payload") or {}).get("tool_version")
     lim = high_precision_min(c)
+    cfg = c.calibration.get("config") or {}
     return any(isinstance(h, dict) and h.get("adapter") == adapter and h.get("rule_id") == rule and h.get("tool_version") == version
-               and h.get("cwe_bucket") == cluster.get("cwe_bucket") and not high_precision_problems(h, lim)
+               and h.get("cwe_bucket") == cluster.get("cwe_bucket")
+               and not high_precision_problems(h, lim, clustering_icc(cfg), corpus_splits(cfg))
                for h in (c.calibration.get("result") or {}).get("high_precision_rules") or [])
 
 
@@ -3332,11 +3339,13 @@ def clopper_pearson_lower(k, n, alpha: float = 0.05) -> float:
     return lo
 
 
-def high_precision_problems(h: dict, lim: float) -> list[str]:
+def high_precision_problems(h: dict, lim: float, icc=None, corpus_split: dict | None = None) -> list[str]:
     """v0.6 (review r7 3.5): a high_precision_rules row is recomputed from its raw counts, never trusted: n = tp + fp
-    >= 40 from at least clustering.min_apps applications, precision_lower95 = the Clopper-Pearson lower bound of tp / n on
-    the design-effect-adjusted n_eff (r13, 05-v0.14; docs/05 §5.7) (+-0.0005) and >= high_precision_min, and the holdout
-    split has n >= 10 with a point precision >= high_precision_min - 0.05 (docs/05 §5.10)."""
+    >= 40 from at least clustering.min_apps applications (named in `apps`, r14 05-v0.15), precision_lower95 = the
+    Clopper-Pearson lower bound of tp / n on the design-effect-adjusted n_eff (r13, 05-v0.14; docs/05 §5.7; r14: the design
+    effect of the actual per-application counts) (+-0.0005) and >= high_precision_min, and the holdout split (named in
+    `holdout_apps`) has n >= 10, a point precision >= high_precision_min - 0.05 and (r14, B6) a Clopper-Pearson lower bound
+    on its n_eff >= high_precision_min - 0.05 (docs/05 §5.10)."""
     tp, fp, n = h.get("tp"), h.get("fp"), h.get("n")
     if not all(isinstance(x, int) for x in (tp, fp, n)):
         return ["tp, fp and n are required counts"]
@@ -3345,25 +3354,34 @@ def high_precision_problems(h: dict, lim: float) -> list[str]:
             or h.get("holdout_tp") > h.get("holdout_n"):
         return [f"counts tp {tp!r} / fp {fp!r} / n {n!r} / holdout {h.get('holdout_tp')!r}/{h.get('holdout_n')!r} must be non-negative "
                 "integers with holdout_tp <= holdout_n (E-CAL-COUNT)"]       # v0.7 (review r8, external review 4)
-    apps, h_apps = h.get("n_apps"), h.get("holdout_n_apps")
-    if not (type(apps) is int and 1 <= apps <= max(n, 1) and type(h_apps) is int and 1 <= h_apps <= max(h.get("holdout_n"), 1)):
-        return [f"n_apps {apps!r} / holdout_n_apps {h_apps!r} must count the distinct applications of each split (1..n)"]
+    for split, key, cnt in (("calibration", "apps", n), ("holdout", "holdout_apps", h.get("holdout_n"))):
+        prob = apps_problem(h.get(key), cnt, corpus_split, split)
+        if prob:
+            return [prob.replace(f"{split}.apps", key)]
+    icc = CAL_POLICY["clustering"]["icc"] if icc is None else icc
+    apps, h_apps = len(h.get("apps") or {}), len(h.get("holdout_apps") or {})
     if n != tp + fp:
         out.append(f"n {n} != tp + fp {tp + fp}")
     if n < HIGH_PRECISION_MIN_N:
         out.append(f"n {n} < {HIGH_PRECISION_MIN_N}")
     min_apps = CAL_POLICY["clustering"]["min_apps"]
     if apps < min_apps:
-        out.append(f"n_apps {apps} < clustering.min_apps {min_apps}")
-    n_eff = effective_n(tp + fp, apps)
+        out.append(f"apps {apps} < clustering.min_apps {min_apps}")
+    n_eff = effective_n_of(h.get("apps"), icc)
     low = clopper_pearson_lower(tp / (tp + fp) * n_eff if tp + fp else 0, n_eff)
     if abs((h.get("precision_lower95") or 0) - round(low, 4)) > 5e-4:
-        out.append(f"precision_lower95 {h.get('precision_lower95')} != recomputed {round(low, 4)} (n_eff {n_eff:.2f} on {apps} applications)")
+        out.append(f"precision_lower95 {h.get('precision_lower95')} != recomputed {round(low, 4)} (n_eff {n_eff:.2f} on {apps} applications, icc {icc})")
     if low < lim:
         out.append(f"lower bound {round(low, 4)} < high_precision_min {lim}")
     hn, htp = h.get("holdout_n"), h.get("holdout_tp")
     if not (isinstance(hn, int) and isinstance(htp, int)) or hn < HOLDOUT_MIN_N or htp / hn < lim - HOLDOUT_MARGIN:
         out.append(f"holdout {htp}/{hn} needs n >= {HOLDOUT_MIN_N} and precision >= {round(lim - HOLDOUT_MARGIN, 4)}")
+    elif hn:
+        h_eff = effective_n_of(h.get("holdout_apps"), icc)
+        h_low = clopper_pearson_lower(htp / hn * h_eff, h_eff)
+        if h_low < lim - HOLDOUT_MARGIN:
+            out.append(f"holdout lower bound {round(h_low, 4)} (n_eff {h_eff:.2f} on {h_apps} applications) < {round(lim - HOLDOUT_MARGIN, 4)}: "
+                       "the holdout generalises on its confidence bound, not on the point estimate")
     return out
 
 
@@ -3480,7 +3498,18 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         regression_fixed=regression_fixed(c, v, cluster, run),
         carried_status=carried_status(c, cluster, run),
         later_member_overlap=any(derive.later_member_overlap(c.ix, x, cluster) for x in votes),
+        oracle_unreviewed=oracle_unreviewed(c, v, cluster),
     )
+
+
+def oracle_unreviewed(c: Ctx, v: dict, cluster: dict) -> bool:
+    """r14 (05-v0.15, internal review C3, user decision): a linked W4 result classifies as E_fail_u only because an LLM wrote
+    its oracle and G2 has not accepted the cluster (derive.classify_result); the verdict is annotated `oracle_unreviewed`."""
+    for tr in derive.linked_results(c.ix, cluster, v.get("readjudicated_by")):
+        cls, why = derive.classify_result(c.ix, tr, cluster)
+        if cls == "E_fail_u" and "oracle_unreviewed" in why:
+            return True
+    return False
 
 
 def carried_source(c: Ctx, cluster: dict, run: dict) -> dict | None:
@@ -3542,9 +3571,36 @@ def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
     by_case: dict = {}
     for x in results:
         by_case.setdefault(result_testcase(c, x.get("result_ref")), []).append(x)
-    required = result_testcases(c, src, {"E_proof"})
-    return bool(classes) and not (classes & {"E_proof", "E_fail_u"}) and any(qualified(x) for x in results) \
+    required = required_regression_testcases(c, cluster, run)
+    return bool(required) and bool(classes) and not (classes & {"E_proof", "E_fail_u"}) \
         and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)
+
+
+def required_regression_testcases(c: Ctx, cluster: dict, run: dict) -> set:
+    """r14 (05-v0.15, internal review B1): the testcases a FIXED needs, found by following the carried_from chain back to the
+    first head verdict that holds an E_proof (the proof that established the defect), or, when no verdict of the chain
+    ever had one, the first that holds an E_fail_u (a test that was at least shown to fail). 05-v0.12-05-v0.14 read the
+    proving testcases from the immediate source only: a chain whose middle run kept the status through R16 (no E_proof
+    of its own) handed the next run an empty requirement, so any one qualified PASS was FIXED; a CONFIRMED_CORROBORATED
+    source (votes or a scanner rule, no test) did the same. An empty set means the cluster can never be FIXED here (R16,
+    fix_unverified): a fix nobody can show a failing test for is not a verified fix."""
+    seen = set()
+    cl, rn = cluster, run
+    fallback: set = set()
+    while True:
+        src = carried_source(c, cl, rn)
+        if not src or id(src) in seen:
+            return fallback
+        seen.add(id(src))
+        proof = result_testcases(c, src, {"E_proof"})
+        if proof:
+            return proof
+        if not fallback:
+            fallback = result_testcases(c, src, {"E_fail_u"})
+        cd = c.ix.first("cluster", cluster_id=src.get("cluster_id"))
+        if cd is None:
+            return fallback
+        cl, rn = cd.data, c.runs.get(src.get("run_id")) or {}
 
 
 def max_vote_round(c: Ctx, v: dict, cluster: dict) -> int | None:
@@ -3643,6 +3699,13 @@ def g_verdicts(R: Report, c: Ctx):
                     "verifier model has weight 0 in the cluster's bucket)")
             R.check(v.get("rule_version") == adj.RULE_VERSION, "E-VERDICT-RULE-VERSION", w,
                     f"rule_version {v.get('rule_version')!r} is not the adjudicator's {adj.RULE_VERSION!r}")
+            # r14 (05-v0.15, internal review B7, user decision): a carried-in cluster has no members of its own to verify;
+            # its status is decided by regression evidence only (R14 / R16), never by votes (a lone REFUTE made it
+            # DISPUTED, a stronger one REJECTED and then R16 lifted it back to the source status)
+            if cl.data.get("carried_from"):
+                R.check(not v.get("votes") and not v.get("missing_votes"), "E-VERDICT-VOTE", w,
+                        f"{v.get('cluster_id')} is a carried-in cluster (carried_from): it accepts no votes and no missing_votes; "
+                        "its status comes from the regression tests (docs/05 §4.2 R14 / R16)")
             out = adj.adjudicate(verdict_inputs(c, v, cl.data))
             R.check(v.get("status") == out.status, "E-VERDICT-STATUS", w, f"status {v.get('status')} but the rules give {out.status} (row {out.row})")
             R.check(v.get("status_cap") == out.status_cap, "E-VERDICT-STATUS", w, f"status_cap {v.get('status_cap')} != {out.status_cap}")
@@ -5331,13 +5394,14 @@ def lr_weights(tpr: float, tnr: float) -> dict:
 
 
 def effective_counts(side: dict) -> tuple:
-    """v0.7 (review r10, rule_version 05-v0.9): (correct, n) with every abstention counted as a coin flip, half right and
-    half wrong: an abstention carries no information, so it is scored as a guess. The rates and the Wilson bound use
-    these counts; v0.7 r9 used the answered cases only, so abstaining on the hard cases kept the accuracy and the weight
-    (abstain_rate_max stays as a hard cap)."""
+    """(correct, n + n_abstain): the rate of one side is P(the model takes the right stance | the case), over every case it
+    was asked, so an abstention is a case it did not get right (docs/05 §4.3). r14 (05-v0.15, internal review B8): 05-v0.9
+    scored an abstention as half a right answer, so the support rate P(SUPPORT | defect) was no longer a probability and
+    the weight no longer a log likelihood ratio: a 27% abstainer kept a higher support weight than its votes earned and
+    its refute weight was understated. v0.7 r9 used the answered cases only (abstain_rate_max stays as a hard cap)."""
     na = side.get("n_abstain", 0)
     na = na if type(na) is int and na > 0 else 0
-    return side.get("correct", 0) + na / 2 if na else side.get("correct", 0), side.get("n", 0) + na
+    return side.get("correct", 0), side.get("n", 0) + na
 
 
 def abstain_rate(side: dict) -> float:
@@ -5396,18 +5460,164 @@ CAL_POLICY = {
     "high_precision_min": 0.9,                       # r12: result.thresholds.high_precision_min.value (docs/05 §5.10)
     "independence_unit": "family",                   # second external review of r12 (05-v0.13): docs/05 §4.3
     # third external review (r13, 05-v0.14; docs/05 §5.7): defects of one application are correlated, so a bucket's
-    # interval is computed on n_eff = n / (1 + (n / n_apps - 1) * icc) and needs at least min_apps distinct applications
+    # interval is computed on the design-effect-adjusted n_eff and needs at least min_apps distinct applications.
+    # r14 (05-v0.15, internal review B6): icc is a FLOOR; the file must carry max(0.05, result.primary_hypothesis.rho_observed)
     "clustering": {"min_apps": 10, "icc": 0.05},
 }
 
 
+def design_effect(counts, icc) -> float:
+    """r14 (05-v0.15, internal review B6; docs/05 §5.7): the design effect of clusters of unequal size, DE = 1 + (sum(m_i^2) / n
+    - 1) * icc with m_i the clusters per application (equal sizes give the familiar 1 + (m - 1) * icc). 05-v0.14 used the
+    equal-size formula on n / n_apps, so 41 hits with 32 from one application were treated like 4 per application."""
+    counts = [m for m in counts if isinstance(m, int) and not isinstance(m, bool) and m > 0]
+    n = sum(counts)
+    if not n:
+        return 1.0
+    return 1 + (sum(m * m for m in counts) / n - 1) * icc
+
+
+def effective_n_of(apps: dict, icc) -> float:
+    """n / DE for a split's `apps` map ({app_id: clusters from that application}); 0 for an empty map."""
+    counts = list((apps or {}).values())
+    n = sum(m for m in counts if isinstance(m, int) and not isinstance(m, bool) and m > 0)
+    return n / design_effect(counts, icc) if n else 0.0
+
+
+def apps_problem(apps, n, corpus_split: dict | None, split: str) -> str | None:
+    """r14 (05-v0.15, internal review B5): a split statistic names the applications its n clusters come from, `apps` =
+    {app_id: count}; n is their sum, every app_id is a corpus application of that split. 05-v0.14 took `n_apps` as written,
+    so `n_apps = n` switched the design effect off and satisfied min_apps by itself."""
+    if n == 0:
+        return None if not apps else f"{split}.apps must be empty when n = 0, got {sorted(apps)}"
+    if not isinstance(apps, dict) or not apps:
+        return f"{split}.apps must map each application to its number of clusters (n {n})"
+    bad = [k for k, m in apps.items() if type(m) is not int or m < 1]
+    if bad:
+        return f"{split}.apps {bad} must count at least one cluster each"
+    if sum(apps.values()) != n:
+        return f"{split}.apps sum to {sum(apps.values())}, not n {n}"
+    if corpus_split is not None:
+        wrong = sorted(k for k in apps if corpus_split.get(k) != split)
+        if wrong:
+            return f"{split}.apps {wrong} are not corpus applications of the {split} split"
+    return None
+
+
+def corpus_splits(cfg: dict) -> dict:
+    """app_id -> split of config.corpus."""
+    return {x.get("app_id"): x.get("split") for x in cfg.get("corpus") or [] if isinstance(x, dict)}
+
+
+def required_holdout_n(delta, psi, rho, alpha=0.05, power=0.8, m=9, attrition=0.05) -> int:
+    """docs/05 §5.5 (the sample size of the pre-registered primary hypothesis, step by step): the McNemar normal
+    approximation n0 = [z_{1-a/2} sqrt(psi) + z_{1-b} sqrt(psi - delta^2)]^2 / delta^2, times the design effect
+    1 + (m - 1) rho of m defects per application, divided by (1 - attrition); each step rounded up. r14 (05-v0.15,
+    internal review B3): re-estimated with the observed psi / rho (step "樣本數重估"), the validator checks holdout_n_final
+    against it (E-CAL-HYPOTHESIS)."""
+    if not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (delta, psi, rho)) or delta <= 0 or psi <= delta * delta:
+        return 0
+    z_a = {0.05: 1.959964, 0.01: 2.575829, 0.1: 1.644854}.get(alpha, 1.959964)
+    z_b = {0.8: 0.841621, 0.9: 1.281552}.get(power, 0.841621)
+    n0 = math.ceil((z_a * math.sqrt(psi) + z_b * math.sqrt(psi - delta * delta)) ** 2 / (delta * delta) - 1e-9)
+    n1 = math.ceil(n0 * (1 + (m - 1) * rho) - 1e-9)
+    return math.ceil(n1 / (1 - attrition) - 1e-9)
+
+
+def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
+    """r14 (05-v0.15, internal review B3; docs/05 §5.6): the primary hypothesis fields are derived from the interval, never
+    declared: h1 = ci_low > 0; h2 is evaluated only when h1 holds (fixed-sequence procedure) and is null otherwise; the
+    outcome follows (multi_family_wins / recall_only / single_best_wins when ci_high < 0 / not_shown); ci_low <= delta <=
+    ci_high; holdout_n_final >= the sample size re-estimated with the observed psi / rho (not below the registered
+    assumptions); the exploratory interval is ordered and contains its point estimate. The shipped example had ci_low
+    0.02 > 0 with h1 false, h2 true under a failed H1, an exploratory interval with ci_low > ci_high and a holdout below
+    the re-estimated size, and nothing read these fields."""
+    out = []
+    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
+    ph, pre = res.get("primary_hypothesis") or {}, cfg.get("preregistration") or {}
+    lo, hi, d = ph.get("ci_low"), ph.get("ci_high"), ph.get("delta")
+    if not all(num(x) for x in (lo, hi, d)):
+        return ["primary_hypothesis: delta, ci_low and ci_high are required numbers"]
+    if not lo <= d <= hi:
+        out.append(f"primary_hypothesis: delta {d} is outside its interval [{lo}, {hi}]")
+    h1 = lo > 0
+    if ph.get("h1") is not h1:
+        out.append(f"primary_hypothesis: h1 {ph.get('h1')!r} but ci_low {lo} {'>' if h1 else '<='} 0 gives {h1}")
+    h2 = ph.get("h2")
+    if h1 and not isinstance(h2, bool):
+        out.append("primary_hypothesis: h2 must be decided (true / false) when H1 holds")
+    if not h1 and h2 is not None:
+        out.append(f"primary_hypothesis: h2 {h2!r} but H2 is not evaluated when H1 fails (fixed-sequence procedure): null")
+    want = ("multi_family_wins" if h2 else "recall_only") if h1 else ("single_best_wins" if hi < 0 else "not_shown")
+    if ph.get("outcome") != want:
+        out.append(f"primary_hypothesis: outcome {ph.get('outcome')!r} but h1 {h1} / h2 {h2!r} / ci_high {hi} give {want!r}")
+    psi = max(x for x in (pre.get("psi_assumed"), ph.get("psi_observed")) if num(x)) if any(num(x) for x in (pre.get("psi_assumed"), ph.get("psi_observed"))) else None
+    rho = max(x for x in (pre.get("rho_assumed"), ph.get("rho_observed")) if num(x)) if any(num(x) for x in (pre.get("rho_assumed"), ph.get("rho_observed"))) else None
+    need = required_holdout_n(pre.get("min_effect"), psi, rho, pre.get("alpha", 0.05))
+    hn = ph.get("holdout_n_final")
+    if not (type(hn) is int and hn >= need):
+        out.append(f"primary_hypothesis: holdout_n_final {hn!r} < {need}, the sample size re-estimated with psi {psi} and rho {rho} "
+                   f"(docs/05 §5.5: min_effect {pre.get('min_effect')}, m = 9, attrition 5%)")
+    ex = res.get("exploratory") or {}
+    elo, ehi, ed = ex.get("ci_low"), ex.get("ci_high"), ex.get("recall_diff_vs_arm3")
+    if all(num(x) for x in (elo, ehi, ed)) and not elo <= ed <= ehi:
+        out.append(f"exploratory: recall_diff_vs_arm3 {ed} is outside its interval [{elo}, {ehi}] (ci_low <= estimate <= ci_high)")
+    return out
+
+
+def preregistration_problems(cfg: dict, res: dict) -> list[str]:
+    """r14 (05-v0.15, internal review B9; docs/05 §5.6): the pre-registration controls have teeth. doc_sha256 is the content
+    hash of the registered configuration itself (config with preregistration.doc_sha256 set to null), so the configuration
+    the thresholds were searched under cannot change silently after registration; result.frozen_at (when theta, the weights
+    and the high-precision list were frozen) is not before registered_at and not after the first holdout access; any
+    holdout statistic with n > 0 needs at least one holdout_access_log entry (somebody read the holdout to compute it)."""
+    out = []
+    pre = cfg.get("preregistration") or {}
+    frozen = copy.deepcopy(cfg)
+    if isinstance(frozen.get("preregistration"), dict):
+        frozen["preregistration"]["doc_sha256"] = None
+    want = content_hash(frozen)
+    if pre.get("doc_sha256") != want:
+        out.append(f"preregistration.doc_sha256 {pre.get('doc_sha256')!r} != {want} (the content hash of config with doc_sha256 null)")
+
+    def when(v):
+        try:
+            return timeutil.parse_dt(v)
+        except timeutil.TimeError:
+            return None
+    reg, fro = when(pre.get("registered_at")), when(res.get("frozen_at"))
+    accesses = [when(h.get("at")) for h in res.get("holdout_access_log") or [] if isinstance(h, dict)]
+    accesses = [a for a in accesses if a is not None]
+    if fro is None:
+        out.append("result.frozen_at is required: when theta, the weights and the high-precision list were frozen")
+    else:
+        if reg is not None and fro < reg:
+            out.append(f"result.frozen_at {res.get('frozen_at')} is before preregistration.registered_at {pre.get('registered_at')}")
+        if accesses and fro > min(accesses):
+            out.append(f"result.frozen_at {res.get('frozen_at')} is after the first holdout access {min(accesses).isoformat()}: "
+                       "theta, the weights and the high-precision list are frozen before the holdout is read")
+    ho_n = [((t.get("holdout") or {}).get("n") if isinstance(t, dict) else 0) for name, th in (res.get("thresholds") or {}).items()
+            for t in [th] + list(((th or {}).get("by_bucket") or {}).values())]
+    ho_n += [h.get("holdout_n") for h in res.get("high_precision_rules") or [] if isinstance(h, dict)]
+    if any(type(x) is int and x > 0 for x in ho_n) and not accesses:
+        out.append("holdout statistics are reported but holdout_access_log is empty: every holdout read is logged")
+    return out
+
+
 def effective_n(n, n_apps, icc=None) -> float:
-    """docs/05 §5.7 (05-v0.14): the design-effect-adjusted sample size of n clusters drawn from n_apps applications with
-    intra-application correlation icc (the same rho as §5.5 step 5): n_eff = n / (1 + (m - 1) * icc), m = n / n_apps."""
+    """docs/05 §5.7 (05-v0.14): the design-effect-adjusted sample size of n clusters drawn from n_apps applications of EQUAL
+    size with intra-application correlation icc: n_eff = n / (1 + (m - 1) * icc), m = n / n_apps. The validator uses
+    effective_n_of (per-application counts, r14); this is the equal-size special case the documentation's examples use."""
     icc = CAL_POLICY["clustering"]["icc"] if icc is None else icc
     if not n or not n_apps:
         return 0.0
     return n / (1 + (n / n_apps - 1) * icc)
+
+
+def clustering_icc(cfg: dict) -> float:
+    """config.clustering.icc as the file states it (policy_problems / g_calibration check it against the floor and rho_observed)."""
+    v = (cfg.get("clustering") or {}).get("icc")
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else CAL_POLICY["clustering"]["icc"]
 
 
 def policy_problems(cfg: dict) -> list[str]:
@@ -5417,6 +5627,12 @@ def policy_problems(cfg: dict) -> list[str]:
     for block, sec in (("near_zero_rules", "§4.3"), ("threshold_search", "§5.7"), ("clustering", "§5.7")):
         have = cfg.get(block) or {}
         for key, want in CAL_POLICY[block].items():
+            if block == "clustering" and key == "icc":
+                # r14 (05-v0.15, B6): a floor, not a pin; g_calibration checks it equals max(floor, rho_observed)
+                v = have.get("icc")
+                if not (isinstance(v, (int, float)) and not isinstance(v, bool) and v >= want):
+                    out.append(f"clustering.icc {v!r} is below the floor {want} (docs/05 {sec}: the measured rho replaces it only upward)")
+                continue
             if have.get(key) != want:
                 out.append(f"{block}.{key} {have.get(key)!r} != {want} (docs/05 {sec})")
     # second external review of r12 (05-v0.13): one family is one observation; a family is split into its base lineages
@@ -5443,27 +5659,35 @@ def wilson_upper(correct, n, z=1.959964):
     return (centre + margin) / den
 
 
-def split_problems(label: str, split: str, s: dict) -> list[tuple[str, str]]:
+def split_problems(label: str, split: str, s: dict, icc=None, corpus_split: dict | None = None) -> list[tuple[str, str]]:
     """r11: a threshold's split statistics are recomputed from the raw counts (tp of n), as the high-precision rules'
     are: precision = tp / n and the Wilson 95% bounds (0 when n = 0). v0.7 took precision and ci_low as written, so a
     threshold's feasibility was checked against numbers the same file declared. recall needs the corpus positives and
-    stays declared."""
+    stays declared. r13 (05-v0.14): the bounds use the design-effect-adjusted n_eff. r14 (05-v0.15, B5 / B6): the
+    applications are named (`apps`, apps_problem) and the design effect uses their actual counts (design_effect)."""
     out = []
     num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
-    tp, n, apps = s.get("tp"), s.get("n"), s.get("n_apps")
+    tp, n, apps = s.get("tp"), s.get("n"), s.get("apps")
     if not (type(tp) is int and type(n) is int and 0 <= tp <= n):
         return [(label, f"{split}: tp {tp!r} of n {n!r} is not a count")]
-    # third external review (r13, 05-v0.14): the clusters of one application are correlated, so the Wilson bounds use the
-    # design-effect-adjusted n_eff (docs/05 §5.7); n_apps counts the distinct applications the n clusters come from
-    if not (type(apps) is int and 0 <= apps <= n and (apps > 0 or n == 0)):
-        return [(label, f"{split}: n_apps {apps!r} must count the distinct applications of the n {n} clusters (1..n)")]
-    n_eff = effective_n(n, apps)
+    prob = apps_problem(apps, n, corpus_split, split)
+    if prob:
+        return [(label, prob)]
+    icc = CAL_POLICY["clustering"]["icc"] if icc is None else icc
+    n_eff = effective_n_of(apps, icc)
     want = {"precision": tp / n if n else 0.0, "ci_low": wilson_lower(tp / n * n_eff if n else 0, n_eff),
             "ci_high": wilson_upper(tp / n * n_eff if n else 0, n_eff)}
     for k, v in want.items():
         if not (num(s.get(k)) and abs(s[k] - round(v, 4)) <= 5e-4):
-            out.append((label, f"{split}.{k} {s.get(k)!r} but recomputed {v:.4f} from tp {tp} of n {n} (n_eff {n_eff:.2f} on {apps} applications)"))
+            out.append((label, f"{split}.{k} {s.get(k)!r} but recomputed {v:.4f} from tp {tp} of n {n} (n_eff {n_eff:.2f} on "
+                               f"{len(apps or {})} applications, icc {icc})"))
     return out
+
+
+def split_n_apps(s: dict) -> int:
+    """The number of applications a split statistic names (len of `apps`)."""
+    apps = s.get("apps")
+    return len(apps) if isinstance(apps, dict) else 0
 
 
 def theta_problems(cal: dict) -> list[tuple[str, str]]:
@@ -5481,24 +5705,35 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
     ts = cfg.get("threshold_search") or {}
     out = []
     num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
+    icc, splits = clustering_icc(cfg), corpus_splits(cfg)
     for name in ("theta_confirm", "theta_reject"):
         th = (res.get("thresholds") or {}).get(name) or {}
         for label, t in [(name, th)] + [(f"{name}/{b}", x) for b, x in (th.get("by_bucket") or {}).items()]:
-            if not isinstance(t, dict) or t.get("feasible") is not True:
+            if not isinstance(t, dict):
                 continue
             cs, ho = t.get("calibration") or {}, t.get("holdout") or {}
+            # r14 (05-v0.15, B5): every stated split names its applications consistently, feasible or not
+            for split, st in (("calibration", cs), ("holdout", ho)):
+                prob = apps_problem(st.get("apps"), st.get("n") if type(st.get("n")) is int else 0, splits, split)
+                if prob:
+                    out.append((label, prob))
+            if t.get("feasible") is not True:
+                continue
             if name in ("theta_confirm", "theta_reject"):
-                out += split_problems(label, "calibration", cs) + split_problems(label, "holdout", ho)
+                out += split_problems(label, "calibration", cs, icc, splits) + split_problems(label, "holdout", ho, icc, splits)
             # v0.7 (review r10): a holdout of one cluster says nothing about generalising (the same floor as the
             # high-precision rules' holdout)
             if t.get("generalised") is True and not (num(ho.get("n")) and ho["n"] >= HOLDOUT_MIN_N):
                 out.append((label, f"generalised on a holdout of {ho.get('n')} clusters: needs n >= {HOLDOUT_MIN_N}"))
             if not (num(cs.get("n")) and cs["n"] >= ts.get("min_clusters", 0)):
                 out.append((label, f"feasible on {cs.get('n')} clusters: the search needs min_clusters {ts.get('min_clusters')}"))
-            # r13 (05-v0.14): 40 clusters from three applications are not 40 observations (docs/05 §5.7)
+            # r13 (05-v0.14): 40 clusters from three applications are not 40 observations (docs/05 §5.7); r14 (05-v0.15, B5):
+            # the applications are the ones the split names, on the holdout too
             min_apps = (cfg.get("clustering") or {}).get("min_apps", CAL_POLICY["clustering"]["min_apps"])
-            if not (num(cs.get("n_apps")) and cs["n_apps"] >= min_apps):
-                out.append((label, f"feasible on {cs.get('n_apps')} applications: the search needs clustering.min_apps {min_apps}"))
+            if split_n_apps(cs) < min_apps:
+                out.append((label, f"feasible on {split_n_apps(cs)} applications: the search needs clustering.min_apps {min_apps}"))
+            if t.get("generalised") is True and split_n_apps(ho) < min_apps:
+                out.append((label, f"generalised on a holdout of {split_n_apps(ho)} applications: needs clustering.min_apps {min_apps}"))
             if name == "theta_confirm":
                 floor = ts.get("confirm_precision_floor", 0)
                 if not (num(cs.get("precision")) and cs["precision"] >= floor):
@@ -5508,6 +5743,10 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
                                        f"{ts.get('confirm_wilson_lower_floor')}"))
                 if t.get("generalised") is True and not (num(ho.get("precision")) and ho["precision"] >= floor - 0.05):
                     out.append((label, f"generalised with holdout precision {ho.get('precision')}: below {floor} - 0.05"))
+                # r14 (05-v0.15, B6): the holdout generalises on its confidence bound too, not on the point estimate alone
+                if t.get("generalised") is True and not (num(ho.get("ci_low")) and ho["ci_low"] >= ts.get("confirm_wilson_lower_floor", 0)):
+                    out.append((label, f"generalised with holdout Wilson lower {ho.get('ci_low')}: below confirm_wilson_lower_floor "
+                                       f"{ts.get('confirm_wilson_lower_floor')} (a point estimate on 10 clusters generalises nothing)"))
             else:
                 cap = ts.get("reject_true_defect_max", 0)
                 if not (num(cs.get("precision")) and cs["precision"] <= cap + 1e-9):
@@ -5517,6 +5756,9 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
                                        f"{ts.get('reject_wilson_upper_max')}"))
                 if t.get("generalised") is True and not (num(ho.get("precision")) and ho["precision"] <= cap + 0.05 + 1e-9):
                     out.append((label, f"generalised with holdout true-defect share above {cap} + 0.05"))
+                if t.get("generalised") is True and not (num(ho.get("ci_high")) and ho["ci_high"] <= ts.get("reject_wilson_upper_max", 0) + 0.05 + 1e-9):
+                    out.append((label, f"generalised with holdout Wilson upper {ho.get('ci_high')}: above reject_wilson_upper_max "
+                                       f"{ts.get('reject_wilson_upper_max')} + 0.05"))
     # v0.7 (review r10): theta_reject too; row 8 rejects a single-family cluster on S <= -theta_reject, so a theta_reject
     # at or below one refute weight let a single REFUTE vote reject it automatically
     for name, side, verb in (("theta_confirm", "support", "confirms"), ("theta_reject", "refute", "rejects")):
@@ -5538,6 +5780,18 @@ def g_calibration(R: Report, c: Ctx):
     cfg, res = cal.get("config") or {}, cal.get("result") or {}
     for msg in policy_problems(cfg):
         R.error("E-CAL-POLICY", w, msg)
+    # r14 (05-v0.15, internal review B6): the measured intra-application correlation replaces the floor upward; 05-v0.14
+    # pinned icc to 0.05, so the file's own rho_observed 0.06 could not be applied (E-CAL-POLICY rejected it)
+    rho = (res.get("primary_hypothesis") or {}).get("rho_observed")
+    want_icc = max(CAL_POLICY["clustering"]["icc"], rho) if isinstance(rho, (int, float)) and not isinstance(rho, bool) else CAL_POLICY["clustering"]["icc"]
+    have_icc = (cfg.get("clustering") or {}).get("icc")
+    R.check(not res or have_icc == want_icc, "E-CAL-POLICY", w,
+            f"clustering.icc {have_icc!r} != max(floor {CAL_POLICY['clustering']['icc']}, rho_observed {rho!r}) = {want_icc} (docs/05 §5.7)")
+    if res:
+        for msg in hypothesis_problems(cfg, res):
+            R.error("E-CAL-HYPOTHESIS", w, msg)
+        for msg in preregistration_problems(cfg, res):
+            R.error("E-CAL-PREREG", w, msg)
     # r12: the strong-tool floor is policy too (docs/05 §5.10: "政策下限，不是 θ 搜尋的結果"); a file value of 0.1 with one
     # rule at a Clopper-Pearson lower bound of 0.13 made a weak SARIF hit an R8-immune, non-provisional confirmation
     hp = ((res.get("thresholds") or {}).get("high_precision_min") or {}).get("value")
@@ -5623,7 +5877,7 @@ def g_calibration(R: Report, c: Ctx):
             if not (count_problems(R, hw, h.get("holdout_tp"), h.get("holdout_n"), "holdout_tp")
                     & count_problems(R, hw, h.get("tp"), h.get("n"), "tp") & count_problems(R, hw, h.get("fp"), h.get("n"), "fp")):
                 continue                                       # v0.7 (review r8, external review 4): E-CAL-COUNT, not a bound
-            for p in high_precision_problems(h, lim):
+            for p in high_precision_problems(h, lim, clustering_icc(cfg), corpus_splits(cfg)):
                 R.error("E-CAL-HIGH-PRECISION", w, f"high_precision_rules {h.get('adapter')} {h.get('rule_id')} {h.get('cwe_bucket')}: {p}")
     for x in res.get("annotator_agreement", []):
         R.check(x.get("accepted") is (x.get("kappa", 0) >= (cfg.get("annotation") or {}).get("kappa_min", 0)), "E-CAL-KAPPA", w,

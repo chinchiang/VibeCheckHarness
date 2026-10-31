@@ -23,7 +23,8 @@
           "additionalProperties": false,
           "properties": {
             "doc_sha256": {
-              "$ref": "common.schema.json#/$defs/sha256"
+              "$ref": "common.schema.json#/$defs/sha256",
+              "description": "第十四輪內部審查（05-v0.15）：登記的設定本身的 content hash（config 以 doc_sha256 為 null 計算的 JCS SHA-256），validator 重算比對（E-CAL-PREREG）；之前從未比對"
             },
             "primary_metric": {
               "const": "recall_delta"
@@ -432,7 +433,7 @@
             "min_apps",
             "icc"
           ],
-          "description": "第十三輪外部審查（05-v0.14；docs/05 §5.7）：應用內相關的處理。min_apps＝可行門檻與高精準規則每個切分最少的不同應用數（10）；icc＝組內相關 ρ（0.05，與 §5.5 第 5 步相同）。validator 釘住（E-CAL-POLICY）"
+          "description": "第十三輪外部審查（05-v0.14；docs/05 §5.7）：應用內相關的處理。min_apps＝可行門檻與高精準規則每個切分最少的不同應用數（10）；icc＝組內相關 ρ：第十四輪內部審查（05-v0.15）起是下限 0.05，result.primary_hypothesis.rho_observed 更大時必須等於它（E-CAL-POLICY）"
         }
       },
       "required": [
@@ -633,21 +634,35 @@
                   "holdout_n": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "保留切分的計數；≥ 10 且 holdout_tp／holdout_n ≥ high_precision_min − 0.05 才列入（docs/05 §5.10）"
+                    "description": "保留切分的計數；≥ 10、holdout_tp／holdout_n ≥ high_precision_min − 0.05，且 n_eff 上的 Clopper-Pearson 下界 ≥ high_precision_min − 0.05 才列入（docs/05 §5.10；05-v0.15）"
                   },
                   "holdout_tp": {
                     "type": "integer",
                     "minimum": 0
                   },
-                  "n_apps": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "第十三輪外部審查（05-v0.14）：校準切分的 n 筆結果來自幾個不同的應用（≥ clustering.min_apps 才列入）；precision_lower95 以 n_eff 重算（docs/05 §5.7、§5.10）"
+                  "apps": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "description": "第十四輪內部審查（05-v0.15）：校準切分的 n 筆結果來自哪些應用（{app_id: 筆數}，總和＝n，app_id 必須是 corpus 中校準切分的應用；至少 clustering.min_apps 個才列入）；precision_lower95 以不等大小設計效果的 n_eff 重算（docs/05 §5.7、§5.10）"
                   },
-                  "holdout_n_apps": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "保留切分的 n 筆結果來自幾個不同的應用"
+                  "holdout_apps": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "description": "保留切分的 holdout_n 筆結果來自哪些應用（總和＝holdout_n，app_id 必須是 corpus 中保留切分的應用）；保留切分以 n_eff 上的 Clopper-Pearson 下界 ≥ high_precision_min − 0.05 類推（05-v0.15）"
                   }
                 },
                 "required": [
@@ -661,8 +676,8 @@
                   "precision_lower95",
                   "holdout_n",
                   "holdout_tp",
-                  "n_apps",
-                  "holdout_n_apps"
+                  "apps",
+                  "holdout_apps"
                 ]
               }
             },
@@ -718,10 +733,19 @@
                   "maximum": 1
                 },
                 "h1": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "description": "推導值：ci_low ＞ 0（E-CAL-HYPOTHESIS，05-v0.15）"
                 },
                 "h2": {
-                  "type": "boolean"
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "固定順序程序：H1 成立才評估，否則必須是 null（E-CAL-HYPOTHESIS，05-v0.15）"
                 },
                 "outcome": {
                   "enum": [
@@ -729,7 +753,8 @@
                     "recall_only",
                     "not_shown",
                     "single_best_wins"
-                  ]
+                  ],
+                  "description": "由 h1／h2／ci_high 推導：H1 與 H2 成立 → multi_family_wins；只有 H1 → recall_only；H1 不成立且 ci_high ＜ 0 → single_best_wins；否則 not_shown（E-CAL-HYPOTHESIS）"
                 },
                 "fallback_applied": {
                   "anyOf": [
@@ -753,7 +778,8 @@
                 },
                 "holdout_n_final": {
                   "type": "integer",
-                  "minimum": 0
+                  "minimum": 0,
+                  "description": "解盲時保留切分的正例數；必須 ≥ 以 max(ψ_assumed, ψ_observed)、max(ρ_assumed, ρ_observed) 依 docs/05 §5.5 重算的樣本數（E-CAL-HYPOTHESIS，05-v0.15）"
                 }
               },
               "required": [
@@ -1017,10 +1043,15 @@
                   "at"
                 ]
               }
+            },
+            "frozen_at": {
+              "$ref": "common.schema.json#/$defs/datetime",
+              "description": "第十四輪內部審查（05-v0.15）：θ、權重與高精準名單凍結的時間；不早於 preregistration.registered_at、不晚於第一筆 holdout_access_log（E-CAL-PREREG，docs/05 §5.6）"
             }
           },
           "required": [
             "completed_at",
+            "frozen_at",
             "weights",
             "high_precision_rules",
             "thresholds",
@@ -1078,10 +1109,17 @@
           "minimum": 0,
           "description": "審查 r11：該切分中被該分支確認（或駁回）的叢集裡的真缺陷數；validator 以 tp／n 重算 precision 與 Wilson 95% 界限（E-CAL-THETA）"
         },
-        "n_apps": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "第十三輪外部審查（05-v0.14）：這 n 個叢集來自幾個不同的應用；validator 以設計效果 n_eff＝n／(1＋(n／n_apps − 1)·icc) 重算 Wilson 界限，可行的門檻另需 n_apps ≥ clustering.min_apps（docs/05 §5.7）"
+        "apps": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "第十四輪內部審查（05-v0.15）：這 n 個叢集來自哪些應用，{app_id: 該應用的叢集數}；n 必須等於總和、每個 app_id 必須是 config.corpus 中同一切分的應用，validator 以各應用的實際筆數算設計效果 DE＝1＋(Σm_i²／n − 1)·icc、n_eff＝n／DE 重算 Wilson 界限（E-CAL-THETA；docs/05 §5.7）。n＝0 時為空物件。05-v0.14 的自填 n_apps 可以填 n 而把設計效果關掉"
         }
       },
       "required": [
@@ -1091,9 +1129,9 @@
         "ci_high",
         "n",
         "tp",
-        "n_apps"
+        "apps"
       ],
-      "description": "審查 r11（外部審查）：機率欄位限制在 0..1；validator 另以 tp／n 重算（E-CAL-THETA）；第十三輪外部審查（05-v0.14）：n_apps 記不同應用數，界限以 n_eff 計算"
+      "description": "審查 r11（外部審查）：機率欄位限制在 0..1；validator 另以 tp／n 重算（E-CAL-THETA）；第十四輪內部審查（05-v0.15）：apps 列出各應用的叢集數，界限以不等大小的設計效果 n_eff 計算"
     },
     "threshold": {
       "type": "object",

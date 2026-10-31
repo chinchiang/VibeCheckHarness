@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from conftest import codes, doc, rederive
+from conftest import hp_rule, codes, doc, rederive
 from vchlib import crypto, derive, jsonstrict, safety
 from vchlib.bundle import read_jsonl_lines, reload_json
 from vchlib.checks import run_all
@@ -138,9 +138,7 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     high_precision_min, the same SARIF ref is STRONG: tool_corroboration, row 10 CONFIRMED_CORROBORATED (never
     capped by R8, although V-014-1 is diversity_degraded)."""
     # v0.6 (review r7 3.5): the row carries its raw counts; 117/120 has a Clopper-Pearson lower bound of 0.9287
-    rule = {"adapter": "opengrep:scan", "rule_id": "vc.authz.update-without-owner", "tool_version": "1.6.0", "cwe_bucket": "authz",
-            "n": 120, "tp": 117, "fp": 3, "precision_lower95": 0.9287, "holdout_n": 30, "holdout_tp": 29,
-            "n_apps": 120, "holdout_n_apps": 30}      # r13: one hit per application, so n_eff = n
+    rule = hp_rule(120, 117, holdout_n=60, holdout_tp=59)   # r13 / r14: 117 of 120 over the 16 corpus applications, bounds on n_eff
     doc(b, "calibration.yaml").data["result"]["high_precision_rules"] = [rule]
     _repin_calibration(b, keys)                        # v0.5: calibration.yaml is pinned by the engagement
     rederive(b, keys)                                  # run.config_refs hashes calibration.yaml (v0.3, B11)
@@ -160,9 +158,9 @@ def test_high_precision_rule_is_strong_tool_corroboration(b, keys):
     next(e for e in doc(b, AUDIT).data if (e["payload"] or {}).get("verdict_id") == "V-014-1")["payload"]["status"] = "CONFIRMED_CORROBORATED"
     rederive(b, keys)
     assert codes(b) == set()
-    rule.update(tp=108, fp=12, precision_lower95=0.8318)   # below high_precision_min 0.90 -> weak again
+    rule.update(tp=108, fp=12, precision_lower95=hp_rule(120, 108)["precision_lower95"])   # below high_precision_min 0.90 -> weak again
     assert "E-VERDICT-TOOLCORR" in codes(b)
-    rule.update(tp=117, fp=3, precision_lower95=0.9287, tool_version="1.5.2")   # measured on another scanner version -> weak
+    rule.update(tp=117, fp=3, precision_lower95=hp_rule(120, 117)["precision_lower95"], tool_version="1.5.2")   # measured on another scanner version -> weak
     assert "E-VERDICT-TOOLCORR" in codes(b)
     rule["tool_version"] = "1.6.0"
     rederive(b, keys)

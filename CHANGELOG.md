@@ -2,11 +2,24 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.14`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.15`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）。
 
 ## 第十四輪審查（2026-10-30）
 
 依 [2026-10-30 設計審查（第十四輪，內部三組審查）](docs/evidence/review-2026-10-30-r14.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）對 `main@6b4dfb0`，最嚴重的項目由主審查者重跑確認；三處設計變更（W4 事先登記、帶入叢集不投票、Lite 單機 profile 待訂）是使用者決定。
+
+### 裁決與校準（PR2；`rule_version` 改為 `05-v0.15`）
+- **W4 事先登記只認程式產生的 oracle**（C3，使用者決定）：`05-v0.3`–`05-v0.14` 只要 W4 測試的需求經 G1 核准、`oracle_can_pass` 對照 PASS，就算事先登記，可重現 FAIL 直接 `CONFIRMED_EXECUTABLE`——這是校準前唯一的確認路徑，但 oracle 由 LLM 寫、只由另一個 LLM 審，沒有人核准過。現在只有 harness 從 G1 結構產生 oracle 的 `local_rls`／`fake_model` 測試、且 `oracle_can_pass` 與 `oracle_can_fail` 都 PASS 才算；LLM 撰寫的 `unit`／`property` 測試的 FAIL 是 `E_fail_u`（最高 `LIKELY`），裁決加註 `oracle_unreviewed`（R12，新註記），叢集經 G2 `accept` 後的新版才升級；Result Analyst 不能代替。W4 範例測試案例補上 `oracle_can_fail` 對照（CTL-03）。06 §3 新增 #45。
+- **帶入叢集不接受投票**（B7，使用者決定；`E-VERDICT-VOTE`）：帶入叢集（`carried_from`）的裁決不得有 `votes`／`missing_votes`，狀態只由回歸測試證據決定；第 15 列改為只看工具訊號。之前一張反駁票讓它 `DISPUTED`、更強的反駁被 `REJECTED` 後又被 R16 抬回來源狀態（非單調）。
+- **FIXED 的必要案例沿 `carried_from` 鏈回溯**（B1）：R14 原本只讀直接來源的 `E_proof` 案例，中間經過一個以 R16 維持的 run（沒有自己的證明）或來源是 `CONFIRMED_CORROBORATED` 時必要案例為空，任一案例的合格 PASS 就 FIXED。現在回溯到鏈上第一個持有 `E_proof` 的裁決，都沒有時取第一個持有 `E_fail_u` 的，都沒有就不判 FIXED（R16，`fix_unverified`；`checks.required_regression_testcases`）。
+- **合格票與驗證者池用獨立觀察**（B2）：投票模型與任一成員回報者共用 `independence_key`（同家族、同基底血統或經 `derived_from` 合併）→ 票不合格、不在 E 中（`derive.member_observation_keys`）。之前只有 S、來源數與多樣性用這個分組。
+- **棄權算在分母**（B8，`E-CAL-WEIGHT`）：`05-v0.9` 把棄權算半對，支持率不再是機率、權重不再是對數概似比。現在 C′＝C、n′＝n＋n_abstain。範例權重重算：nemotron authz 1.3179／1.3878 → 1.1055／1.1384，claude authz 1.2853／1.1897 → 1.0552／0.9787；範例裁決的狀態都沒有變（K-014 S 1.1055 仍 ＜ θ 2.5）。
+- **切分統計列出應用**（B5，`E-CAL-THETA`／`E-CAL-HIGH-PRECISION`）：`n_apps` 改為 `apps`＝{app_id: 叢集數}，n 必須等於總和、app_id 必須是 corpus 中同一切分的應用；範例 corpus 由節錄 3 筆改為完整 31 個應用。自填 `n_apps = n` 曾能關掉設計效果並自動滿足 `min_apps`。
+- **設計效果用實際筆數、ICC 是下限、保留切分看信賴界**（B6）：DE＝1＋(Σm_i²／n − 1)·ρ（41 筆中 32 筆來自一個應用時 2.2，等大小公式只算 1.15）；`clustering.icc` 必須等於 max(0.05, `rho_observed`)（範例 0.06，之前釘死 0.05 連自己量到的 0.06 都不能用）；`generalised: true` 另需保留切分至少 10 個應用、確認分支 Wilson 下界 ≥ 0.80、駁回分支上界 ≤ 0.13，高精準規則的保留切分 Clopper-Pearson 下界 ≥ 0.85（10 筆全對只有 0.69）。範例保留切分 47／52 → 48／52、authz 37／41 → 39／41。
+- **主要假設欄位推導**（B3，`E-CAL-HYPOTHESIS`，新）：`h1`＝CI 下界 ＞ 0、`h2` 只在 H1 成立時評估、`outcome` 推導、Δ 在 CI 內、`holdout_n_final` ≥ 以觀察到的 ψ／ρ 重算的樣本數（`checks.required_holdout_n`）、探索性 CI 有序。範例原本自相矛盾（ci_low 0.02 卻 h1 false、H1 不成立卻 h2 true、CI 顛倒、262 ＜ 379），改為一致（CI 含 0、h2 null、380）。
+- **預先登記的控制**（B9，`E-CAL-PREREG`，新）：`doc_sha256` 是 config 本身的 content hash（之前從未比對）；新增必填 `result.frozen_at`，不早於登記、不晚於第一筆保留切分存取；有保留切分統計就要有存取紀錄。
+- **文件與 schema 漂移**（B4）：05 §4.2 的 rule_trace 樣式 `1[0-3]` → `1[0-6]`、「五段 A–E」→ 六段 A–F、R11～R13 → R11～R16；schema 的 rule_trace 與 provisional 說明；§4.3 的「三項」→ 四項；§5.10 的 35.1 → 35.01；§5.7 的「約 52 個」→ 51 個。
+- 新增 `tests/test_v07_r14_verdict.py`（33 個；在 `679b497` 上 30 個失敗，另 3 個是防誤報）與 `tests/mutations/r14_verdict.json`（34，全部 CAUGHT）；既有測試隨新語意更新（權重數字、`apps` 取代 `n_apps`、保留切分的最小可行數 45 → 50、CORROBORATED 來源沒有測試就不能 FIXED、第 15 列不再看反駁票、W4 範例的第三個對照）；`rule_version` 斷言與突變錨點改為 `05-v0.15`。
 
 ### validator 繞過的十項（PR1；`rule_version` 不變）
 - **Z3 job 事件的 zone 與 node 必須一致**（`E-JOB-AUDIT`）：之前把 Z3 job 的事件標成 W0／W1／W4 就逃過全部 B4 規則（不在 `run.jobs` 也不報、不需要 G0b／G4／G5、不受所有權時序與時窗約束）。現在 zone `Z3` 的 `sandbox_job_*` 必須 node `B4` 且 job 在 `run.jobs`，B 節點不得在其他 zone，W0／W1／W4 的 job 必須 zone `Z2`；`run_structure` 的 B 階段判定改為「zone Z3 或 node ∈ B0–B6」。

@@ -130,7 +130,7 @@
     {
       "name": "feasible on three applications",
       "file": "tools/vchlib/checks.py",
-      "old": "            if not (num(cs.get(\"n_apps\")) and cs[\"n_apps\"] >= min_apps):\n",
+      "old": "            if split_n_apps(cs) < min_apps:\n",
       "new": "            if False:\n",
       "k": "feasible_threshold_needs_ten"
     },
@@ -151,7 +151,7 @@
     {
       "name": "high-precision rows from nine applications",
       "file": "tools/vchlib/checks.py",
-      "old": "    if apps < min_apps:\n        out.append(f\"n_apps {apps} < clustering.min_apps {min_apps}\")\n",
+      "old": "    if apps < min_apps:\n        out.append(f\"apps {apps} < clustering.min_apps {min_apps}\")\n",
       "new": "",
       "k": "forty_hits_from_ten"
     },
@@ -165,7 +165,7 @@
     {
       "name": "rule_version 05-v0.14",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.14\"",
+      "old": "RULE_VERSION = \"05-v0.15\"",
       "new": "RULE_VERSION = \"05-v0.13\"",
       "k": "rule_version_is_05_v0_14"
     },

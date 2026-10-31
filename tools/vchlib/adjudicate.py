@@ -1,7 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Ordered adjudication rules of docs/05 §4.2 (decision table rows 1-13, R8/R11 modifiers,
-R12/R13 annotations). Pure function: the validator recomputes each example verdict and
+"""Ordered adjudication rules of docs/05 §4.2 (decision table rows 1-16, R8/R11 modifiers,
+R12/R13/R15 annotations). Pure function: the validator recomputes each example verdict and
 compares status, deciding rule and annotations.
+
+r14 (rule_version 05-v0.15, fourth-round internal review B1 / B7 / C3, user decisions):
+  - Row 15 (a contradicted fix) is decided by tool signals alone: a carried-in cluster accepts no votes
+    (checks E-VERDICT-VOTE), so its status is decided by regression evidence only (R14 / R15 / R16).
+    05-v0.11-05-v0.14 let a REFUTE on a carried cluster land on row 8 / 9 and R16 lift the stronger
+    refutation back to the source status (non-monotonic).
+  - R14's required testcases follow the carried_from chain to the first verdict holding an E_proof
+    (checks.regression_fixed); a chain without one is never FIXED (R16, fix_unverified).
+  - A W4 FAIL is pre-registered proof only when the harness generated the oracle from a G1-approved
+    structure (w4-testcase kind local_rls / fake_model) and both oracle controls PASSed; an LLM-written
+    W4 test's FAIL is E_fail_u (at most LIKELY) with the `oracle_unreviewed` annotation until G2 accepts
+    the cluster (derive.preregistered, derive.classify_result).
 
 v0.3 (rule_version 05-v0.3): tool evidence has two tiers (H-A1). Reviewers and verifiers never
 see W1 tool output; tools enter adjudication only through the deterministic Clusterer.
@@ -60,7 +72,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.14"
+RULE_VERSION = "05-v0.15"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
 
 
@@ -88,6 +100,7 @@ class Inputs:
     regression_fixed: bool = False                        # r11 (05-v0.10); per testcase since 05-v0.12: every proving testcase of the confirmed source PASSed again with a positive control
     later_member_overlap: bool = False                    # r11: a weighted vote cast before a same-family / same-root member joined the cluster
     carried_status: str | None = None                     # r12 (05-v0.11): head status of the source cluster a carried-in cluster stands for
+    oracle_unreviewed: bool = False                       # r14 (05-v0.15): an LLM-written W4 test's reproduced FAIL that G2 has not yet accepted (E_fail_u, annotated)
 
 
 @dataclass
@@ -138,7 +151,9 @@ def _annotate(x: Inputs, out: Outcome) -> Outcome:
         out.annotations.add("test_inconclusive")                        # R12
     if out.row == 5 and "E_pass" in x.evidence:
         out.annotations.add("conflicting_test_results")                 # R12 (R1 with E_pass)
-    if {"test_inconclusive", "conflicting_test_results"} & out.annotations:
+    if x.oracle_unreviewed:
+        out.annotations.add("oracle_unreviewed")                        # R12 (r14, 05-v0.15): an LLM-written W4 oracle nobody reviewed
+    if {"test_inconclusive", "conflicting_test_results", "oracle_unreviewed"} & out.annotations:
         out.rules.append("R12")
     if x.g3_rejected:
         out.annotations.add("g3_rejected")                              # R13
@@ -192,9 +207,10 @@ def _decide(x: Inputs) -> Outcome:
             return Outcome("CONFIRMED_EXECUTABLE", 5, ["R10", "R1"], None, False, notes)
         return Outcome("REJECTED", 3, ["R10"], None, False, notes)
     if x.regression_fixed:                                 # R14 (r11, 05-v0.10): the regression test of a confirmed defect passed
-        # r12 (05-v0.11): not while other evidence still says the defect is there; a scanner rule that still fires or a
-        # weighted refutation makes the "fix" a dispute for people (row 15), as the same PASS does outside a regression run
-        if x.strong_tool or x.weak_sarif or x.weighted_refute:
+        # r12 (05-v0.11): not while other evidence still says the defect is there; a scanner rule that still fires makes
+        # the "fix" a dispute for people (row 15), as the same PASS does outside a regression run. r14 (05-v0.15): a
+        # carried-in cluster has no votes (E-VERDICT-VOTE), so a weighted refutation is no longer an input of this row
+        if x.strong_tool or x.weak_sarif:
             notes.add("fix_contradicted")
             return Outcome("DISPUTED", 15, ["R14"], None, False, notes)
         return Outcome("FIXED", 14, ["R14"], None, False, notes)

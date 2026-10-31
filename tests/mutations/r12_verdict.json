@@ -4,7 +4,7 @@
     {
       "name": "a contradicted fix is DISPUTED",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "        if x.strong_tool or x.weak_sarif or x.weighted_refute:\n            notes.add(\"fix_contradicted\")",
+      "old": "        if x.strong_tool or x.weak_sarif:\n            notes.add(\"fix_contradicted\")",
       "new": "        if False:\n            notes.add(\"fix_contradicted\")",
       "k": "contradicted_fix"
     },

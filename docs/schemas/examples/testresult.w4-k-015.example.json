@@ -21,6 +21,10 @@
     {
       "control_id": "CTL-02",
       "outcome": "PASS"
+    },
+    {
+      "control_id": "CTL-03",
+      "outcome": "PASS"
     }
   ],
   "trials": {
@@ -31,7 +35,7 @@
   "replays": 2,
   "replay_k": 2,
   "oracle_observations": [
-    "CTL-01（tenant_a 讀自己的發票）與 CTL-02（修正版 schema 上 oracle 判定通過）都 PASS",
+    "CTL-01（tenant_a 讀自己的發票）、CTL-02（修正版 schema 上 oracle 判定通過）與 CTL-03（未加政策的 schema 上 oracle 判定違反）都 PASS",
     "tenant_a 的角色 SELECT 回傳 tenant_b 的發票，UPDATE 影響 1 列（違反 INV-AC-007；public.invoices 沒有啟用 RLS）",
     "重播 2 次結果相同"
   ],
@@ -42,7 +46,7 @@
     "evidence_ref": "sha256:0ab33ed2ad32e9c953d1d23fe4869a10fa73fd7d0e5bcd95465ea65c995f6925"
   },
   "positive_control": {
-    "value": null,
+    "value": true,
     "evidence_ref": "sha256:430b5a895f1ba8b2c7a57bdec1aa832a23ad6e2a025bcee511a84c6160584376"
   },
   "artifact_sha256": "sha256:2c1a3581fe54ab64ba609c975e04e15d331ec72496bf29606a18de4b9c424432",

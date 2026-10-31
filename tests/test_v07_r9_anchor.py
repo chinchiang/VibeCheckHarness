@@ -170,7 +170,7 @@ def add_k301_verdict(b):
     """Review r9 P1: a W3 verdict for the carried cluster K-301 of the follow-up run (WAITING_GATE), whose
     verdict_changed is appended after the last anchor."""
     v = copy.deepcopy(doc(b, "verdict.example.json").data)
-    v.update({"verdict_id": "V-301-1", "cluster_id": "K-301"})
+    v.update({"verdict_id": "V-301-1", "cluster_id": "K-301", "votes": [], "missing_votes": []})   # r14: a carried cluster has no votes
     add_doc(b, "verdict.k-301-w3.example.json", "verdict", v)
     doc(b, "run.followup.example.json").data["verdicts"] = ["V-301-1"]
     # r13: the follow-up run has no W1 events, so a W3 event there is E-GATE-ORDER; the B-phase run writes it at B5

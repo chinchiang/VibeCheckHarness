@@ -70,10 +70,12 @@ def test_a_qualified_pass_of_every_required_case_is_fixed(reg):
     assert fixed(c, entry(c, "R-TC-012-01-2", "E_pass", True), entry(c, "R-TC-031-01-1", "E_pass", True))
 
 
-def test_a_source_without_an_executable_proof_needs_one_qualified_pass(reg, monkeypatch):
+def test_a_source_without_any_failing_test_is_never_fixed(reg, monkeypatch):
+    """r14 (05-v0.15, B1): a CONFIRMED_CORROBORATED source with no test evidence anywhere on its chain leaves no required
+    testcase, so no PASS can show it fixed (R16 keeps the status, fix_unverified); 05-v0.12 accepted any one qualified PASS."""
     c = checks.Ctx(reg)
     monkeypatch.setattr(checks, "carried_source", lambda c, cl, run: {"status": "CONFIRMED_CORROBORATED", "test_evidence": {"results": []}})
-    assert fixed(c, entry(c, "R-TC-031-01-1", "E_pass", True))
+    assert not fixed(c, entry(c, "R-TC-031-01-1", "E_pass", True))
     assert not fixed(c, entry(c, "R-TC-031-01-1", "E_pass", False))
 
 
@@ -88,8 +90,8 @@ def test_the_bundle_cannot_declare_fixed_while_the_proof_case_errors(reg):
 
 
 def test_the_rule_version_is_05_v0_12(b):
-    assert adj.RULE_VERSION == "05-v0.14"                     # bumped again by the second external review (05-v0.13)
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.14"}
+    assert adj.RULE_VERSION == "05-v0.15"                     # bumped again by the second external review (05-v0.13)
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.15"}
 
 
 # ================================================================ 2. S2 jobs are judged by their status
