@@ -14,7 +14,7 @@ import copy
 
 import pytest
 
-from conftest import doc
+from conftest import doc, split_stats
 from vchlib import checks
 from vchlib.checks import run_all, wilson_lower, wilson_upper
 
@@ -58,14 +58,13 @@ def test_a_value_inside_its_range_stays_valid(b):
 
 
 # ================================================================ calibration: theta_reject counts true defects
-def stats(tp, n):
-    return {"precision": round(tp / n, 4) if n else 0.0, "recall": 0.3, "ci_low": round(wilson_lower(tp, n), 4),
-            "ci_high": round(wilson_upper(tp, n), 4), "n": n, "tp": tp, "n_apps": n}     # r13: one cluster per application
+def stats(tp, n, split="calibration"):
+    return split_stats(tp, n, split)          # r14: the clusters are spread over the corpus applications of the split
 
 
 def reject(cal_tp, cal_n, ho_tp=0, ho_n=45, generalised=True):
     return {"value": 2.0, "feasible": True, "generalised": generalised, "by_bucket": {},
-            "calibration": stats(cal_tp, cal_n), "holdout": stats(ho_tp, ho_n)}
+            "calibration": stats(cal_tp, cal_n), "holdout": stats(ho_tp, ho_n, "holdout")}
 
 
 def reject_problems(b, thr):
@@ -84,8 +83,10 @@ def test_a_rejected_set_made_only_of_true_defects_is_not_feasible(b):
     assert any("true-defect share 1.0" in m for _, m in got), got
 
 
-@pytest.mark.parametrize("n,feasible", [(40, False), (44, False), (45, True), (46, True)])
-def test_the_smallest_error_free_rejection_set_is_45(b, n, feasible):
+# r14: on 16 applications with icc 0.06 the design effect pushes the smallest error-free set from 45 to 50 (n_eff 44.3,
+# Wilson upper 0.0798); 49 clusters give n_eff 43.6 and 0.081
+@pytest.mark.parametrize("n,feasible", [(40, False), (49, False), (50, True), (51, True)])
+def test_the_smallest_error_free_rejection_set_is_50(b, n, feasible):
     got = reject_problems(b, reject(0, n))
     assert (got == []) is feasible, (n, got)
     if not feasible:
@@ -104,7 +105,10 @@ def test_a_holdout_with_a_high_true_defect_share_does_not_generalise(b):
 
 
 def test_a_holdout_inside_the_five_point_margin_generalises(b):
-    assert reject_problems(b, reject(0, 60, ho_tp=2, ho_n=45)) == []        # 2 of 45 = 0.044 <= 0.07
+    # r14: the holdout generalises on its Wilson upper too (<= 0.08 + 0.05); 1 of 120 over 13 applications: 0.008, upper 0.06
+    assert reject_problems(b, reject(0, 60, ho_tp=1, ho_n=120)) == []
+    got = reject_problems(b, reject(0, 60, ho_tp=2, ho_n=45))                # 2 of 45 = 0.044 <= 0.07, but the upper is 0.19
+    assert any("holdout Wilson upper" in m for _, m in got), got
 
 
 def test_05_states_the_minimum_feasible_n_and_the_tp_reading():

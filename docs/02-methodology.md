@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.15`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 總覽
 
@@ -142,7 +142,7 @@ flowchart TD
 | `lane_a` | 每個 PR 的同步檢查 | W0 → W1 →（可選）單一家族 diff 審查 → 結束 | 只需 G0a；不進 B 階段 |
 
 - 每個 run 有 `parent_run_id`（`initial` 可為空）與 `reuse` 清單：以 content hash 引用上一個 run 的產物。只有當產物的**所有輸入 hash**（repo commit 或切片 `slice_id`、設定、模型 ID 與版本）都相同時才能沿用，否則重算 [H]。
-- **`regression` run 如何帶入叢集**[H]：草稿由 CMD-5 依上一個 run 的確認項建立，`reuse[]` 以 content hash 引用那些叢集與它們的最新裁決；W0／W1 在新 commit 上重算，W3 不重審帶入的叢集，而是由新增的回歸節點 `W4_regression` 對每個帶入的叢集跑它的 W4 回歸測試（與 B 階段對應的測試案例；回歸測試的結果是 `phase: W4`，所以這個節點寫的裁決版本是 `readjudicated_by: W4_readjudicate`，與 W4 同一個階段順序，審查 r12 統一名稱）。測試 PASS 且有正對照、沒有工具訊號或計權反駁票、來源每個可執行證明的測試案例都重跑並得到合格 PASS（第十二輪外部審查：某個案例 ERROR 時不能由別的案例的 PASS 代替）→ 裁決為 `FIXED`（05 §4.2 R14，審查 r11／r12；報告列為「已修正」，SARIF `baselineState: absent`）；PASS 但掃描規則仍命中或驗證者反駁 → `DISPUTED`（`fix_contradicted`，由人決定）；FAIL → 維持來源的確認狀態並加註 `regression_failed`；沒有回歸測試的帶入叢集維持確認並加註 `fix_unverified`，報告列為「未驗證修正」（R16，審查 r12；之前帶入的叢集沒有本 run 的成員，這些情況會落到 UNCORROBORATED）。帶入的叢集在新 run 是**新的叢集實例**：自己的 `cluster_id`、`run_id` 是新 run，以 `carried_from: {run_id, cluster_id, fingerprint}` 指回上一個 run 的叢集，`fingerprint`、桶、家族與血統與來源相同，沒有本 run 的成員（有成員也是 `E-CLUSTER-CARRY`——帶入的叢集不做證據綁定，本 run 新的發現項自成新的叢集；跨 run 的問題識別是 fingerprint，不是共用 ID——cluster_id 是每個 run 的，W4 又要求叢集屬於本 run，v0.6 的「保留原 ID」做不到）。範例：跟進 run 的 `K-301` 帶入 `K-005`。`baseline_state` 依 `baseline_run_id` 計算。
+- **`regression` run 如何帶入叢集**[H]：草稿由 CMD-5 依上一個 run 的確認項建立，`reuse[]` 以 content hash 引用那些叢集與它們的最新裁決；W0／W1 在新 commit 上重算，W3 不重審帶入的叢集，而是由新增的回歸節點 `W4_regression` 對每個帶入的叢集跑它的 W4 回歸測試（與 B 階段對應的測試案例；回歸測試的結果是 `phase: W4`，所以這個節點寫的裁決版本是 `readjudicated_by: W4_readjudicate`，與 W4 同一個階段順序，審查 r12 統一名稱）。測試 PASS 且有正對照、沒有工具訊號、必要的測試案例都重跑並得到合格 PASS（第十二輪外部審查：某個案例 ERROR 時不能由別的案例的 PASS 代替；第十四輪內部審查：必要案例沿 `carried_from` 鏈回溯到第一個持有 `E_proof` 的裁決，整條鏈都沒有可執行證明時取第一個持有 `E_fail_u` 的，都沒有就不能判 FIXED）→ 裁決為 `FIXED`（05 §4.2 R14，審查 r11／r12；報告列為「已修正」，SARIF `baselineState: absent`）；PASS 但掃描規則仍命中 → `DISPUTED`（`fix_contradicted`，由人決定）；FAIL → 維持來源的確認狀態並加註 `regression_failed`；沒有回歸測試的帶入叢集維持確認並加註 `fix_unverified`，報告列為「未驗證修正」（R16，審查 r12；之前帶入的叢集沒有本 run 的成員，這些情況會落到 UNCORROBORATED）。帶入的叢集**不接受投票**（第十四輪內部審查，使用者決定；`E-VERDICT-VOTE`）：它沒有本 run 的成員可供驗證，狀態只由回歸測試證據決定（R14／R16）；之前一張反駁票能讓它 DISPUTED、更強的反駁被 REJECTED 後又被 R16 抬回來源狀態。帶入的叢集在新 run 是**新的叢集實例**：自己的 `cluster_id`、`run_id` 是新 run，以 `carried_from: {run_id, cluster_id, fingerprint}` 指回上一個 run 的叢集，`fingerprint`、桶、家族與血統與來源相同，沒有本 run 的成員（有成員也是 `E-CLUSTER-CARRY`——帶入的叢集不做證據綁定，本 run 新的發現項自成新的叢集；跨 run 的問題識別是 fingerprint，不是共用 ID——cluster_id 是每個 run 的，W4 又要求叢集屬於本 run，v0.6 的「保留原 ID」做不到）。範例：跟進 run 的 `K-301` 帶入 `K-005`。`baseline_state` 依 `baseline_run_id` 計算。
 - **ROE 在 B 階段入口失效**：G0b 之後到 B1 之前，若 ROE **過期**，run 轉為 `SUSPENDED`（不是失敗），白箱產物保留；若 ROE **被撤銷或簽署金鑰被撤銷**，依 §1.4 → `ABORTED`（v0.6 把三種情況都寫成 `SUSPENDED`，與 §1.4、03 §5.6 矛盾）；重新簽署 ROE 後，可以用新的 run（`followup`，`parent_run_id` 指向原 run、`reuse[]` 引用原 run 的 W5 產物）從 B 階段開始，不必重跑白箱。專用的「從上一個 run 的 W5 開始 B 階段」run kind 列為 [09](09-backlog.md) 待辦（BL-48），目前以 `followup`＋`reuse` 表達。
 - validator 對 `regression` run 的 `parent_run_id`／`reuse` 比照 `followup`（`E-RUN-FOLLOWUP`；v0.6 禁止）；到 G4 的 run，其 `testcase_ids` 每個測試案例的威脅都必須在**本 run** 的 G3 有 accept，沿用祖先 run 的核准要用 `carried_from`（`E-RUN-G3`）。範例的跟進 run 補上自己的 G3（`GR-G3-0002`，以 `carried_from` 沿用 T-012）；它在新的 commit 上重用 parent 的不變量與威脅模型 hash，因為這兩份產物的輸入是 G1 規格與 DFD／inventory 的 hash，不是 commit 本身（commit 不同時 W0／W1 重算，若 DFD 或 inventory 變了，hash 就不同、不能沿用）。
 - `followup`／`regression` run 另以 `baseline_run_id` 指定比較基準（通常就是 `parent_run_id`；`initial` 為 `null`）。W5 用它計算每個叢集的 `baseline_state`。validator（第十四輪內部審查，`E-RUN-BASELINE`）：`initial` 必須是 `null`；其餘必須是沿 `parent_run_id` 可達、而且更早開始的祖先 run；已錨定的 `run_created` 也釘住它（`E-RUN-COMMIT`）。之前只要求是 bundle 中另一個 run，指向之後的 run 或 Lane A run 就能翻轉每個叢集的 SARIF `baselineState`。
@@ -408,7 +408,7 @@ flowchart TD
     - `oracle_can_pass`：在已知良好的輸入上（例如擁有者存取自己的資料），同一個 oracle 會通過。
     - `oracle_can_fail`：在 mutmut／Stryker 的變異體或植入缺陷的版本上，oracle 會失敗。
     - 任一對照不是 PASS → 結果為 `INVALID`，不算 PASS 也不算 FAIL（`E_inc`）。
-    - W4 的產生器預設為每個測試產生 `oracle_can_pass` 對照，讓確定性結果不需要 LLM 解讀（見下）[H]。這是產生器的預設，不是 validator 的檢查：validator 只強制每個測試案例至少一個 `reachability` 對照（`E-TC-CONTROLS`）。沒有 PASS 的 `oracle_can_pass` 對照時，W4 的 FAIL 不算事先登記，要由合格的 Result Analyst 確認，否則只是 `E_fail_u`。
+    - W4 的產生器預設為每個測試產生 `oracle_can_pass` 對照，讓確定性結果不需要 LLM 解讀（見下）[H]。這是產生器的預設，不是 validator 的檢查：validator 只強制每個測試案例至少一個 `reachability` 對照（`E-TC-CONTROLS`）。程式產生 oracle 的測試（`local_rls`、`fake_model`）另產生 `oracle_can_fail` 對照；兩種對照都 PASS 才算事先登記（第十四輪內部審查，見下）。
     - 測試結果的 `controls[]` 必須恰好涵蓋測試案例的每個對照（`E-RESULT-CONTROLS`）；有對照不是 PASS 時 `outcome` 必須是 `INVALID`，全部 PASS 時不能是 `INVALID`（`E-RESULT-INVALID`）。
   - **TestGen-LLM 濾網**：只保留能 build、重複執行都通過、且有增加覆蓋的測試 [V][E:whitebox-34]。例外：**斷言安全不變量而失敗**的測試不丟棄，它就是發現。
   - A 家族生成、B 家族審查（Test Critic）。
@@ -429,9 +429,10 @@ flowchart TD
       - FAIL 來自確定性 oracle：`fail_oracles` 含 `HUMAN`、`LLM_GRADER` 以外的類型；
       - `fail_k_min` 與重播規則成立；
       - 所有對照都 PASS；
-      - 解讀是**事先登記**的：測試的 `requirement_ids` 不是空的、全部經 G1 核准，而且有 `oracle_can_pass` 對照、全部 PASS。
-      - 理由：這個 FAIL 代表什麼，在結果出來之前已經由人簽核；對照證明 oracle 不是永遠失敗。
-    - **解讀未事先登記時**：由 **Result Analyst 池**中的一位確認 → `E_proof`。池中每個家族一位；選家族與血統都不在叢集中的那一位；有個資時只用自架模型。沒有合格的分析者 → `E_fail_u`（弱工具訊號）。
+      - 解讀是**事先登記**的：測試的 `requirement_ids` 不是空的、全部經 G1 核准，而且 oracle 由 harness 從 G1 核准的結構產生（`kind` 為 `local_rls`——來自 `access_matrix`，或 `fake_model`——來自 `llm_tools`），且 `oracle_can_pass` 與 `oracle_can_fail` 對照都 PASS（第十四輪內部審查，`05-v0.15`，使用者決定）。
+      - 理由：這個 FAIL 代表什麼，在結果出來之前已經由人簽核的結構決定；兩種對照證明 oracle 既不是永遠失敗、也不是永遠通過。
+    - **LLM 撰寫的測試**（`unit`／`property`）：G1 簽的是需求、不是測試，Test Critic 也是 LLM，所以它的 FAIL 沒有人核准過。分類為 `E_fail_u`（弱工具訊號，最高 `LIKELY`），裁決加註 `oracle_unreviewed`；叢集經 G2 逐項 `accept` 後，之後的裁決版本才把它算事先登記。Result Analyst 不能代替這一步（也是 LLM）。
+    - **解讀未事先登記、且 oracle 由程式產生時**（例如 `local_rls` 的某個對照沒有 PASS）：由 **Result Analyst 池**中的一位確認 → `E_proof`。池中每個家族一位；選家族與血統都不在叢集中的那一位；有個資時只用自架模型。沒有合格的分析者 → `E_fail_u`（弱工具訊號）。
     - 只有 `LLM_GRADER` 或 `HUMAN` 判定違反 → `E_inc`。
     - G2 已 `REJECTED` 的叢集：之後出現的 `E_fail_u` 只註記 `post_g2_conflict`，維持 `REJECTED`；之後出現的可執行證明（`E_proof`）→ `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict`（05 R10，v0.4）；v0.6 起只限 G4 核准、重播命中的 B4 證明，W4 證明不推翻人工駁回，只加註。兩者都列入 W5 報告與 B6 的人工複核清單。
     - 重新裁決後才轉為 `DISPUTED` 的叢集**不重開 G2**；它們照常成為種子威脅，並在種子清單中標為「W4 後轉為爭議」，由人在 G3 處理 [H]。

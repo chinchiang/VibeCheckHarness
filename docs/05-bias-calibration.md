@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#05-降低模型偏誤證據規則裁決校準)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.15`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#05-降低模型偏誤證據規則裁決校準)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 「偏誤」指什麼
 
@@ -190,7 +190,7 @@
   - 測試結果的 `controls[]` 記錄每個對照的結果。**任一對照不是 PASS**（FAIL、ERROR、NOT_RUN）→ 結果的 `outcome` 必須是 `INVALID`（`E-RESULT-INVALID`）。`INVALID` 表示測試沒有證明自己能測到東西，所以它**永遠不算 PASS**，也不算 FAIL，一律列 `E_inc`。報告清單的 `metrics` 列出 `results_total`、`results_invalid` 與 `control_pass_rate`（PASS 的對照數 ÷ 所有結果的對照總數；validator 重算，`E-REPORT-METRICS`）。範例 run 為 4 筆結果、0 筆 `INVALID`、1.0。
 - **事先登記的解讀**：下列兩種情況，FAIL 的意思在測試執行**之前**就已由人核准，所以不需要 LLM 解讀：
   - (a) 經 G4 核准的黑箱測試案例（B4 結果；該 run 最新的 G4 紀錄為 `APPROVED`／`PARTIALLY_APPROVED`，且對這個測試案例的決定是 `accept`）：G4 核准的就是測試步驟與 oracle；
-  - (b) W4 測試：它的 `requirement_ids` 不是空的、全部經 G1 核准，而且有 `oracle_can_pass` 對照、全部 PASS（判定 PASS 時改為 `oracle_can_fail` 對照）。
+  - (b) W4 測試：它的 `requirement_ids` 不是空的、全部經 G1 核准，而且 **oracle 由 harness 從 G1 核准的結構產生**（`w4-testcase.kind` 為 `local_rls`——由 `access_matrix` 產生，或 `fake_model`——由 `llm_tools` 產生），且 `oracle_can_pass` 與 `oracle_can_fail` 兩種對照都 PASS（第十四輪內部審查，`05-v0.15`，使用者決定；`derive.CODE_ORACLE_KINDS`、`derive.preregistered`）。**LLM 撰寫的 W4 測試**（`unit`／`property`）：G1 簽的是需求、不是測試，`oracle_can_pass` 只證明 oracle 不是永遠失敗，另一家族的 Test Critic 仍是 LLM，所以它的 FAIL 沒有任何人核准過，不算事先登記，Result Analyst（也是 LLM）也不能代替人：分類為 `E_fail_u`（最高 `LIKELY`，R6），裁決加註 `oracle_unreviewed`（R12）；叢集經 G2 逐項 `accept`（人看過這一項）之後，`W4_readjudicate`／`B5_readjudicate` 的新版才把它算事先登記（`oracle_can_pass` 對照 PASS；判定 PASS 時為 `oracle_can_fail`）。`05-v0.3`–`05-v0.14` 只要 `oracle_can_pass` PASS 就算事先登記，這是校準前唯一能到 `CONFIRMED` 的路徑，卻沒有人讀過 oracle。
   - Result Analyst 原本只負責確認「這個 FAIL 真的代表所述問題」。意思已事先固定、又由確定性 oracle 判定時，這一步沒有增加資訊，只會讓證明依賴 LLM，而且在分析者都與叢集同家族時根本無法成立。
 - **Result Analyst 分析者池**：`agents.yaml` 中每個家族一位，角色都是 `result_analyst`（`result_analyst_a`＝`claude_sonnet`、`result_analyst_b`＝`gpt_flagship`、`result_analyst`＝`nemotron_self`）。harness 挑一位家族與血統都不在叢集 `families`／`lineages` 中、也不是寫這個測試的家族的分析者（家族與血統由 `agents.yaml` → `models.yaml` 解析；寫測試的家族＝W4 的 test_generator／test_critic，黑箱的 test_designer、test_implementer、test_critic 與該威脅的 threat_modeler，`derive.test_author_families`）。黑箱回應中偵測到 PII 時，只能用自架模型（`result_analyst`）。沒有符合條件的分析者，就是「沒有合格的 Result Analyst」。
   - 分析者記在測試結果的 `interpreted_by`，它的 LLM 輸出記在 `interpretation`（`{agrees, rationale}`；兩者同時有或同時為 null，`E-RESULT-ANALYST`）。`interpreted_by` 不是 `result_analyst` 角色的 agent → `E-RESULT-ANALYST-ROLE`。
@@ -209,13 +209,13 @@
 
 #### 有序規則
 
-規則分五段（A–E），依序評估；每段的「決定規則」採**第一條成立者決定**，「修正規則」依序套用於前段結果，「註記規則」不改狀態。每條被觸發的規則都寫入 `rule_trace` [H]。每項格式為 `R<n>:<說明>`（pattern `^R([0-9]|1[0-3])(:.*)?$`），R 前綴的順序必須等於規則實際觸發的順序，例如 `["R2:S=0.73", "R5:vote branch", "R8:diversity_degraded"]`；validator 會以 `tools/vchlib/adjudicate.py` 重算並比對。說明文字可以自由書寫，但寫出來的事實必須正確（BL-01）：`->狀態`（或 `->cap 狀態`）必須是該規則留下的狀態（決定規則與 R2 是決定時的狀態、R8 是 `LIKELY`、R11～R13 是最終狀態），`score`、`S`、`theta_confirm`、`theta_reject`、`independent_sources`、`independent_families`、`weighted_support`、`weighted_refute`、`valid_votes` 寫成 `名稱=數字` 時，必須在寫出的位數內等於重算值；不符時報 `E-VERDICT-TRACE`。R11 只在改變狀態或加註時寫入。
+規則分六段（A–F），依序評估；每段的「決定規則」採**第一條成立者決定**，「修正規則」依序套用於前段結果，「註記規則」不改狀態。每條被觸發的規則都寫入 `rule_trace` [H]。每項格式為 `R<n>:<說明>`（pattern `^R([0-9]|1[0-6])(:.*)?$`），R 前綴的順序必須等於規則實際觸發的順序，例如 `["R2:S=0.73", "R5:vote branch", "R8:diversity_degraded"]`；validator 會以 `tools/vchlib/adjudicate.py` 重算並比對。說明文字可以自由書寫，但寫出來的事實必須正確（BL-01）：`->狀態`（或 `->cap 狀態`）必須是該規則留下的狀態（決定規則與 R2 是決定時的狀態、R8 是 `LIKELY`、R11～R16 是最終狀態），`score`、`S`、`theta_confirm`、`theta_reject`、`independent_sources`、`independent_families`、`weighted_support`、`weighted_refute`、`valid_votes` 寫成 `名稱=數字` 時，必須在寫出的位數內等於重算值；不符時報 `E-VERDICT-TRACE`。R11 只在改變狀態或加註時寫入。
 
 | 段 | 規則 | 種類 | 條件 | 結果 |
 |---|---|---|---|---|
 | A 前置 | R9 | 決定 | `run_kind: lane_a`（D8） | 若 R0 條件成立 → `REJECTED`；否則 → `UNCORROBORATED`。兩種情況都設 `advisory: true`、`status_cap: UNCORROBORATED`。**結束**（不再評估 B–D 段；Lane A 不跑測試） |
 | A 前置 | R10 | 決定 | 此叢集最新的 G2 決定為 `REJECTED` | 測試證據有 `E_proof`，**而且**它來自 G4 核准、重播至少命中一次（k_r ≥ 1）的 B4 結果→ `CONFIRMED_EXECUTABLE`（`rule_trace` 為 R10、R1），加註 `post_g2_conflict`，列入 B6 人工複核清單。否則 → `REJECTED`（原因：人工駁回，附理由）；有 `E_fail_u` 時加註 `post_g2_conflict`。**結束** |
-| B 證據 | R14 | 決定 | 審查 r11：`regression` run 帶入的叢集，來源 run 的最新裁決為 `CONFIRMED_*`，測試證據有合格 PASS 且 `positive_control` 為 true、沒有 `E_proof`／`E_fail_u`；審查 r12：而且來源以可執行證明（`E_proof`）確認時，那些測試案例在本 run 都有連結的結果；第十二輪外部審查（`05-v0.12`）：而且**每一個**這樣的測試案例在本 run 都只有合格 PASS（`E_pass` 且正對照成立），任何一個是 `E_inc`（ERROR 等）、沒有正對照或沒有結果，都不是 FIXED，由 R16 維持來源狀態並加註 `fix_unverified`；別的測試案例的 PASS 不能代替 | 沒有強／弱工具訊號、沒有計權反駁票 → `FIXED`（第 14 列）；有任何一項（掃描規則仍命中、驗證者仍反駁）→ `DISPUTED`，加註 `fix_contradicted`（第 15 列，審查 r12：同樣的 PASS 在一般 run 也是 DISPUTED，不能因為是回歸 run 就蓋過）。**結束**（R12 的註記照常） |
+| B 證據 | R14 | 決定 | 審查 r11：`regression` run 帶入的叢集，來源 run 的最新裁決為 `CONFIRMED_*`，測試證據有合格 PASS 且 `positive_control` 為 true、沒有 `E_proof`／`E_fail_u`；審查 r12：而且來源以可執行證明（`E_proof`）確認時，那些測試案例在本 run 都有連結的結果；第十二輪外部審查（`05-v0.12`）：而且**每一個**這樣的測試案例在本 run 都只有合格 PASS（`E_pass` 且正對照成立），任何一個是 `E_inc`（ERROR 等）、沒有正對照或沒有結果，都不是 FIXED，由 R16 維持來源狀態並加註 `fix_unverified`；別的測試案例的 PASS 不能代替；第十四輪內部審查（`05-v0.15`）：**必要案例沿 `carried_from` 鏈回溯**到第一個持有 `E_proof` 的裁決（中間以 R16 維持狀態的 run 沒有自己的證明，不能讓下一個 run 的必要案例變空），整條鏈都沒有可執行證明時取第一個持有 `E_fail_u` 的測試案例（至少證明過會失敗），都沒有 → 不判 FIXED（`checks.required_regression_testcases`；`05-v0.12`–`05-v0.14` 只讀直接來源，所以 CONFIRMED_CORROBORATED 來源或經過一個 R16 的 run 之後，任一案例的合格 PASS 就 FIXED） | 沒有強／弱工具訊號 → `FIXED`（第 14 列）；掃描規則仍命中 → `DISPUTED`，加註 `fix_contradicted`（第 15 列，審查 r12：同樣的 PASS 在一般 run 也是 DISPUTED，不能因為是回歸 run 就蓋過）。帶入叢集不接受投票（`E-VERDICT-VOTE`，第十四輪），所以計權反駁票不再是這一列的輸入。**結束**（R12 的註記照常） |
 | B 證據 | R0 | 決定 | 叢集有成員，成員的證據沒有任何一項接地（`MATCHED`／`MATCHED_SHIFTED`），而且至少一項 `NOT_FOUND`（§3 規則 5；v0.6，v0.5 要求全部 `NOT_FOUND`），**而且**沒有已解析的 SARIF（強或弱）、測試證據沒有 `E_proof`／`E_fail_u`。黑箱起源叢集沒有成員，R0 不適用 | `REJECTED`（原因：無證據）。**結束** |
 | B 證據 | R1 | 決定 | 測試證據為 `E_proof` | `CONFIRMED_EXECUTABLE`。**結束**（若同時有 `E_pass`，R12 加註 `conflicting_test_results`） |
 | C 投票 | R2 | 計算 | ① 計權合格票，以及 S＝Σ w × 立場（支持＋1、反駁−1、棄權 0；w 見 §4.3）；② **強工具佐證**：叢集有強的 SARIF 結果（§3 規則 5）；③ **弱 SARIF**：叢集有其他已解析的 SARIF 結果；④ **獨立來源數**＝第一輪獨立回報的家族數＋（有弱 SARIF 時 1）＋（測試證據含 `E_fail_u` 時 1） | — |
@@ -226,10 +226,10 @@
 | C 投票 | R7 | 決定 | 其他（獨立來源 ≤ 1、沒有計權反駁、沒有強工具佐證、支持未達門檻或沒有票） | `UNCORROBORATED`（→ CMD-2 加派；之後若最高嚴重度為 critical／high 進 G2 佇列，否則直接成為種子威脅） |
 | D 修正 | R8 | 修正 | `diversity_degraded`，且 C 段結果來自 R5 的投票分支（第 11 列） | 降為 `LIKELY`（`status_cap: LIKELY`）。在 `E-CAL-THETA` 成立時（θ_confirm 高於任何單張支持票、每個根只算一票）第 11 列一定需要兩個根，所以 R8 不會觸發；它是防禦縱深，防校準規則將來改變（`tests/test_v07_r10_verdict.py` 以窮舉證明）。R1 與強工具佐證的 R5（第 10 列）**不受**此上限影響 |
 | D 修正 | R11 | 修正 | 測試證據含 `E_pass`，且 C 段（經 R8）結果為下列之一 | 有正對照（某個 `E_pass` 結果的 `positive_control` 為 true，即 `oracle_can_fail` 對照 PASS）：`CONFIRMED_CORROBORATED` → `DISPUTED`；`LIKELY` → `DISPUTED`。沒有正對照：`CONFIRMED_CORROBORATED`、`LIKELY` 維持，加註 `test_not_reproduced`。`UNCORROBORATED` → 維持，加註 `test_not_reproduced`；`DISPUTED`、`REJECTED` → 維持 |
-| E 註記 | R12 | 註記 | 有任何 `E_inc` 結果，或 R1 與 `E_pass` 並存 | 不改狀態；加註 `test_inconclusive`（附測試 ID 與原因）或 `conflicting_test_results` |
+| E 註記 | R12 | 註記 | 有任何 `E_inc` 結果，或 R1 與 `E_pass` 並存；第十四輪內部審查（`05-v0.15`）：或有 LLM 撰寫、G2 尚未接受的 W4 測試的重現 FAIL（分類為 `E_fail_u`，見上面的 (b)） | 不改狀態；加註 `test_inconclusive`（附測試 ID 與原因）、`conflicting_test_results` 或 `oracle_unreviewed` |
 | E 註記 | R13 | 註記 | 此叢集對應的種子威脅被 G3 駁回（D5；v0.5 起 G3 的 `over_cap` 決定也算，理由「超出 G3 上限」）；依 G3 GateRecord 計算，G3 之後任何階段（例如 `B5_readjudicate`）的新版裁決都適用 | 不改狀態（保留白箱狀態）；加註 `g3_rejected`（理由必填）；B6 列為「未做黑箱驗證（G3 駁回：理由）」 |
 | E 註記 | R15 | 註記 | 審查 r11：某張計權合格的**反駁**票（r12：只看反駁票）投出時（`voted_after_round`）叢集沒有投票者的家族或基底血統，之後加入的成員才有（例如 CMD-2 加派的同家族 reviewer）。`voted_after_round` 的上限由 validator 推導（r12：該版裁決的 `verdict_changed` 之前已錨定的 CMD-2 計畫的最高輪次＋1），不採信自填值 | 不改狀態，票仍有效；加註 `refute_by_later_member_family`，報告列出 |
-| F 下限 | R16 | 決定 | 審查 r12：帶入的叢集（`carried_from`），來源的最新裁決為 `CONFIRMED_*`，而前面的規則給出比確認弱、又不是 `DISPUTED` 的狀態（回歸測試 FAIL、出錯、或沒有回歸測試——帶入的叢集沒有本 run 的成員，前面的規則只會給 UNCORROBORATED／LIKELY）；不適用於 Lane A、G2 已駁回、第 14／15 列 | 維持來源的狀態（第 16 列）；有 FAIL 類證據加註 `regression_failed`，否則 `fix_unverified`。R12、R13、R15 的註記照常，順序為 R16、R12、R13、R15 |
+| F 下限 | R16 | 決定 | 審查 r12：帶入的叢集（`carried_from`），來源的最新裁決為 `CONFIRMED_*`，而前面的規則給出比確認弱、又不是 `DISPUTED` 的狀態（回歸測試 FAIL、出錯、或沒有回歸測試——帶入的叢集沒有本 run 的成員，前面的規則只會給 UNCORROBORATED／LIKELY；第十四輪內部審查起帶入叢集也沒有票，`E-VERDICT-VOTE`，所以不會再由反駁票落到第 8／9 列再被抬回）；不適用於 Lane A、G2 已駁回、第 14／15 列 | 維持來源的狀態（第 16 列）；有 FAIL 類證據加註 `regression_failed`，否則 `fix_unverified`。R12、R13、R15 的註記照常，順序為 R16、R12、R13、R15 |
 
 - θ_reject、θ_confirm 由 §5.7 的程序決定；若該程序判定「不可行」，對應門檻設為 +∞（該分支永遠不成立）。
 - **重新裁決**：`W4_readjudicate`（W4 的 Z2 測試結果）與 `B5_readjudicate`（黑箱測試結果）把新結果寫回相關叢集，由 Aggregator **從 A 段重新評估全部規則**（例如從 `LIKELY` 經 R1 升為 `CONFIRMED_EXECUTABLE`，或經 R11 由 `CONFIRMED_CORROBORATED` 降為 `DISPUTED`），並以 append-only 方式產生新版裁決，保留每一版。
@@ -244,7 +244,7 @@
   - **例外**（v0.4；v0.5 加第 10 列；審查 r12 加第 14–16 列）：決定規則是 R9、R10、R0 或 R1（決定表第 1–5 列）、強工具佐證的 R5（第 10 列）、R14（`FIXED` 與被反證的 `DISPUTED`，第 14、15 列）或 R16（帶入叢集的下限，第 16 列），或叢集是 `black_box`，一律不是暫定。這些狀態不取決於投票，標暫定沒有意義；v0.3 會讓同為黑箱、同樣沒有票的 K-201 與 K-202 只因桶不同而一個暫定、一個不是。這一條由 `calibration.yaml` 與 `agents.yaml`／`models.yaml` 計算，**不看**本裁決實際有哪些票：合格的驗證者都沒有校準權重，才算沒有校準支撐。E 為空（`no_eligible_verifier`）時也成立。
   - v0.3 的例子（已由上面的例外取代）：黑箱叢集 K-201 的 V-201-1 沒有票，因為合格的 `nemotron_self` 在 `authz` 桶有權重而不是暫定；K-202 在 `injection` 桶，沒有任何模型有權重，V-202-1 曾是 true。v0.4 起兩者都是 false。
   - 它不改規則的計算（w＝0 時投票分支本來就不會成立，θ＝null 視為 +∞），只表示這個狀態沒有經過校準的投票支撐。報告（W5、B6）把暫定裁決標為「暫定（校準前）」，並在摘要列出暫定裁決的比例。校準前的其他預設見 [08 §11.11](08-implementation-spec.md#1111-校準前的預設)。
-- **規則版本**：第十三輪外部審查把 θ 門檻與高精準規則的信賴區間改為以應用數校正的 n_eff 計算、可行門檻另需最少獨立應用數（§5.7、§5.10），裁決的 `rule_version` 為 **`05-v0.14`**。第十二輪第二次外部審查把獨立觀察的單位改為「預設同家族算一個，有 M-2 證據才拆成血統」（§4.3），裁決的 `rule_version` 為 `05-v0.13`。第十二輪外部審查把 R14 改為逐一要求來源每個可執行證明的測試案例在本 run 得到合格 PASS（`05-v0.11` 把那個案例的 ERROR 算成「已重跑」，並接受其他案例的 PASS），裁決的 `rule_version` 為 `05-v0.12`。第十二輪改變了 `FIXED` 的條件（仍有工具訊號或計權反駁票時是 DISPUTED，第 15 列；來源的可執行證明必須在本 run 重跑）、帶入叢集以來源狀態為下限（R16，第 16 列）、R15 只標反駁票，裁決的 `rule_version` 為 `05-v0.11`。第十一輪新增 `FIXED`（R14）、票的合格性以投票當時的成員判定（`voted_after_round`，R15 註記）、`no_eligible_verifier` 的叢集一律進 G2、事先登記的 PASS 也要求作者獨立，裁決的 `rule_version` 為 `05-v0.10`。第十輪改變了 S 的根內合併（取最強一票）、棄權的計分、θ_reject 的守衛、分析者不同意與作者不明的處理，裁決的 `rule_version` 為 `05-v0.9`。第九輪改變了 S 的計算（每個基底血統一個觀察）、W4 事先登記證明的作者獨立性與機率型 FAIL 的重播判定，裁決的 `rule_version` 為 `05-v0.8`。v0.7 改變了 R6 的來源計算（獨立作者的 `E_fail_u` 才算）與權重的先驗，裁決的 `rule_version` 為 `05-v0.7`。v0.6 改變了 R10（只有 G4 核准、重播命中的 B4 證明能推翻 G2）、R0 與機率型測試的判定，裁決的 `rule_version` 為 **`05-v0.6`**。v0.5 改變了 R4（多家族回報不自動駁回）、計權合格票（不含棄權）與引用相關性，`rule_version` 為 `05-v0.5`（v0.4 改變了 R0、R10、R11 與獨立家族的語意，為 `05-v0.4`；v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
+- **規則版本**：第十四輪內部審查把 W4 事先登記改為「程式產生的 oracle 且兩種對照都 PASS」（LLM 撰寫的 W4 FAIL 最高 `LIKELY`、加註 `oracle_unreviewed`，G2 接受後才升）、帶入叢集不接受投票（`E-VERDICT-VOTE`，第 15 列只看工具訊號）、R14 的必要案例沿 `carried_from` 鏈回溯、投票合格性與驗證者池改用獨立觀察（`independence_key`）、棄權算在分母、ICC 為下限且不等大小的設計效果、保留切分以信賴界類推（§4.2、§4.3、§5.7、§5.10），裁決的 `rule_version` 為 **`05-v0.15`**。第十三輪外部審查把 θ 門檻與高精準規則的信賴區間改為以應用數校正的 n_eff 計算、可行門檻另需最少獨立應用數（§5.7、§5.10），裁決的 `rule_version` 為 **`05-v0.14`**。第十二輪第二次外部審查把獨立觀察的單位改為「預設同家族算一個，有 M-2 證據才拆成血統」（§4.3），裁決的 `rule_version` 為 `05-v0.13`。第十二輪外部審查把 R14 改為逐一要求來源每個可執行證明的測試案例在本 run 得到合格 PASS（`05-v0.11` 把那個案例的 ERROR 算成「已重跑」，並接受其他案例的 PASS），裁決的 `rule_version` 為 `05-v0.12`。第十二輪改變了 `FIXED` 的條件（仍有工具訊號或計權反駁票時是 DISPUTED，第 15 列；來源的可執行證明必須在本 run 重跑）、帶入叢集以來源狀態為下限（R16，第 16 列）、R15 只標反駁票，裁決的 `rule_version` 為 `05-v0.11`。第十一輪新增 `FIXED`（R14）、票的合格性以投票當時的成員判定（`voted_after_round`，R15 註記）、`no_eligible_verifier` 的叢集一律進 G2、事先登記的 PASS 也要求作者獨立，裁決的 `rule_version` 為 `05-v0.10`。第十輪改變了 S 的根內合併（取最強一票）、棄權的計分、θ_reject 的守衛、分析者不同意與作者不明的處理，裁決的 `rule_version` 為 `05-v0.9`。第九輪改變了 S 的計算（每個基底血統一個觀察）、W4 事先登記證明的作者獨立性與機率型 FAIL 的重播判定，裁決的 `rule_version` 為 `05-v0.8`。v0.7 改變了 R6 的來源計算（獨立作者的 `E_fail_u` 才算）與權重的先驗，裁決的 `rule_version` 為 `05-v0.7`。v0.6 改變了 R10（只有 G4 核准、重播命中的 B4 證明能推翻 G2）、R0 與機率型測試的判定，裁決的 `rule_version` 為 **`05-v0.6`**。v0.5 改變了 R4（多家族回報不自動駁回）、計權合格票（不含棄權）與引用相關性，`rule_version` 為 `05-v0.5`（v0.4 改變了 R0、R10、R11 與獨立家族的語意，為 `05-v0.4`；v0.3 改變了 R0、R2、R4–R6 與測試證據分類的語意，由 `05-v0.2` 改為 `05-v0.3`）（`tools/vchlib/adjudicate.py` 的 `RULE_VERSION`）。validator 檢查每個裁決與 run 的 `rule_version` 都等於它（`E-VERDICT-RULE-VERSION`、`E-RUN-RULE-VERSION`）。
 - 每張票與每次裁決依 [schemas/verdict.schema.json](schemas/verdict.schema.json) 保存，含 `voter_family`、`voter_lineage`、`valid`、`fallback_used`、`anonymized`、`order_randomized`、`rule_trace`；v0.2 另有每票的 `votes[].weight`、`votes[].weighted_valid`（＝計權合格票），以及 `status_cap`、`advisory`、`test_evidence{class, results[]}`、`annotations[]{kind, reason}`（kind：`test_not_reproduced`、`test_inconclusive`、`conflicting_test_results`、`g3_rejected`、`post_g2_conflict`、`w4_became_disputed`）、`g2_decision_ref`、`calibration_version`（整數）、`theta_confirm`、`theta_reject`、`readjudicated_by`（產生該版裁決的節點：`W3_adjudicate`、`G2_apply`、`W4_readjudicate` 或 `B5_readjudicate`；R10 只看 G2 之後產生的版本）、`supersedes_verdict_id`。
   - **版本鏈**：同一叢集的版本以 `supersedes_verdict_id` 形成單一線性鏈：不能指向自己、不能循環、不能分岔，恰好有一個最新版（`E-VERDICT-CHAIN`）；報告的 `verdict_counts` 取每條鏈的最新版。
   - **階段不能倒填**：黑箱叢集只有 `B5_readjudicate` 版本；`W3_adjudicate` 版本不取代任何版本；鏈上的階段只能 W3 → G2_apply → W4 → B5；某一版的 `verdict_changed` 收件時間晚於該叢集某筆 W4／B4 測試結果的執行時間時，這一版至少是 `W4_readjudicate`／`B5_readjudicate`（`E-VERDICT-PHASE`）。否則把 `readjudicated_by` 改成 `W3_adjudicate` 就能關掉測試證據的連結。v0.3 的 `tool_corroboration` 只含**強**工具佐證，另新增 `tool_signal`（弱工具訊號）、`independent_sources`（整數）、`provisional`，以及每票必填的 `votes[].cited_evidence`。
@@ -279,8 +279,8 @@
 | 10 | 否 | 否 | 否 | 非 proof | · | 無 | 有 | · | · | · | `CONFIRMED_CORROBORATED`（R5，強工具佐證） |
 | 11 | 否 | 否 | 否 | 非 proof | 有 | 無 | 無 | · | S ≥ θ_confirm | · | `CONFIRMED_CORROBORATED`（R5，投票分支） |
 | 12 | 否 | 否 | 否 | 非 proof | · | 無 | 無 | · | 未達 | 是 | `LIKELY`（R6） |
-| 14 | 否 | 否 | · | 合格 PASS 有正對照、沒有 FAIL 類（regression run 帶入的 `CONFIRMED_*` 叢集，來源每個可執行證明的測試案例都重跑並得到合格 PASS；在第 4 列之前評估） | 無 | 無 | 無 | 無 | · | · | `FIXED`（R14） |
-| 15 | 否 | 否 | · | 同第 14 列 | · | 有 | · | · | · | · | `DISPUTED`（R14，`fix_contradicted`；工具訊號任一層有也是此列） |
+| 14 | 否 | 否 | · | 合格 PASS 有正對照、沒有 FAIL 類（regression run 帶入的 `CONFIRMED_*` 叢集，`carried_from` 鏈上第一個證明的每個測試案例都重跑並得到合格 PASS；在第 4 列之前評估） | ·（帶入叢集沒有票） | ·（同左） | 無 | 無 | · | · | `FIXED`（R14） |
+| 15 | 否 | 否 | · | 同第 14 列 | · | · | 任一 | 任一 | · | · | `DISPUTED`（R14，`fix_contradicted`：掃描規則仍命中；第十四輪起帶入叢集沒有票，計權反駁不再是輸入） |
 | 16 | 否 | 否 | · | 帶入叢集、來源 `CONFIRMED_*`、上面的列給出 UNCORROBORATED／LIKELY／REJECTED | · | · | · | · | · | · | 來源狀態（R16，`regression_failed`／`fix_unverified`） |
 | 13 | · | · | · | · | · | · | · | · | · | · | `UNCORROBORATED`（R7） |
 
@@ -326,7 +326,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 |---|---|---|
 | 第一輪獨立回報的家族 | anthropic | anthropic（`routes/invoices.ts::updateInvoice`，桶 `authz`） |
 | SARIF | 1 筆已解析的 ref，來自 `semgrep:scan`，算工具佐證 | 同一個 ref，改由 `opengrep:scan` 1.6.0 產生（稽核 seq 13，`inv-w1-opengrep-001`；規則 `vc.authz.update-without-owner`）。`semgrep:scan` 在 `licenses.yaml` 是法務閘門，v0.3 的 `E-SARIF-REF` 不接受它（N-7）；Opengrep 的狀態是「注意」，可以執行。規則不在 `high_precision_rules`（校準前為空）→ 弱工具訊號 |
-| 票 | `ver_1`（nvidia，`nemotron_self`）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同，兩票的 `cited_evidence` 都是 `routes/invoices.ts:88`；只有 `ver_1` 是計權合格票；S＝0.6933 ＜ θ_confirm＝1.2（`calibration_version` 3，θ_reject 為 null）。目前的範例（r10 的權重，棄權以半對半錯計入）：w＝1.3179、S＝1.3179 ＜ θ_confirm＝2.5 |
+| 票 | `ver_1`（nvidia，`nemotron_self`）支持，w＝0.6933；`ver_3`（openai，`gpt_oss_self`）支持，w＝0 | 相同，兩票的 `cited_evidence` 都是 `routes/invoices.ts:88`；只有 `ver_1` 是計權合格票；S＝0.6933 ＜ θ_confirm＝1.2（`calibration_version` 3，θ_reject 為 null）。目前的範例（`05-v0.15`，棄權算在分母）：w＝1.1055、S＝1.1055 ＜ θ_confirm＝2.5 |
 | 合格驗證家族 E | —（v0.2 沒有這個定義） | {nvidia, openai}；`ver_2`（`claude_sonnet`）屬 anthropic，排除 |
 | `diversity_degraded` | false（有效票有 2 個家族） | true（計權合格票只有 1 個家族 ＜ min(2, 2)）；不影響結果，因為 R8 只作用在第 11 列 |
 | 裁決欄位 | `tool_corroboration`＝[該 ref] | `tool_corroboration`＝[]、`tool_signal`＝[該 ref]、`independent_sources`＝2、`no_eligible_verifier`＝false、`provisional`＝false（E 中的 `nemotron_self` 在 `authz` 桶 w＞0） |
@@ -335,7 +335,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 範例的 `rule_trace`：
 
 ```text
-R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.3179<theta_confirm=2.5,independent_sources=2
+R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.1055<theta_confirm=2.5,independent_sources=2
 R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
 ```
 
@@ -361,14 +361,14 @@ R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
   - 例：TPR 0.8333、TNR 0.8071 → w_support＝ln(0.8333／0.1929)＝1.4633，w_refute＝ln(0.8071／0.1667)＝1.5775。TPR 0.95、TNR 0.05（永遠投支持）→ w_support＝ln(0.95／0.95)＝0。
   - 平滑：a ＝ (C ＋ k·ā ＋ 1) ／ (n ＋ k ＋ 2)，ā 是該模型該邊的跨桶原始正確率，k 是 `smoothing_k`；+1／+2 的先驗讓 a 嚴格落在 (0, 1)。v0.6 的 (C ＋ k·ā) ／ (n ＋ k) 在模型單邊全對時 a＝1，`lr_weights` 的比率除以零而回傳 0，最準的驗證者反而權重歸零。範例：nemotron_self 在 authz 的 support C＝34、n＝40、ā＝0.8333、k＝10 → a＝0.8333；refute C＝20、n＝24、ā＝0.8056 → a＝0.8071；w_support＝ln(0.8333／0.1929)＝1.4633。
 - **政策常數由 validator 釘住**（審查 r11，`E-CAL-POLICY`）：`smoothing_k`＝10、`near_zero_rules`（w_min 0.2、wilson_lower_max 0.5、n_min 10、abstain_rate_max 0.3）與 §5.7 的 `threshold_search` 限制（precision 下限 0.9、Wilson 下界 0.8、真缺陷比例 0.02、Wilson 上界 0.08、min_clusters 40）寫在 `checks.CAL_POLICY`；`calibration.yaml` 寫不同的數字就是錯誤。之前 validator 只檢查檔案自我一致，簽署委任設定的人看不出一份 2,000 行 YAML 裡 `wilson_lower_max: 0.0` 的意義。
-- **「權重接近 0」的判準** [H]：每一邊各自判定，任一邊成立就標示該邊 `near_zero: true`，原因寫入 `near_zero_reasons`（依序對應下列三項：`w_below_min`、`wilson_lower_le_max`、`n_below_min`）。**任一邊 near_zero → 兩邊的 w 都是 0**，因為每個權重都用到兩邊的比率，一邊不可靠，另一邊的權重也不可靠：
+- **「權重接近 0」的判準** [H]：每一邊各自判定，任一邊成立就標示該邊 `near_zero: true`，原因寫入 `near_zero_reasons`（依序對應下列四項：`w_below_min`、`wilson_lower_le_max`、`n_below_min`）。**任一邊 near_zero → 兩邊的 w 都是 0**，因為每個權重都用到兩邊的比率，一邊不可靠，另一邊的權重也不可靠：
   1. 該邊的 w ＜ 0.2；
   2. 原始正確率 C／n 的 Wilson 95% 下界 ≤ 0.5（和隨機分不開）；
   3. n(m,b) ＜ 10（資料不足）；
   4. 棄權率 n_abstain／(n＋n_abstain) ＞ `abstain_rate_max`（預設 0.3）→ `abstain_rate_gt_max`。正確率只算表態的票，所以只回答容易案例、其他全部棄權的模型，正確率與權重都很高（12 題全對、28 題棄權：w≈3.14，單票就超過 θ_confirm）。每一邊記 `n_abstain`。
-  - **棄權當作擲硬幣**。上限以下的棄權仍有懸崖：12 題全對、5 題棄權（29%）的權重與 12 題全對沒有棄權一樣。現在 a、ā 與 Wilson 下界都用有效計數 C′＝C＋n_abstain／2、n′＝n＋n_abstain（`checks.effective_counts`）：棄權不帶資訊，等於隨機猜一次。上限保留為硬上限。範例：nemotron_self 在 authz 的 support C＝34、n＝40、棄權 4 → C′＝36、n′＝44，a＝0.8041、w_support＝1.3179。
+  - **棄權算在分母**（第十四輪內部審查，`05-v0.15`）。上限以下的棄權仍有懸崖：12 題全對、5 題棄權（29%）的權重不能與 12 題全對沒有棄權一樣。a、ā 與 Wilson 下界用 C′＝C、n′＝n＋n_abstain（`checks.effective_counts`）：每一邊的 a 是「被問到這類案例時投出正確立場」的機率，棄權就是沒有答對，這樣 w 才是對數概似比。`05-v0.9`–`05-v0.14` 把棄權算半對（C′＝C＋n_abstain／2），支持率不再是機率：棄權 27% 的模型支持權重被高估、反駁權重被低估。上限保留為硬上限。範例：nemotron_self 在 authz 的 support C＝34、n＝40、棄權 4 → n′＝44，a＝0.7603、w_support＝1.1055（半對半錯時是 0.8041、1.3179）。
   - 10 ≤ n ＜ 20 的（模型，桶）仍有權重，但不滿足 §5.3 M-1 的出場條件（≥ 20 張非棄權票）：權重在 run 中可用，pilot 的出場要等票數足夠。
-- 加權分數 S 用於 §4.2 的 R4、R5；w＝0 的票不算「計權合格票」。S 依**獨立觀察**分組（`Index.independence_key`），每個觀察取一票再相加（`derive.root_score`）；獨立來源數（`independent_families`）與多樣性（`diversity_degraded`）用同一個分組。**獨立觀察的單位**（第十二輪第二次外部審查，`05-v0.13`，使用者決定「可設定，預設保守」）：共用基底血統的模型永遠是一個觀察（跨家族的微調也是）；同一家族的模型預設也是一個觀察；只有 `calibration.yaml` 的 `config.independence.lineage_split` 為某家族的**每一對**血統根記錄了 M-2 量測（κ 的信賴上界 ＜ 0.6、n ≥ 40 個叢集）時，那個家族才拆成各血統各算一個觀察（`derive.INDEPENDENCE_SPLIT`；`unit` 固定為 `family`，證據不足的 `lineage_split` 項目 → `E-CAL-POLICY`）。`05-v0.12` 以基底血統為單位：範例登錄的 openai 有 `gpt` 與 `gpt-oss` 兩個根，兩張 1.3179 的支持票 S＝2.6358 ≥ θ_confirm 2.5，單一驗證家族就能把只有 anthropic 回報的叢集推成 `CONFIRMED_CORROBORATED`；同廠商的模型常共用過濾機制、對齊偏好與部分訓練資料（共模失效），所以在 M-2 量測前先合併，現在這兩票是 1.3179。同一血統的兩個驗證者共用盲點，是一個觀察；兩張 1.44 的同根支持票是 1.44，不是 2.88。根內立場一致時取 |w| 最大的一票，不再取平均——平均讓同根多一張 0.32 的支持票把 S 從 2.906 拉到 2.345、跌破 θ_confirm，增加證據反而失去確認。根內立場不一致時取平均；同時有支持與反駁本來就觸發 R3（`DISPUTED`）。
+- 加權分數 S 用於 §4.2 的 R4、R5；w＝0 的票不算「計權合格票」。S 依**獨立觀察**分組（`Index.independence_key`），每個觀察取一票再相加（`derive.root_score`）；獨立來源數（`independent_families`）與多樣性（`diversity_degraded`）用同一個分組。**合格票與驗證者池也用同一個分組**（第十四輪內部審查，`05-v0.15`）：投票模型的獨立觀察鍵與任一成員回報者相同（同家族、同基底血統，或經第三個模型的 `derived_from` 合併）→ 票不合格、該模型不在 E 中（`derive.member_observation_keys`、`checks.eligible_verifier_models`）。`05-v0.13` 只在 S、來源數與多樣性用這個分組，合格票與驗證者池仍只看家族與血統，所以一個經微調模型與回報者合併成同一觀察的模型，仍可以當它的合格驗證者。**獨立觀察的單位**（第十二輪第二次外部審查，`05-v0.13`，使用者決定「可設定，預設保守」）：共用基底血統的模型永遠是一個觀察（跨家族的微調也是）；同一家族的模型預設也是一個觀察；只有 `calibration.yaml` 的 `config.independence.lineage_split` 為某家族的**每一對**血統根記錄了 M-2 量測（κ 的信賴上界 ＜ 0.6、n ≥ 40 個叢集）時，那個家族才拆成各血統各算一個觀察（`derive.INDEPENDENCE_SPLIT`；`unit` 固定為 `family`，證據不足的 `lineage_split` 項目 → `E-CAL-POLICY`）。`05-v0.12` 以基底血統為單位：範例登錄的 openai 有 `gpt` 與 `gpt-oss` 兩個根，兩張 1.3179 的支持票 S＝2.6358 ≥ θ_confirm 2.5，單一驗證家族就能把只有 anthropic 回報的叢集推成 `CONFIRMED_CORROBORATED`；同廠商的模型常共用過濾機制、對齊偏好與部分訓練資料（共模失效），所以在 M-2 量測前先合併，現在這兩票是 1.3179。同一血統的兩個驗證者共用盲點，是一個觀察；兩張 1.44 的同根支持票是 1.44，不是 2.88。根內立場一致時取 |w| 最大的一票，不再取平均——平均讓同根多一張 0.32 的支持票把 S 從 2.906 拉到 2.345、跌破 θ_confirm，增加證據反而失去確認。根內立場不一致時取平均；同時有支持與反駁本來就觸發 R3（`DISPUTED`）。
 - 權重為 0 的模型**仍保留在報告中並註明**，不偷偷移除；它在該桶提出的新叢集仍會進入驗證（補充召回），只是不參與確認或否決（§5.5）。
 - **新模型或新版本**在完成 §5.8 的最小重跑前，所有桶 w＝0 [H]（fail-safe：只能補充召回）。v0.5 起由 validator 強制：`result.invalidated_by` 列出的模型，以及不在 `valid_for_model_keys` 的模型，權重一律為 0（`Index.weight`；清單是空的時，代表沒有任何模型有效，v0.5 把空清單當成「全部有效」）。v0.6另外不靠人登錄：`config.models` 的 `version` 必須等於 models.yaml 該模型 `litellm` 的最後一段，`prompt_template_sha256` 必須等於該 run 的 `w3-verify` 範本 hash，否則權重為 0（`Index.calibrated_setup_problem`）。
 - **fallback 的票**以投票時實際使用的模型（票上的 `voter_model_key`）查權重，不沿用被取代模型的權重 [H]。fallback 模型也適用上一條：完成 §5.8 重跑前 w＝0，所以票有紀錄、`valid` 照判，但不是計權合格票（§3 規則 3）。
@@ -484,6 +484,11 @@ R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
 
 以下內容在解盲保留切分前寫定，之後不得更改；任何偏離都要在報告中逐條列出 [H]。
 
+**預先登記的控制由 validator 強制**（第十四輪內部審查，`05-v0.15`；`E-CAL-PREREG`、`E-CAL-HYPOTHESIS`）[H]：
+- `preregistration.doc_sha256` 是**登記的設定本身**的 content hash（`config` 以這個欄位為 null 計算的 JCS SHA-256）：θ 的搜尋條件、語料、模型與假設在登記後改了，hash 就不再相符。之前這個欄位從未被比對。
+- `result.frozen_at`：θ、權重與高精準名單凍結的時間，不早於 `registered_at`、不晚於第一筆 `holdout_access_log`；任何保留切分統計 n ＞ 0 時，`holdout_access_log` 至少一筆（有人讀了保留切分才算得出來）。
+- 主要假設的欄位是**推導值**：`h1`＝CI 下界 ＞ 0；`h2` 只在 H1 成立時評估（固定順序程序），否則必須是 null；`outcome` 由 h1／h2／CI 上界推導（兩者成立 → `multi_family_wins`；只有 H1 → `recall_only`；H1 不成立且上界 ＜ 0 → `single_best_wins`；否則 `not_shown`）；Δ 在 CI 內；`holdout_n_final` ≥ 以 max(ψ_assumed, ψ_observed)、max(ρ_assumed, ρ_observed) 依 §5.5 重算的樣本數（`checks.required_holdout_n`；範例 ψ 0.2、ρ 0.06 → 379）；探索性結果的 CI 有序且含點估計。範例原本 `ci_low 0.02 > 0` 卻 `h1: false`、H1 不成立卻 `h2: true`、探索性 CI 上下顛倒、`holdout_n_final 262` 低於重算值，而 validator 沒有讀這些欄位。
+
 **兩組的精確定義** [H]
 - **M\***：在校準切分上，① 單次 recall 最高的模型（同分取成本較低者）。
 - **②a（主要比較組）**：M\* 對每個切片取樣 3 次（各供應商預設溫度），叢集後「≥ 2 次取樣都回報」的叢集才算**接受**（self-consistency）。
@@ -554,7 +559,7 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 - **保留切分檢查**：保留切分上的 precision 比限制低 0.05 以上（確認分支 ＜ 0.85，或駁回分支真缺陷比例 ＞ 0.07）→ 標示「門檻未能類推」，改用 +∞，下一輪校準再調。
 - θ 只調一次；不得在看過保留切分後重選。
 - **切分統計記原始計數**（審查 r11）：`calibration`／`holdout` 各記 `tp`（該分支確認或駁回的叢集中的真缺陷數）與 `n`，validator 以 tp／n 重算 precision 與 Wilson 95% 界限（`ci_low`、`ci_high`；n＝0 時都是 0），不接受自填值；`recall` 需要語料的全部正例，仍是宣告值。
-- **應用內相關**（第十三輪外部審查，`05-v0.14`）[H]：同一應用的叢集共用生成模型、框架與作者習慣，40 個叢集若來自三個應用，不是 40 個獨立觀察。每個切分統計另記 **`n_apps`**（這 n 個叢集來自幾個不同的應用），validator 以 §5.5 第 5 步同一個組內相關 ρ（`config.clustering.icc`＝0.05）算設計效果 DE＝1＋(m − 1)ρ、m＝n／n_apps，**Wilson 界限以 n_eff＝n／DE 重算**（tp 等比例縮成 tp·n_eff／n）；可行的門檻另需 **`n_apps` ≥ `clustering.min_apps`（10）**，`min_clusters`（40）仍看原始 n，兩個條件都要。`clustering` 的兩個數字由 validator 釘住（`E-CAL-POLICY`）。例：64 個叢集來自 16 個應用 → m＝4、DE＝1.15、n_eff＝55.7，59／64 的 Wilson 下界由 0.8298 降為 0.8212；θ_reject 的 0 個真缺陷要 Wilson 上界 ≤ 0.08，從 45 個叢集變成約 52 個（13 個應用，n_eff 45.2）。ρ 是假設值，Calibration Lab 量到實際的組內相關後改這個常數（`E-CAL-POLICY` 隨之更新）。
+- **應用內相關**（第十三輪外部審查，`05-v0.14`；第十四輪內部審查，`05-v0.15`）[H]：同一應用的叢集共用生成模型、框架與作者習慣，40 個叢集若來自三個應用，不是 40 個獨立觀察。每個切分統計記 **`apps`**＝{`app_id`: 該應用的叢集數}（n 必須等於總和，每個 `app_id` 必須是 `config.corpus` 中同一切分的應用；`05-v0.14` 的自填 `n_apps` 可以填 n 而把設計效果關掉），validator 以各應用的實際筆數算**不等大小的設計效果** DE＝1＋(Σm_i²／n − 1)·ρ（m_i 為各應用的叢集數；等大小時就是 1＋(m − 1)ρ；41 筆中 32 筆來自一個應用時 DE≈2.2，等大小公式只算到 1.15），**Wilson 界限以 n_eff＝n／DE 重算**（tp 等比例縮成 tp·n_eff／n）；可行的門檻另需 **至少 `clustering.min_apps`（10）個應用**，`min_clusters`（40）仍看原始 n，兩個條件都要；`generalised: true` 的保留切分也要至少 10 個應用。ρ＝`config.clustering.icc`：**下限 0.05**（§5.5 第 5 步的假設值），`result.primary_hypothesis.rho_observed` 更大時必須等於它（`E-CAL-POLICY`；`05-v0.14` 把它釘死在 0.05，範例自己量到的 0.06 無法套用）。例：64 個叢集來自 16 個應用、各 4 個、ρ＝0.05 → DE＝1.15、n_eff＝55.7，59／64 的 Wilson 下界由 0.8298 降為 0.8212（範例 ρ＝0.06 → 0.8195）；θ_reject 的 0 個真缺陷要 Wilson 上界 ≤ 0.08，從 45 個叢集變成 51 個（13 個應用、12×4＋3，n_eff 44.5，上界 0.0795；50 個的上界 0.0808 不可行）。**保留切分以信賴界類推**：確認分支除了點估計 ≥ 下限 − 0.05，保留切分的 Wilson 下界也要 ≥ `confirm_wilson_lower_floor`（0.80）；駁回分支的 Wilson 上界 ≤ `reject_wilson_upper_max`＋0.05；`05-v0.14` 只看點估計，10 個叢集 0 個真缺陷（上界 0.28）就算類推。
 - **validator 重算**：`feasible: true` 的門檻，其 `calibration` 統計必須滿足上面的限制（n ≥ `min_clusters`；確認分支 precision ≥ `confirm_precision_floor`、`ci_low` ≥ `confirm_wilson_lower_floor`；駁回分支的統計描述被駁回的叢集，`tp` 是其中的真缺陷數，所以 precision 本身就是真缺陷比例：precision ≤ `reject_true_defect_max`、Wilson 上界 `ci_high` ≤ `reject_wilson_upper_max`；r11 初版誤把 1 − precision 當真缺陷比例，與上面的定義相反），`generalised: true` 的保留切分在限制的 0.05 以內（駁回分支：保留切分的真缺陷比例 ≤ 0.07）；而且每個桶的 θ_confirm 必須高於該桶任何一張支持票的權重，否則一張票就能確認（`E-CAL-THETA`）。θ_reject 同理，必須高於該桶任何一張反駁票的權重，否則一張反駁票就能讓單一家族回報的叢集被第 8 列自動駁回；`generalised: true` 的保留切分至少 10 個叢集（與 §5.10 的保留切分下限相同），一個叢集的保留切分說明不了類推。v0.7 只看 `feasible` 與 `generalised` 這兩個自填的布林值。
 
 ### 5.8 模型版本變更時的最小重跑集
@@ -575,8 +580,8 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 
 `calibration.yaml` 分成**設定**（事先寫定）與**結果**（實驗產出）兩部分，schema 見 [schemas/calibration.schema.json](schemas/calibration.schema.json)。本節列出本文件需要的欄位 [H]：
 
-- **設定**：`calibration_id`、`calibration_version`（整數）、`preregistration`（本檔版本 hash、主要指標、檢定、α、Δ_min、ψ、ρ、不劣性邊界、登記時間）、`corpus`（每個應用的 ID、內容 hash、部分 P／V／D／B、`generator_family`、生成日期、切分、是否在哨兵子集）、`models`（`model_key`、家族、血統、版本、參數、prompt 範本 hash、訓練截止日）、`arms`（`"1"`、`"2a"`、`"2b"`、`"3"`、`"4"`、`"5"` 的定義、N、接受規則；`"5"` 即 ⑤ 少數否決，標示 `exploratory: true`）、`repetitions`、`random_seed`、`threshold_search`（格點、precision 下限、駁回真缺陷上限、最小叢集數）、`clustering`（`min_apps`、`icc`；§5.7 的應用內相關）、`smoothing_k`、`near_zero_rules`、`annotation`（標註者 ID、κ 門檻、仲裁者）。
-- **結果**：`weights[]`（模型、桶、n、C、a、w、`near_zero`、`near_zero_reasons`）、`thresholds`（`theta_confirm`、`theta_reject`、`high_precision_min` 三項，結構相同：`value`、`feasible`、校準與保留切分上的 precision／recall 與 CI、`n`、`tp`、`n_apps`、`generalised`）、`high_precision_rules[]`（`adapter`、`rule_id`、`tool_version`、`cwe_bucket`、`n`、`tp`、`fp`、`n_apps`、`precision_lower95`、`holdout_n`、`holdout_tp`、`holdout_n_apps`；§5.10；校準前為空陣列）、`primary_hypothesis`（實際比較組 ②a／②b、Δ、CI、McNemar p 值、H1／H2 結果、決定、套用的後備方案）、`metrics`（M-1–M-11 的值與 CI）、`exploratory`（⑤ 的 precision、recall、相對 ③ 的差值與 CI）、`annotator_agreement[]`（批次、κ、是否接受）、`contamination`（canary 探測結果（只作輔助）、原版 vs 變形版差距）、`holdout_access_log`、`recommended_defaults`、`valid_for_model_keys`、`invalidated_by`（觸發 §5.8 的變更）。
+- **設定**：`calibration_id`、`calibration_version`（整數）、`preregistration`（本檔版本 hash、主要指標、檢定、α、Δ_min、ψ、ρ、不劣性邊界、登記時間）、`corpus`（每個應用的 ID、內容 hash、部分 P／V／D／B、`generator_family`、生成日期、切分、是否在哨兵子集）、`models`（`model_key`、家族、血統、版本、參數、prompt 範本 hash、訓練截止日）、`arms`（`"1"`、`"2a"`、`"2b"`、`"3"`、`"4"`、`"5"` 的定義、N、接受規則；`"5"` 即 ⑤ 少數否決，標示 `exploratory: true`）、`repetitions`、`random_seed`、`threshold_search`（格點、precision 下限、駁回真缺陷上限、最小叢集數）、`clustering`（`min_apps`、`icc`——下限 0.05，量到的 ρ 更大時必須採用；§5.7 的應用內相關）、`smoothing_k`、`near_zero_rules`、`annotation`（標註者 ID、κ 門檻、仲裁者）。
+- **結果**：`weights[]`（模型、桶、n、C、a、w、`near_zero`、`near_zero_reasons`）、`thresholds`（`theta_confirm`、`theta_reject`、`high_precision_min` 三項，結構相同：`value`、`feasible`、校準與保留切分上的 precision／recall 與 CI、`n`、`tp`、`apps`（各應用的叢集數，§5.7）、`generalised`）、`high_precision_rules[]`（`adapter`、`rule_id`、`tool_version`、`cwe_bucket`、`n`、`tp`、`fp`、`apps`、`precision_lower95`、`holdout_n`、`holdout_tp`、`holdout_apps`；§5.10；校準前為空陣列）、`frozen_at`（θ、權重與名單凍結的時間，§5.6）、`primary_hypothesis`（實際比較組 ②a／②b、Δ、CI、McNemar p 值、H1／H2 結果、決定、套用的後備方案）、`metrics`（M-1–M-11 的值與 CI）、`exploratory`（⑤ 的 precision、recall、相對 ③ 的差值與 CI）、`annotator_agreement[]`（批次、κ、是否接受）、`contamination`（canary 探測結果（只作輔助）、原版 vs 變形版差距）、`holdout_access_log`、`recommended_defaults`、`valid_for_model_keys`、`invalidated_by`（觸發 §5.8 的變更）。
 - **`high_precision_min` 放在結果的 `thresholds` 裡**（`result.thresholds.high_precision_min`），不在設定，也不在 `toolkit.yaml`。它是政策下限、不是 §5.7 搜尋出來的，所以範例是 `value: 0.9`、`feasible: true`，兩個切分的統計都填 0（n＝0）、`generalised: false`。schema 要求這一項；validator 讀它的 `value`，`value` 為 null 時停用強佐證（沒有任何 SARIF 算強）。
 
 ### 5.10 掃描器規則的高精準名單（`high_precision_rules`）
@@ -591,17 +596,17 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 1. 在校準切分的 P 與 D 應用上執行候選掃描器，版本固定，並寫入該列的 `tool_version`。V 變形版與 B 公開 benchmark 不計入：V 與原版高度相關，B 不用於任何門檻（§5.1）。
 2. 每筆 SARIF 結果依 §4.1 的叢集鍵對到正規位置與桶；同一條規則在同一位置的重複結果只算一筆。
 3. 對到真值缺陷（植入缺陷，或經 §5.1 雙標註確認的自然缺陷）＝真陽性；對到誘餌或被標為誤報＝偽陽性；範圍外的不計。對不上植入缺陷的結果，照 §5.1 的雙標註流程判定。n＝真陽性＋偽陽性。
-4. `precision_lower95`＝真陽性／n 的 **Clopper-Pearson 雙尾 95% 區間下界**，以 §5.7 的設計效果校正：n 筆結果來自 `n_apps` 個應用，n_eff＝n／(1＋(n／n_apps − 1)·ρ)，下界以 (tp·n_eff／n, n_eff) 計算（第十三輪外部審查，`05-v0.14`）。每一列記錄原始計數 `tp`、`fp`、`n_apps`、`holdout_n`、`holdout_tp`、`holdout_n_apps`，validator 由計數重算下界、n ≥ 40、`n_apps` ≥ 10 與保留切分條件，不採信列上宣告的下界（`checks.high_precision_problems`、`E-CAL-HIGH-PRECISION`）；不符條件的列不是強工具佐證。選精確法，是因為它與 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 報告 k／n 的方法相同。
+4. `precision_lower95`＝真陽性／n 的 **Clopper-Pearson 雙尾 95% 區間下界**，以 §5.7 的設計效果校正：n 筆結果來自 `apps` 列出的應用（{`app_id`: 筆數}），n_eff＝n／DE、DE＝1＋(Σm_i²／n − 1)·ρ，下界以 (tp·n_eff／n, n_eff) 計算（第十三輪外部審查，`05-v0.14`；第十四輪，`05-v0.15`：不等大小的設計效果、應用必須在 corpus 中）。每一列記錄原始計數 `tp`、`fp`、`apps`、`holdout_n`、`holdout_tp`、`holdout_apps`，validator 由計數重算下界、n ≥ 40、至少 10 個應用與保留切分條件，不採信列上宣告的下界（`checks.high_precision_problems`、`E-CAL-HIGH-PRECISION`）；不符條件的列不是強工具佐證。選精確法，是因為它與 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 報告 k／n 的方法相同。
 
 **列入條件**（全部成立）[H]：
-- n ≥ 40（與 §5.7 的最小叢集數相同）且 `n_apps` ≥ 10（§5.7 的 `clustering.min_apps`）；
+- n ≥ 40（與 §5.7 的最小叢集數相同）且 `apps` 至少 10 個應用（§5.7 的 `clustering.min_apps`）；
 - 校準切分上的 `precision_lower95` ≥ `high_precision_min`（預設 0.90）；
 - 通過下面的保留切分檢查。
 
-門檻的實際意思（以每個應用約 4 筆結果、ρ＝0.05 估，即 DE≈1.15）：全對時需要 n_eff ≥ 35.1（0.025^(1／n_eff) ≥ 0.9），即 n＝41、10 個應用（n_eff 35.5，下界 0.901）；40／40 來自 10 個應用的 n_eff 只有 34.8，下界 0.899，不列入（沒有校正時 40／40 的下界是 0.912）。有 1 筆誤報時約需 n ≥ 59（15 個應用），有 2 筆時約需 n ≥ 76（19 個應用）。
+門檻的實際意思（以每個應用約 4 筆結果、ρ＝0.05 估，即 DE≈1.15）：全對時需要 n_eff ≥ 35.01（0.025^(1／n_eff) ≥ 0.9），即 n＝41、10 個應用（n_eff 35.5，下界 0.901）；40／40 來自 10 個應用的 n_eff 只有 34.8，下界 0.899，不列入（沒有校正時 40／40 的下界是 0.912）。有 1 筆誤報時約需 n ≥ 59（15 個應用），有 2 筆時約需 n ≥ 76（19 個應用）。
 
 **保留切分檢查**（§5.4 第 6 步解盲後；只檢查、不調參）[H]：
-- 在保留切分以同樣方法計數。該規則在保留切分的 n ≥ 10，且 precision 點估計 ≥ `high_precision_min` − 0.05（預設 0.85），才列入名單。
+- 在保留切分以同樣方法計數。該規則在保留切分的 n ≥ 10，precision 點估計 ≥ `high_precision_min` − 0.05（預設 0.85），**而且**保留切分在 n_eff 上的 Clopper-Pearson 下界也 ≥ 0.85（第十四輪內部審查，`05-v0.15`：10 筆全對的下界只有 0.69，點估計說明不了類推；全對時 n_eff 要 ≥ 22.7，約 25 筆、7 個應用），才列入名單。
 - n ＜ 10 或點估計太低 → 不列入，報告分別標示「保留切分樣本不足」或「未能類推」。這與 §5.7 保留切分檢查的邏輯相同：寧可少列，也不讓未經驗證的規則單獨確認。
 
 **移除與暫停** [H]：

@@ -14,7 +14,7 @@ import math
 
 import pytest
 
-from conftest import doc
+from conftest import apps_map, doc, hp_rule
 from vchlib import checks, derive
 from vchlib.checks import Ctx, run_all
 
@@ -43,7 +43,7 @@ def test_the_weights_use_both_sides():
 
 def test_the_example_weights_are_recomputed(b):
     assert not errors(b, "E-CAL-WEIGHT")
-    assert row(b, "nemotron_self", "authz")["support"]["w"] == 1.3179           # r10 abstentions; r8 prior: 1.4633; was 1.5775
+    assert row(b, "nemotron_self", "authz")["support"]["w"] == 1.1055           # r14 abstentions in the denominator; r10: 1.3179; r8 prior: 1.4633; was 1.5775
 
 
 def test_the_old_accuracy_weight_is_rejected(b):
@@ -88,9 +88,8 @@ def test_bucket_thresholds_are_checked(b):
     assert any("theta_confirm/llm_specific" in i.msg for i in errors(b, "E-CAL-THETA"))
 
 
-HP = {"adapter": "opengrep:scan", "rule_id": "r", "tool_version": "1.6.0", "cwe_bucket": "authz",
-      "n": 54, "tp": 53, "fp": 1, "precision_lower95": 0.9011, "holdout_n": 12, "holdout_tp": 12,
-      "n_apps": 54, "holdout_n_apps": 12}                                # r13: one hit per application, so n_eff = n
+# r13 / r14: the row names its applications; 59 of 60 hits over the 16 corpus applications, holdout 30 of 30 over 13
+HP = hp_rule(60, 59, rule_id="r", icc=0.05)                             # a direct call uses the 0.05 floor (no file)
 
 
 def test_a_measured_rule_passes():
@@ -101,11 +100,12 @@ def test_a_measured_rule_passes():
 
 @pytest.mark.parametrize("change, why", [
     ({"precision_lower95": 0.95}, "recomputed"),                     # a declared bound the counts do not give
-    ({"n": 53, "n_apps": 53}, "tp + fp"),
-    ({"n": 39, "tp": 39, "fp": 0, "precision_lower95": 0.9097, "n_apps": 39}, "< 40"),
-    ({"tp": 52, "fp": 2, "precision_lower95": 0.8725}, "high_precision_min"),
-    ({"holdout_n": 8, "holdout_tp": 8, "holdout_n_apps": 8}, "holdout"),
-    ({"holdout_tp": 10}, "holdout"),                                 # 10/12 = 0.83 < 0.85
+    ({"n": 59, "apps": apps_map(59)}, "tp + fp"),
+    (hp_rule(39, 39, rule_id="r", icc=0.05), "< 40"),
+    (hp_rule(60, 57, rule_id="r", icc=0.05), "high_precision_min"),  # 57/60 on n_eff ~53: lower bound below 0.9
+    ({"holdout_n": 8, "holdout_tp": 8, "holdout_apps": apps_map(8, "holdout")}, "holdout"),
+    ({"holdout_tp": 25}, "holdout"),                                 # 25/30 = 0.83 < 0.85
+    ({"holdout_n": 10, "holdout_tp": 10, "holdout_apps": apps_map(10, "holdout")}, "holdout lower bound"),   # r14: 10/10 -> 0.69
 ])
 def test_a_rule_is_recomputed_from_its_counts(change, why):
     probs = checks.high_precision_problems(dict(HP, **change), 0.9)
@@ -121,7 +121,7 @@ def test_a_bad_rule_is_reported(b):
 def test_an_empty_valid_for_list_means_none(b):
     ix = derive.Index(b)
     run_id = doc(b, RUN).data["run_id"]
-    assert ix.weight("nemotron_self", "authz", 3, "SUPPORT", run_id) == 1.3179
+    assert ix.weight("nemotron_self", "authz", 3, "SUPPORT", run_id) == 1.1055
     doc(b, CAL).data["result"]["valid_for_model_keys"] = []
     assert derive.Index(b).weight("nemotron_self", "authz", 3, "SUPPORT", run_id) == 0
 
@@ -194,9 +194,9 @@ def test_strong_tool_corroboration_uses_the_counts(b):
     k = c0.ix.first("cluster", cluster_id="K-014").data
     ref = k["sarif_refs"][0]
     cal = doc(b, CAL).data["result"]
-    cal["high_precision_rules"] = [dict(K014_RULE, n=120, tp=117, fp=3, precision_lower95=0.9287, holdout_n=30, holdout_tp=29, n_apps=120, holdout_n_apps=30)]
+    cal["high_precision_rules"] = [{**K014_RULE, **hp_rule(120, 117, holdout_n=60, holdout_tp=59)}]   # r14: apps over the corpus
     assert checks.sarif_is_strong(Ctx(b), k, ref)
-    cal["high_precision_rules"] = [dict(K014_RULE, n=40, tp=39, fp=1, precision_lower95=0.95, holdout_n=30, holdout_tp=29, n_apps=40, holdout_n_apps=30)]
+    cal["high_precision_rules"] = [{**K014_RULE, **hp_rule(40, 39, holdout_n=60, holdout_tp=59), "precision_lower95": 0.95}]
     assert not checks.sarif_is_strong(Ctx(b), k, ref)                 # the declared 0.95 is not what 39/40 gives
 
 

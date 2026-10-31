@@ -183,8 +183,8 @@ def test_a_split_without_evidence_is_rejected(b):
 
 
 def test_the_rule_version_is_05_v0_13(b):
-    assert adj.RULE_VERSION == "05-v0.14"
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.14"}
+    assert adj.RULE_VERSION == "05-v0.15"
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.15"}
 
 
 # ================================================================ D / E. positioning, MVP-0 entry, freeze

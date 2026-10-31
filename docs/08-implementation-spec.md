@@ -12,7 +12,7 @@
 
 ## 現況
 
-第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.14`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#08-實作規格)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.15`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#08-實作規格)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 套件配置
 
@@ -345,11 +345,14 @@ class AdjudicationInputs(BaseModel):   # 欄位與 tools/vchlib/adjudicate.py �
     g3_rejected: bool                  # R13：由 G3 GateRecord 計算；G3 之後任何階段的裁決都適用
     phase: str | None                  # 呼叫情境："W3"、"W4"、"B5"…（對應 readjudicated_by）
     prev_status: str | None            # 被取代那一版裁決的狀態；第一版為 None
-    regression_fixed: bool             # R14：regression run 的帶入叢集、來源為 CONFIRMED_*，來源每個 E_proof 測試案例在本 run
-                                       # 都只有合格 PASS（E_pass＋正對照），沒有 E_proof／E_fail_u（checks.regression_fixed；
-                                       # 05-v0.12 起不再接受 E_inc 或其他案例的 PASS 代替）
+    regression_fixed: bool             # R14：regression run 的帶入叢集、來源為 CONFIRMED_*，carried_from 鏈上第一個持有 E_proof
+                                       # 的裁決的每個測試案例在本 run 都只有合格 PASS（E_pass＋正對照），沒有 E_proof／E_fail_u
+                                       # （checks.regression_fixed、required_regression_testcases；05-v0.12 起不再接受 E_inc 或
+                                       # 其他案例的 PASS 代替；05-v0.15 起沿鏈回溯，整條鏈沒有證明就不判 FIXED）
     later_member_overlap: bool         # R15：有計權反駁票，其家族或基底血統在投票之後才成為叢集成員（derive.later_member_overlap）
     carried_status: str | None         # R16：帶入叢集所代表的來源叢集最新裁決狀態（checks.carried_status）；非帶入叢集為 None
+    oracle_unreviewed: bool            # R12 註記（05-v0.15）：有 LLM 撰寫、G2 尚未接受的 W4 測試的重現 FAIL（分類為 E_fail_u；
+                                       # checks.oracle_unreviewed）
     # w4_became_disputed：phase == "W4"、prev_status 不是 None 也不是 DISPUTED、新狀態為 DISPUTED
     # （例如 LIKELY 經 R11 → DISPUTED）；與 G2 是否已決定無關（05 §4.2）
 # 由 nodes 從投票、證據與 calibration.yaml 組成；純核心回傳 Outcome(status, row, rules,
@@ -1651,8 +1654,8 @@ class SessionProvider(Protocol):
 **校準前仍然會產出**：
 - W0 inventory、W1 的 ToolResult。相依弱點、secrets、套件存在性都是確定性事實，不需要校準。
 - 發現項、叢集與裁決。可能的狀態只有：
-  - `CONFIRMED_EXECUTABLE`：事先登記解讀的確定性 FAIL 不需要校準（R1，[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）；
-  - `LIKELY`：獨立來源 ≥ 2，例如 2 個家族，或 1 個家族＋弱 SARIF（R6）；
+  - `CONFIRMED_EXECUTABLE`：事先登記解讀的確定性 FAIL 不需要校準（R1，[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）：G4 核准的黑箱測試，或程式從 G1 結構產生 oracle 的 W4 測試（`local_rls`／`fake_model`，兩種對照都 PASS）；LLM 撰寫的 W4 測試要先經 G2 接受（`05-v0.15`）；
+  - `LIKELY`：獨立來源 ≥ 2，例如 2 個家族，或 1 個家族＋弱 SARIF，或 1 個家族＋LLM 撰寫的 W4 測試的重現 FAIL（`E_fail_u`，加註 `oracle_unreviewed`；R6）；
   - `UNCORROBORATED`（R7）；
   - `REJECTED`：只來自 R0（沒有證據）、R10（G2 駁回）、R9（Lane A）；
   - `DISPUTED`：只來自 R11（合格 PASS 反證）。

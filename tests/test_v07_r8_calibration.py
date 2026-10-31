@@ -23,8 +23,8 @@ def errors(b, code, where=None):
 
 
 def test_rule_version(b):
-    assert adj.RULE_VERSION == "05-v0.14"                     # bumped again by review r10 PR2
-    assert all(d.data.get("rule_version") == "05-v0.14" for d in b.docs if d.kind == "verdict")
+    assert adj.RULE_VERSION == "05-v0.15"                     # bumped again by review r10 PR2
+    assert all(d.data.get("rule_version") == "05-v0.15" for d in b.docs if d.kind == "verdict")
     assert not errors(b, "E-VERDICT-RULE-VERSION") and not errors(b, "E-RUN-RULE-VERSION")
 
 
@@ -57,7 +57,7 @@ def test_lr_weights_never_divides_by_zero():
 def test_the_example_weights_are_recomputed(b):
     assert not errors(b, "E-CAL-WEIGHT")
     w = doc(b, "calibration.yaml").data["result"]["weights"][0]
-    assert (w["support"]["a"], w["support"]["w"]) == (0.8041, 1.3179)        # r10: abstentions as coin flips
+    assert (w["support"]["a"], w["support"]["w"]) == (0.7603, 1.1055)        # r14: abstentions in the denominator (r10 coin flips gave 0.8041, 1.3179)
     w["support"]["w"] = 1.5775                                                   # the v0.6 value
     assert errors(b, "E-CAL-WEIGHT")
 

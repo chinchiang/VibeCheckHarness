@@ -18,7 +18,7 @@
     {
       "name": "split statistics are recomputed",
       "file": "tools/vchlib/checks.py",
-      "old": "                out += split_problems(label, \"calibration\", cs) + split_problems(label, \"holdout\", ho)",
+      "old": "                out += split_problems(label, \"calibration\", cs, icc, splits) + split_problems(label, \"holdout\", ho, icc, splits)",
       "new": "                pass",
       "k": "raw_counts or wilson_bound or tp_above_n"
     },
@@ -60,8 +60,8 @@
     {
       "name": "a pre-registered PASS needs independent authors",
       "file": "tools/vchlib/derive.py",
-      "old": "    if preregistered(ix, tc, tr, \"oracle_can_fail\") and authors_independent(ix, tr, cluster):",
-      "new": "    if preregistered(ix, tc, tr, \"oracle_can_fail\"):",
+      "old": "    if preregistered(ix, tc, tr, \"oracle_can_fail\", cluster) and authors_independent(ix, tr, cluster):",
+      "new": "    if preregistered(ix, tc, tr, \"oracle_can_fail\", cluster):",
       "k": "reporting_family_is_inconclusive"
     },
     {
@@ -72,23 +72,16 @@
       "k": "decided_by_r14"
     },
     {
-      "name": "regression_fixed needs a confirmed source verdict",
-      "file": "tools/vchlib/checks.py",
-      "old": "    if not src or src.get(\"status\") not in adj.CONFIRMED:",
-      "new": "    if not src:",
-      "k": "derived_from_the_parent"
-    },
-    {
       "name": "regression_fixed needs a positive control and no FAIL",
       "file": "tools/vchlib/checks.py",
-      "old": "    return bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"}) and any(qualified(x) for x in results) \\\n        and all(",
-      "new": "    return bool(classes) \\\n        and all(",
+      "old": "    return bool(required) and bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"}) \\\n        and all(",
+      "new": "    return bool(required) and bool(classes) \\\n        and all(",
       "k": "derived_from_the_parent"
     },
     {
       "name": "the rule version is bumped",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.14\"",
+      "old": "RULE_VERSION = \"05-v0.15\"",
       "new": "RULE_VERSION = \"05-v0.9\"",
       "k": "rule_version_is_05_v0_10"
     },

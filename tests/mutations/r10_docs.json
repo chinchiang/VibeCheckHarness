@@ -11,7 +11,7 @@
     {
       "name": "current state names the rule version",
       "file": "docs/03-system-architecture.md",
-      "old": "後的設計，裁決規則版本 `05-v0.14`。",
+      "old": "後的設計，裁決規則版本 `05-v0.15`。",
       "new": "後的設計。",
       "k": "names_the_rule_version"
     },
@@ -46,7 +46,7 @@
     {
       "name": "README status",
       "file": "README.md",
-      "old": "> **狀態**：設計文件，第十四輪審查（2026-10-30）後；裁決規則版本 `05-v0.14`",
+      "old": "> **狀態**：設計文件，第十四輪審查（2026-10-30）後；裁決規則版本 `05-v0.15`",
       "new": "> **狀態**：設計文件，第九輪審查後；裁決規則版本 `05-v0.8`",
       "k": "readme_status"
     },

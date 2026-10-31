@@ -20,7 +20,7 @@
      "old": "\"E-VERDICT-TRACE\", w, f\"rule_trace rules {rules} != {out.rules}\"):", "new": "\"E-VERDICT-TRACE\", w, f\"rule_trace rules {rules} != {out.rules}\") or True:",
      "k": "reported_once"},
     {"name": "the stale example text is fixed", "file": "docs/schemas/examples/verdict.k-014-w3.example.json",
-     "old": "score=1.3179<theta_confirm=2.5", "new": "score=1.4633<theta_confirm=2.5",
+     "old": "score=1.1055<theta_confirm=2.5", "new": "score=1.4633<theta_confirm=2.5",
      "k": "examples_state_only_true"}
   ]
 }

@@ -21,7 +21,7 @@ Each defect test failed on the PR1 head and passes with the fix; see CONTRIBUTIN
 import copy
 import itertools
 
-from conftest import doc
+from conftest import doc, split_stats
 from vchlib import adjudicate, checks, derive
 from vchlib.checks import run_all
 
@@ -35,14 +35,15 @@ def test_the_examples_are_clean(b):
 
 
 def test_the_rule_version_is_05_v0_9():
-    assert adjudicate.RULE_VERSION == "05-v0.14"
+    assert adjudicate.RULE_VERSION == "05-v0.15"
 
 
 # ================================================================ theta_reject guard
 # r11: the split statistics come from the raw counts; for theta_reject `tp` counts the TRUE DEFECTS among the rejected clusters
 # (docs/05 §5.7), so 0 of 60 and 0 of 45 give a true-defect share of 0 and Wilson uppers 0.0602 and 0.0787
-GOOD = {"calibration": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0602, "n": 60, "tp": 0, "n_apps": 60},
-        "holdout": {"precision": 0.0, "recall": 0.3, "ci_low": 0.0, "ci_high": 0.0787, "n": 45, "tp": 0, "n_apps": 45}, "generalised": True, "feasible": True}
+# r14: the splits name their applications and the holdout generalises on its Wilson upper (<= 0.13): 0 of 60 over the 16
+# calibration applications (n_eff 51.4, upper 0.0695) and 0 of 55 over the 13 holdout applications (n_eff 46, upper 0.077)
+GOOD = {"calibration": split_stats(0, 60), "holdout": split_stats(0, 55, "holdout"), "generalised": True, "feasible": True}
 
 
 def test_theta_reject_below_a_single_refute_weight_is_rejected(b):
@@ -174,8 +175,8 @@ def test_a_threshold_does_not_generalise_on_a_tiny_holdout(b):
 
 
 # ================================================================ abstention as a coin flip
-def test_abstentions_count_as_coin_flips():
-    assert checks.effective_counts({"n": 12, "correct": 12, "n_abstain": 5}) == (14.5, 17)
+def test_abstentions_count_in_the_denominator():
+    assert checks.effective_counts({"n": 12, "correct": 12, "n_abstain": 5}) == (12, 17)      # r14: not half a right answer
     assert checks.effective_counts({"n": 12, "correct": 12}) == (12, 12)
 
 

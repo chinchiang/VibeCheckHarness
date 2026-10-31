@@ -27,7 +27,7 @@ def errs(bundle, code):
 
 # ================================================================ A1 tool tiers (pure rules)
 def test_rule_version_is_bumped():
-    assert adj.RULE_VERSION == "05-v0.14"           # bumped again by review r10 PR2
+    assert adj.RULE_VERSION == "05-v0.15"           # bumped again by review r10 PR2
 
 
 def test_weak_sarif_alone_never_confirms():
@@ -139,10 +139,8 @@ def _w4(b, outcome, controls, fail_oracles):
 
 
 def test_w4_preregistration_needs_the_matching_control(b):
-    """WTC-015-01: CTL-01 reachability, CTL-02 oracle_can_pass; CTL-03 (oracle_can_fail) added here."""
+    """WTC-015-01: CTL-01 reachability, CTL-02 oracle_can_pass, CTL-03 oracle_can_fail (part of the example since r14)."""
     tc = doc(b, W4_TC).data
-    tc["controls"].append({"control_id": "CTL-03", "kind": "oracle_can_fail", "description": "known-bad variant",
-                           "steps": ["run the oracle on the vulnerable schema"], "expected": "oracle fails"})
     ix, cl = _ix_cluster(b, "K-015")
     ok = [{"control_id": c, "outcome": "PASS"} for c in ("CTL-01", "CTL-02", "CTL-03")]
     assert classify_result(ix, _w4(b, "FAIL", ok, ["STATE_DIFF"]), cl)[0] == "E_proof"
@@ -157,7 +155,7 @@ def test_w4_preregistration_needs_the_matching_control(b):
 def test_w4_preregistration_needs_g1_signed_requirements(b):
     inv = doc(b, "invariants.yaml").data
     ix, cl = _ix_cluster(b, "K-015")
-    ok = [{"control_id": c, "outcome": "PASS"} for c in ("CTL-01", "CTL-02")]
+    ok = [{"control_id": c, "outcome": "PASS"} for c in ("CTL-01", "CTL-02", "CTL-03")]       # r14: both oracle controls
     assert classify_result(ix, _w4(b, "FAIL", ok, ["STATE_DIFF"]), cl)[0] == "E_proof"
     next(i for i in inv["invariants"] if i["requirement_id"] == "INV-AC-007")["signoff"]["status"] = "REJECTED"
     assert classify_result(ix, _w4(b, "FAIL", ok, ["STATE_DIFF"]), cl)[0] == "E_fail_u"
@@ -348,7 +346,7 @@ def test_fallback_vote_uses_the_fallback_models_weight(b, keys):
     assert "E-VERDICT-VOTE" not in codes(b)                  # a same-family fallback resolves through models.yaml
     vt.update(voter_model_key="claude_sonnet", fallback_used=None)
     rederive(b, keys)
-    assert vt["weight"] == 1.2853 and vt["weighted_valid"] is True              # v0.7: likelihood-ratio weight, r8 prior, r10 abstentions
+    assert vt["weight"] == 1.0552 and vt["weighted_valid"] is True              # v0.7: likelihood-ratio weight, r8 prior; r14: abstentions in the denominator
 
 
 # ================================================================ E5 provisional

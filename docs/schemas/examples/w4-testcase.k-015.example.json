@@ -49,6 +49,15 @@
         "在修正版 schema 上重跑同樣的 SELECT 與 UPDATE"
       ],
       "expected": "oracle 判定通過（讀不到、改不到 tenant_b 的發票）"
+    },
+    {
+      "control_id": "CTL-03",
+      "kind": "oracle_can_fail",
+      "description": "已知有缺陷的變體：在沒有 RLS 政策的 schema（repo 目前的 migration）上，oracle 判定違反",
+      "steps": [
+        "在未加政策的 schema 上以 tenant_a 角色 SELECT 與 UPDATE tenant_b 的發票"
+      ],
+      "expected": "oracle 判定違反（讀得到、改得到 tenant_b 的發票）"
     }
   ],
   "oracle": {

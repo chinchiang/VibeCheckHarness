@@ -38,7 +38,7 @@
     }
   ],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.14",
+  "rule_version": "05-v0.15",
   "rule_trace": [
     "R2:black_box cluster,no votes,no tool signal,independent_sources=0",
     "R7:no independent source->UNCORROBORATED",

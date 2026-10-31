@@ -24,7 +24,7 @@ import struct
 
 import pytest
 
-from conftest import doc, rederive
+from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive
 from test_v07_r11_anchor import renumber
 from vchlib import adjudicate as adj
 from vchlib import checks
@@ -279,23 +279,24 @@ def test_effective_n_is_the_design_effect_adjusted_count():
 
 def test_a_feasible_threshold_needs_ten_applications(b):
     cal = doc(b, "calibration.yaml").data
-    cal["result"]["thresholds"]["theta_confirm"]["calibration"]["n_apps"] = 9
+    cal["result"]["thresholds"]["theta_confirm"]["calibration"]["apps"] = apps_map(64, k=9)      # r14: apps are named
     assert any("theta_confirm" in label and "clustering.min_apps 10" in m for label, m in checks.theta_problems(cal))
 
 
 def test_the_bounds_shrink_with_fewer_applications(b):
     cal = doc(b, "calibration.yaml").data
     cs = cal["result"]["thresholds"]["theta_confirm"]["calibration"]
-    cs["n_apps"] = 12                                                     # 64 clusters from 12 apps: n_eff 52.6, lower 0.817
-    problems = [m for _, m in checks.split_problems("theta_confirm", "calibration", cs)]
-    assert any("calibration.ci_low" in m and f"n_eff {checks.effective_n(64, 12):.2f}" in m for m in problems)
+    cs["apps"] = apps_map(64, k=12)                                       # 64 clusters from 12 apps (5-6 each): n_eff shrinks
+    problems = [m for _, m in checks.split_problems("theta_confirm", "calibration", cs, EXAMPLE_ICC)]
+    assert any("calibration.ci_low" in m and f"n_eff {checks.effective_n_of(cs['apps'], EXAMPLE_ICC):.2f}" in m for m in problems)
 
 
 def test_the_example_bounds_are_recomputed_on_n_eff(b):
     assert checks.theta_problems(doc(b, "calibration.yaml").data) == []
     cal = doc(b, "calibration.yaml").data
     cs = cal["result"]["thresholds"]["theta_confirm"]["calibration"]
-    assert cs["n_apps"] == 16 and cs["ci_low"] == round(checks.wilson_lower(59 / 64 * checks.effective_n(64, 16), checks.effective_n(64, 16)), 4)
+    ne = checks.effective_n_of(cs["apps"], EXAMPLE_ICC)                  # r14: the apps' own counts, icc 0.06
+    assert len(cs["apps"]) == 16 and cs["ci_low"] == round(checks.wilson_lower(59 / 64 * ne, ne), 4)
 
 
 def test_the_clustering_policy_is_pinned(b):
@@ -308,16 +309,17 @@ def test_the_clustering_policy_is_pinned(b):
 
 
 def hp_row(n, tp, apps, h_apps=10):
-    return {"adapter": "opengrep:scan", "rule_id": "r", "tool_version": "1", "cwe_bucket": "authz", "n": n, "tp": tp, "fp": n - tp,
-            "precision_lower95": round(checks.clopper_pearson_lower(tp / n * checks.effective_n(n, apps), checks.effective_n(n, apps)), 4),
-            "holdout_n": 10, "holdout_tp": 10, "n_apps": apps, "holdout_n_apps": h_apps}
+    """A row whose n hits are spread over `apps` generic applications (direct calls: no corpus, the 0.05 floor); r14: the
+    holdout is 30 of 30 over h_apps applications (its Clopper-Pearson lower bound must reach 0.85 too)."""
+    ids = [f"a{i}" for i in range(apps)]
+    return hp_rule(n, tp, holdout_n=30, holdout_tp=30, icc=0.05, ids=ids, h_ids=[f"h{i}" for i in range(h_apps)], rule_id="r", tool_version="1")
 
 
 def test_forty_hits_from_ten_applications_are_not_forty_observations():
     assert checks.high_precision_problems(hp_row(40, 40, 40), 0.9) == []                 # one hit per application: as before
     assert any("lower bound" in p for p in checks.high_precision_problems(hp_row(40, 40, 10), 0.9))
     assert checks.high_precision_problems(hp_row(41, 41, 10), 0.9) == []
-    assert any("n_apps 9 < clustering.min_apps 10" in p for p in checks.high_precision_problems(hp_row(41, 41, 9), 0.9))
+    assert any("apps 9 < clustering.min_apps 10" in p for p in checks.high_precision_problems(hp_row(41, 41, 9), 0.9))
 
 
 def test_clopper_pearson_still_matches_the_binomial_tail_on_integers():
@@ -328,8 +330,8 @@ def test_clopper_pearson_still_matches_the_binomial_tail_on_integers():
 
 
 def test_the_rule_version_is_05_v0_14(b):
-    assert adj.RULE_VERSION == "05-v0.14"
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.14"}
+    assert adj.RULE_VERSION == "05-v0.15"
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.15"}
 
 
 # ================================================================ 5, 6, 9. the specification
@@ -357,4 +359,4 @@ def test_the_stale_sentences_are_gone():
 
 def test_the_calibration_doc_defines_n_eff():
     s = text("docs/05-bias-calibration.md")
-    assert "n_eff＝n／DE" in s and "`n_apps` ≥ `clustering.min_apps`（10）" in s
+    assert "**Wilson 界限以 n_eff＝n／DE 重算**" in s and "`clustering.min_apps`（10）" in s

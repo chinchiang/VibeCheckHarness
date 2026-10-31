@@ -39,15 +39,15 @@ def test_a_wrong_status_claim_is_an_error(b, keys):
 
 def test_a_wrong_score_is_an_error(b, keys):
     text = doc(b, K014).data["rule_trace"][0]
-    set_trace(b, keys, K014, 0, text.replace("score=1.3179", "score=1.4633"))
+    set_trace(b, keys, K014, 0, text.replace("score=1.1055", "score=1.4633"))
     errs = trace_errors(b)
-    assert len(errs) == 1 and "score=1.4633 but the recomputed value is 1.3179" in errs[0].msg
+    assert len(errs) == 1 and "score=1.4633 but the recomputed value is 1.1055" in errs[0].msg
 
 
-@pytest.mark.parametrize("written, ok", [("1.3179", True), ("1.32", True), ("1.3", True), ("1.33", False), ("1", True), ("2", False)])
+@pytest.mark.parametrize("written, ok", [("1.1055", True), ("1.11", True), ("1.1", True), ("1.12", False), ("1", True), ("2", False)])
 def test_a_number_is_compared_to_the_precision_written(b, keys, written, ok):
     text = doc(b, K014).data["rule_trace"][0]
-    set_trace(b, keys, K014, 0, text.replace("score=1.3179", "score=" + written))
+    set_trace(b, keys, K014, 0, text.replace("score=1.1055", "score=" + written))
     assert (trace_errors(b) == []) is ok
 
 
