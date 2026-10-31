@@ -25,6 +25,7 @@ gate_timeouts_hours:               # docs/03 §6.2；委任設定可縮短、不
 
 gate_queues:                       # v0.4（BL-26，docs/02 W3、W5）人工關卡佇列上限
   g2_max_items: 30                 # 超出的叢集不進 G2，列入 report-manifest over_cap_items
+  g2_max_items_lite: 15            # r14（C7）：lite 委任的 G2 上限；15 × 5 分鐘＝1.25 小時，MVP0-X8 的 2 小時門檻才成立
   g3_max_items: 50                 # 高風險與 critical／high 不受此上限
   g4_max_items: 40                 # v0.5（M-6）：每輪 G4 逐一審核的測試案例上限；高風險威脅的案例不受此上限，超出 → MANUAL
   g2_timeout_warn_ratio: 0.5       # G2 未決比例超過 → gate_load_warning

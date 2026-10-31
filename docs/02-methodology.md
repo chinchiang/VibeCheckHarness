@@ -246,8 +246,8 @@ flowchart TD
   - G1 問卷答案（見下）。
   - `followup` run：B2 衍生的需求草稿。
   - Invariant Drafter 的工具只有 `read_inventory` 與 `write_blackboard`，沒有 `read_slice`。inventory 裡的名稱仍來自受測 repo，所以照樣視為不可信資料：系統提示區分指令與資料，而且每一條都要人在 G1 確認。
-- **G1 問卷** [H]（格式見 [08 §11.4](08-implementation-spec.md#114-g1-問卷與-invariants-格式)）：
-  - 程式碼依 W0 inventory 產生白話問題，由應用擁有者在 W0.5 起草之前回答。例如：
+- **G1 問卷** [H]（格式見 [08 §11.4](08-implementation-spec.md#114-g1-問卷與-invariants-格式)；流程以 08 為準，第十四輪內部審查之前這裡寫「擁有者在 W0.5 起草之前回答」，與 08 的「Drafter 提議、人在 G1 確認」矛盾）：
+  - 程式碼依 W0 inventory 產生白話問題；Invariant Drafter 為每一題**提議**答案（標為「模型提議」）；應用擁有者在 **G1** 逐題確認、修改，或回答「不知道」（必答題回答「不知道」→ `NEEDS_INFO`）。W0.5 之前沒有人工步驟，所以自動觸發的 run 可以跑到 G1 才需要人。例如：
     - 「使用者 A 能不能看到使用者 B 的發票？」（每個角色 × 資源一題）
     - 「哪些欄位是個資或機密？」
     - 「AI 助理的哪些動作要先經人確認？」（每個 LLM 工具一題）
@@ -288,7 +288,7 @@ flowchart TD
 | 相依漏洞 | OSV-Scanner（Apache-2.0）[V][E:whitebox-11]、Grype（EPSS／KEV 排序）[V][E:whitebox-14] | OSV-Scanner 的可達性判斷（call analysis）是選配功能，且不是每個生態系都支援 [V][E:whitebox-11] |
 | 套件存在性 | 自建檢查：每個相依到 registry（經 Z2 的鏡像或 metadata 代理）查存在性、首次發布時間、下載量 | 對應套件幻覺：19.7% 的套件引用是幻覺名稱；43% 的幻覺名稱在 10 次重複查詢中每次都出現 [V][E:vibe_risks-13][E:vibe_risks-15] |
 | RLS（自有規則） | 從 repo 的 SQL migration 確定性解析 `ENABLE ROW LEVEL SECURITY`、`CREATE POLICY`、`SECURITY DEFINER`，與 W0 `db` 對照 | 規則例：資料表沒有啟用 RLS；啟用了但沒有 policy；policy 對所有資料列都成立（例如 `USING (true)`）；`SECURITY DEFINER` function。只看得到 migration 中的設定；只在平台後台改過的設定屬於 `blind_spots[]`，由 B 階段補測 [H] |
-| 前端公開變數（自有規則） | 對 W0 `env_vars[]` 中 `public_prefix` 為 true 的變數套用名稱規則；Z2 能 build 前端時，再對 build 輸出跑 W0 的 secrets 掃描器 | 名稱含 `SECRET`、`SERVICE_ROLE`、`PRIVATE_KEY` 等字樣的公開變數 → 發現項；bundle 內命中的值只記位置與 HMAC。已有報告指出 vibe-coded 應用常把 token 放進前端 bundle [P][E:vibe_risks-26]。build 失敗 → 只做名稱規則，並列為缺口 [H] |
+| 前端公開變數與 RLS（自有規則 `rules:public_env`、`rules:rls`） | 對 W0 `env_vars[]` 中 `public_prefix` 為 true 的變數套用 [08 §11.17](08-implementation-spec.md#1117-確定性輔助規則) 的名稱規則（含已知公開金鑰的允許清單）；Z2 能 build 前端時，再對 build 輸出跑 W0 的 secrets 掃描器並分類值；對 W0 `db.tables[]` 中 `rls_enabled` 為 false／null 的資料表產生 `rule_rls` 結果 | ToolResult（`kind: rule_public_env`／`rule_rls`，[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）→ 附到叢集或成為 tool-only 叢集；bundle 內命中的值只記位置與 HMAC。已有報告指出 vibe-coded 應用常把 token 放進前端 bundle [P][E:vibe_risks-26]。build 失敗 → 只做名稱規則，並列為缺口 [H] |
 
 - Secrets 掃描已移到 W0。
 - **輸出**：`w1.sarif`、`deps-check.json`。
@@ -691,7 +691,7 @@ flowchart TD
 |---|---|---|---|
 | G0a | W0 | G0a GateRecord（委任設定已驗章，含 `assurance_profile`、`gate_approvers`） | W0 是 G0a 之後的第一個節點；W0 完成前沒有任何 LLM 呼叫 |
 | W0 | 所有 LLM 節點 | `secrets-redaction-map` | 沒有遮罩對照表，Gateway 拒絕該 run 的所有請求；程式碼只能經 Slicer（遮罩後的切片）送往 LLM |
-| W0 | W0.5 | `inventory.json`（名稱與事實，不含程式碼）＋ G1 問卷答案 | Invariant Drafter 只有 `read_inventory`，沒有 `read_slice` |
+| W0 | W0.5 | `inventory.json`（名稱與事實，不含程式碼）＋ G1 問卷的題目（答案由 Drafter 提議、人在 G1 確認） | Invariant Drafter 只有 `read_inventory`，沒有 `read_slice` |
 | W0 | CMD-1、CMD-2 | 程式碼建立的型別化視圖 | Commander 沒有工具，看不到 repo 或 LLM 輸出的自由文字；必要面向由 `features[]` 決定（`E-PLAN-FACETS`） |
 | W1 | W3 的 Clusterer／Aggregator | `w1.sarif`、`deps-check.json` | 只給程式碼；W2 reviewer 與 W3 verifier 都不收；強佐證與弱訊號的分級見 05 §4.2 |
 | W0.5（G1） | W4、B3 | `invariants.yaml` | oracle 只能引用 G1 已核准條目；L2 以上的引用須有觸發 |

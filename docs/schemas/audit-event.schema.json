@@ -16,7 +16,7 @@
  "sandbox_job_start","sandbox_job_end","tool_invocation_start","tool_invocation_end","session_login","egress_blocked","third_party_contact","job_skipped",
  "stop_condition","kill_switch","snapshot_created","snapshot_restored","restore_failed","restore_drill","seed_reset_failed","policy_violation",
  "feedback_recorded","report_published","followup_draft_created",
- "audit_anchor"]},
+ "audit_anchor","anchor_rejected"]},
 "actor":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["human","agent","system"]},"id":{"type":"string"}},"required":["kind","id"]},
 "node":{"anyOf":[{"enum":["START","END","claim_run","feedback","W0","W0.5","W1","W2","W3","W4","W5","B0","B1","B2","B3","B4","B5","B6","G0a","G0b","G1","G2","G3","G4","G5","GB","abort_handler","resume"]},{"type":"string","pattern":"^CMD-[1-9][0-9]*$"},{"type":"null"}],"description":"v0.7（審查 r8）：事件所在的節點，限 docs/02 的節點名稱（W0～W5、B0～B6、關卡、claim_run、feedback、abort_handler、resume、START／END）或 Commander 回合 CMD-n；v0.6 是任意字串，範例裡出現了設計中不存在的 W6"},
 "zone":{"enum":["Z1","Z2","Z3","Z4"]},

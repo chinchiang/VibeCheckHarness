@@ -1,0 +1,45 @@
+{
+  "gate": "G1",
+  "run_id": "run-2026-09-23-001",
+  "gate_id": "GR-G1-0001",
+  "decisions": [
+    {
+      "item_id": "INV-AC-007",
+      "decision": "accept",
+      "note": null,
+      "risk_override": null,
+      "carried_from": null,
+      "edited_item": null
+    },
+    {
+      "item_id": "REQ-ASVS-1.2.4",
+      "decision": "needs_info",
+      "note": "每位使用者每分鐘的上限要問產品負責人",
+      "risk_override": null,
+      "carried_from": null,
+      "edited_item": null
+    }
+  ],
+  "answers": [
+    {
+      "question_id": 1,
+      "answer": "tenant_user 只能讀寫自己租戶的發票；support_agent 可以讀全部，不能寫",
+      "proposed_by_model": true
+    },
+    {
+      "question_id": 2,
+      "answer": "invoices 以 tenant_id 區分租戶",
+      "proposed_by_model": true
+    },
+    {
+      "question_id": 3,
+      "answer": "invoices.customer_email 是個資",
+      "proposed_by_model": false
+    },
+    {
+      "question_id": 5,
+      "answer": null,
+      "proposed_by_model": false
+    }
+  ]
+}

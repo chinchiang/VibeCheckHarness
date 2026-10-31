@@ -94,11 +94,11 @@ data_transfer:                # v0.4：G0a 驗章的跨境聲明（W2 在 G0b �
 config_pins:                  # v0.4：影響安全判斷的設定檔內容 hash（E-ENG-CONFIG-PIN）；改設定就要重簽委任設定
   models: "sha256:dda12dc5f12ec65008fb87bad5c5d04f5195db742db95a6e6dc2742a008acf43"
   agents: "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
-  tools: "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
+  tools: "sha256:7232c12696bc144a7a88452c7ffcc90f998401c9b105966f70d677a40a6a13a6"
   calibration: "sha256:f005dc85cb352a9ba6407702f2d4a92ed7d90b49d693043190559b7846f8ed1c"   # v0.5
   crosswalk: "sha256:865d77a32541ebe394671103092781f2d672d8b1d74fd6bbe4d662fc91fc7b13"     # v0.5
   licenses: "sha256:dc6f7c0fb8f1e7e895610d28778e8e3d2da7d2abfbf9e238443f127fdb4f48dc"
-  toolkit: "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327"      # v0.7（審查 r8 M1）
+  toolkit: "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66"      # v0.7（審查 r8 M1）
 
 assurance_profile: team       # lite／team／full（docs/03 §6）；team：ROE 每個簽署角色由不同人擔任
 role_consolidation: null      # 只在 lite 使用：同一人兼任多個角色時的聲明
@@ -107,8 +107,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "t1MiAwo4omZl9rw7nZpLrWbxGWAOxWfQ0eD1nndWoFYbY6zvUs8NwRkIS1IACft4d882kuwgqPPx9FrXrJcrCQ=="
+    value: "InbsLOqQWqPmCGMIPue9cqUHHPBE1m7lSLlj7B7KzvaTQMFbLfAmJtGEcg58oj3RNyZoZsW9Cdeg+BAdrh0tDQ=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "fVG1CgoFcFRmtOWyuVZkZcfUCYxfCWbOa8W5Du3HxxbQGiGBmkl/ahdX8sCd5HvxVslTZPRH8RB3w+2Ef95xAw=="
+    value: "eAOidR73av4SpLiYpU5lWG9WZBsg6geiigQEnyIU+5raeil5nJX8Mk2z+F1bB7OMXdV0C8fux1EiSX2l9ZRmBw=="

@@ -99,6 +99,15 @@ tools:
       fastapi: {description: "FastAPI 路由與依賴", base_class: null, b4_executable: false, toolkit_denied: false}
       express: {description: "Express 路由與中介層", base_class: null, b4_executable: false, toolkit_denied: false}
       sql_rls: {description: "SQL schema 與 RLS 政策", base_class: null, b4_executable: false, toolkit_denied: false}
+      nextjs: {description: "Next.js App／Pages Router 的 route handler、server action、middleware（M1，MVP-0；r14 登錄）", base_class: null, b4_executable: false, toolkit_denied: false}
+      baas_client: {description: "瀏覽器直連 BaaS 的入口（baas_direct）與對應資料表（M1，MVP-0；r14 登錄）", base_class: null, b4_executable: false, toolkit_denied: false}
+  rules:
+    zone: Z2
+    description: "W1 自有確定性規則（工具包自有程式碼；docs/08 §11.2 的 rule_rls／rule_public_env，r14）"
+    license_ref: vibecheck
+    modes:
+      rls: {description: "W0 inventory 中沒有 RLS 的資料表 → ToolResult kind rule_rls（桶 authz）", base_class: null, b4_executable: false, toolkit_denied: false}
+      public_env: {description: "公開前綴環境變數的 secret 名稱規則與值分類（docs/08 §11.17）→ ToolResult kind rule_public_env（桶 secrets）", base_class: null, b4_executable: false, toolkit_denied: false}
   opengrep:
     zone: Z2
     description: "W1 SAST（預設）"

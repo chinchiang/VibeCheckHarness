@@ -717,7 +717,7 @@ stateDiagram-v2
 | `CMD1_plan`…`CMD5_followup` | Z1 | 是 | 計畫 ID；Commander 無工具，輸入是型別化視圖；先經 schema 與 Policy Engine 驗證才寫入 state | 見 §4 |
 | `W2_fanout`、`W3_verify_fanout`、`B2_threat_fanout` | Z1 | — | 只產生 `Send` | — |
 | `W2_review`、`W3_verify`（原本寫成「`W3_adjudicate` 的驗證者分支」，圖上沒有這個節點） | Z1 | 是 | LLM 請求快取鍵；輸入**不含** W1 工具輸出；`W3_verify` 每個 `Send` 產生一張票 | 重試用盡 → 缺票 |
-| `W2_fanin`、`W3_cluster`、`W3_adjudicate` | Z1 | 否 | 純函式（輸入 hash → 輸出 hash）；`W3_cluster` 的輸入是發現項與 `ToolResult`；依 05 R0–R13 | quorum 不足 → 獨立家族數變少並列入報告（不是 R8；[05 §3 規則 3](05-bias-calibration.md#3-設計規則)） |
+| `W2_fanin`、`W3_cluster`、`W3_adjudicate` | Z1 | 否 | 純函式（輸入 hash → 輸出 hash）；`W3_cluster` 的輸入是發現項與 `ToolResult`；依 05 R0–R16 | quorum 不足 → 獨立家族數變少並列入報告（不是 R8；[05 §3 規則 3](05-bias-calibration.md#3-設計規則)） |
 | `W4_testgen` | Z1 | 是 | LLM 請求快取鍵 | 修復 ≤2 → `MANUAL` |
 | `W4_exec` | Z2 | 否 | Sandbox job ID | 重試 1 次 → `ERROR` |
 | `W4_readjudicate`、`B5_readjudicate` | Z1 | 否 | 新版裁決 append-only | — |
@@ -902,7 +902,7 @@ stateDiagram-v2
 |---|---|---|---|---|---|
 | `claim_run` | 1 | 5 | 1 | 0.1 | 同日／1 天／1 天 |
 | G1 | 適用的 ASVS L1 條目（最多 70 條，[02 W0.5](02-methodology.md#w05-安全不變量規格security-invariants-spec-g1)）＋存取矩陣 | 3 | 1（app_owner） | 3.5（70 × 3 ÷ 60） | 同日／2 天／3 天 |
-| G2 | `g2_max_items` | 5 | 1（各等級相同；兩人規則只在 G5，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） | `g2_max_items` × 5 ÷ 60 | 同日／2 天／3 天 |
+| G2 | `g2_max_items`（Team／Full 預設 30；Lite 用 `g2_max_items_lite`，預設 15——第十四輪內部審查：30 × 5 分鐘＝2.5 小時已超過 MVP0-X8 的 2 小時門檻） | 5 | 1（各等級相同；兩人規則只在 G5，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） | `g2_max_items` × 5 ÷ 60（Lite 1.25） | 同日／2 天／3 天 |
 | G3 | `g3_max_items` | 6 | 2（security_reviewer＋app_owner，兩人都看每一項；Lite 為同一人） | `g3_max_items` × 6 ÷ 60（每人） | 1 天／2 天／3 天 |
 | G4 | `g4_max_items`（預設 40） | 4 | 1～2 | `g4_max_items` × 4 ÷ 60 | 1 天／1 天／2 天 |
 | G5 | S2 job 數 | 10 | 1（升級後 2） | job 數 × 10 ÷ 60 | 依時間窗 |
@@ -1356,7 +1356,7 @@ erDiagram
 | 執行 | `sandbox_job_start`、`sandbox_job_end`、`tool_invocation_start`、`tool_invocation_end`、`session_login`、`egress_blocked`、`third_party_contact`、`job_skipped` |
 | 停止與補償 | `stop_condition`、`kill_switch`、`snapshot_created`、`snapshot_restored`、`restore_failed`、`restore_drill`、`seed_reset_failed`、`policy_violation` |
 | 報告 | `report_published`、`followup_draft_created` |
-| 稽核本身 | `audit_anchor` |
+| 稽核本身 | `audit_anchor`、`anchor_rejected`（Z3 拒簽錨點：鏈接不上或編號倒退，[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)；run 進 `SUSPENDED`） |
 
 ## 14. 序列圖
 

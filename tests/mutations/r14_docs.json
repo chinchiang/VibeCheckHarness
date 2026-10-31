@@ -1,0 +1,26 @@
+{
+  "tests": "tests/test_v07_r14_docs.py",
+  "mutations": [
+    {"name": "C1: 07 without the deferred profile", "file": "docs/07-roadmap.md", "old": "**Lite 的單機部署 profile 待訂**", "new": "**Lite 的單機部署 profile**", "k": "defers_the_lite"},
+    {"name": "C1: no init row", "file": "docs/08-implementation-spec.md", "old": "| `vibecheck init` | `[--dir DIR]` | **規格待訂**", "new": "| `vibecheck init` | `[--dir DIR]` | 規格待訂", "k": "init_as_unspecified"},
+    {"name": "C1: README promises again", "file": "README.md", "old": "單機部署 profile 待訂，[07 §1.3]", "new": "本機一把金鑰、確認一次就能跑，[07 §1.3]", "k": "no_longer_promise"},
+    {"name": "C2: no rule kinds", "file": "docs/08-implementation-spec.md", "old": "\"package_existence\", \"rule_rls\", \"rule_public_env\"]", "new": "\"package_existence\"]", "k": "rule_kinds"},
+    {"name": "C2: rules tool not registered", "file": "docs/examples/tools.yaml", "old": "  rules:\n    zone: Z2", "new": "  rules_disabled:\n    zone: Z2", "k": "rule_kinds"},
+    {"name": "C2: MVP0-X1 without the non-LLM path", "file": "docs/07-roadmap.md", "old": "**每一個都要有不靠 LLM 的輸出路徑**", "new": "每一個都能由確定性規則找到", "k": "mvp0_x1"},
+    {"name": "C4: no allowlist", "file": "docs/08-implementation-spec.md", "old": "`_SUPABASE_ANON_KEY`、`_FIREBASE_API_KEY`、`_PUBLISHABLE_KEY`", "new": "`_SUPABASE_ANON_KEY`", "k": "public_env_rule"},
+    {"name": "C5: not idempotent", "file": "docs/08-implementation-spec.md", "old": "以 `(run_id, seq, event_sha256)` 為冪等鍵", "new": "不保證冪等", "k": "countersign_rpc"},
+    {"name": "C5: anchor_rejected not in the enum", "file": "docs/schemas/audit-event.schema.json", "old": ",\"anchor_rejected\"]", "new": "]", "k": "countersign_rpc"},
+    {"name": "C6: 02 reverts the questionnaire flow", "file": "docs/02-methodology.md", "old": "Invariant Drafter 為每一題**提議**答案（標為「模型提議」）；應用擁有者在 **G1** 逐題確認", "new": "由應用擁有者在 W0.5 起草之前回答", "k": "questionnaire_flow"},
+    {"name": "C6: the example answers nothing with null", "file": "docs/schemas/examples/decisions.g1.example.json", "old": "\"answer\": null,", "new": "\"answer\": \"不知道\",", "k": "decisions_yaml_has_a_schema"},
+    {"name": "C7: no Lite cap", "file": "docs/examples/toolkit.yaml", "old": "  g2_max_items_lite: 15", "new": "  g2_max_items_lite: 30", "k": "lite_g2_cap"},
+    {"name": "C8: no markdown export", "file": "docs/08-implementation-spec.md", "old": "`RUN_ID --format json\\|sarif\\|markdown\\|html --out DIR", "new": "`RUN_ID --format json\\|sarif\\|html --out DIR", "k": "report_export_has_markdown"},
+    {"name": "C9: W0 extractors back in M2", "file": "docs/07-roadmap.md", "old": "| M1 基礎與安全控制 | 12 | 7 |", "new": "| M1 基礎與安全控制 | 10 | 6 |", "k": "belong_to_m1"},
+    {"name": "C10: six person-weeks again", "file": "docs/05-bias-calibration.md", "old": "≈ **30 人週**", "new": "≈ **6 人週**", "k": "thirty_person_weeks"},
+    {"name": "C11: R0-R13 again", "file": "docs/00-overview.md", "old": "Aggregator（規則 R0–R16）", "new": "Aggregator（規則 R0–R13）", "k": "r0_to_r13"},
+    {"name": "C11: 43 again", "file": "README.md", "old": "45 條明列", "new": "43 條明列", "k": "limitation_count"},
+    {"name": "C12: CI without the anchor check", "file": ".github/workflows/validate.yml", "old": "      - name: Mutation anchors still match the source\n        run: python tools/mutation_check.py --anchors-only tests/mutations/*.json\n        shell: bash\n", "new": "", "k": "ci_runs_the_anchor_check"},
+    {"name": "C12: two freeze exceptions", "file": "CONTRIBUTING.md", "old": "三種都照下一節的規則附回歸測試", "new": "兩種都照下一節的規則附回歸測試", "k": "third_freeze_exception"},
+    {"name": "D: rfc8785 required again", "file": "pyproject.toml", "old": "reference = [\"rfc8785==0.1.4\"]", "new": "reference = []", "k": "optional_extra"},
+    {"name": "D: BL-72 missing", "file": "docs/09-backlog.md", "old": "| BL-72 | r14 D |", "new": "| BL-72 | r14 |", "k": "backlog_lists"}
+  ]
+}

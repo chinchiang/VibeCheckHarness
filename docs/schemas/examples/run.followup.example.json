@@ -19,9 +19,9 @@
   "resume_node": null,
   "resume_deadline": "2026-10-10T10:30:00+08:00",
   "data_class": "C",
-  "toolkit_config_ref": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327",
+  "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:c6e4c62c6dc10a9a03dc29e83656fc1f04b7557ebc43a58c3e195efc6f70cb45",
+  "engagement_ref": "sha256:dcc71b402a19a1cbd467bb50825fda41bcd1eb7c240cbda0fe0da4ab8912eccf",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -33,7 +33,7 @@
     },
     "tools": {
       "path": "docs/examples/tools.yaml",
-      "sha256": "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
+      "sha256": "sha256:7232c12696bc144a7a88452c7ffcc90f998401c9b105966f70d677a40a6a13a6"
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
@@ -131,7 +131,7 @@
       "gate_record_id": "GR-G0a-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:c6e4c62c6dc10a9a03dc29e83656fc1f04b7557ebc43a58c3e195efc6f70cb45",
+      "subject_hash": "sha256:dcc71b402a19a1cbd467bb50825fda41bcd1eb7c240cbda0fe0da4ab8912eccf",
       "job_id": null,
       "opened_at": "2026-10-07T10:00:00+08:00",
       "decided_at": "2026-10-07T10:01:00+08:00"
@@ -216,23 +216,23 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:963f8c8ecfe6548a4f4256ecfa40caa0e20af7b198ed028e690fb546e97cf567"
+      "line_sha256": "sha256:1db3e675dde1aef0d1a96e5fe0cb11791efafacccd865cb0fd4f94ab437cd140"
     },
     {
       "seq": 11,
-      "line_sha256": "sha256:af71f112dd65d343a7fb2a6cf3e280ac12aa7561b0e27b2b29712f39033e189f"
+      "line_sha256": "sha256:e853bc367320ee77c27e486389c2a213a6f92cd5ce6bb46f3eab1e662353f61a"
     },
     {
       "seq": 14,
-      "line_sha256": "sha256:c37c15eb2376bdd4624dd3acd7841075aec84f167eedb45cc51949ed6c416c18"
+      "line_sha256": "sha256:0a05c6051ed2bc008010a8e2e83cf0161247a1aa70d8b402f3aaf837bd883259"
     },
     {
       "seq": 19,
-      "line_sha256": "sha256:67777f6ec1c0e7e9b123a325e29252dd7fd969c93ceffb1df0370ad677999083"
+      "line_sha256": "sha256:519de81e81e01cd5291d79d70a65c83dfdb568dbddc1a4c0a9b06f0d0c6c1473"
     },
     {
       "seq": 22,
-      "line_sha256": "sha256:f481461f22e08368931c23dc99f2711e75516d97939a2faaa0e4340773abad05"
+      "line_sha256": "sha256:71483da4348bb56f45ad9b44230eb4fe0c80bbdac884fa4002841f7bfa4cf1aa"
     }
   ],
   "errors": [],

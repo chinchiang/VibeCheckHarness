@@ -8,6 +8,20 @@
 
 依 [2026-10-30 設計審查（第十四輪，內部三組審查）](docs/evidence/review-2026-10-30-r14.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）對 `main@6b4dfb0`，最嚴重的項目由主審查者重跑確認；三處設計變更（W4 事先登記、帶入叢集不投票、Lite 單機 profile 待訂）是使用者決定。
 
+### 方法論、文件與流程（PR3）
+- **Lite 的單機部署 profile 待訂**（C1，使用者決定）：07 §1.3 寫明照目前規格 Lite 無法在一台開發機上啟動（`vibecheck init` 沒有規格；KMS／U-05、正式根金鑰／U-07、三把金鑰與獨立 OS 使用者的副簽行程、gVisor 只有 Linux、Postgres、套件鏡像）與要決定的事項，新增 BL-70；08 §4.2 加 `vibecheck init` 列（規格待訂）；README／00 的「本機一把金鑰、確認一次就能跑」改為「單機部署 profile 待訂」；08 開頭的「不需要再做任何設計決定」改為指向 §10 與 BL-70。
+- **三個 MVP-0 招牌偵測有不靠 LLM 的輸出路徑**（C2）：ToolResult 新增 `rule_rls`、`rule_public_env`；`tools.yaml` 登錄 `rules:rls`、`rules:public_env`（W1、Z2）與 MVP-0 必要的 `inventory:nextjs`、`inventory:baas_client`；MVP0-X1 改為「三個問題各自出現在 tool-only 或家族叢集，且沒有 LLM 回應的 run 也要出現」。之前 `finding.schema` 的回報者必填模型欄位、ToolResult 只有四種，規則找到的東西沒有地方可放。
+- **公開變數 secret 規則只剩一版**（C4）：08 §11.17 的名稱規則加已知公開金鑰的允許清單（`_SUPABASE_ANON_KEY`、`_FIREBASE_API_KEY`、`_PUBLISHABLE_KEY`、`_SITE_KEY`、`_CLIENT_ID` 結尾）與 Z2 內的值分類（Supabase JWT `role` 為 `service_role` 一律命中）；02 W1 與 07 改為引用。之前三處寫法不同，其中一版會把標準的 Supabase anon key 當 secret。
+- **副簽服務的介面與不可用處理**（C5）：08 §11.19 改寫為 RPC `countersign(request) → {anchor_counter, countersignature}`，以 `(run_id, seq, event_sha256)` 冪等、計數器持久化在 Z3（Z1 當掉重送不再造成編號缺口與 `E-AUDIT-ANCHOR-GAP` 誤報）；`anchor_rejected` 加入 `audit-event` enum 與 03 §13.2；鍵名改為 `audit.anchor_interval_events`；Z3 不可用統一為 §6.1 的 `Z3Unavailable`（重試用盡 → `SUSPENDED`，需要錨定的事件在 Z3 恢復前不寫入）。
+- **G1 問卷流程與決定檔格式**（C6）：02 改為 08 的流程（程式出題、Drafter 提議、人在 G1 確認）；新增 `decisions.schema.json`（`vibecheck gate approve --decisions` 的格式：逐項決定、`carried_from`、G1 的 `edited_item` 與 `answers[]`）與範例。
+- **關卡負擔**（C7）：`toolkit.yaml` 新增 `gate_queues.g2_max_items_lite`（15）；MVP0-X8 寫明 2 個家族、15 項 × 5 分鐘的假設（Team 預設 30 項已是 2.5 小時，與 2 小時門檻矛盾）；BL-21 的 G1 一鍵沿用提前到 Lite pilot 之前。
+- **報告格式與結束碼**（C8）：`report export` 加 `markdown`（MVP-0 的 `whitebox-report.md`，08 §11.16 定義七個區段）；`E-ENG-PRICING` 在 `run start` 的結束碼統一為 5（`run estimate` 為 10）。
+- **里程碑與估算**（C9）：W0 抽取器與 W0 的規則式 PII 偵測器歸 M1（W0 是 M1 節點）；07 §1.5 的 M1／M2 人週重分配（12／10），MVP-0 另列 pilot 人力（前導實驗約 4 人週、Lite pilot 約 3 人週，不在 16 人週內）；滲透測試對照掛 MVP-1 出口（MVP-0 沒有 staging）。
+- **Calibration Lab 預算**（C10）：05 §5.1 的標註人力改為約 30 人週（每個缺陷含利用測試與修正版至少 2 小時；之前 6 人週）、模型更換時的語料刷新政策、κ 每批至少 30 題；07 §1.5 同步；新增 BL-73。
+- **過時文字**（C11）：五處「R0–R13」改為 R0–R16；08 §11.11 的 provisional 例外補 R14／R16；README／00 的「43 條」改為 45 條；`ci_workflows`／`iac` 旗標補偵測規則（08 §11.1）。
+- **治理與 CI**（C12、D）：CI 加 `mutation_check --anchors-only`；PR 範本補 `build_error_table --check`、`build_variants --check`、anchors-only；CONTRIBUTING 的凍結規則加第三類「審查核實成立、經使用者決定的設計變更」；README 的「所有內容經交叉比對核實」改為「設計文件與驗證器互相驗證，工具包本身尚未實作」；`pyproject` 把 `rfc8785` 移到 optional extra `reference`（r12 PR6 起 validator 缺少它只警告）；新增 BL-71（跨 bundle 的校準與規則版本釘選）、BL-72（投票與稽核事件對帳）。
+- 新增 `tests/test_v07_r14_docs.py`（23 個；在 PR2 的 `ce3f80c` 上全部失敗）與 `tests/mutations/r14_docs.json`（21，全部 CAUGHT）；`test_v04_round5_examples`、`test_v07_r12_examples` 隨 Lite 的 G2 上限更新。
+
 ### 裁決與校準（PR2；`rule_version` 改為 `05-v0.15`）
 - **W4 事先登記只認程式產生的 oracle**（C3，使用者決定）：`05-v0.3`–`05-v0.14` 只要 W4 測試的需求經 G1 核准、`oracle_can_pass` 對照 PASS，就算事先登記，可重現 FAIL 直接 `CONFIRMED_EXECUTABLE`——這是校準前唯一的確認路徑，但 oracle 由 LLM 寫、只由另一個 LLM 審，沒有人核准過。現在只有 harness 從 G1 結構產生 oracle 的 `local_rls`／`fake_model` 測試、且 `oracle_can_pass` 與 `oracle_can_fail` 都 PASS 才算；LLM 撰寫的 `unit`／`property` 測試的 FAIL 是 `E_fail_u`（最高 `LIKELY`），裁決加註 `oracle_unreviewed`（R12，新註記），叢集經 G2 `accept` 後的新版才升級；Result Analyst 不能代替。W4 範例測試案例補上 `oracle_can_fail` 對照（CTL-03）。06 §3 新增 #45。
 - **帶入叢集不接受投票**（B7，使用者決定；`E-VERDICT-VOTE`）：帶入叢集（`carried_from`）的裁決不得有 `votes`／`missing_votes`，狀態只由回歸測試證據決定；第 15 列改為只看工具訊號。之前一張反駁票讓它 `DISPUTED`、更強的反駁被 `REJECTED` 後又被 R16 抬回來源狀態（非單調）。

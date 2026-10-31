@@ -105,7 +105,7 @@ def test_the_lite_variant_lists_alice_once():
 # ================================================================ estimates
 def test_lite_targets_fit_its_one_day_report():
     s = text("docs/03-system-architecture.md")
-    assert "| 3.5（70 × 3 ÷ 60） | 同日／2 天／3 天 |" in s and "| `g2_max_items` × 5 ÷ 60 | 同日／2 天／3 天 |" in s
+    assert "| 3.5（70 × 3 ÷ 60） | 同日／2 天／3 天 |" in s and "| `g2_max_items` × 5 ÷ 60（Lite 1.25） | 同日／2 天／3 天 |" in s   # r14 (C7): Lite uses g2_max_items_lite
     assert "| 0.1 | 同日／1 天／1 天 |" in s and "—／2 天／3 天" not in s and "—／1 天／2 天" not in s
 
 

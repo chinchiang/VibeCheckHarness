@@ -37,3 +37,6 @@ jobs:
         run: python tools/build_error_table.py --check
       - name: Variant bundles are up to date and validate cleanly
         run: python tools/build_variants.py --check
+      - name: Mutation anchors still match the source
+        run: python tools/mutation_check.py --anchors-only tests/mutations/*.json
+        shell: bash

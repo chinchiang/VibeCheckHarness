@@ -50,7 +50,7 @@
     "gate_queues": {
       "type": "object",
       "additionalProperties": false,
-      "description": "v0.4（BL-26，docs/02 W3、W5）：人工關卡佇列。G2 佇列最多 g2_max_items 項（依 rubric 嚴重度、再依 DISPUTED 排序），超出的列入 report-manifest over_cap_items；G3 除高風險與 critical／high 外最多 g3_max_items 項逐項決定；G2 逾時（未決）比例超過 g2_timeout_warn_ratio 寫 gate_load_warning。v0.5（審查 2026-10-25 M-6）：G4 每輪最多 g4_max_items 個需要逐一審核的測試案例（依高風險 → 安全等級 S2 → S1 → 嚴重度排序；高風險威脅的案例不受上限），超出的改為 MANUAL（理由「超出 G4 上限」）並列入 B6。省略＝程式碼預設 30、50、40、0.5",
+      "description": "v0.4（BL-26，docs/02 W3、W5）：人工關卡佇列。G2 佇列最多 g2_max_items 項（依 rubric 嚴重度、再依 DISPUTED 排序），超出的列入 report-manifest over_cap_items；G3 除高風險與 critical／high 外最多 g3_max_items 項逐項決定；G2 逾時（未決）比例超過 g2_timeout_warn_ratio 寫 gate_load_warning。v0.5（審查 2026-10-25 M-6）：G4 每輪最多 g4_max_items 個需要逐一審核的測試案例（依高風險 → 安全等級 S2 → S1 → 嚴重度排序；高風險威脅的案例不受上限），超出的改為 MANUAL（理由「超出 G4 上限」）並列入 B6。省略＝程式碼預設 30、50、40、0.5。lite 委任另以 g2_max_items_lite 覆蓋 G2 上限（r14）",
       "properties": {
         "g2_max_items": {
           "type": "integer",
@@ -68,6 +68,11 @@
         "g4_max_items": {
           "type": "integer",
           "minimum": 1
+        },
+        "g2_max_items_lite": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "第十四輪內部審查（C7）：assurance_profile 為 lite 時的 G2 佇列上限（預設 15；docs/07 MVP0-X8 的 2 小時門檻以 15 項 × 5 分鐘估）；省略＝與 g2_max_items 相同"
         }
       },
       "required": [
