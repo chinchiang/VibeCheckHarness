@@ -38,6 +38,7 @@
 | [crosswalk](crosswalk.schema.json) | 分類對照表 | [crosswalk.yaml](../examples/crosswalk.yaml) |
 | [calibration](calibration.schema.json) | 校準設定與結果（D15） | [calibration.yaml](../examples/calibration.yaml) |
 | [run](run.schema.json) | run 狀態、jobs、關卡清單 | [主 run](examples/run.example.json)、[後續 run](examples/run.followup.example.json)、[Lane A](examples/run.lane-a.example.json) |
+| [decisions](decisions.schema.json) | `vibecheck gate approve --decisions` 的逐項決定檔（r14 C6；不簽章，GateRecord 才是紀錄） | [G1](examples/decisions.g1.example.json) |
 | [gate-record](gate-record.schema.json) | 關卡紀錄 | [G0a](examples/gate-record.g0a.example.json)、[G0b](examples/gate-record.g0b.example.json)、[G1](examples/gate-record.g1.example.json)、[G2](examples/gate-record.g2.example.json)、[G3](examples/gate-record.g3.example.json)、[G4](examples/gate-record.g4.example.json)、[G5](examples/gate-record.g5.example.json)、[GB](examples/gate-record.gb.example.json)、[後續 G0a](examples/gate-record.followup.g0a.example.json)、[後續 G0b](examples/gate-record.followup.g0b.example.json)、[Lane A G0a](examples/gate-record.lane-a.g0a.example.json) |
 | [audit-event](audit-event.schema.json) | 稽核事件（JSONL，一行一筆） | [audit-event.run-2026-09-23-001.example.jsonl](examples/audit-event.run-2026-09-23-001.example.jsonl)、[audit-event.run-2026-09-25-pr-118.example.jsonl](examples/audit-event.run-2026-09-25-pr-118.example.jsonl)（Lane A） |
 | [inventory](inventory.schema.json) | W0 盤點 | [inventory.example.json](examples/inventory.example.json) |

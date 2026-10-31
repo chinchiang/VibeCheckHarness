@@ -37,7 +37,7 @@
 
 | 階段 | 交付什麼 | 不包含 | 可用的模式 | 沿用的 M 準則 |
 |---|---|---|---|---|
-| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W0.5／認領與 G1（G1 在 W1 之前，由本 run 核准）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`）<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋<br>• **最小錨點副簽服務**（每個 `audit_anchor` 都要 Z3 副簽，`E-AUDIT-ANCHOR-SIG`；[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)） | Z3 的網路功能（所有權驗證、`http_get`、job 執行；第十三輪外部審查之前這裡寫「Z3」，與 03 §13.1 的副簽規則矛盾）、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11；§3 中 MVP-0 用到的元件的入口閘門（MVP0-X7） |
+| **MVP-0 白箱、不連網** | 依序為：<br>• G0a、W0（secrets 掃描與遮罩；inventory 先支援 Next.js＋Supabase：路由、server action、middleware、migrations 與 RLS policy、環境變數名稱，[08 §11.1](08-implementation-spec.md#111-w0-盤點抽取器與支援矩陣)）<br>• W0.5／認領與 G1（G1 在 W1 之前，由本 run 核准）<br>• W1：SCA、經鏡像的套件存在性、前端 bundle 的公開環境變數（`public_prefix`：`NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_`；自有規則 `rules:public_env`）、沒有 RLS 的資料表（自有規則 `rules:rls`；兩者都是 ToolResult，[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）<br>• W2／W3：1–3 個家族，裁決標 `provisional`<br>• W4：Z2 內的本地測試，包含拋棄式 PostgreSQL 上的 RLS 測試，以及用腳本式假模型輸出驗證工具防護<br>• W5：報告、SARIF、指紋<br>• **最小錨點副簽服務**（每個 `audit_anchor` 都要 Z3 副簽，`E-AUDIT-ANCHOR-SIG`；[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)） | Z3 的網路功能（所有權驗證、`http_get`、job 執行；第十三輪外部審查之前這裡寫「Z3」，與 03 §13.1 的副簽規則矛盾）、G0b、任何對目標的網路請求；Calibration Lab 的門檻 | Lite、Team、Full | M1-X4～X7；M2-X4、X6、X10、X11；§3 中 MVP-0 用到的元件的入口閘門（MVP0-X7） |
 | **MVP-1 本地拋棄式目標** | 在隔離環境中啟動範例應用（`http://localhost`；ROE 只對 `localhost`、`127.0.0.1`、`[::1]` 允許 `http://`，其他一律 `https://`，`E-ROE-URL`），跑 B0–B6：<br>• G0b 與 `legal_review`<br>• 所有權用 well-known path 證明，由範例應用提供<br>• S0／S1<br>• S2 只在本地 DB 可快照還原時執行<br>• 範例 A 端到端 | staging、共享平台網域、LLM 功能測試 | Team、Full（Lite 只能跑 S0／S1） | M1-X1～X3；M3-X1、X5；M4-X2～X5、X7 |
 | **MVP-2 staging（S0／S1）** | 真實 staging（Supabase、Firebase 等託管 DB 通常無法快照還原，這類目標之後也預期只有 S0／S1，[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #36），包括：<br>• `legal_review` 涵蓋 staging 的範圍與條款（G0b 已在 MVP-1 交付）<br>• 所有權證明，包含 `platform_project`<br>• Scope Proxy 與 TLS 終結<br>• Session Provider 與 whoami<br>• `build_identity` 檢查 | S2、G5、relay | Lite、Team、Full | M1-X8、X9；M4-X3、X8 |
 | **MVP-3 以後** | 依序加入：<br>• staging 的 S2＋G5（Full 模式需兩人核准）<br>• LLM 功能測試，先做 G4 核准的腳本式多輪（M5）<br>• Calibration Lab 與 `high_precision_rules`（M2-X1）<br>• CI Lane B 完整版<br>• 靜態 HTML 報告<br>• adaptive relay（只限 Full，[09 BL-10](09-backlog.md)） | — | 依功能而定 | M2-X1～X3、X5、X7～X9、X12；M4 其餘；M5 全部 |
@@ -46,14 +46,14 @@
 
 | # | 準則 | 如何量測 | 不通過的判斷 |
 |---|---|---|---|
-| MVP0-X1 | 在 `notes-rls-app`（Next.js＋Supabase 型的範例，[08 §8.3](08-implementation-spec.md#83-範例應用整合測試的目標)）上找出下列三個植入問題：<br>• 沒有 RLS 的資料表：以 `inventory_fact` 證據支撐（寫法同範例 F-061：`fact_ref` `/db/tables/0/rls_enabled`、`asserted: false`）<br>• bundle 中的公開前綴金鑰<br>• 幻覺套件名稱 | 整合測試（CI 用錄製的 LLM 回應） | 任一個沒有找到，或 RLS 問題因為交不出程式片段而被判 `REJECTED` |
+| MVP0-X1 | 在 `notes-rls-app`（Next.js＋Supabase 型的範例，[08 §8.3](08-implementation-spec.md#83-範例應用整合測試的目標)）上找出下列三個植入問題，**每一個都要有不靠 LLM 的輸出路徑**（第十四輪內部審查：之前只說「能由確定性規則找到」，但 `finding.schema` 的回報者必填模型欄位，ToolResult 又只有四種，規則找到的東西沒有地方可放）：<br>• 沒有 RLS 的資料表：`rules:rls` 的 ToolResult（`kind: rule_rls`，[08 §11.2](08-implementation-spec.md#112-工具結果正規化與合併)）成為 tool-only 叢集，或由 LLM 發現項以 `inventory_fact` 證據支撐（寫法同範例 F-061：`fact_ref` `/db/tables/0/rls_enabled`、`asserted: false`）<br>• bundle 中的公開前綴金鑰：`rules:public_env` 的 ToolResult（`kind: rule_public_env`，[08 §11.17](08-implementation-spec.md#1117-確定性輔助規則)）<br>• 幻覺套件名稱：`pkgcheck:exists`（`kind: package_existence`） | 整合測試（CI 用錄製的 LLM 回應；另跑一次**沒有 LLM 回應**的 run，三個問題仍要出現在報告與 SARIF） | 任一個沒有出現在 tool-only 叢集或家族叢集中；RLS 問題因為交不出程式片段而被判 `REJECTED`；沒有 LLM 的 run 少了任何一個 |
 | MVP0-X2 | 遮罩之前沒有任何 LLM 呼叫；除了 Model Gateway 與套件鏡像，沒有任何出站連線 | 稽核檔＋Z2 出站紀錄 | 有任何一例 |
 | MVP0-X3 | SARIF 通過 SARIF 2.1.0 schema 驗證，並符合 §3.27.9–3.27.10 的 `kind`／`level` 規則（`kind` 不是 `fail` 的 result，`level` 為 `none`）[V][E:whitebox-59]；在同一個 commit 上重跑時，所有叢集的 `baseline_state` 都是 `unchanged` | `fast` 線＋整合測試 | 驗證失敗，或指紋不穩定 |
 | MVP0-X4 | 沒有校準資料時，每個可能由投票決定的裁決（決定表第 6–9、11–13 列、非黑箱叢集）都是 `provisional`；R0／R1／R9／R10 決定的裁決（第 1–5 列）、強工具佐證決定的裁決（第 10 列）、R14／R16 決定的裁決（第 14–16 列，審查 r12）與黑箱叢集不是；沒有可執行證明的叢集不會是 `CONFIRMED_*` | 性質測試 | 有任何一例 |
 | MVP0-X5 | 單人使用（Lite）時，engagement 有 `role_consolidation` 聲明，報告首頁標示「單人模式，未經職責分離」 | validator（`E-ENG-PROFILE`、`E-GATE-SOD`）＋報告測試 | 缺少聲明卻通過（一人在同一份關卡紀錄中兼任兩個角色而沒有 `E-GATE-SOD`），或報告沒有標示 |
 | MVP0-X6 | **前導實驗**（§1.2）已依預先登記執行，決定已寫入 `calibration.yaml` 的 `recommended_defaults`（MVP-1 起的 `w2_review.strategy`）與報告 | 前導實驗報告：預先登記的 hash、每個應用的原始結果、決定 | 沒有預先登記就解盲；應用中有工具包團隊撰寫的；報告缺少決定，或 MVP-1 的預設值與決定不符 |
 | MVP0-X7 | MVP-0 會用到的元件，其 §3 入口閘門都已結案：「M1 前」的 Anthropic API 條款、Semgrep／CodeQL（不啟用則免）、psycopg 的散布形式（MVP-0 就用 Z1 的 Postgres checkpointer）、G-11 的 runsc／Firecracker 版本固定與 CVE 訂閱（MVP-0 的 W0、W1、W4 都在 Z2）；「M2 前」的 OpenAI API 條款（G-13）、GPT-6 的 ZDR 書面確認（G-06）、NIM 用途（使用 `nemotron_self` 時）。v0.3 的 MVP-0 只沿用 M1-X4～X7，雲端模型的條款還沒確認就能出貨 | 驗收包中的法務紀錄，或證明該元件已停用的設定檔（engagement 的 `allowed_models`、`config_pins`） | 有未結案的項目，而對應的模型或工具仍然啟用 |
-| MVP0-X8 | **Lite 使用者 pilot**（§1.3）：≥8 位不屬於工具包團隊的單人開發者，各自以自己的應用跑 Lite 的 MVP-0。門檻 [H]：從開始安裝到拿到第一份白箱報告的中位數 ≤ 1 個工作天；每個 run 的人工關卡總耗時（`claim_run`、G0a 簽署、**G2 逐項決定**、GB；**G1 另計**）中位數 ≤ 2 小時；G1 以「適用的 ASVS L1 條目數 × 3 分鐘」為基準（最多 70 條 → 3.5 小時，[03 §6.5](03-system-architecture.md#65-人力負擔與周轉時間h)；審查 r11 之前這 2 小時把 G1 算在內，與 03 的估算矛盾），記實際條目數與耗時；G2 另記每項的耗時與 `needs_info` 的比例；沒有人因為金鑰與簽章設定而放棄 | pilot 紀錄（各步驟時間戳記、放棄原因）；也記錄 [03 §6.5](03-system-architecture.md#65-人力負擔與周轉時間h) 每個關卡的實際人時，與設計假設比較 | 任一門檻沒有達到，且沒有啟用 §1.3 的降階路徑 |
+| MVP0-X8 | **Lite 使用者 pilot**（§1.3）：≥8 位不屬於工具包團隊的單人開發者，各自以自己的應用跑 Lite 的 MVP-0。門檻 [H]：從開始安裝到拿到第一份白箱報告的中位數 ≤ 1 個工作天；每個 run 的人工關卡總耗時（`claim_run`、G0a 簽署、**G2 逐項決定**、GB；**G1 另計**）中位數 ≤ 2 小時（假設：2 個驗證家族、Lite 的 `gate_queues.g2_max_items_lite` 預設 15 項，15 × 5 分鐘＝1.25 小時；[03 §6.5](03-system-architecture.md#65-人力負擔與周轉時間h) 的 Team 預設 30 項 × 5 分鐘已經是 2.5 小時，第十四輪內部審查之前這個門檻與預設上限矛盾；家族只有 2 個時 `no_eligible_verifier` 的叢集全部進 G2，pilot 要記這類項目的比例）；G1 以「適用的 ASVS L1 條目數 × 3 分鐘」為基準（最多 70 條 → 3.5 小時，[03 §6.5](03-system-architecture.md#65-人力負擔與周轉時間h)；審查 r11 之前這 2 小時把 G1 算在內，與 03 的估算矛盾），記實際條目數與耗時；G2 另記每項的耗時與 `needs_info` 的比例；沒有人因為金鑰與簽章設定而放棄 | pilot 紀錄（各步驟時間戳記、放棄原因）；也記錄 [03 §6.5](03-system-architecture.md#65-人力負擔與周轉時間h) 每個關卡的實際人時，與設計假設比較 | 任一門檻沒有達到，且沒有啟用 §1.3 的降階路徑 |
 | MVP1-X1 | 範例 A 在本地目標上：<br>• 植入版的 TC-012-01 FAIL，並且**不經 LLM 分析者**就裁決為 `CONFIRMED_EXECUTABLE`（G4 已事先登記解讀）<br>• 修正版 PASS，且所有 control 都通過 | 整合測試 | 任一步不符 |
 | MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點（沒有綁定的測試案例算出 S3，`E-TC-MUTATION-SCOPE`） | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
 | MVP1-X3 | 故障注入（session 過期、路徑錯誤、種子遺失）時，結果是 `INVALID`，不是 PASS；報告列出 control 通過率 | 整合測試 | 有任何一例被當成 PASS |
@@ -74,7 +74,7 @@
   - Δrecall＝recall(③) − recall(②a) 的點估計 ≥ +5 個百分點，**而且** precision(③) − precision(②a) ≥ −5 個百分點 → MVP-1 起維持 `w2_review.strategy: multi_family`；
   - 否則 → MVP-1 起預設 `single_best_resampled`（05 §5.6 的定義），多家族降為選用；跨家族 verifier 保留（它的價值另由 M-4 判斷）。
   - 不論結果如何，M2 的正式檢定（05 §5.6）照常進行，並依它的結果再切換一次（M2-X13）。
-- **對照一次外包滲透測試**[H]：至少 3 個應用另外委託一次人工滲透測試（同一 commit、同一 staging、同樣的時間窗），比較兩者確認的問題、各自獨有的問題、人時與費用。目的是回答「先制」相對於傳統做法到底多了什麼：沒有這個對照，對外不宣稱工具包比 DAST 或滲透測試更好。結果寫入 MVP-1 的出口報告。
+- **對照一次外包滲透測試**[H]：至少 3 個應用另外委託一次人工滲透測試（同一 commit、同一目標環境、同樣的時間窗；MVP-1 的目標是本地拋棄式環境，staging 要到 MVP-2，所以這項對照掛在 **MVP-1 的出口**，第十四輪內部審查之前寫「同一 staging」卻排在 MVP-0），比較兩者確認的問題、各自獨有的問題、人時與費用。目的是回答「先制」相對於傳統做法到底多了什麼：沒有這個對照，對外不宣稱工具包比 DAST 或滲透測試更好。結果寫入 MVP-1 的出口報告。
 - **報告另外列出**：每個已確認缺陷是由 W0／W1 的確定性規則、還是只由 W2 的 LLM 審查找到。只有 LLM 找到的比例，是 W2 值不值得花費的第一個實測訊號（MVP0-X1 的三個植入問題都能由確定性規則找到）。
 - **誠實說明**：10 個應用（約 50–100 個缺陷）偵測不到小於約 10 個百分點的差距，點估計的誤差也大；這個規則只保證「沒有看到明顯效益時，不預設花三倍的錢」。
 - **比較的公平性**[H]：
@@ -88,7 +88,11 @@
 
 Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自建組織根金鑰與金鑰登錄、以 Ed25519 簽署委任設定、回答 G1 問卷，B 階段還要三角色 ROE、法務聲明、seed manifest、whoami 端點與 `build_identity` 標頭。這些對目標使用者（不讀程式碼的 vibe coder）可能是放棄的理由，必須實測（MVP0-X8）。
 
-**Lite 白箱快速模式是 MVP-0 的預設入口**（第十二輪第二次外部審查；之前是 pilot 未達門檻時的降階備案）：只跑 MVP-0（白箱、不連網、沒有 G0b 與 B 階段）。`vibecheck init` 在本機產生一把金鑰，建立只有一個人的金鑰登錄與委任設定；報告首頁標示「單人、自行簽署、只有白箱」。**人工操作的契約**（第十三輪外部審查：之前的「只需確認一次」沒有說是哪個關卡）[H]：
+**Lite 白箱快速模式是 MVP-0 的預設入口**（第十二輪第二次外部審查；之前是 pilot 未達門檻時的降階備案）：只跑 MVP-0（白箱、不連網、沒有 G0b 與 B 階段）。`vibecheck init` 在本機產生一把金鑰，建立只有一個人的金鑰登錄與委任設定；報告首頁標示「單人、自行簽署、只有白箱」。
+
+**Lite 的單機部署 profile 待訂**（第十四輪內部審查 C1，使用者決定：MVP-0 實作計畫時再訂，[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）[H]：目前的規格是為 Team／Full 的三區部署寫的，照規格 Lite 無法在一台開發機上啟動——`vibecheck init` 還沒有規格（[08 §4.2](08-implementation-spec.md#42-指令) 只列了它的位置）；正式部署要求 KMS（[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-05：沒有 KMS 不得啟動）與正式的組織根金鑰（U-07）；要三把金鑰（根、人員、`z3-executor`）與一個以不同 OS 使用者執行的副簽行程（[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)）；Z2 以 gVisor 實作，只有 Linux；checkpointer 是 Postgres；W1 的套件存在性要經鏡像。單機 profile 要決定的事項：根金鑰與人員金鑰是否同一把、KMS 的本機替代（作業系統 keychain）、副簽行程在同一台機器的隔離方式、macOS／Windows 的 Z2 替代（容器或 WSL）、SQLite checkpointer、是否允許直連套件 registry。在它訂定之前，MVP-0 的 Lite 只能在 Linux 主機上以 Team 的部署方式跑；README 與 00 的「單一開發者模式」指的是這個 profile 訂定後的使用方式。
+
+**人工操作的契約**（第十三輪外部審查：之前的「只需確認一次」沒有說是哪個關卡）[H]：
 
 | 時點 | 人工操作 | 關卡 |
 |---|---|---|
@@ -117,7 +121,7 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 | MVP-2 staging 之前 | BL-32 Scope Proxy 原型關卡（MVP2-X5） | 08 §11.7 的全部必要案例 |
 | CAS 實作之前 | BL-29 委任隔離與多參照保留（08 §7.3、§7.5） | 相同內容不同期限、不同資料等級、legal hold、多 run 共用、刪除後稽核 |
 | 機率報告啟用之前 | BL-30 取樣獨立性與重播分離（04 §4.4） | 固定 seed 重播、快取重用、重置失敗、模型版本變更、有相關性的 trial 都不虛增 n′ |
-| 啟用跨 run G1／G3 沿用之前 | BL-21 來源鏈驗證（v0.5 validator 已完成，`E-GATE-CARRY`；執行期的沿用畫面待實作） | hash 改變、過期、撤銷、來源缺漏都拒絕沿用 |
+| 啟用跨 run G1／G3 沿用之前；**Lite pilot（MVP0-X8）之前** | BL-21 來源鏈驗證（v0.5 validator 已完成，`E-GATE-CARRY`；執行期的沿用畫面待實作）：沒有變更的 G1 項目一鍵確認，否則每個 run 的 G1 都是 3.5 小時，pilot 的「第一份報告 ≤ 1 個工作天」只在第一個 run 成立 | hash 改變、過期、撤銷、來源缺漏都拒絕沿用 |
 | 對外宣稱模型或指揮官有效益之前 | BL-33 比較的公平性（§1.2） | 依 §1.2 報告品質、人工成本、費用與不確定性；沒有勝出不阻擋功能性的 MVP |
 
 ### 1.5 人力與時程估算 [H]
@@ -129,15 +133,15 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 
 | 里程碑 | 人週 | 日曆週 | 主要工作 | 風險最高的部分 |
 |---|---|---|---|---|
-| M1 基礎與安全控制 | 10 | 6 | ROE 與委任驗章、Scope Proxy、Audit Writer 與 Z3 副簽、kill switch、Run Controller 骨架 | Scope Proxy 的負面測試（[08 §8.2](08-implementation-spec.md#82-m1-必須拒絕清單負面安全測試)） |
-| M2 白箱多家族審查 | 12 | 7 | W0 抽取器、Slicer、多家族審查與驗證、Model Gateway、裁決、校準流程 | 校準語料與標註（另需約 6 人週的標註） |
+| M1 基礎與安全控制 | 12 | 7 | ROE 與委任驗章、Scope Proxy、Audit Writer 與 Z3 副簽、kill switch、Run Controller 骨架、**W0 抽取器**（含 `inventory:nextjs`、`inventory:baas_client`）與 W0 的規則式 PII 偵測器（W0 是 M1 節點，T-13；第十四輪內部審查之前列在 M2） | Scope Proxy 的負面測試（[08 §8.2](08-implementation-spec.md#82-m1-必須拒絕清單負面安全測試)） |
+| M2 白箱多家族審查 | 10 | 6 | Slicer、多家族審查與驗證、Model Gateway、裁決、校準流程 | 校準語料與標註（另需約 30 人週的標註，[05 §5.1](05-bias-calibration.md#51-語料)；第十四輪內部審查之前寫 6 人週，每個缺陷連利用測試與修正版不到 25 分鐘） |
 | M3 威脅建模 | 6 | 4 | B1 系統建模、B2 威脅建模、G3、對照表 | DFD 與 W0 inventory 的比對 |
 | M4 黑箱執行 | 12 | 7 | B3 測試設計、B4 沙箱執行、快照還原、Session Provider、G4／G5 | 共享平台的所有權證明與快照 |
 | M5 LLM 功能測試與報告 | 8 | 5 | 機率型測試、relay、B5 結果分析、B6 報告、SARIF | 機率型測試的次數與預算 |
 | **合計** | **48** | **29** | | |
 
 - **關鍵路徑**：M1 → M2 → M3 → M4 → M5 大致是序列的（M3 依賴 M2 的種子威脅，M4 依賴 M3 的 G3）；M5 的報告部分可以與 M4 並行，約省 2 週。
-- **與分段 MVP 的對應**（§1.1）：MVP-0 約需 M1 的一半與 M2 的大部分（約 16 人週）；MVP-1 再加 M1 其餘、M3（B1、B2、G3；MVP-1 跑完整的 B0–B6，需要威脅建模）與 M4 的本地執行部分（約 18 人週；審查 r12 之前漏了 M3，寫成約 12 人週）。
+- **與分段 MVP 的對應**（§1.1）：MVP-0 約需 M1 的一半與 M2 的大部分（約 16 人週）。**MVP-0 的出場另需 pilot 人力，不在這 16 人週內**（第十四輪內部審查）[H]：MVP0-X6 的前導實驗（≥10 個外部應用的真值標註與三組比較，約 4 人週，加上 ≥3 次委外滲透測試的外部費用）與 MVP0-X8 的 Lite pilot（≥8 位開發者的招募、支援與紀錄，約 3 人週）；MVP-1 再加 M1 其餘、M3（B1、B2、G3；MVP-1 跑完整的 B0–B6，需要威脅建模）與 M4 的本地執行部分（約 18 人週；審查 r12 之前漏了 M3，寫成約 12 人週）。
 - **什麼時候要重估**：任一里程碑的實際人週超過估算 50%，或校準語料不足以讓任何桶的 θ 可行時，重估後面的里程碑並回報委任的簽署人。
 
 ## 2. 元件與節點的歸屬

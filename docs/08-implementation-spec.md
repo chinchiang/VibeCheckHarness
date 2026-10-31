@@ -1,6 +1,6 @@
 # 08 實作規格
 
-> 本文件的讀者是要動手寫程式的工程師。讀完之後，應該不需要再做任何設計決定就能開始 M1。
+> 本文件的讀者是要動手寫程式的工程師。讀完之後，除了 [§10](#10-尚未決定需使用者決定) 列出的使用者決定與 [09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)（Lite 的單機部署 profile）之外，應該不需要再做設計決定就能開始 M1。
 >
 > - [§10](#10-尚未決定需使用者決定) 只列**需要使用者決定**的事項，各附未決定時的預設做法。
 > - [§11](#11-元件規格補充) 補上 v0.3 的元件規格（W0 抽取器、工具結果合併、Slicer、Scope Proxy、Session Provider、SARIF 等）。
@@ -40,7 +40,7 @@
 | `slicer` | `Slicer`（擴充）：切片與 `slice_id`；同等性單位（所有家族收到完全相同的切片，上限是參與模型中最小的可用 context）；多樣性降低標記（§11.3） | Z1 | M2 |
 | `toolresult`（擴充） | W1 輸出 → `ToolResult`：區段對應到函式、合併、去重（§11.2） | Z1 | M2 |
 | `cluster` | `Clusterer`（擴充）：確定性叢集鍵（[05 §4.1](05-bias-calibration.md#41-叢集鍵clusterer確定性)）、tool-only 叢集（§11.2；`origin: tool_only`，v0.5，[09 BL-13](09-backlog.md)）、`fingerprint`（§11.16）；B2 的確定性 merger 鍵（§11.17） | Z1 | M2；M3 加 merger 鍵 |
-| `aggregator` | `Aggregator`（擴充）：R0–R13 有序規則（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）；嚴重度 rubric（§11.17） | Z1 | M2 |
+| `aggregator` | `Aggregator`（擴充）：R0–R16 有序規則（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）；嚴重度 rubric（§11.17） | Z1 | M2 |
 | `apispec`（擴充） | 沒有 OpenAPI 時，由 inventory 與 G1 起草 OpenAPI（§11.10） | Z1 | M4 |
 | `agents` | 每個 agent 的 prompt 範本、輸出 schema 與角色（`agents.yaml`）；Commander（CMD-1–CMD-5） | Z1 | M2（W）、M3–M4（B） |
 | `nodes` | LangGraph 節點函式，一個節點一個函式（[03 §5.7](03-system-architecture.md#57-節點規格表)） | Z1 | M1–M5（依節點，見 [07 §2](07-roadmap.md#2-元件與節點的歸屬)） |
@@ -49,7 +49,7 @@
 | `reporter` | 確定性報告骨架＋Reporter agent 的敘事；JSON、SARIF（對應表見 §11.16）、靜態 HTML；敘事 linter（§11.17）；publisher（PR／issue 回饋，§11.16） | Z1 | M2（白箱）、M4（B6 JSON／SARIF、publisher）、M5（HTML） |
 | `calibration` | Calibration Lab：語料載入、對照組、M-1–M-11、θ 搜尋、§5.8 最小重跑 | Z1＋Z2 | M2 |
 | `selftest`（擴充） | 06 §1.2.1 的自測：ST-1–ST-7，產出 `selftest-report.json` | Z1＋Z2＋Z3 | M1 起逐步擴充 |
-| `pii`（擴充） | 具名 PII 偵測器的包裝（§11.17）；Z1、Z2（W0 個資掃描）與 Z3 共用 | Z1、Z2、Z3 | M2（MVP-0：W0 用的規則式偵測器）；M4（黑箱停止條件與發布前掃描） |
+| `pii`（擴充） | 具名 PII 偵測器的包裝（§11.17）；Z1、Z2（W0 個資掃描）與 Z3 共用 | Z1、Z2、Z3 | M1（MVP-0：W0 用的規則式偵測器——W0 是 M1 節點，任何子步驟失敗 run 就 `FAILED`，所以偵測器不能晚於 W0；第十四輪內部審查之前寫 M2）；M4（黑箱停止條件與發布前掃描） |
 | `cli` | `vibecheck` 指令（§4）；只做參數解析，再呼叫其他模組 | Z1、簽署人裝置 | M1 起 |
 
 **擴充說明**：D16 列出的 18 個模組都保留，名稱也不變。另外新增 `errors`、`config`、`store`、`sandbox`、`executor`、`selftest`，原因是 03 §15 的 `ContentStore`、`Blackboard`、`SandboxRunner`、`Executor`、`SessionProvider` 在 D16 的清單裡沒有對應的模組 [H]。v0.3 再新增 `toolresult`、`apispec`、`pii`（§11.2、§11.10、§11.17）。
@@ -505,6 +505,7 @@ class ToolAdapter(ABC):
 
 | 指令 | 參數 | 做什麼 | 結束碼 | 里程碑 |
 |---|---|---|---|---|
+| `vibecheck init` | `[--dir DIR]` | **規格待訂**（[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)；[07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)）：Lite 的首次設定——產生本機金鑰、只有一個人的金鑰登錄與委任設定草稿，供本人簽署（G0a）。單機部署 profile 訂定前不實作 | — | MVP-0（待訂） |
 | `vibecheck config validate` | `[--dir DIR]` | 驗證 §5 的 7 種設定檔（schema＋跨檔規則，例如 fallback 必須同家族） | 0/3/4 | M1 |
 | `vibecheck keys verify` | `REGISTRY [--accept]` | 驗根簽章與版本；`--accept` 把該版本寫成「上次接受的版本」（需要 `toolkit_maintainer` 身分簽章） | 0/3/4 | M1 |
 | `vibecheck keys show` | `[--person ID] [--fingerprint FP]` | 列出登錄項、角色、效期、撤銷狀態 | 0/6 | M1 |
@@ -512,7 +513,7 @@ class ToolAdapter(ABC):
 | `vibecheck sign` | `DOC --signer PERSON_ID --key PATH [--out SIG]` | 在**簽署人自己的裝置上**：嚴格解析 → 移除 `signatures` → JCS → Ed25519 分離式簽章。私鑰是加密的 PEM 檔，密碼以互動方式輸入；工具包伺服器不持有任何私鑰 | 0/2/3 | M1 |
 | `vibecheck engagement verify` | `ENGAGEMENT --sig SIG... [--at]` | 離線執行 G0a 的全部檢查 | 0/3/4/5 | M1 |
 | `vibecheck roe verify` | `ROE --sig SIG... --engagement E [--at]` | 離線執行 G0b 的全部檢查，包含 L-1–L-6、`TOOLKIT_DENYLIST`、時間窗 | 0/3/4/5 | M1 |
-| `vibecheck run start` | `--engagement E --engagement-sig S... [--roe R --roe-sig S...] --repo PATH --commit SHA [--kind initial\|followup\|regression\|lane_a] [--sign --signer ID --key PATH] [--wait]` | 建立 run。除了 `lane_a` 以外，一律要 `--sign`：寫入 `initiator_claim`，發起者必須是登錄中的**人**（D7） | 0/3/4/5/9；`--wait` 時依最終狀態回傳 11–15 | M1 |
+| `vibecheck run start` | `--engagement E --engagement-sig S... [--roe R --roe-sig S...] --repo PATH --commit SHA [--kind initial\|followup\|regression\|lane_a] [--sign --signer ID --key PATH] [--wait]` | 建立 run。除了 `lane_a` 以外，一律要 `--sign`：寫入 `initiator_claim`，發起者必須是登錄中的**人**（D7）。啟動前的費用估算超過委任上限或缺少 `price_assumptions`（`E-ENG-PRICING`）→ 結束碼 5（政策拒絕；`run estimate` 才是 10） | 0/3/4/5/9；`--wait` 時依最終狀態回傳 11–15 | M1 |
 | `vibecheck run estimate` | `--engagement E --repo PATH --commit SHA [--json]` | 先跑 W0（不用 LLM），再依 §11.12 估算每個階段與家族的呼叫數、token 與費用，與委任設定的上限比較；`run start` 也自動執行同樣的估算 | 0/3/10 | M2 |
 | `vibecheck run status` | `RUN_ID [--json] [--exit-code]` | 狀態、目前節點、待處理關卡、缺口、預算 | 0/6；`--exit-code` 時 11–15 | M1 |
 | `vibecheck run resume` | `RUN_ID [--sign --signer ID --key PATH]` | `SUSPENDED`：run_owner 或發起者即可；`STOPPED`：必須由 ROE 的 `test_lead` 簽署（[03 §5.6](03-system-architecture.md#56-中止補償與-resume)） | 0/4/5/7 | M1 |
@@ -520,7 +521,7 @@ class ToolAdapter(ABC):
 | `vibecheck run claim` | `RUN_ID --sign ...` | 認領自動觸發的 run（`claim_run`，D7） | 0/4/5/7 | M2 |
 | `vibecheck gate list` | `[--run RUN_ID] [--status open\|decided\|expired]` | 列出關卡 | 0 | M2 |
 | `vibecheck gate show` | `GATE_ID [--out DIR]` | 輸出呈現包：已叢集、排序，附 file:line、片段、CWE、殘餘風險 | 0/6 | M2 |
-| `vibecheck gate approve` | `GATE_ID --decisions decisions.yaml --sign ...` | 逐項 `accept`／`reject`／`needs_info` → 產生 GateRecord 並簽章 → `GateService.submit`。G4 的核准者必須已認領該 run（`vibecheck run claim`；G4 核准者計入發起者，[02 §1.5](02-methodology.md#15-自動觸發與發起者)），否則拒絕 | 0/3/4/5/7 | M2 |
+| `vibecheck gate approve` | `GATE_ID --decisions decisions.yaml --sign ...` | 逐項 `accept`／`reject`／`needs_info` → 產生 GateRecord 並簽章 → `GateService.submit`。`decisions.yaml` 的格式是 [decisions.schema.json](schemas/decisions.schema.json)（第十四輪內部審查之前沒有格式）：每項的決定、備註、`risk_override`、沿用的 `carried_from`，G1 另可帶核准者改寫後的條目內容（`edited_item`）與問卷答案（`answers[]`）。G4 的核准者必須已認領該 run（`vibecheck run claim`；G4 核准者計入發起者，[02 §1.5](02-methodology.md#15-自動觸發與發起者)），否則拒絕 | 0/3/4/5/7 | M2 |
 | `vibecheck gate reject` | `GATE_ID --reason TEXT --sign ...` | 整個關卡 `REJECTED`（等於全部項目 reject）；理由必填。**G2 不允許整關 reject**（G2 的整關結果只有 `APPROVED` 或 `EXPIRED`；要駁回請用 `gate approve` 逐項 `reject`／`needs_info`），對 G2 執行 → 結束碼 5 | 0/4/5/7 | M2 |
 | `vibecheck audit verify` | `RUN_ID \| --engagement ID` | 重算 hash chain，並與錨點比對 | 0/8 | M1 |
 | `vibecheck calibrate run` | `--config calibration.yaml [--split calibration\|holdout]` | 執行 Calibration Lab。讀取保留切分時寫入 `holdout_access_log` | 0/3/10 | M2 |
@@ -528,7 +529,7 @@ class ToolAdapter(ABC):
 | `vibecheck calibrate check` | `[--models models.yaml]` | 檢查每個 `model_key` 都在 `valid_for_model_keys` 內，否則列出受影響的桶 | 0/10 | M2 |
 | `vibecheck calibrate report` | `CALIBRATION_ID [--format json\|md]` | 輸出 M-1–M-11 與主要假設的結果 | 0/6 | M2 |
 | `vibecheck report show` | `RUN_ID` | 摘要 | 0/6 | M2 |
-| `vibecheck report export` | `RUN_ID --format json\|sarif\|html --out DIR [--include-rejected] [--include-pass]` | `json`（M2 白箱、M4 完整）、`sarif`（M2 白箱、M4 完整；對應表見 §11.16）、`html`（M5，靜態檔案） | 0/6/7 | M2/M4/M5 |
+| `vibecheck report export` | `RUN_ID --format json\|sarif\|markdown\|html --out DIR [--include-rejected] [--include-pass]` | `json`（M2 白箱、M4 完整）、`sarif`（M2 白箱、M4 完整；對應表見 §11.16）、`markdown`（M2／MVP-0：W5 的 `whitebox-report.md`，區段見 §11.16；MVP0-X5 的「報告首頁」就是它的第一節）、`html`（M5，靜態檔案） | 0/6/7 | M2/M4/M5 |
 | `vibecheck report publish` | `RUN_ID [--dry-run]` | publisher：把摘要留言、以指紋去重的 issue 與修正說明發布到程式碼託管平台（§11.16）。委任設定沒有開啟 → 結束碼 5（開啟用的欄位是 engagement 的 `publishing`，v0.5，[09 BL-17](09-backlog.md)）；`--dry-run` 只輸出將要發布的內容 | 0/5/6/9 | M4 |
 | `vibecheck feedback add` | `--fingerprint FP --label LABEL --reason TEXT --sign ...` | 登錄中的人（`security_reviewer` 或 `app_owner`）簽署的誤報／確認回饋；標籤與去向見 §11.16（回饋紀錄：`feedback.schema.json`，v0.5，[09 BL-18](09-backlog.md)） | 0/3/4/5 | M4 |
 | `vibecheck selftest run` | `[--items ST-1,ST-3,...] --out selftest-report.json` | 06 §1.2.1 的自測；任一個 0 門檻失敗 → 10 | 0/10 | M1 |
@@ -806,7 +807,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 
 | 層級 | 目錄 | 內容 | CI 線（§8.4） |
 |---|---|---|---|
-| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/test_review_fixes.py`、`tests/test_doc_tools.py`，以及各輪審查的回歸測試 `tests/test_v0<版本>_*.py`、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R13 決定表與註記（`annotations`）；`test_v02_hardening.py`：v0.2 強化規則（推導 `diversity_degraded`／工具訊號、稽核錨點與尾端、保留期限、DB 範圍、佔位模型 ID、嚴格 JSON）；`test_review_fixes.py`：v0.2.1 的審查修正；`test_v03_adjudication.py`、`test_v03_datamodel.py`、`test_v03_scope.py`、`test_v03_gates.py`、`test_v03_manifest.py`、`test_v03_llm_schema.py`、`test_v03_robustness.py`：v0.3 的規則，每條都有正反案例；`test_doc_tools.py`：文件工具（兩個產生器、連結檢查、外部連結檢查） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
+| 既有：文件驗證 | `tests/test_validator.py`、`tests/test_adjudicate.py`、`tests/test_review_fixes.py`、`tests/test_doc_tools.py`，以及各輪審查的回歸測試 `tests/test_v0<版本>_*.py`、`tests/fixtures/`、`tests/conftest.py`（pytest） | `test_validator.py`：validator 的負面案例、基準、denylist 檢查、RFC 8785 測試向量；`test_adjudicate.py`：05 §4.2 的 R0–R16 決定表與註記（`annotations`）；`test_v02_hardening.py`：v0.2 強化規則（推導 `diversity_degraded`／工具訊號、稽核錨點與尾端、保留期限、DB 範圍、佔位模型 ID、嚴格 JSON）；`test_review_fixes.py`：v0.2.1 的審查修正；`test_v03_adjudication.py`、`test_v03_datamodel.py`、`test_v03_scope.py`、`test_v03_gates.py`、`test_v03_manifest.py`、`test_v03_llm_schema.py`、`test_v03_robustness.py`：v0.3 的規則，每條都有正反案例；`test_doc_tools.py`：文件工具（兩個產生器、連結檢查、外部連結檢查） | 既有的 `.github/workflows/validate.yml`（ubuntu、windows × Python 3.11、3.13）；併入 `fast` |
 | 單元 | `tests/unit/` | 每個模組各自測試；外部相依以 Protocol 的假物件取代 | `fast` |
 | 性質 | `tests/property/` | Hypothesis：JCS 的穩定性、嚴格 YAML、稽核竄改偵測、Clusterer 與順序無關、Aggregator 的規則性質（例如 Lane A 的結果永遠不會是 `CONFIRMED_*`；R1 一定勝過投票） | `fast` |
 | 契約 | `tests/contract/` | schema 往返（§3）、adapter 註冊（§2.3）、`vchlib` 與 `vibecheck` 同一組測試向量的結果相同、RFC 8785 附錄的測試向量 | `fast` |
@@ -1084,7 +1085,7 @@ class InventoryExtractor(ABC):
    - `unsupported`：見第 1 條。
 3. **合併**：各抽取器的輸出依 (kind, method, path_template, handler 的檔案與行號) 去重，再依穩定鍵排序。路徑樣板統一寫成 `{name}`：Next.js 的 `[id]`、Express 的 `:id`、Django 的 `<int:id>` 都寫成 `{id}`。
 4. **環境變數**：所有抽取器共用一個步驟。它從程式碼的參照（例如 `process.env.X`、`import.meta.env.X`、`os.environ["X"]`）取出**名稱**，不讀值；`.env*` 在路徑黑名單中，本來就不會被讀到。名稱以 `NEXT_PUBLIC_`、`VITE_`、`EXPO_PUBLIC_`、`PUBLIC_` 開頭時，`public_prefix: true`。
-5. **`features[]`**：由下表的固定規則產生，規則隨抽取器版本發布，不由 LLM 判斷。它決定必要面向（[02 W2](02-methodology.md#w2-多家族獨立審查)，`E-PLAN-FACETS`）與 G1 問卷的題目（§11.4）。
+5. **`features[]`**：由下表的固定規則產生，規則隨抽取器版本發布，不由 LLM 判斷。`ci_workflows`＝repo 有 CI／CD 設定檔（`.github/workflows/*.yml`、`.gitlab-ci.yml`、`azure-pipelines.yml`、`bitbucket-pipelines.yml`、`.circleci/config.yml`）；`iac`＝repo 有 IaC 或平台設定檔（`*.tf`、`serverless.yml`、`Dockerfile`、`docker-compose*.yml`、`vercel.json`、`netlify.toml`、`fly.toml`、`supabase/config.toml`、`firebase.json`）；兩者都只看檔案是否存在，內容由 `cicd_iac` 面向的 reviewer 看（[02 W2](02-methodology.md#w2-多家族獨立審查)；第十四輪內部審查之前旗標有面向、沒有偵測規則）。它決定必要面向（[02 W2](02-methodology.md#w2-多家族獨立審查)，`E-PLAN-FACETS`）與 G1 問卷的題目（§11.4）。
 
 | feature | 偵測規則（任一成立） |
 |---|---|
@@ -1101,12 +1102,12 @@ class InventoryExtractor(ABC):
    - 單一檔案解析失敗 → 該檔記一筆 `blind_spots`（`other`），該框架降為 `partial`，W0 繼續。
    - 抽取器本身崩潰或逾時 → W0 `FAILED`，與 02 W0 的「任何子步驟失敗 → `FAILED`」一致。原因：inventory 不完整會讓必要面向與切片錨點少算，而且沒有任何訊號告訴人少了什麼。
 
-**支援矩陣**（各框架的慣例是設計假設 [H]，見表後說明）：目前 [`tools.yaml`](examples/tools.yaml) 的 `inventory` 只登錄了 `fastapi`、`express`、`sql_rls` 三個模式。下表標為「規劃中」的 adapter（`nextjs`、`baas_client`、`hono`、`flask`、`django`、`graphql`、`firebase_rules`、`prisma`、`llm_sdk`）**還沒有登錄**，是提案；在 `tools.yaml` 登錄之後才生效，inventory 的 `frameworks[].extractor` 也才能填這些 ID。
+**支援矩陣**（各框架的慣例是設計假設 [H]，見表後說明）：目前 [`tools.yaml`](examples/tools.yaml) 的 `inventory` 登錄了 `fastapi`、`express`、`sql_rls`、`nextjs`、`baas_client` 五個模式（後兩個是 MVP-0 必要的 M1 抽取器，第十四輪內部審查補登錄）。下表標為「規劃中」的 adapter（`nextjs`、`baas_client`、`hono`、`flask`、`django`、`graphql`、`firebase_rules`、`prisma`、`llm_sdk`）**還沒有登錄**，是提案；在 `tools.yaml` 登錄之後才生效，inventory 的 `frameworks[].extractor` 也才能填這些 ID。
 
 | 框架或元件 | adapter | 抽取內容（寫到 inventory 的哪裡） | 最高支援等級 | 已知盲點 | 里程碑／MVP |
 |---|---|---|---|---|---|
-| Next.js App Router | `inventory:nextjs`（規劃中） | `app/**/route.*` 的 route handler，依匯出的 HTTP 方法 → `endpoints`（`kind: http`）；`"use server"` 的函式 → `kind: server_action`；`middleware.*` 與它的 `matcher` → `auth.middleware`、`endpoints[].middleware_refs` | `full`；有 rewrites 或動態 `matcher` 時為 `partial` | 執行時才決定的 `matcher` → `dynamic_route`；`next.config.*` 的 rewrites、redirects 只記錄、不展開 | M1／MVP-0 |
-| Next.js Pages Router | `inventory:nextjs`（規劃中） | `pages/api/**` → `kind: http`；方法由 handler 內對方法的判斷推得，推不出時記為全部方法，並加一筆 `dynamic_route` | `partial` | 同上 | M1／MVP-0 |
+| Next.js App Router | `inventory:nextjs`（已登錄，M1） | `app/**/route.*` 的 route handler，依匯出的 HTTP 方法 → `endpoints`（`kind: http`）；`"use server"` 的函式 → `kind: server_action`；`middleware.*` 與它的 `matcher` → `auth.middleware`、`endpoints[].middleware_refs` | `full`；有 rewrites 或動態 `matcher` 時為 `partial` | 執行時才決定的 `matcher` → `dynamic_route`；`next.config.*` 的 rewrites、redirects 只記錄、不展開 | M1／MVP-0 |
+| Next.js Pages Router | `inventory:nextjs`（已登錄，M1） | `pages/api/**` → `kind: http`；方法由 handler 內對方法的判斷推得，推不出時記為全部方法，並加一筆 `dynamic_route` | `partial` | 同上 | M1／MVP-0 |
 | Express | `inventory:express`（已登錄） | `app.<method>()`、`router.<method>()`；`app.use()` 的掛載前綴與中介層鏈 | `full` | 以變數或迴圈組出的路徑 → `dynamic_route` | M1 |
 | Hono | `inventory:hono`（規劃中） | `app.<method>()`、`app.route()` 的前綴、`app.use()` 的中介層 | `full` | 同 Express | M2（候選） |
 | FastAPI | `inventory:fastapi`（已登錄） | 路徑裝飾器、`APIRouter` 前綴、`Depends()` 的認證依賴 | `full` | 執行時才加入的路由 | M1 |
@@ -1175,7 +1176,7 @@ class ToolResult(BaseModel):
     run_id: str
     adapter: str                     # 例如 "opengrep:scan"
     tool_version: str
-    kind: Literal["sast", "sca", "secret", "package_existence"]
+    kind: Literal["sast", "sca", "secret", "package_existence", "rule_rls", "rule_public_env"]   # 後兩種：工具包自有規則（r14）
     rule_id: str | None              # SARIF 的 ruleId；SCA 為 advisory ID
     cwe: list[str]
     cwe_bucket: str | None           # common.schema 的 cwe_bucket
@@ -1204,8 +1205,10 @@ class ToolResult(BaseModel):
 | `sca` | OSV-Scanner、Grype | 否 | 依 (ecosystem, name, version, advisory ID) 合併，不同工具的 advisory 別名合成一筆；列入報告的「相依弱點」與 SARIF。位置種類不同，所以**不是**任何叢集的佐證 |
 | `secret` | W0 的 secrets 掃描 | 否 | 只有位置與 HMAC，永遠沒有值（[02 W0](02-methodology.md#w0-盤點與-secrets-遮罩確定性無-llm)）；列入報告與 SARIF。前端 bundle 中的公開前綴變數見 §11.17 |
 | `package_existence` | `pkgcheck:exists` | 否 | 找不到套件、首次發布很新或下載量很低 → 報告的「供應鏈」一節與 SARIF。找不到套件是確定性事實，不經投票 |
+| `rule_rls` | `rules:rls`（工具包自有規則，W1、Z2；第十四輪內部審查 C2） | 是 | W0 inventory 中 `rls_enabled` 為 `false`／`null` 且有 `baas_direct` 入口或 RLS 政策應存在的資料表 → 一筆 `sast` 型的結果：位置是定義該表的 migration 檔與 `CREATE TABLE` 行（`symbol` 為資料表名，例如 `public.invoices`），桶 `authz`，附一筆 SARIF；依叢集鍵附到叢集，或成為 tool-only 叢集（校準前 `UNCORROBORATED`，有家族回報時依 R6 `LIKELY`）。MVP0-X1 的 RLS 問題在沒有 LLM 時靠它出現在報告中 |
+| `rule_public_env` | `rules:public_env`（工具包自有規則，W1、Z2） | 是 | §11.17 的公開前綴 secret 規則命中的變數 → 位置是 `env_vars[].referenced_in[]` 的第一個 `{file, line}`，桶 `secrets`；其餘同 `rule_rls`。bundle 內命中的值只記位置與 HMAC |
 
-**合併規則**（只有 `sast`）[H]：
+**合併規則**（`sast`、`rule_rls`、`rule_public_env`）[H]：
 - **叢集鍵相同**：ToolResult 的 (正規位置, 桶) 與某個發現項叢集相同，或同一函式內行範圍重疊且同桶（05 §4.1）→ 附到該叢集的 `sarif_refs`。多個工具命中同一叢集時全部附上，強或弱逐項判定（見下）。
 - **沒有對應的叢集** → 成為 **tool-only 叢集**（`origin: tool_only`，v0.5，[09 BL-13](09-backlog.md)）：
   - Clusterer 以同一組叢集鍵建立叢集，成員是空的。
@@ -1648,7 +1651,7 @@ class SessionProvider(Protocol):
 | 投票權重 w(m,b) | 所有模型、所有桶都是 0 | 沒有計權合格票，S＝0；R3、R4 與 R5 的投票分支都不會成立 |
 | θ_confirm、θ_reject | null（視為 +∞） | 沒有靠投票得到的 `CONFIRMED_CORROBORATED`，也沒有靠權重得到的 `REJECTED` |
 | `high_precision_rules` | 空陣列 | 沒有強工具佐證，所有 SARIF 都是弱訊號 |
-| `provisional` | 每個可能由投票決定的裁決都是 true；R0／R1／R9／R10 決定的裁決（第 1–5 列）、強工具佐證決定的裁決（第 10 列，v0.5）與黑箱叢集是 false | 報告標示「暫定（校準前）」（`E-VERDICT-PROVISIONAL`） |
+| `provisional` | 每個可能由投票決定的裁決都是 true；R0／R1／R9／R10 決定的裁決（第 1–5 列）、強工具佐證決定的裁決（第 10 列，v0.5）、R14／R16 決定的裁決（第 14–16 列，審查 r12）與黑箱叢集是 false | 報告標示「暫定（校準前）」（`E-VERDICT-PROVISIONAL`） |
 | reviewer | 不加權 | reviewer 的貢獻只經由獨立來源數（R6）。Calibration Lab 另外量測 reviewer 的精準度，但 v0.3 不把它變成權重 |
 
 **校準前仍然會產出**：
@@ -1703,7 +1706,7 @@ class SessionProvider(Protocol):
 **執行前估算**（`vibecheck run estimate`，§4.2）[H]：
 1. 先跑 W0（確定性，不用 LLM），得到實際的切片數 S、端點數、G1 題目數等。
 2. 依上表與 `agents.yaml` 的綁定，算出每個階段、每個家族的呼叫數與 token 數；有價格的模型換算成 USD。
-3. 與委任設定的 `budgets` 比較。任何一項預估超過上限 → 結束碼 10，並列出超過的項目。價格未知（`pricing: null`）的雲端模型：有 `budgets.price_assumptions` 的以假設上界估算並標示「依假設上界」；沒有的 → 結束碼 10（`E-ENG-PRICING`），不執行。
+3. 與委任設定的 `budgets` 比較。任何一項預估超過上限 → `run estimate` 結束碼 10（`run start` 為 5：政策拒絕），並列出超過的項目。價格未知（`pricing: null`）的雲端模型：有 `budgets.price_assumptions` 的以假設上界估算並標示「依假設上界」；沒有的 → 結束碼 10（`E-ENG-PRICING`），不執行。
 4. `run start` 時自動做同樣的估算，結果存入 CAS，並寫進 `run_created` 稽核事件。預估超過任一上限 → `run start` 拒絕（結束碼 5）；要執行，就先提高委任設定的上限（重新簽署）。
 
 **上限** [H]：
@@ -1718,7 +1721,7 @@ class SessionProvider(Protocol):
 
 - **價格未知的模型**（第十三輪外部審查改寫）[H]：token 上限一律強制；**USD 上限只能對有單價的模型強制**——「上限填有」與「能守住上限」是兩種保證，之前這裡允許價格未知的雲端模型照跑、只在報告寫「費用不完整」，卻仍稱 fail-closed。現在：
   - `models.yaml` 每個模型標 `hosting: cloud | self`。`self`（Z4 自架）的 API 費用是 0，只計運算時間。
-  - `hosting: cloud` 且 `pricing: null` 的模型**預設不可用於 run**：`agents.yaml` 用到它（含 `fallback_models` 與 `models.yaml` 的 `fallback` 鏈）而委任設定沒有該模型的 `budgets.price_assumptions` → `E-ENG-PRICING`；`run estimate`／`run start` 結束碼 10。
+  - `hosting: cloud` 且 `pricing: null` 的模型**預設不可用於 run**：`agents.yaml` 用到它（含 `fallback_models` 與 `models.yaml` 的 `fallback` 鏈）而委任設定沒有該模型的 `budgets.price_assumptions` → `E-ENG-PRICING`；`run estimate` 結束碼 10、`run start` 結束碼 5（§4.1：10 只定義給 `selftest`／`calibrate`／`licenses`）。
   - `budgets.price_assumptions.<model_key>`＝`{input_usd_per_mtok, output_usd_per_mtok, source}`，是簽署委任設定的人負責的**保守單價上界**（兩個單價都 > 0；鍵必須是 `models.yaml` 的模型）。估算、每次呼叫的費用累計與所有 USD 上限（run、階段、家族）都以這個上界計算，所以上限在上界成立時可以強制。
   - 報告與 `run estimate` 對每個預算項標示「**強制**」（所有用到的模型都有查證價格）或「**依假設上界估算**」（至少一個模型用 `price_assumptions`），並列出各模型用的是查證價格還是假設上界。
   - `max_cost_usd` 每一層仍必填（schema；缺值 → `E-ENG-BUDGET`），階段上限不能超過 `run_total`。範例 `models.yaml` 的 `pricing` 全部是 null，範例委任設定對用到的三個雲端模型給了假設上界（`tests/test_v03_gates.py` 的 `test_unpriced_models_need_an_explicit_cost_cap`、`tests/test_v07_r13_external.py`）。
@@ -1865,6 +1868,16 @@ class SessionProvider(Protocol):
   - `baseline_state`、`absent_fingerprints` 由 validator 對基準 run 重算（`E-CLUSTER-BASELINE`）；範例的叢集都是 `baseline_state: null`。
 - **已知的限制**：函式改名或檔案搬移 → 舊指紋 `absent`、新指紋 `new`，不會被當成同一個問題 [H]。
 
+**白箱報告（`whitebox-report.md`，`report export --format markdown`）的區段**（第十四輪內部審查 C8；之前 02 W5 寫產出它，CLI 卻只有 json／sarif／html）[H]：
+1. **首頁**：委任、run、commit、`assurance_profile` 與模式標示（Lite 時「單人模式，未經職責分離」、`evidential: self_attested`；校準前「暫定（校準前）」的比例與 `single_best_resampled` 標示）、每個關卡的實際等待時間、預算用量與「強制／依假設上界估算」。
+2. **確認項**：`CONFIRMED_*` 與 `LIKELY` 叢集，依 rubric 嚴重度排序；每項附位置、桶、證據（測試 ID、oracle、對照）、違反的 G1 條目、`baseline_state`、是否暫定、`oracle_unreviewed`。
+3. **爭議與人審清單**：`DISPUTED`、G2 的 `needs_info`、`post_g2_conflict`、`over_cap_items`。
+4. **只列報告**：`report_only_clusters`（tool-only 與低嚴重度 `UNCORROBORATED`）、相依弱點（`sca`）、供應鏈（`package_existence`）、secrets（只有位置與 HMAC）。
+5. **缺口與盲點**：`gaps`、`blind_spots`、`w4_manual_requirements`、`build_unverified_targets`、工具失敗。
+6. **覆蓋**：`metrics`（規劃與實際的存取矩陣覆蓋、端點覆蓋、對照通過率）、指揮官加派結果。
+7. **方法與限制**：固定的敘述（經敘事 linter）、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 的適用條目、`rule_version` 與 `calibration_version`。
+每一節的數字都來自 `report-manifest`，Reporter agent 只寫第 2 節每項的一段說明與第 7 節以外的摘要句；validator 不檢查 Markdown 本體，只檢查 manifest（`E-REPORT-*`）。
+
 **追溯矩陣樣板**（B6 的 `traceability.json` 與報告中的表格；每一列是「一個威脅 × 一個需求 × 一個測試案例」）[H]：
 
 | 欄 | 來源 | 空值規則 |
@@ -1994,7 +2007,10 @@ W4 需要安裝相依並建置受測程式 [H]：
 
 #### 前端 bundle 中的公開前綴 secret
 
-- W0 `env_vars` 中 `public_prefix: true` 的變數，若名稱符合 secret 樣式（含 `SECRET`、`PRIVATE`、`SERVICE_ROLE`、`PASSWORD`，或以 `_KEY`、`_TOKEN` 結尾）→ 確定性的發現，以 `inventory_fact` 證據（`/env_vars/<i>/public_prefix`）回報 [H]。
+- **公開前綴 secret 規則**（W1 的 `rules:public_env`，Z2；這是唯一的一版，[02 W1](02-methodology.md#w1-確定性掃描建立基準不用-llm) 與 [07 §1.1](07-roadmap.md#11-分段-mvp) 引用這裡；第十四輪內部審查之前三處寫法不同，其中一版會把標準的 Supabase anon key 當 secret）[H]：
+  - **名稱規則**：W0 `env_vars` 中 `public_prefix: true` 的變數，名稱含 `SECRET`、`PRIVATE`、`SERVICE_ROLE`、`PASSWORD`，或以 `_KEY`、`_TOKEN` 結尾 → 命中；**已知公開金鑰的允許清單**除外：以 `_SUPABASE_ANON_KEY`、`_FIREBASE_API_KEY`、`_PUBLISHABLE_KEY`、`_SITE_KEY`、`_CLIENT_ID` 結尾的名稱是設計上就要進前端的公開識別值，不命中（`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`NEXT_PUBLIC_FIREBASE_API_KEY` 是這類框架的標準寫法）。
+  - **值的分類**（只在 Z2 能 build 前端時）：對 build 輸出跑 W0 的 secrets 掃描器；命中的值只記位置與 HMAC，永遠不記值。另對允許清單中的 Supabase 金鑰解析 JWT 的 `role`：`anon` 不命中，`service_role` 一律命中（名稱再「公開」也是 service key）。
+  - **輸出**：ToolResult `kind: rule_public_env`（§11.2），位置是第一個 `referenced_in`，桶 `secrets`；沒有 LLM 發現項時成為 tool-only 叢集。build 失敗 → 只做名稱規則，並列為缺口。
 - 工具包假設公開前綴的變數會被打包進前端（這是這類前綴的用途），所以不論值是什麼都當作已公開 [H]。W0 的 secrets 掃描在這些檔案找到的結果（只有位置與 hash）一併列出。
 - 範例：`notes-rls-app` 的植入問題（§8.3）。
 
@@ -2040,9 +2056,9 @@ W4 需要安裝相依並建置受測程式 [H]：
 |---|---|
 | 身分 | 金鑰登錄中 `person_id: z3-executor`、角色只有 `z3_executor`（`E-KR-SERVICE`：服務身分不得兼任任何人員角色，不能當發起者或核准者） |
 | 金鑰存放 | 獨立行程，以不同的 OS 使用者（或作業系統 keychain）持有私鑰；Z1（Run Controller、Audit Writer）的行程讀不到。Team／Full 放在另一台主機；Lite 可以在同一台機器，但仍是獨立行程與使用者 |
-| 介面 | `countersign(run_id, lines_since_last_anchor) → z3_countersignature`：Z3 保存每個 run 上一個錨點的 hash，重算這段的 `prev_hash` 鏈與錨點事件的 `event_sha256`，以 `vibecheck/audit_anchor/v2` domain tag 簽 `{domain, run_id, seq, prev_hash, event_sha256}`，並編上本委任遞增的 `anchor_counter`（計數器存在 Z3）。鏈接不上或編號倒退 → 拒簽，寫稽核事件 `anchor_rejected` |
+| 介面 | RPC `countersign(request) → response`（第十四輪內部審查 C5 改寫）：request＝`{engagement_id, run_id, seq, draft_anchor_event, lines_since_last_anchor}`（`draft_anchor_event` 是還沒有 `anchor_counter` 與副簽的錨點事件）；response＝`{anchor_counter, countersignature}`。Z3 以 `(run_id, seq, event_sha256)` 為冪等鍵：同一個請求重送回傳同一個計數與簽章（Z3 簽了、Z1 當掉再重送時不會多消耗編號，否則錨點編號會出現缺口、`E-AUDIT-ANCHOR-GAP` 誤報）；計數器與每個 run 上一個錨點的 hash 都持久化在 Z3。Z3 重算這段的 `prev_hash` 鏈與錨點事件的 `event_sha256`（`anchor_counter` 在被簽的 hash 內，所以由 Z3 編號並一起回傳），以 `vibecheck/audit_anchor/v2` domain tag 簽 `{domain, run_id, seq, prev_hash, event_sha256}`。鏈接不上或編號倒退 → 拒簽；Z1 寫稽核事件 `anchor_rejected`（[03 §13.2](03-system-architecture.md#132-事件類型enum)，payload 帶 Z3 回傳的理由），run 進 `SUSPENDED` |
 | 不做 | MVP-0 沒有 Z3 自產的事件（`tool_invocation_*` 在 Z2、沒有 `sandbox_job_*`、沒有所有權驗證），所以 03 §13.1 的「核對 Z3 自己產生的事件」留到 MVP-1 的完整 Z3（[09 BL-36](09-backlog.md)）；沒有網路出站 |
 | 信任界線 | 副簽只證明「這些行在簽章時已存在、之後沒被改」。Lite 的一人同時持有 Z1 與 Z3 的金鑰，整條鏈仍可重寫（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16、#26），報告維持 `evidential: self_attested`；Team／Full 的 Z3 主機由不同的人管理才有對外證據力 |
-| 可用性 | 服務不可用時 Audit Writer 不能寫錨點：節點照 `audit_anchor_interval` 的規則 fail-closed（[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)），run 停在當前節點等待 |
+| 可用性 | 服務不可用時 Audit Writer 不能寫錨點，依 §6.1 的 `Z3Unavailable` 處理（唯一的一版；第十四輪內部審查之前這裡寫「等待」、§6.1 寫 `SUSPENDED`）：依 §6.2 重試，用盡 → run `SUSPENDED`，寫 `run_status_changed`，結束碼 9；需要錨定的事件（關卡決定、階段結束、`audit.anchor_interval_events` 的計數到期）在 Z3 恢復並寫入錨點之前**不寫入**（fail-closed，[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)），所以關卡決定在 Z3 不可用期間不會生效 |
 
 **Run Controller 的排程**：關卡逾時的 EXPIRED 紀錄、委任設定到期的 `resume_expired` 清理（[03 §5.2](03-system-architecture.md#52-主狀態圖)）都由 Run Controller 的排程寫入，目標是期限後 1 小時內；validator 只要求 EXPIRED 不早於期限（[03 §6.2](03-system-architecture.md#62-關卡逾時預設值)）。

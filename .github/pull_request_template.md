@@ -17,5 +17,5 @@
 - [ ] `python tools/sign_examples.py`（改了範例或推導規則時，重算到穩定）
 - [ ] `python tools/validate_schemas.py`
 - [ ] `python -m pytest tests`（寫出通過的數量）
-- [ ] `python tools/check_doc_links.py`、`python tools/build_evidence_ledger.py --check`、`python tools/build_references.py --check`
+- [ ] `python tools/check_doc_links.py`、`python tools/build_evidence_ledger.py --check`、`python tools/build_references.py --check`、`python tools/build_error_table.py --check`、`python tools/build_variants.py --check`、`python tools/mutation_check.py --anchors-only tests/mutations/*.json`
 - [ ] 改變 validator 行為時：`docs/schemas/README.md` 的錯誤碼表、相關設計文件與 `CHANGELOG.md` 已更新

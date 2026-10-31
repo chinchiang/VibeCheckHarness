@@ -6,7 +6,7 @@
 >
 > **規格凍結**：第十二輪第二次外部審查的 PR 合併後設計規格凍結（規則見 [CONTRIBUTING](../CONTRIBUTING.md#規格凍結第十二輪第二次外部審查起)）；新的設計想法記在本清單，不直接改規格。
 >
-> [第十二輪審查](evidence/review-2026-10-28-r12.md)的發現已處理，留下的量測與寫入端工作（BL-68、69）在 §4.1。[第十輪審查](evidence/review-2026-10-27-r10.md)的發現已處理，留下的契約、估算與營運工作（BL-61～65）在 §4.1。[第九輪審查](evidence/review-2026-10-27-r9.md)的發現已處理，留下的契約與範例工作（BL-58、59）在 §4.1，BL-60 已完成（`suspend` 變體補上 G4 逾時 → `SUSPENDED` 與抽查推翻 G5 的路徑）。BL-01、BL-05、BL-47、BL-66 已完成（§5）。[第八輪審查](evidence/review-2026-10-26-r8.md)的發現已處理，留下的執行期與營運項目（BL-53～57）也在 §4.1。[第七輪審查](evidence/review-2026-10-25-r7.md)的發現已處理，留下的執行期項目見 §4.1。[2026-10-25 設計審查](evidence/review-2026-10-25.md)（第六輪）的發現已全部處理（該審查紀錄 §7～§14）。其中只寫成規格、或 validator 只做靜態檢查的部分，連同處理時記下的限制，列在下方 §4（BL-36 起）。已處理的舊項目移到 §5，編號保留供追溯（BL-07～BL-09 從未配發：第一次編號時跳過，不是遺失的項目）。
+> [第十四輪審查](evidence/review-2026-10-30-r14.md)的發現已處理，留下的 Lite 單機 profile、跨 bundle 釘選、投票對帳與校準人力（BL-70～73）在 §4.1。[第十二輪審查](evidence/review-2026-10-28-r12.md)的發現已處理，留下的量測與寫入端工作（BL-68、69）在 §4.1。[第十輪審查](evidence/review-2026-10-27-r10.md)的發現已處理，留下的契約、估算與營運工作（BL-61～65）在 §4.1。[第九輪審查](evidence/review-2026-10-27-r9.md)的發現已處理，留下的契約與範例工作（BL-58、59）在 §4.1，BL-60 已完成（`suspend` 變體補上 G4 逾時 → `SUSPENDED` 與抽查推翻 G5 的路徑）。BL-01、BL-05、BL-47、BL-66 已完成（§5）。[第八輪審查](evidence/review-2026-10-26-r8.md)的發現已處理，留下的執行期與營運項目（BL-53～57）也在 §4.1。[第七輪審查](evidence/review-2026-10-25-r7.md)的發現已處理，留下的執行期項目見 §4.1。[2026-10-25 設計審查](evidence/review-2026-10-25.md)（第六輪）的發現已全部處理（該審查紀錄 §7～§14）。其中只寫成規格、或 validator 只做靜態檢查的部分，連同處理時記下的限制，列在下方 §4（BL-36 起）。已處理的舊項目移到 §5，編號保留供追溯（BL-07～BL-09 從未配發：第一次編號時跳過，不是遺失的項目）。
 >
 > - **需要使用者決定的事項**（金鑰、GPU、法務關卡、保留期限等）不在這裡，見 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定)。
 > - **狀態**：`待辦`＝尚未處理；`延後`＝有意留到之後的里程碑。
@@ -86,6 +86,10 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-67 | r11 | 切片（slice）的內容沒有錨定：run 的 `slice_refs` 引用它，`redaction_map_sha256`、`prompt_template_sha256` 釘住輸入，但切片文字本身沒有已錨定的 `artifact_stored`（其餘 W／B 階段產物 r11 已釘住，`E-AUDIT-ARTIFACT`） | [06 §1.8](06-security-legal-limitations.md#18-工件完整性矩陣) | M2 | 未處理 |
 | BL-68 | r12 | 同家族、不同基底血統的獨立性：第十二輪第二次外部審查起預設同家族算一個觀察（`05-v0.13`）；以 M-2 的兩兩錯誤相關量測範例中 openai `gpt`／`gpt-oss` 這類組合，κ 信賴上界 ＜ 0.6、n ≥ 40 時填入 `calibration.yaml` 的 `independence.lineage_split` 拆開 | [05 §4.3](05-bias-calibration.md#43-投票加權)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #44 | M2 校準 | 保守預設與拆分條件已實作（validator 檢查證據）；量測未做 |
 | BL-69 | r12 | Run Controller 的寫入端：委任到期時寫 `resume_expired`＋轉 `COMPLETED_WITH_GAPS`；`vibecheck report withdraw`（`report-withdrawal` 的產生與簽署） | [03 §5.2](03-system-architecture.md#52-主狀態圖)、[06 §1.9](06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回h) | MVP-0 | validator 與 schema 已完成；未實作 |
+| BL-70 | r14 C1 | **Lite 的單機部署 profile 與 `vibecheck init` 規格**（使用者決定：MVP-0 實作計畫時再訂）：根金鑰與人員金鑰是否同一把、KMS 的本機替代、副簽行程在同一台機器的隔離、macOS／Windows 的 Z2 替代、SQLite checkpointer、套件 registry 直連；訂定前 Lite 只能以 Team 的部署方式在 Linux 上跑 | [07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)、[08 §4.2](08-implementation-spec.md#42-指令)、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-05／U-07 | MVP-0 之前 | 待辦 |
+| BL-71 | r14 B10 | 跨 bundle 的校準與規則版本釘選：重新校準或 `rule_version` 升版後，`regression` run 與母 run 不能在同一個 bundle 驗證；R14／R16 讀到的是今日規則重算的母狀態。要定義母 run 的裁決以什麼版本凍結、跟進 run 如何引用 | [02 §1.6](02-methodology.md#16-執行種類與後續執行)、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | M3 | 待辦 |
+| BL-72 | r14 D | validator 對帳投票與稽核：裁決的 `votes[]` 對應 `llm_response` 事件（每張票一次驗證者呼叫）、`missing_votes[]` 對應 `missing_vote` 事件；02／03 要先寫明對應規則 | [03 §13.2](03-system-architecture.md#132-事件類型enum)、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | M2 | 待辦 |
+| BL-73 | r14 C10 | Calibration Lab 的實際人力與語料刷新：§5.1 的 30 人週估算、模型更換後的新批次、κ 最小批量，由 U-10 的決定與第一批標註的實測回填 | [05 §5.1](05-bias-calibration.md#51-語料)、[07 §1.5](07-roadmap.md#15-人力與時程估算-h) | M2 | 待辦 |
 
 ## 5. 已完成（保留編號供追溯）
 

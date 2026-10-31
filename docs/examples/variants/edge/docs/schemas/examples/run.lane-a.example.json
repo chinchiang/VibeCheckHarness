@@ -14,9 +14,9 @@
   "resume_node": null,
   "resume_deadline": null,
   "data_class": "C",
-  "toolkit_config_ref": "sha256:e605b05cdac3cc80761075e0ed264c4d2212a0c470098f754ce20039900a4327",
+  "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
-  "engagement_ref": "sha256:9e114e3a2acdfeffc23455bd0b6ac933695f1955056c5eded2ab22137b0e33b3",
+  "engagement_ref": "sha256:98c90cab1cfd903e9ff60a1ffc5763dd8b02faa12017efc0f3d7e16aff8d9583",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -28,7 +28,7 @@
     },
     "tools": {
       "path": "docs/examples/tools.yaml",
-      "sha256": "sha256:498bc81c548e2f4c46a0dd35d74daebd1e66c00bf9d2f4ab260a0afbb0b5b17e"
+      "sha256": "sha256:7232c12696bc144a7a88452c7ffcc90f998401c9b105966f70d677a40a6a13a6"
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
@@ -122,7 +122,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:9e114e3a2acdfeffc23455bd0b6ac933695f1955056c5eded2ab22137b0e33b3",
+      "subject_hash": "sha256:98c90cab1cfd903e9ff60a1ffc5763dd8b02faa12017efc0f3d7e16aff8d9583",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"
@@ -167,11 +167,11 @@
   "audit_anchors": [
     {
       "seq": 6,
-      "line_sha256": "sha256:cd2b7b4bfa28f09a963855a294bd4795aed99733674eb2b1877487a31f95c6b1"
+      "line_sha256": "sha256:7c738ab2a42f6d8219bf6acddbc9e350f4a3afb4732eb40db8efdc3e647d44f1"
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:6f5c16b3a7542411992a64677010d0de615903a2bfb3cf6302b0f1d2d1b150ff"
+      "line_sha256": "sha256:bf539eff915c515fc5bf6652aeeb2d5f7425a7fa4a3fc37ac58693894913a5dd"
     }
   ],
   "errors": [],
