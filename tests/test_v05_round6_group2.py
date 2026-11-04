@@ -13,9 +13,9 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import adjudicate as adj
-from vchlib import derive
+from vchlib import derive, expectations
 from vchlib.adjudicate import Inputs, adjudicate
-from vchlib.checks import Ctx
+from vchlib.context import Ctx
 
 V014 = "verdict.k-014-w3.example.json"
 
@@ -40,7 +40,7 @@ def test_multi_family_report_is_disputed_not_rejected(fams):
 def test_abstention_is_not_weighted_valid(b):
     vote = doc(b, V014).data["votes"][0]
     vote["stance"] = "ABSTAIN"
-    exp = {e.path: e.expected for e in derive.expectations(b) if e.file.endswith(V014)}
+    exp = {e.path: e.expected for e in expectations.expectations(b) if e.file.endswith(V014)}
     assert exp[("votes", 0, "weighted_valid")] is False
     assert exp[("votes", 0, "weight")] > 0                     # the weight is still recorded
 
@@ -75,7 +75,7 @@ def test_refute_citation_outside_slice_or_inventory(b, cite):
 
 def test_irrelevant_citation_makes_the_vote_invalid(b):
     doc(b, V014).data["votes"][0]["cited_evidence"] = ["routes/invoices.ts:99999"]
-    exp = {e.path: e.expected for e in derive.expectations(b) if e.file.endswith(V014)}
+    exp = {e.path: e.expected for e in expectations.expectations(b) if e.file.endswith(V014)}
     assert exp[("votes", 0, "valid")] is False
 
 

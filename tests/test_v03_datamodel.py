@@ -8,7 +8,8 @@ import pytest
 from conftest import codes, doc, rederive
 from vchlib import evidence, facets
 from vchlib.adjudicate import adjudicate
-from vchlib.checks import Ctx, run_all, verdict_inputs
+from vchlib.checks import run_all, verdict_inputs
+from vchlib.context import Ctx
 from vchlib.derive import Index, independent_families
 
 F061 = "finding.f-061.example.json"

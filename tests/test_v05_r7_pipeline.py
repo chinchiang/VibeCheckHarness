@@ -11,7 +11,8 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib import checks
-from vchlib.checks import Ctx, report_metrics, run_all
+from vchlib.checks import report_metrics, run_all
+from vchlib.context import Ctx
 
 RUN_ID = "run-2026-09-23-001"
 RUN, RM, SEEDS, G2 = "run.example.json", "report-manifest.example.json", "seed-threats.example.json", "gate-record.g2.example.json"

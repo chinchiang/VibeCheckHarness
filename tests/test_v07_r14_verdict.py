@@ -34,7 +34,8 @@ from vchlib import adjudicate as adj
 from vchlib import checks, derive
 from vchlib.bundle import load_variant
 from vchlib.canonical import content_hash
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 from vchlib.derive import classify_result
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]

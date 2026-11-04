@@ -27,7 +27,7 @@ import json
 import pytest
 
 from conftest import doc, rederive
-from vchlib import checks, derive
+from vchlib import checks, context, derive, expectations
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -46,7 +46,7 @@ def refix_nokey(b, rounds=20):
     Audit-event payloads need a Z3 re-anchor and signed gate records need the approvers' keys: those are skipped."""
     for _ in range(rounds):
         docs, changed = {d.path: d for d in b.docs}, False
-        for e in derive.expectations(b, for_writer=True):
+        for e in expectations.expectations(b, for_writer=True):
             d = docs[e.file]
             if d.kind == "audit-event" or (d.kind == "gate-record" and d.data.get("signatures")):
                 continue
@@ -118,7 +118,7 @@ def roll_back_to_g4(b):
     rm = doc(b, "report-manifest.example.json").data
     rm["artifacts"] = [a for a in rm["artifacts"] if not (a["ref"] in gone_v or a["ref"] == "GR-G5-0001" or a["ref"].startswith("R-TC-"))]
     refix_nokey(b)
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     heads = checks.verdict_heads(c, run["verdicts"])
     rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, RUN)
@@ -176,7 +176,7 @@ def add_k301_verdict(b):
     # r13: the follow-up run has no W1 events, so a W3 event there is E-GATE-ORDER; the B-phase run writes it at B5
     ev = tail_event(b, FAUDIT, "verdict_changed", "B5", {"verdict_id": "V-301-1"}, "verdict-V-301-1")
     refix_nokey(b)
-    c = checks.Ctx(checks.quarantine(checks.Report(), b))
+    c = context.Ctx(checks.quarantine(checks.Report(), b))
     cl = c.ix.first("cluster", cluster_id="K-301").data
     out = checks.adj.adjudicate(checks.verdict_inputs(c, v, cl))
     v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,
@@ -203,7 +203,7 @@ def test_a_verdict_changed_in_the_unanchored_tail_is_not_a_verdict(b):
 
 # ================================================================ members: the verdict pins the cluster and its findings
 def test_the_examples_pin_clusters_and_findings(b):
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     for d in b.docs:
         if d.kind == "verdict":
             assert d.data["cluster_sha256"] == content_hash(c.ix.first("cluster", cluster_id=d.data["cluster_id"]).data)

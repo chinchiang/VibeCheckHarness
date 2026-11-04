@@ -18,7 +18,8 @@ import pytest
 from conftest import codes, doc
 from vchlib import checks, crypto, derive, jsonstrict, safety, yamlstrict
 from vchlib.bundle import reload_json
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
 

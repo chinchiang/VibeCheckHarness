@@ -119,7 +119,7 @@ def test_05_states_the_minimum_feasible_n_and_the_tp_reading():
 
 # ================================================================ G4: one rule for "approved"
 from vchlib import derive                                          # noqa: E402
-from vchlib.checks import Ctx                                       # noqa: E402
+from vchlib.context import Ctx
 
 IDOR = "TC-012-01"           # job-idor-001 started 2026-10-05T20:30+08:00, G4 round 1 received 2026-10-03T11:00+08:00
 ZAP = "TC-027-01"            # S2: job-zap-active-001, G5 opened 2026-10-05T21:00+08:00

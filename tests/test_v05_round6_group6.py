@@ -65,7 +65,7 @@ def test_duplicate_verdict_id(b):
 
 
 def test_runs_lookup_takes_the_first_document(b):
-    from vchlib.checks import Ctx
+    from vchlib.context import Ctx
     d = clone(b, "run.example.json", "run.copy.example.json")
     d.data["status"] = "FAILED"
     c = Ctx(b)

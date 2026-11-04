@@ -16,7 +16,8 @@ import pytest
 
 from conftest import codes, doc, rederive, resign_gate
 from vchlib import checks, safety
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 API = "tgt-staging-api"
 G3, G4 = "gate-record.g3.example.json", "gate-record.g4.example.json"

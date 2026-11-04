@@ -9,7 +9,8 @@ directly on a context built from the unquarantined bundle (defence in depth behi
 from conftest import codes, doc
 
 from vchlib import crypto
-from vchlib.checks import Ctx, Report, g_models, run_all
+from vchlib.checks import Report, g_models, run_all
+from vchlib.context import Ctx
 
 
 def warnings(bundle):

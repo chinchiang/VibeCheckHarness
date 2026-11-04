@@ -9,7 +9,7 @@
 import pytest
 
 from conftest import codes, doc
-from vchlib.checks import Ctx
+from vchlib.context import Ctx
 from vchlib.derive import classify_result
 
 TR_LLM = "testresult.llm-pass.example.json"

@@ -25,9 +25,10 @@ from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
 
 from . import adjudicate as adj
-from . import crypto, derive, evidence, facets, llm_schema, safety, timeutil
+from . import crypto, derive, evidence, expectations, facets, llm_schema, safety, timeutil
 from .bundle import Bundle, Doc, read_jsonl_lines
 from .canonical import CanonicalizationError, content_hash, jcs, sha256_hex, signing_payload
+from .context import REQUIRED_AUTOMATION, Ctx
 
 GATE_ROLES = {
     "G0a": {"app_owner", "management"},
@@ -41,7 +42,6 @@ GATE_ROLES = {
 DETERMINISTIC_ROLES = {"aggregator", "scope_proxy", "executor"}
 NON_ADJUDICATING_ROLES = {"reporter"}
 SIGNED_EVENTS = {"initiator_claim", "run_resume", "spot_check_result"}   # v0.5: ASI09 spot checks are a person's act
-REQUIRED_AUTOMATION = {"run-controller", "scheduler", "ci-bot"}
 LEGAL_GATE = "法務閘門"
 M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
 # placeholder model IDs: <...>, {...}, or a TBD / TODO / FIXME / 實作時確認 token (case-insensitive)
@@ -185,60 +185,6 @@ StrictValidator = validators.extend(
     Draft202012Validator,
     type_checker=Draft202012Validator.TYPE_CHECKER.redefine("integer", _strict_integer),
 )
-
-
-class Ctx:
-    """Shared lookups for the checks."""
-
-    def __init__(self, b: Bundle, real_run: bool = False):
-        self.b = b
-        self.real_run = real_run      # --real-run: placeholder models reachable from agents are errors
-        self.ix = derive.Index(b)
-        self.toolkit = b.data("toolkit-config") or {}
-        self.registry = b.data("key-registry") or {}
-        self.engagement = b.data("engagement") or {}
-        self.roe = b.data("roe") or {}
-        self.tools = b.data("tool-registry") or {}
-        self.licenses = b.data("licenses") or {}
-        self.models = b.data("model-registry") or {}
-        self.agents = b.data("agent-registry") or {}
-        self.manifest = b.data("seed-manifest") or {}
-        self.invariants = b.data("invariants") or {}
-        self.calibration = b.data("calibration") or {}
-        self.crosswalk = b.data("crosswalk") or {}
-        self.entries = [e for e in self.registry.get("entries", []) if isinstance(e, dict)]
-        self.by_fp = {e.get("fingerprint"): e for e in self.entries}
-        # v0.5 (review 2026-10-25 T-4): a z3_executor key is a service identity, not a person: it can countersign
-        # anchors but can never be an initiator, approver, human audit actor or any other person reference
-        self.services = {e.get("person_id") for e in self.entries if "z3_executor" in (e.get("roles") or [])}
-        self.persons = {e.get("person_id") for e in self.entries} - self.services
-        self.automation = set(self.toolkit.get("automation_accounts", [])) | REQUIRED_AUTOMATION
-        # v0.5 (review 2026-10-25 V-5): the first document wins, like Index.first; duplicates are E-ID-DUP
-        self.runs = {}
-        for d in self.ix.docs("run"):
-            self.runs.setdefault(d.data.get("run_id"), d.data)
-        # run_id -> audit Doc whose text the strict loader rejected (data None)
-        self.broken_audit = {}
-        for d in b.docs:
-            if d.kind == "audit-event" and d.load_error:
-                m = re.search(r'"run_id"\s*:\s*"([^"]+)"', d.text or "") or re.match(r"audit-event\.(.+?)\.example\.jsonl$", d.name)
-                if m:
-                    self.broken_audit.setdefault(m.group(1), d)
-        self.broken_audit_runs = set(self.broken_audit)
-
-    def roles_of(self, person) -> set[str]:
-        return {r for e in self.entries if e.get("person_id") == person for r in e.get("roles", [])}
-
-    def docs(self, kind):
-        return self.ix.docs(kind)
-
-    def record(self, rid):
-        d = self.ix.first("gate-record", gate_record_id=rid)
-        return d.data if d else None
-
-    def model(self, key):
-        m = self.models.get(key)
-        return m if isinstance(m, dict) else None
 
 
 # v0.5 (BL-17): least-privilege token scopes the publisher may hold (comment on PRs, open / update issues; no code access)
@@ -449,9 +395,9 @@ def g_jcs(R: Report, c: Ctx):
 # ============================================================== 3 derived values + audit chain
 def g_derived(R: Report, c: Ctx):
     problems: list = []
-    exps = derive.expectations(c.b, problems=[])
+    exps = expectations.expectations(c.b, problems=[])
     R._checks += len(exps)
-    for e, actual in derive.compare(c.b, problems=problems):
+    for e, actual in expectations.compare(c.b, problems=problems):
         R.error("E-DERIVED", e.file, f"{derive.fmt_path(e.path)} = {str(actual)[:90]}, expected {str(e.expected)[:90]} ({e.why})")
     # v0.5 (review r7, group 5): a document that breaks a derivation is reported once; the others are still compared
     for path, exc in problems:

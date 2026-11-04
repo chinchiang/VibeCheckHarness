@@ -14,7 +14,8 @@ import pytest
 
 from conftest import doc
 from vchlib import checks, safety
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 ROE = "roe.yaml"
 

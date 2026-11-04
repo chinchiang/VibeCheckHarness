@@ -20,7 +20,7 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
-from vchlib import checks
+from vchlib import checks, context
 from vchlib.bundle import load_variant
 from vchlib.checks import content_hash, run_all
 
@@ -50,22 +50,22 @@ def fixed(c, *entries):
 
 
 def test_the_required_case_erroring_is_not_fixed_by_another_cases_pass(reg):
-    c = checks.Ctx(reg)                                   # the review's probe: TC-012-01 (the source's proof) ERROR, TC-031-01 PASS
+    c = context.Ctx(reg)                                   # the review's probe: TC-012-01 (the source's proof) ERROR, TC-031-01 PASS
     assert not fixed(c, entry(c, "R-TC-012-01-2", "E_inc", None), entry(c, "R-TC-031-01-1", "E_pass", True))
 
 
 def test_the_required_case_needs_its_own_positive_control(reg):
-    c = checks.Ctx(reg)
+    c = context.Ctx(reg)
     assert not fixed(c, entry(c, "R-TC-012-01-2", "E_pass", False), entry(c, "R-TC-031-01-1", "E_pass", True))
 
 
 def test_a_required_case_with_a_pass_and_an_error_is_unclear(reg):
-    c = checks.Ctx(reg)
+    c = context.Ctx(reg)
     assert not fixed(c, entry(c, "R-TC-012-01-2", "E_pass", True), entry(c, "R-TC-012-01-1", "E_inc", None))
 
 
 def test_a_qualified_pass_of_every_required_case_is_fixed(reg):
-    c = checks.Ctx(reg)
+    c = context.Ctx(reg)
     assert fixed(c, entry(c, "R-TC-012-01-2", "E_pass", True))
     assert fixed(c, entry(c, "R-TC-012-01-2", "E_pass", True), entry(c, "R-TC-031-01-1", "E_pass", True))
 
@@ -73,7 +73,7 @@ def test_a_qualified_pass_of_every_required_case_is_fixed(reg):
 def test_a_source_without_any_failing_test_is_never_fixed(reg, monkeypatch):
     """r14 (05-v0.15, B1): a CONFIRMED_CORROBORATED source with no test evidence anywhere on its chain leaves no required
     testcase, so no PASS can show it fixed (R16 keeps the status, fix_unverified); 05-v0.12 accepted any one qualified PASS."""
-    c = checks.Ctx(reg)
+    c = context.Ctx(reg)
     monkeypatch.setattr(checks, "carried_source", lambda c, cl, run: {"status": "CONFIRMED_CORROBORATED", "test_evidence": {"results": []}})
     assert not fixed(c, entry(c, "R-TC-031-01-1", "E_pass", True))
     assert not fixed(c, entry(c, "R-TC-031-01-1", "E_pass", False))
@@ -83,7 +83,7 @@ def test_the_bundle_cannot_declare_fixed_while_the_proof_case_errors(reg):
     b = reg.clone()
     v = doc(b, "verdict.k-301-b5.example.json").data
     v["test_evidence"]["results"][0].update({"class": "E_inc", "positive_control": None})
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     v["test_evidence"]["results"].append(entry(c, "R-TC-031-01-1", "E_pass", True))
     out = adj.adjudicate(checks.verdict_inputs(c, v, c.ix.first("cluster", cluster_id="K-301").data))
     assert out.status != "FIXED" and "R14" not in out.rules

@@ -10,7 +10,7 @@
     },
     {
       "name": "w4_results not derived",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/expectations.py",
       "old": "    exp(d, [\"w4_results\"], [content_hash(t) for t in trs if t.get(\"phase\") == \"W4\"], \"content hash of each W4 testresult (execution order)\")",
       "new": "    pass",
       "k": "w4_results_are_derived"
