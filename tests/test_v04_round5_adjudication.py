@@ -13,8 +13,9 @@ import copy
 import pytest
 
 from conftest import codes, doc
-from vchlib import derive
-from vchlib.checks import Ctx, derived_provisional, run_all
+from vchlib import derive, expectations
+from vchlib.checks import derived_provisional, run_all
+from vchlib.context import Ctx
 
 V014, V202, V201 = "verdict.k-014-w3.example.json", "verdict.k-202-b5.example.json", "verdict.k-201-b5.example.json"
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
@@ -44,7 +45,7 @@ def test_refute_vote_uses_the_refute_weight(b):
     """K-014's nemotron vote turned into a REFUTE: its expected weight becomes refute.w, not support.w."""
     vote = doc(b, V014).data["votes"][0]
     vote["stance"] = "REFUTE"
-    exp = [e for e in derive.expectations(b) if e.file.endswith(V014) and e.path == ("votes", 0, "weight")]
+    exp = [e for e in expectations.expectations(b) if e.file.endswith(V014) and e.path == ("votes", 0, "weight")]
     assert exp and exp[0].expected == pytest.approx(1.1384)                    # v0.6: refute-side likelihood; v0.7 prior ratio; r14 abstentions in the denominator
 
 

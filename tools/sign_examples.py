@@ -26,7 +26,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-from vchlib import crypto, derive, jsonstrict, timeutil, yamlstrict  # noqa: E402
+from vchlib import crypto, derive, expectations, jsonstrict, timeutil, yamlstrict  # noqa: E402
 from vchlib.bundle import SIGNED_YAML, load_bundle, read_jsonl_lines  # noqa: E402
 
 KEY_DIR = ROOT / "tests" / "fixtures" / "TEST_ONLY_private_keys"
@@ -103,7 +103,7 @@ def apply_derivations() -> int:
     b = load_bundle(ROOT)
     docs = {d.path: d for d in b.docs}
     touched = set()
-    for e in derive.expectations(b, for_writer=True):
+    for e in expectations.expectations(b, for_writer=True):
         d = docs[e.file]
         if derive.get_path(d.data, e.path) != e.expected:
             derive.set_path(d.data, e.path, e.expected)

@@ -8,7 +8,8 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import safety
-from vchlib.checks import Ctx, Report, gate_sod, platform_of, run_all
+from vchlib.checks import Report, gate_sod, platform_of, run_all
+from vchlib.context import Ctx
 
 ENG, ROE = "engagement.yaml", "roe.yaml"
 G1, G2, G3, G5 = ("gate-record.g1.example.json", "gate-record.g2.example.json", "gate-record.g3.example.json",

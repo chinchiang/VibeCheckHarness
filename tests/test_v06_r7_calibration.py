@@ -16,7 +16,8 @@ import pytest
 
 from conftest import apps_map, doc, hp_rule
 from vchlib import checks, derive
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 CAL, RUN = "calibration.yaml", "run.example.json"
 

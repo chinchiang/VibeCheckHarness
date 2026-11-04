@@ -24,7 +24,7 @@ import time
 
 from conftest import doc, rederive, resign_gate
 from test_v07_r9_anchor import AUDIT, FAUDIT, FRUN, RUN, rechain, refix_nokey, tail_event
-from vchlib import checks, derive
+from vchlib import checks, context, derive, expectations
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -75,7 +75,7 @@ def follow_up_manifest(b):
     rm.update({"report_id": "RPT-2026-10-20-001", "run_id": FRUN, "generated_at": "2026-10-20T12:00:00+08:00",
                "gaps": run["gaps"], "manual_review_clusters": [], "over_cap_items": [], "report_only_clusters": [],
                "build_unverified_targets": [], "absent_fingerprints": []})
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     heads = checks.verdict_heads(c, run["verdicts"])
     rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, FRUN)
@@ -136,7 +136,7 @@ def test_every_gate_decision_pins_its_gate_record(b):
 
 def refix_gate(b, suffix):
     d = doc(b, suffix)
-    for e in derive.expectations(b):
+    for e in expectations.expectations(b):
         if e.file == d.path and derive.get_path(d.data, e.path) != e.expected:
             derive.set_path(d.data, e.path, e.expected)
 

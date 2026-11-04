@@ -7,7 +7,8 @@ two workspace_document rows (members read, only the uploader updates or deletes)
 re-signed over it, and the report's access-matrix coverage drops to 4 of 7 cells because no testcase covers the new
 ones. Each test failed before this change and passes after it (tests/mutations/bl47_access_matrix.json)."""
 from conftest import doc
-from vchlib.checks import Ctx, access_matrix_cells, report_metrics, run_all
+from vchlib.checks import access_matrix_cells, report_metrics, run_all
+from vchlib.context import Ctx
 from vchlib.derive import approval_hash
 
 RUN_ID = "run-2026-09-23-001"

@@ -9,7 +9,8 @@ from conftest import codes, doc, rederive
 from vchlib import adjudicate as adj
 from vchlib import derive
 from vchlib.bundle import Doc
-from vchlib.checks import Ctx, derived_baseline_state, run_all
+from vchlib.checks import derived_baseline_state, run_all
+from vchlib.context import Ctx
 
 RUN, RUN_F, RUN_A = "examples/run.example.json", "examples/run.followup.example.json", "examples/run.lane-a.example.json"
 PLAN = "commander-plan.example.json"

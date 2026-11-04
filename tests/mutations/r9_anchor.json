@@ -24,14 +24,14 @@
     },
     {
       "name": "members: cluster pins member findings",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/expectations.py",
       "old": "            exp(d, [\"member_finding_sha256\"], shas, \"content hash of each member finding (member_finding_ids order)\")",
       "new": "            pass",
       "k": "editing_a_member_finding"
     },
     {
       "name": "members: verdict pins its cluster",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/expectations.py",
       "old": "                exp(d, [\"cluster_sha256\"], content_hash(cl.data), \"content hash of the cluster the verdict adjudicates\")",
       "new": "                pass",
       "k": "editing_a_member_finding"

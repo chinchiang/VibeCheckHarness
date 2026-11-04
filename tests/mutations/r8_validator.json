@@ -52,7 +52,7 @@
     },
     {
       "name": "F7 proof trials",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/expectations.py",
       "old": "                         \"trials\": {\"n\": got.get(\"n\"), \"k\": got.get(\"k\")} if probabilistic else None,",
       "new": "                         \"trials\": dict(got) if probabilistic else None,",
       "k": "n_and_k_only"

@@ -15,7 +15,8 @@ import copy
 from conftest import doc, rederive
 from vchlib import checks, crypto, derive
 from vchlib.bundle import Doc
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
 FB = "feedback.k-016.example.json"

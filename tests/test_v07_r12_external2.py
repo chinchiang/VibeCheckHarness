@@ -19,7 +19,7 @@ import pytest
 
 from conftest import doc
 from vchlib import adjudicate as adj
-from vchlib import checks, derive
+from vchlib import checks, context, derive
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -69,7 +69,7 @@ def test_without_the_reference_the_own_jcs_still_meets_the_rfc_vectors(monkeypat
     monkeypatch.setattr(checks, "JCS_VECTORS", [({"a": 1}, '{"b":1}')])          # a wrong vector must still be caught
     monkeypatch.setitem(sys.modules, "rfc8785", None)
     R = checks.Report()
-    checks.g_jcs(R, checks.Ctx(__import__("vchlib.bundle", fromlist=["x"]).load_bundle(ROOT)))
+    checks.g_jcs(R, context.Ctx(__import__("vchlib.bundle", fromlist=["x"]).load_bundle(ROOT)))
     assert any(i.code == "E-JCS" and "canonical.py" in i.where for i in R.errors)
     assert any(i.code == "W-JCS-REFERENCE-MISSING" for i in R.warnings)
 
@@ -147,7 +147,7 @@ def test_the_score_groups_by_the_independence_key(b, monkeypatch):
 
 
 def test_independent_sources_and_diversity_use_the_same_key(b, monkeypatch):
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     v, cl = doc(b, "verdict.k-014-w3.example.json").data, c.ix.first("cluster", cluster_id="K-014").data
     calls = []
     real = derive.Index.independence_key

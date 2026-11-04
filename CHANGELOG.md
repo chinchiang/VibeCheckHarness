@@ -4,6 +4,16 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.15`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）。
 
+## 架構重構（非規格變更）
+
+依 2026-11-04 的架構審查（候選 #1「裁決推導模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
+
+### 拆出 `Ctx` 與推導值（PR-A）
+- `Ctx` 與 `REQUIRED_AUTOMATION` 原封不動從 `checks.py` 搬到新的 `vchlib/context.py`；推導值（`Expectation`、`expectations`、`compare` 與三個私有輔助函式）原封不動從 `derive.py` 搬到新的 `vchlib/expectations.py`，`derive.py` 只留領域判斷。之後的裁決推導模組要接收 `Ctx`、又要被推導值使用，不拆就會形成 derive → verdict → derive 的循環依賴。
+- 呼叫端（`checks`、`sign_examples`、`build_variants`、`conftest` 與測試）改用新路徑，`checks`／`derive` 不保留轉出口；`docs/schemas/README.md` 的 `E-DERIVED` 列同步改名。
+- 突變清單 `r8_process`、`r8_validator`、`r9_anchor` 的 4 個錨點改指向 `expectations.py`（錨定文字不變）。
+- 新增 `GLOSSARY.md`（裁決相關的 6 個詞條）；CONTRIBUTING 補「不改變規則語意的實作重構不受凍結限制」與它的驗收方式。
+
 ## 第十四輪審查（2026-10-30）
 
 依 [2026-10-30 設計審查（第十四輪，內部三組審查）](docs/evidence/review-2026-10-30-r14.md)：三個獨立審查（validator 繞過、裁決與校準、方法論與文件）對 `main@6b4dfb0`，最嚴重的項目由主審查者重跑確認；三處設計變更（W4 事先登記、帶入叢集不投票、Lite 單機 profile 待訂）是使用者決定。

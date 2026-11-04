@@ -22,7 +22,8 @@ from test_v07_r11_verdict import REFUTE, nvidia_member, pin_calibration, settle
 from vchlib import adjudicate as adj
 from vchlib import checks, derive
 from vchlib.canonical import content_hash
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUN = "run-2026-09-23-001"

@@ -13,7 +13,7 @@ import copy
 import json
 
 from conftest import doc, rederive
-from vchlib import checks
+from vchlib import checks, context
 from vchlib.bundle import reload_json
 from vchlib.checks import run_all
 
@@ -64,7 +64,7 @@ def test_a_result_for_a_target_outside_the_roe_is_reported(b):
 
 # ================================================================ spot check: the ASI09 population, and Lite
 def spot(b, kind, item, who="heidi", profile=None):
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     if profile:
         c.engagement = {**c.engagement, "assurance_profile": profile}
     R = checks.Report()

@@ -8,7 +8,7 @@ import json
 import pytest
 
 from conftest import hp_rule, codes, doc, rederive
-from vchlib import crypto, derive, jsonstrict, safety
+from vchlib import crypto, derive, expectations, jsonstrict, safety
 from vchlib.bundle import read_jsonl_lines, reload_json
 from vchlib.checks import run_all
 
@@ -202,7 +202,8 @@ def test_reproduced_black_box_fail_is_proof_without_an_eligible_analyst(b, keys)
 def test_tool_signal_from_e_fail_u(b, keys):
     """E_fail_u (a reproduced W4 FAIL without pre-registration or an eligible analyst) is a WEAK tool signal
     (v0.3): it goes to tool_signal and counts as one independent source; it never confirms on its own."""
-    from vchlib.checks import Ctx, derived_independent_sources, derived_tool_signal, verdict_inputs
+    from vchlib.checks import derived_independent_sources, derived_tool_signal, verdict_inputs
+    from vchlib.context import Ctx
     from vchlib.adjudicate import adjudicate
     from vchlib.bundle import Doc
     # v0.5 (BL-27): the W4 test is a w4-testcase (a scripted fake model), without an oracle_can_pass control,
@@ -355,7 +356,7 @@ def test_dropped_anchor_on_running_run_is_an_error(b):
     run = doc(b, RUN_F).data
     run["audit_anchors"].pop()
     docs = {x.path: x for x in b.docs}
-    for e in derive.expectations(b):          # the checkpoint pins the run record (audit_anchors is writer-only, not restored)
+    for e in expectations.expectations(b):          # the checkpoint pins the run record (audit_anchors is writer-only, not restored)
         if docs[e.file].kind == "checkpoint-metadata":
             derive.set_path(docs[e.file].data, e.path, e.expected)
     R = run_all(b)

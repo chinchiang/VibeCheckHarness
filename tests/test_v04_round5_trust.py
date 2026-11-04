@@ -11,7 +11,8 @@ import datetime as dt
 
 from conftest import codes, doc, rederive
 from vchlib import crypto, safety
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
 G0A = "gate-record.g0a.example.json"

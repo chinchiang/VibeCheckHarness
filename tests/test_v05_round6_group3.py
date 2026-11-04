@@ -21,7 +21,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from conftest import codes, doc, rederive, resign_gate
 from vchlib import checks, crypto
 from vchlib.bundle import reload_json
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
 G1, G2, G4 = "gate-record.g1.example.json", "gate-record.g2.example.json", "gate-record.g4.example.json"

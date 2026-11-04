@@ -14,7 +14,8 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import evidence, safety
-from vchlib.checks import Ctx, resolved_sarif_refs, self_hosted
+from vchlib.checks import resolved_sarif_refs, self_hosted
+from vchlib.context import Ctx
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
 K011, K014, K201 = "cluster.k-011.example.json", "cluster.k-014.example.json", "cluster.k-201.example.json"

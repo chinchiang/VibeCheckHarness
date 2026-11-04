@@ -503,7 +503,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | 錯誤碼 | 規則 | 守住的測試 |
 |---|---|---|
 | `E-DATETIME` | 時間欄位不是可解析的 RFC 3339 時間戳記 | `test_validator` |
-| `E-DERIVED` | 所有由 validator 推導的欄位（hash、分數、計數、鏡像欄位等，`derive.expectations`）必須等於推導值；訊息列出欄位路徑、實際值、預期值與推導依據 | `test_v03_manifest`、`test_adjudicate`、`test_v06_r7_calibration` 等 12 份 |
+| `E-DERIVED` | 所有由 validator 推導的欄位（hash、分數、計數、鏡像欄位等，`expectations.expectations`）必須等於推導值；訊息列出欄位路徑、實際值、預期值與推導依據 | `test_v03_manifest`、`test_adjudicate`、`test_v06_r7_calibration` 等 12 份 |
 | `E-ID-DUP` | 同一種文件（run、verdict、cluster、finding、testcase、testresult、threat、gate-record、report-manifest、slice）的 ID 不能重複；commander-plan 的 `plan_id` 也是；一個 run 只有一份 inventory、seed-threats、redaction-map、report-manifest（report-manifest 為審查 r10 補上），每個 viewpoint 一份 DFD（查找取檔名排序的第一份，第二份會默默決定哪一份被檢查） | `test_v07_r9_examples`、`test_v05_round6_group6`、`test_v05_bl27_w4` 等 4 份 |
 | `E-INPUT-SHAPE` | （同一條規則也涵蓋 `E-SCHEMA-FORMAT`）見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 | `test_bl66_pipeline`、`test_v03_robustness` |
 | `E-INTERNAL` | 檢查時發生意外例外；只影響那一份文件（記下例外類型與位置，該文件其餘的推導與檢查略過），同組其他文件照常檢查 | `test_v03_robustness`、`test_validator`、`test_review_fixes` 等 7 份 |

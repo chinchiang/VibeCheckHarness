@@ -87,14 +87,14 @@ def rederive(bundle, keys, rounds=20):
     import json
 
     import sign_examples
-    from vchlib import derive
+    from vchlib import derive, expectations
     from vchlib.bundle import reload_json
     by_fp = {crypto.fingerprint(crypto.raw_public(k)): k for k in keys.values()}
     registry = doc(bundle, "key-registry.yaml").data
     for _ in range(rounds):
         changed = False
         docs = {d.path: d for d in bundle.docs}
-        for e in derive.expectations(bundle, for_writer=True):
+        for e in expectations.expectations(bundle, for_writer=True):
             d = docs[e.file]
             if derive.get_path(d.data, e.path) != e.expected:
                 derive.set_path(d.data, e.path, e.expected)

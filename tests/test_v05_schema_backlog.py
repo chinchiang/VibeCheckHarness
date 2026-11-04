@@ -14,7 +14,8 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import safety
-from vchlib.checks import report_metrics, Ctx, run_all
+from vchlib.checks import report_metrics, run_all
+from vchlib.context import Ctx
 
 ENG, TK, INV, RM, FB = "engagement.yaml", "toolkit.yaml", "inventory.example.json", "report-manifest.example.json", "feedback.k-016.example.json"
 

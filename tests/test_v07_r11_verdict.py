@@ -19,7 +19,8 @@ from conftest import doc, rederive
 from vchlib import adjudicate as adj
 from vchlib import checks, crypto, derive
 from vchlib.canonical import content_hash
-from vchlib.checks import Ctx, run_all
+from vchlib.checks import run_all
+from vchlib.context import Ctx
 
 RUN = "run-2026-09-23-001"
 

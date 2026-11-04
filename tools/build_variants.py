@@ -26,7 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import sign_examples as S  # noqa: E402
-from vchlib import crypto, derive, timeutil, yamlstrict  # noqa: E402
+from vchlib import crypto, derive, expectations, timeutil, yamlstrict  # noqa: E402
 from vchlib.bundle import SIGNED_YAML, VARIANTS as VARIANTS_DIR, Bundle, Doc, load_bundle, reload_json  # noqa: E402
 from vchlib.canonical import content_hash  # noqa: E402
 from vchlib.checks import run_all  # noqa: E402
@@ -97,7 +97,7 @@ def resign(b: Bundle, keys, rounds: int = 30) -> None:
     for _ in range(rounds):
         changed = False
         docs = {d.path: d for d in b.docs}
-        for e in derive.expectations(b, for_writer=True):
+        for e in expectations.expectations(b, for_writer=True):
             d = docs[e.file]
             if derive.get_path(d.data, e.path) != e.expected:
                 derive.set_path(d.data, e.path, e.expected)
@@ -228,9 +228,9 @@ def v_lite(b: Bundle, keys) -> None:
 
 def _refresh_report(b: Bundle, rid: str) -> None:
     """The report manifest's counts and metrics after the run's verdicts changed (the validator recomputes them)."""
-    from vchlib import checks
+    from vchlib import checks, context
     rm = next(d for d in b.docs if d.kind == "report-manifest" and d.data.get("run_id") == rid).data
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     heads = checks.verdict_heads(c, c.runs[rid]["verdicts"])
     rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, rid)
@@ -367,7 +367,7 @@ def v_regression(b: Bundle, keys) -> None:
     TC-012-01 at G4, the B4 job passes with its controls, and B5 re-adjudicates K-301 as FIXED (R14: a qualified PASS
     with a positive control, the source's executable proof re-run, no tool signal, no weighted refute). The run is still
     RUNNING (B6 has not started), so it has no report yet."""
-    from vchlib import checks
+    from vchlib import checks, context
     from vchlib.checks import content_hash
     rid = "run-2026-10-07-001"
     log = doc(b, "audit-event.run-2026-10-07-001.example.jsonl")
@@ -460,7 +460,7 @@ def v_regression(b: Bundle, keys) -> None:
     resign(b, keys)
     v2["test_evidence"]["results"][0]["result_ref"] = content_hash(res)
     for v in (v1, v2):
-        c = checks.Ctx(b)
+        c = context.Ctx(b)
         cl = c.ix.first("cluster", cluster_id="K-301").data
         out = checks.adj.adjudicate(checks.verdict_inputs(c, v, cl))
         v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,

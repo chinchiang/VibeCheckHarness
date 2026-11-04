@@ -12,7 +12,8 @@ import pytest
 from conftest import doc
 from vchlib import checks, timeutil
 from vchlib.bundle import load_variant
-from vchlib.checks import Ctx, g5_escalation, run_all
+from vchlib.checks import g5_escalation, run_all
+from vchlib.context import Ctx
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FOLLOWUP = "run-2026-10-07-001"

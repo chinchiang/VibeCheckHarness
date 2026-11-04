@@ -10,7 +10,8 @@ import json
 
 from conftest import codes, doc, rederive, resign_gate
 from vchlib.bundle import reload_json
-from vchlib.checks import Ctx, run_all, verdict_inputs
+from vchlib.checks import run_all, verdict_inputs
+from vchlib.context import Ctx
 
 FOLLOWUP_LOG = "audit-event.run-2026-10-07-001.example.jsonl"
 G2 = "gate-record.g2.example.json"

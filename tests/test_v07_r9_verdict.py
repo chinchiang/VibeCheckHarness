@@ -20,7 +20,7 @@ import copy
 import pytest
 
 from conftest import doc, rederive
-from vchlib import adjudicate, checks, derive
+from vchlib import adjudicate, checks, context, derive
 from vchlib.checks import run_all
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
@@ -162,7 +162,7 @@ def test_theta_confirm_is_above_any_single_vote(b):
 
 
 def test_the_example_thresholds_meet_the_limits(b):
-    c = checks.Ctx(b)
+    c = context.Ctx(b)
     assert checks.theta_problems(c.calibration) == []
 
 
@@ -204,7 +204,7 @@ def fp(b, signer, role, co=None):
     f = copy.deepcopy(doc(b, "feedback.k-016.example.json").data)
     f["signed_by"] = {**f["signed_by"], "person_id": signer, "role": role}
     f["co_signed_by"] = None if co is None else {"person_id": co[0], "role": co[1], "key_fingerprint": "x"}
-    return checks.feedback_suppression(checks.Ctx(b), f)
+    return checks.feedback_suppression(context.Ctx(b), f)
 
 
 def test_a_single_security_reviewer_cannot_suppress_alone(b):

@@ -28,9 +28,10 @@ import json
 import pytest
 
 from conftest import hp_rule, doc, rederive
-from vchlib import checks, derive, safety
+from vchlib import checks, derive, expectations, safety
 from vchlib.bundle import Doc, reload_json
-from vchlib.checks import Ctx, report_metrics, run_all
+from vchlib.checks import report_metrics, run_all
+from vchlib.context import Ctx
 
 RUN = "run-2026-09-23-001"
 FRUN = "run-2026-10-07-001"
@@ -57,7 +58,7 @@ def refix(b):
     """Re-derive every non-audit derived field (what a writer without any key can do)."""
     for _ in range(10):
         docs, changed = {d.path: d for d in b.docs}, 0
-        for e in derive.expectations(b, for_writer=True):
+        for e in expectations.expectations(b, for_writer=True):
             if e.file.endswith(".jsonl"):
                 continue
             if derive.get_path(docs[e.file].data, e.path) != e.expected:
