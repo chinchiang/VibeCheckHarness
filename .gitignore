@@ -21,3 +21,6 @@ storageState*.json
 
 # Local agent worktrees
 .claude/worktrees/
+
+# Local scratch output (architecture reports etc.; survives reboot, never committed)
+scratch/
