@@ -8,6 +8,16 @@
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 裁決推導模組（PR-B）
+- 新增 `vchlib/verdict.py`（[ADR 0001](docs/adr/0001-verdict-derivation-module.md)）。一個裁決版本的推導欄位只由 `derive_verdict(ctx, version) -> DerivedVerdict | None` 產出：`inputs`、`outcome`、`independent_sources`、`tool_corroboration`、`tool_signal`、`diversity_degraded`、`no_eligible_verifier`、`provisional`、`vote(i)`、`score`、`thresholds`、`test_evidence_results`／`test_evidence_class`、`executable_proof`。欄位都在第一次讀取時才計算並快取，例外的位置與順序和原本相同。
+- 第 1 步，機械搬移：推導閉包的 55 個定義原封不動搬進 `verdict.py`（`checks.py` 38 個、`derive.py` 17 個，以 AST 呼叫圖計算）。`checks` 從 `verdict` import 回自己還要用的名稱；`derive` 留下 `Index`、`INDEPENDENCE_SPLIT`、`independence_evidence_ok`，因為它們另有其他呼叫者。`g2_latest` 與 `PRE_G3_PHASES` 屬於關卡帳本，**暫時**放在 `verdict.py`，等架構審查候選 #4 再移。
+- 第 2 步，介面：`checks.g_verdicts`、`expectations` 的裁決段落和 `build_variants.v_regression` 都改從 `DerivedVerdict` 讀，`build_variants` 不再穿過 `checks.adj` 與 `checks` 的內部。`g_verdicts` 不再對同一版本呼叫兩次 `verdict_inputs`。
+  - `expectations` 為裁決段落建一個 `Ctx`；建不出來時，每份裁決文件記進 `problems`。
+  - 原本在找不到叢集之前就先查門檻，這一步拿掉了。在 checker 中碰不到差異：形狀錯誤的 calibration 已先被隔離（E-INPUT-SHAPE）。
+- 重複的名稱：刪除 `derive.strongest`（與 `adjudicate.strongest` 相同）。`readjudicated_by` 的階段代碼只留一張表 `verdict.PHASE_CODE`，`PHASE_ORDER` 由它產生；`RESULT_PHASES` 是另一個概念，不合併。`derive.oracle_unreviewed`（單一測試結果層級）改名為 `result_oracle_unreviewed`，與裁決層級的 `verdict.oracle_unreviewed` 區分。
+- 測試：對 bundle 裡的裁決版本所做的裁決層級斷言（11 個檔）改經 `derive_verdict`；純函式與內部接縫仍直接呼叫 `verdict.X`（使用者決定）。5 處 monkeypatch 改 patch `verdict` 模組，因為被替換的函式現在在那裡被查找。
+- README、05、08、`docs/schemas/README.md` 與 `verdict.schema.json` 說明裡的程式名稱同步改名。突變錨點共 30 個重新錨定（第 1 步 25 個、第 2 步 5 個）：多數只改 `file`；其餘的 `old` 與 `new` 套用與程式碼相同的替換（`derive.X` → `X`、`cl.data` → `dv.cluster`、改名、縮排）。
+
 ### 拆出校準統計（PR-B0）
 - 校準政策與統計原封不動從 `checks.py` 搬到新的 `vchlib/calibration.py`：`CAL_POLICY`、`HIGH_PRECISION_MIN_DEFAULT`、`HIGH_PRECISION_MIN_N`／`HOLDOUT_MIN_N`／`HOLDOUT_MARGIN`、`high_precision_min`、`high_precision_problems`、`_betacf`、`betainc`、`clopper_pearson_lower`、`design_effect`、`effective_n_of`、`corpus_splits`、`clustering_icc`、`apps_problem`。裁決推導模組判斷強工具佐證（`sarif_is_strong`）要用到 `high_precision_problems`，不拆就得 import `checks`；這是候選 #3「校準模組」的機械搬移那一半，合併 calibration.yaml 的讀取與有效性規則留到之後。
 - `checks` 從 `calibration` import 回自己還要用的名稱；測試與 `conftest` 改用 `calibration.*`，不保留轉出口；README、05 §4.3／§5.7 附近與 `docs/schemas/README.md` 的程式名稱同步改名。

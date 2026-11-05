@@ -17,7 +17,7 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
-from vchlib import checks, crypto, derive
+from vchlib import checks, crypto, derive, verdict
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -119,9 +119,8 @@ def nvidia_member(b, rnd):
 def settle(b, keys, suffix="verdict.example.json"):
     c = Ctx(b)
     v = doc(b, suffix).data
-    cl = c.ix.first("cluster", cluster_id=v["cluster_id"]).data
-    x = checks.verdict_inputs(c, v, cl)
-    out = adj.adjudicate(x)
+    dv = verdict.derive_verdict(c, v)
+    x, out = dv.inputs, dv.outcome
     v.update(status=out.status, status_cap=out.status_cap, advisory=out.advisory,
              annotations=[{"kind": k, "reason": "probe"} for k in sorted(out.annotations)], rule_trace=list(out.rules))
     rederive(b, keys)
@@ -150,9 +149,9 @@ def test_a_member_present_at_the_vote_still_voids_it(b, keys):
 def test_members_at_vote_follow_the_reporter_rounds(b):
     nvidia_member(b, 2)
     cl, ix = doc(b, "cluster.example.json").data, derive.Index(b)
-    assert derive.members_at_vote(ix, {"voted_after_round": 1}, cl)[0] == ["anthropic", "openai"]
-    assert derive.members_at_vote(ix, {"voted_after_round": 2}, cl)[0] == ["anthropic", "nvidia", "openai"]
-    assert derive.members_at_vote(ix, {}, cl)[0] == cl["families"]       # no field: every member counts
+    assert verdict.members_at_vote(ix, {"voted_after_round": 1}, cl)[0] == ["anthropic", "openai"]
+    assert verdict.members_at_vote(ix, {"voted_after_round": 2}, cl)[0] == ["anthropic", "nvidia", "openai"]
+    assert verdict.members_at_vote(ix, {}, cl)[0] == cl["families"]       # no field: every member counts
 
 
 def test_voted_after_round_is_required(b, keys):
@@ -165,7 +164,7 @@ def test_a_cluster_with_no_eligible_verifier_needs_a_g2_decision(b, keys):
     nvidia_member(b, 1)                                          # K-005 now holds every verifier family
     rederive(b, keys)
     settle(b, keys)
-    assert checks.derived_no_eligible_verifier(Ctx(b), doc(b, "cluster.example.json").data)
+    assert verdict.derived_no_eligible_verifier(Ctx(b), doc(b, "cluster.example.json").data)
     assert any("K-005" in i.msg and "no eligible verifier" in i.msg and "no G2 decision" in i.msg for i in errors(b, "E-PIPELINE"))
 
 
@@ -201,14 +200,14 @@ def test_regression_fixed_is_derived_from_the_parent_verdict_and_the_pass(b):
     # r12: the PASS re-runs the testcase whose result proved the source (V-005-2's E_proof is R-TC-012-01-1, TC-012-01)
     proof = content_hash(doc(b, "testresult.example.json").data)
     v = {"test_evidence": {"class": "E_pass", "results": [{"result_ref": proof, "class": "E_pass", "positive_control": True, "reason": "x"}]}}
-    assert checks.regression_fixed(c, v, cluster, run)                      # V-005-2 is CONFIRMED_EXECUTABLE
-    assert not checks.regression_fixed(c, v, cluster, dict(run, run_kind="followup"))
-    assert not checks.regression_fixed(c, v, dict(cluster, carried_from={"run_id": RUN, "cluster_id": "K-011", "fingerprint": "x"}), run)   # V-011-2 is UNCORROBORATED
+    assert verdict.regression_fixed(c, v, cluster, run)                      # V-005-2 is CONFIRMED_EXECUTABLE
+    assert not verdict.regression_fixed(c, v, cluster, dict(run, run_kind="followup"))
+    assert not verdict.regression_fixed(c, v, dict(cluster, carried_from={"run_id": RUN, "cluster_id": "K-011", "fingerprint": "x"}), run)   # V-011-2 is UNCORROBORATED
     v["test_evidence"]["results"][0]["positive_control"] = None
-    assert not checks.regression_fixed(c, v, cluster, run)
+    assert not verdict.regression_fixed(c, v, cluster, run)
     v["test_evidence"]["results"][0]["positive_control"] = True
     v["test_evidence"]["results"].append({"result_ref": "sha256:" + "1" * 64, "class": "E_fail_u", "positive_control": None, "reason": "x"})
-    assert not checks.regression_fixed(c, v, cluster, run)
+    assert not verdict.regression_fixed(c, v, cluster, run)
 
 
 def test_fixed_is_a_final_status_and_never_provisional():

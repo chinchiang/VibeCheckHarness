@@ -15,7 +15,7 @@ import copy
 import pytest
 
 from conftest import codes, doc, rederive, resign_gate
-from vchlib import checks, safety
+from vchlib import safety, verdict
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -189,7 +189,7 @@ def test_over_cap_counts_as_rejected_for_r13(b, keys):
     _over_cap(b, keys, "T-031")
     c = Ctx(b)
     cl = c.ix.first("cluster", cluster_id="K-011").data
-    assert checks.g3_rejected(c, doc(b, "verdict.k-011-b5.example.json").data, cl)
+    assert verdict.g3_rejected(c, doc(b, "verdict.k-011-b5.example.json").data, cl)
 
 
 def test_over_cap_items_name_the_over_cap_decisions(b, keys):

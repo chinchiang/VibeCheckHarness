@@ -59,7 +59,7 @@
     },
     {
       "name": "R15 marks refutes only",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    if v.get(\"stance\") != \"REFUTE\":\n        return False\n    fams, lins = members_at_vote(ix, v, cluster)",
       "new": "    fams, lins = members_at_vote(ix, v, cluster)",
       "k": "only_a_refute"
@@ -67,8 +67,8 @@
     {
       "name": "self-review is judged at vote time",
       "file": "tools/vchlib/checks.py",
-      "old": "                    fams_v, lins_v = derive.members_at_vote(c.ix, vt, cl.data)",
-      "new": "                    fams_v, lins_v = cl.data.get(\"families\", []), cl.data.get(\"lineages\")",
+      "old": "                    fams_v, lins_v = members_at_vote(c.ix, vt, dv.cluster)",
+      "new": "                    fams_v, lins_v = dv.cluster.get(\"families\", []), dv.cluster.get(\"lineages\")",
       "k": "r11_scenario_has_no_self_review"
     },
     {
@@ -94,21 +94,21 @@
     },
     {
       "name": "the source proof must be re-run",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)",
       "new": "        and True",
       "k": "proof_of_the_source"
     },
     {
       "name": "verdict inputs carry the source status",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        carried_status=carried_status(c, cluster, run),",
       "new": "        carried_status=None,",
       "k": "inputs_carry_the_source_status"
     },
     {
       "name": "rows 15 and 16 are never provisional",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "(1, 2, 3, 4, 5, 10, 14, 15, 16)",
       "new": "(1, 2, 3, 4, 5, 10, 14)",
       "k": "never_provisional"

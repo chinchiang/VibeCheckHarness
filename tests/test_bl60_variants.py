@@ -16,7 +16,8 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib.bundle import load_bundle, load_variant, variant_names
-from vchlib.checks import run_all, verdict_heads
+from vchlib.checks import run_all
+from vchlib.verdict import verdict_heads
 from vchlib.context import Ctx
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]

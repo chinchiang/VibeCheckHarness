@@ -11,7 +11,7 @@ import copy
 
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
-from vchlib import checks, derive
+from vchlib import checks, derive, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -98,7 +98,7 @@ def _w4_fail_u(b, keys, analyst_family):
 
 def test_a_fail_u_written_by_the_reporting_family_is_not_a_source(b, keys):
     c, v, cl = _w4_fail_u(b, keys, "anthropic")
-    x = checks.verdict_inputs(c, v, cl)
+    x = verdict.derive_verdict(c, v).inputs
     assert "E_fail_u" in x.evidence and not x.fail_u_independent
     assert adj.independent_sources(x) == 1 and adj.adjudicate(x).status == "UNCORROBORATED"
 
@@ -110,7 +110,7 @@ def test_an_independently_written_fail_u_is_a_source(b, keys):
         if isinstance(a, dict) and a.get("role") in derive.TEST_AUTHOR_ROLES.get("W4", ()):
             a["model"] = "nemotron_self"
     c, v, cl = _w4_fail_u(b, keys, "anthropic")
-    x = checks.verdict_inputs(c, v, cl)
+    x = verdict.derive_verdict(c, v).inputs
     assert x.fail_u_independent and adj.independent_sources(x) == 2
     assert adj.adjudicate(x).status == "LIKELY"
 

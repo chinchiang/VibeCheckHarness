@@ -15,7 +15,7 @@ import math
 import pytest
 
 from conftest import apps_map, doc, hp_rule
-from vchlib import calibration, checks, derive
+from vchlib import calibration, checks, derive, verdict
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -153,10 +153,10 @@ def test_the_votes_follow(b):
 # ================================================================ 3.9 lineage roots
 def test_a_derived_lineage_is_not_independent(b):
     k = derive.Index(b).first("cluster", cluster_id="K-015").data
-    assert k["lineages"] == ["nemotron3"] and "claude_sonnet" in checks.eligible_verifier_models(Ctx(b), k)
+    assert k["lineages"] == ["nemotron3"] and "claude_sonnet" in verdict.eligible_verifier_models(Ctx(b), k)
     doc(b, "models.yaml").data["claude_sonnet"]["derived_from"] = "nemotron3"     # suppose it were distilled from Nemotron
     assert derive.Index(b).lineage_root("claude") == "nemotron3"
-    assert "claude_sonnet" not in checks.eligible_verifier_models(Ctx(b), k)
+    assert "claude_sonnet" not in verdict.eligible_verifier_models(Ctx(b), k)
 
 
 def test_a_derived_voter_is_not_valid(b):
@@ -164,9 +164,9 @@ def test_a_derived_voter_is_not_valid(b):
     ix = derive.Index(b)
     v = doc(b, "verdict.k-015-w3.example.json").data
     k = ix.first("cluster", cluster_id="K-015").data
-    assert v["votes"][0]["voter_lineage"] == "claude" and derive.vote_valid(v["votes"][0], k, ix)
+    assert v["votes"][0]["voter_lineage"] == "claude" and verdict.vote_valid(v["votes"][0], k, ix)
     doc(b, "models.yaml").data["claude_sonnet"]["derived_from"] = "nemotron3"
-    assert not derive.vote_valid(v["votes"][0], k, derive.Index(b))
+    assert not verdict.vote_valid(v["votes"][0], k, derive.Index(b))
 
 
 def test_a_lineage_cycle_terminates(b):
@@ -196,9 +196,9 @@ def test_strong_tool_corroboration_uses_the_counts(b):
     ref = k["sarif_refs"][0]
     cal = doc(b, CAL).data["result"]
     cal["high_precision_rules"] = [{**K014_RULE, **hp_rule(120, 117, holdout_n=60, holdout_tp=59)}]   # r14: apps over the corpus
-    assert checks.sarif_is_strong(Ctx(b), k, ref)
+    assert verdict.sarif_is_strong(Ctx(b), k, ref)
     cal["high_precision_rules"] = [{**K014_RULE, **hp_rule(40, 39, holdout_n=60, holdout_tp=59), "precision_lower95": 0.95}]
-    assert not checks.sarif_is_strong(Ctx(b), k, ref)                 # the declared 0.95 is not what 39/40 gives
+    assert not verdict.sarif_is_strong(Ctx(b), k, ref)                 # the declared 0.95 is not what 39/40 gives
 
 
 def test_the_analyst_compares_base_lineages(b):

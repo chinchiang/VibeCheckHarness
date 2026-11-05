@@ -14,7 +14,8 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import evidence, safety
-from vchlib.checks import resolved_sarif_refs, self_hosted
+from vchlib.checks import self_hosted
+from vchlib.verdict import resolved_sarif_refs
 from vchlib.context import Ctx
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"

@@ -228,10 +228,10 @@ def v_lite(b: Bundle, keys) -> None:
 
 def _refresh_report(b: Bundle, rid: str) -> None:
     """The report manifest's counts and metrics after the run's verdicts changed (the validator recomputes them)."""
-    from vchlib import checks, context
+    from vchlib import checks, context, verdict
     rm = next(d for d in b.docs if d.kind == "report-manifest" and d.data.get("run_id") == rid).data
     c = context.Ctx(b)
-    heads = checks.verdict_heads(c, c.runs[rid]["verdicts"])
+    heads = verdict.verdict_heads(c, c.runs[rid]["verdicts"])
     rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, rid)
 
@@ -367,7 +367,7 @@ def v_regression(b: Bundle, keys) -> None:
     TC-012-01 at G4, the B4 job passes with its controls, and B5 re-adjudicates K-301 as FIXED (R14: a qualified PASS
     with a positive control, the source's executable proof re-run, no tool signal, no weighted refute). The run is still
     RUNNING (B6 has not started), so it has no report yet."""
-    from vchlib import checks, context
+    from vchlib import context, verdict
     from vchlib.checks import content_hash
     rid = "run-2026-10-07-001"
     log = doc(b, "audit-event.run-2026-10-07-001.example.jsonl")
@@ -460,18 +460,17 @@ def v_regression(b: Bundle, keys) -> None:
     resign(b, keys)
     v2["test_evidence"]["results"][0]["result_ref"] = content_hash(res)
     for v in (v1, v2):
-        c = context.Ctx(b)
-        cl = c.ix.first("cluster", cluster_id="K-301").data
-        out = checks.adj.adjudicate(checks.verdict_inputs(c, v, cl))
+        dv = verdict.derive_verdict(context.Ctx(b), v)          # v.cluster_id is K-301
+        out = dv.outcome
         v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,
                   "annotations": [{"kind": k, "reason": k} for k in sorted(out.annotations)],
                   "rule_trace": [f"{r}: regression run 的帶入叢集 K-301（來源 K-005）" for r in out.rules],
-                  "independent_sources": checks.derived_independent_sources(c, v, cl),
-                  "tool_corroboration": checks.derived_tool_corroboration(c, v, cl),
-                  "tool_signal": checks.derived_tool_signal(c, v, cl),
-                  "diversity_degraded": checks.derived_diversity_degraded(c, v, cl),
-                  "no_eligible_verifier": checks.derived_no_eligible_verifier(c, cl),
-                  "provisional": checks.derived_provisional(c, v, cl)})
+                  "independent_sources": dv.independent_sources,
+                  "tool_corroboration": dv.tool_corroboration,
+                  "tool_signal": dv.tool_signal,
+                  "diversity_degraded": dv.diversity_degraded,
+                  "no_eligible_verifier": dv.no_eligible_verifier,
+                  "provisional": dv.provisional})
         next(e for e in log.data if e["event_type"] == "verdict_changed"
              and e["payload"]["verdict_id"] == v["verdict_id"])["payload"]["status"] = out.status
         resign(b, keys)

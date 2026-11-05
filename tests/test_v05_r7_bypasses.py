@@ -20,7 +20,7 @@ import copy
 import pytest
 
 from conftest import doc, rederive
-from vchlib import checks, crypto, derive, safety
+from vchlib import crypto, derive, safety, verdict
 from vchlib.bundle import Doc
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -65,7 +65,7 @@ def test_an_expired_g2_rejects_nothing(b):
     g2["outcome"] = "EXPIRED"
     g2["decisions"][0]["decision"] = "reject"
     c = Ctx(b)
-    assert checks.g2_latest(c, c.ix.first("cluster", cluster_id="K-011").data) == (None, None)
+    assert verdict.g2_latest(c, c.ix.first("cluster", cluster_id="K-011").data) == (None, None)
 
 
 def test_an_expired_g4_approves_no_testcase(b):
@@ -163,10 +163,9 @@ def test_a_finding_belongs_to_one_cluster(b):
 def test_the_rules_use_the_derived_score(b):
     v = doc(b, "verdict.k-014-w3.example.json").data
     c = Ctx(b)
-    cl = c.ix.first("cluster", cluster_id="K-014").data
-    derived = checks.verdict_inputs(c, v, cl).score
+    derived = verdict.derive_verdict(c, v).inputs.score
     v["score"] = round(derived + 0.0004, 4)                       # inside the 5e-4 tolerance of E-DERIVED
-    assert checks.verdict_inputs(Ctx(b), v, cl).score == derived
+    assert verdict.derive_verdict(Ctx(b), v).inputs.score == derived
 
 
 # ================================================================ 1.8 PostgREST collection writes (external 1)

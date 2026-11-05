@@ -24,7 +24,7 @@
     },
     {
       "name": "root_score: strongest vote of a root",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        total += max(xs, key=abs) if same else sum(xs) / len(xs)",
       "new": "        total += sum(xs) / len(xs)",
       "k": "weaker_vote_of_the_same_root"

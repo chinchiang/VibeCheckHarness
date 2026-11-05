@@ -4,7 +4,8 @@ import pytest
 
 from conftest import codes, doc
 from vchlib.adjudicate import Inputs, adjudicate
-from vchlib.checks import run_all, verdict_inputs
+from vchlib.checks import run_all
+from vchlib.verdict import verdict_inputs
 from vchlib.context import Ctx
 
 EARLY_ROWS = [

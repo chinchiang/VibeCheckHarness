@@ -27,7 +27,7 @@ import json
 import pytest
 
 from conftest import doc, rederive
-from vchlib import checks, context, derive, expectations
+from vchlib import checks, context, derive, expectations, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -119,7 +119,7 @@ def roll_back_to_g4(b):
     rm["artifacts"] = [a for a in rm["artifacts"] if not (a["ref"] in gone_v or a["ref"] == "GR-G5-0001" or a["ref"].startswith("R-TC-"))]
     refix_nokey(b)
     c = context.Ctx(b)
-    heads = checks.verdict_heads(c, run["verdicts"])
+    heads = verdict.verdict_heads(c, run["verdicts"])
     rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, RUN)
     refix_nokey(b)
@@ -177,17 +177,17 @@ def add_k301_verdict(b):
     ev = tail_event(b, FAUDIT, "verdict_changed", "B5", {"verdict_id": "V-301-1"}, "verdict-V-301-1")
     refix_nokey(b)
     c = context.Ctx(checks.quarantine(checks.Report(), b))
-    cl = c.ix.first("cluster", cluster_id="K-301").data
-    out = checks.adj.adjudicate(checks.verdict_inputs(c, v, cl))
+    dv = verdict.derive_verdict(c, v)                                               # v.cluster_id is K-301
+    out = dv.outcome
     v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,
               "annotations": [{"kind": k, "reason": k} for k in sorted(out.annotations)],   # r12: R16 annotates K-301 (fix_unverified)
               "rule_trace": [f"{r}: probe" for r in out.rules],
-              "independent_sources": checks.derived_independent_sources(c, v, cl),
-              "tool_corroboration": checks.derived_tool_corroboration(c, v, cl),
-              "tool_signal": checks.derived_tool_signal(c, v, cl),
-              "diversity_degraded": checks.derived_diversity_degraded(c, v, cl),
-              "no_eligible_verifier": checks.derived_no_eligible_verifier(c, cl),
-              "provisional": checks.derived_provisional(c, v, cl), "rule_version": checks.adj.RULE_VERSION})
+              "independent_sources": dv.independent_sources,
+              "tool_corroboration": dv.tool_corroboration,
+              "tool_signal": dv.tool_signal,
+              "diversity_degraded": dv.diversity_degraded,
+              "no_eligible_verifier": dv.no_eligible_verifier,
+              "provisional": dv.provisional, "rule_version": checks.adj.RULE_VERSION})
     refix_nokey(b)
     ev["payload"].update({"status": v["status"], "verdict_sha256": content_hash(v)})
     assert rechain(b, FAUDIT)

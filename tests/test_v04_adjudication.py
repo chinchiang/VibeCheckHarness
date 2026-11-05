@@ -11,7 +11,8 @@ import pytest
 from conftest import doc
 from vchlib import derive
 from vchlib.adjudicate import Inputs, adjudicate
-from vchlib.checks import verdict_inputs, run_all
+from vchlib.checks import run_all
+from vchlib.verdict import verdict_inputs
 from vchlib.context import Ctx
 
 V005, V011B5 = "verdict.example.json", "verdict.k-011-b5.example.json"

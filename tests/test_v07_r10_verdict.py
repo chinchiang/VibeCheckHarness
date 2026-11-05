@@ -22,7 +22,7 @@ import copy
 import itertools
 
 from conftest import doc, split_stats
-from vchlib import adjudicate, checks, derive
+from vchlib import adjudicate, checks, derive, verdict
 from vchlib.checks import run_all
 
 
@@ -82,15 +82,15 @@ def test_a_silent_replay_of_a_declared_sampled_http_test_is_not_proof(b):
 
 # ================================================================ root_score: strongest vote per root
 def test_a_weaker_vote_of_the_same_root_does_not_lower_s():
-    assert derive.root_score([("nemotron3", 1.4633), ("claude", 1.4425), ("claude", 0.32)]) == round(1.4633 + 1.4425, 4)
+    assert verdict.root_score([("nemotron3", 1.4633), ("claude", 1.4425), ("claude", 0.32)]) == round(1.4633 + 1.4425, 4)
 
 
 def test_one_root_still_counts_once():
-    assert derive.root_score([("claude", 1.44), ("claude", 1.44)]) == 1.44
+    assert verdict.root_score([("claude", 1.44), ("claude", 1.44)]) == 1.44
 
 
 def test_a_root_whose_votes_disagree_contributes_their_mean():
-    assert derive.root_score([("claude", 1.2), ("claude", -0.8)]) == 0.2
+    assert verdict.root_score([("claude", 1.2), ("claude", -0.8)]) == 0.2
 
 
 # ================================================================ analyst disagreement fails closed
@@ -206,6 +206,6 @@ def test_row_11_needs_two_base_lineages_when_theta_is_above_every_single_weight(
     for n in (1, 2, 3):
         for roots in itertools.product("ab", repeat=n):
             for ws in itertools.product(grid, repeat=n):
-                s = derive.root_score(list(zip(roots, ws)))
+                s = verdict.root_score(list(zip(roots, ws)))
                 if s >= theta:
                     assert len(set(roots)) >= 2, (roots, ws, s)

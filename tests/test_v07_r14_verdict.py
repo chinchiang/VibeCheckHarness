@@ -31,7 +31,7 @@ from conftest import CAL_APPS, EXAMPLE_ICC, apps_map, doc, hp_rule, rederive, sp
 from test_v03_adjudication import _ix_cluster, _w4
 from test_v07_r11_verdict import pin_calibration
 from vchlib import adjudicate as adj
-from vchlib import calibration, checks, derive
+from vchlib import calibration, checks, verdict
 from vchlib.bundle import load_variant
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -64,7 +64,7 @@ def chain(b, monkeypatch, middle, far=None):
     c = Ctx(b)
     run_c = {"run_id": "run-2026-11-01-001", "run_kind": "regression", "parent_run_id": FRUN}
     k901 = {"cluster_id": "K-901", "run_id": run_c["run_id"], "carried_from": {"run_id": FRUN, "cluster_id": "K-301", "fingerprint": "x"}}
-    real = checks.carried_source
+    real = verdict.carried_source
 
     def fake(c_, cl, run):
         if cl.get("cluster_id") == "K-901":
@@ -72,7 +72,7 @@ def chain(b, monkeypatch, middle, far=None):
         if far is not None and cl.get("cluster_id") == "K-301":
             return far
         return real(c_, cl, run)
-    monkeypatch.setattr(checks, "carried_source", fake)
+    monkeypatch.setattr(verdict, "carried_source", fake)
     return c, k901, run_c
 
 
@@ -86,20 +86,20 @@ KEPT = {"verdict_id": "V-301-9", "cluster_id": "K-301", "run_id": FRUN, "status"
 
 def test_the_required_cases_follow_the_carried_chain(b, monkeypatch):
     c, k901, run_c = chain(b, monkeypatch, copy.deepcopy(KEPT))
-    assert checks.result_testcases(c, KEPT, {"E_proof"}) == set()       # what 05-v0.14 required of run C: nothing
-    assert checks.required_regression_testcases(c, k901, run_c) == {"TC-012-01"}     # K-005's proof, two runs back
+    assert verdict.result_testcases(c, KEPT, {"E_proof"}) == set()       # what 05-v0.14 required of run C: nothing
+    assert verdict.required_regression_testcases(c, k901, run_c) == {"TC-012-01"}     # K-005's proof, two runs back
     v = {"test_evidence": {"results": [passes(b, "testresult.llm-pass.example.json")]}}
-    assert not checks.regression_fixed(c, v, k901, run_c)               # another case's qualified PASS is not the fix
+    assert not verdict.regression_fixed(c, v, k901, run_c)               # another case's qualified PASS is not the fix
     v = {"test_evidence": {"results": [passes(b, "testresult.example.json")]}}
-    assert checks.regression_fixed(c, v, k901, run_c)                   # TC-012-01 re-run with a positive control is
+    assert verdict.regression_fixed(c, v, k901, run_c)                   # TC-012-01 re-run with a positive control is
 
 
 def test_a_chain_without_any_failing_test_is_never_fixed(b, monkeypatch):
     far = {"cluster_id": "K-005", "run_id": RUN, "status": "CONFIRMED_CORROBORATED", "test_evidence": {"class": None, "results": []}}
     c, k901, run_c = chain(b, monkeypatch, copy.deepcopy(KEPT), far)
-    assert checks.required_regression_testcases(c, k901, run_c) == set()
+    assert verdict.required_regression_testcases(c, k901, run_c) == set()
     v = {"test_evidence": {"results": [passes(b, "testresult.example.json"), passes(b, "testresult.llm-pass.example.json")]}}
-    assert not checks.regression_fixed(c, v, k901, run_c)
+    assert not verdict.regression_fixed(c, v, k901, run_c)
 
 
 def test_a_chain_with_only_a_reproduced_fail_requires_that_case(b, monkeypatch):
@@ -107,7 +107,7 @@ def test_a_chain_with_only_a_reproduced_fail_requires_that_case(b, monkeypatch):
         {"result_ref": content_hash(doc(b, "testresult.example.json").data), "class": "E_fail_u", "positive_control": None, "reason": "x"}]})
     far = {"cluster_id": "K-005", "run_id": RUN, "status": "CONFIRMED_CORROBORATED", "test_evidence": {"class": None, "results": []}}
     c, k901, run_c = chain(b, monkeypatch, middle, far)
-    assert checks.required_regression_testcases(c, k901, run_c) == {"TC-012-01"}
+    assert verdict.required_regression_testcases(c, k901, run_c) == {"TC-012-01"}
 
 
 def test_a_non_confirmed_source_with_a_proof_is_not_fixed(b, monkeypatch):
@@ -115,8 +115,8 @@ def test_a_non_confirmed_source_with_a_proof_is_not_fixed(b, monkeypatch):
     likely = dict(copy.deepcopy(KEPT), status="LIKELY", test_evidence={"class": "E_proof", "results": [
         {"result_ref": content_hash(doc(b, "testresult.example.json").data), "class": "E_proof", "positive_control": None, "reason": "x"}]})
     c, k901, run_c = chain(b, monkeypatch, likely)
-    assert checks.required_regression_testcases(c, k901, run_c) == {"TC-012-01"}
-    assert not checks.regression_fixed(c, {"test_evidence": {"results": [passes(b, "testresult.example.json")]}}, k901, run_c)
+    assert verdict.required_regression_testcases(c, k901, run_c) == {"TC-012-01"}
+    assert not verdict.regression_fixed(c, {"test_evidence": {"results": [passes(b, "testresult.example.json")]}}, k901, run_c)
 
 
 # ================================================================ B7. a carried-in cluster accepts no votes; row 15 is tools only
@@ -166,16 +166,16 @@ def xco(b, derived_from_claude):
 
 def test_an_independent_xco_verifier_is_eligible_for_an_anthropic_cluster(b):
     c, k014, vote = xco(b, derived_from_claude=False)
-    assert "x_base" in checks.eligible_verifier_models(c, k014)
-    assert derive.vote_valid(vote, k014, c.ix)
+    assert "x_base" in verdict.eligible_verifier_models(c, k014)
+    assert verdict.vote_valid(vote, k014, c.ix)
 
 
 def test_a_verifier_merged_with_the_reporter_through_a_fine_tune_is_not(b):
     c, k014, vote = xco(b, derived_from_claude=True)
     assert c.ix.independence_key("x_base") == c.ix.independence_key("claude_sonnet")   # one observation (05-v0.13 grouping)
-    assert "x_base" not in checks.eligible_verifier_models(c, k014)
-    assert not derive.vote_valid(vote, k014, c.ix)
-    assert "ver_2" not in checks.eligible_verifier_models(c, doc(b, "cluster.k-015.example.json").data) or True   # unrelated
+    assert "x_base" not in verdict.eligible_verifier_models(c, k014)
+    assert not verdict.vote_valid(vote, k014, c.ix)
+    assert "ver_2" not in verdict.eligible_verifier_models(c, doc(b, "cluster.k-015.example.json").data) or True   # unrelated
 
 
 # ================================================================ C3. only a harness-generated W4 oracle is pre-registered
@@ -242,8 +242,7 @@ def test_the_verdict_is_annotated_oracle_unreviewed(b, keys):
     rederive(b, keys)
     c = Ctx(b)
     v = doc(b, "verdict.k-015-w4.example.json").data
-    cl = doc(b, "cluster.k-015.example.json").data
-    x = checks.verdict_inputs(c, v, cl)
+    x = verdict.derive_verdict(c, v).inputs
     assert x.oracle_unreviewed is True and "E_proof" not in x.evidence
     out = adj.adjudicate(x)
     assert "oracle_unreviewed" in out.annotations and "R12" in out.rules and out.status in ("LIKELY", "UNCORROBORATED")

@@ -103,7 +103,7 @@
           "voted_after_round": {
             "type": "integer",
             "minimum": 1,
-            "description": "審查 r11（05-v0.10）：投票時叢集已完成的回報輪次；票的合格性以 reporter.round ≤ 此值的成員判定（derive.members_at_vote），之後加入的同家族成員不作廢既有票，改加註 refute_by_later_member_family（R15）"
+            "description": "審查 r11（05-v0.10）：投票時叢集已完成的回報輪次；票的合格性以 reporter.round ≤ 此值的成員判定（verdict.members_at_vote），之後加入的同家族成員不作廢既有票，改加註 refute_by_later_member_family（R15）"
           }
         },
         "required": [

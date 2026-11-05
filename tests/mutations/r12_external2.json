@@ -73,14 +73,14 @@
     },
     {
       "name": "S groups by the independence key",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "            root = ix.independence_key(vote.get(\"voter_model_key\")) or vote.get(\"voter_model_key\")",
       "new": "            root = vote.get(\"voter_model_key\")",
       "k": "score_groups_by"
     },
     {
       "name": "diversity uses the independence key",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "            roots.add(vote_observation(c, x, m))",
       "new": "            roots.add(c.ix.lineage_root(m.get(\"lineage\")))",
       "k": "same_key"
@@ -143,7 +143,7 @@
     },
     {
       "name": "a vote's observation is its independence key",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    return c.ix.independence_key(vt.get(\"voter_model_key\")) or c.ix.lineage_root(m.get(\"lineage\"))",
       "new": "    return c.ix.lineage_root(m.get(\"lineage\"))",
       "k": "same_key"

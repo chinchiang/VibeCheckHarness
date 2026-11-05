@@ -19,7 +19,7 @@ import pytest
 
 from conftest import doc
 from vchlib import adjudicate as adj
-from vchlib import checks, context, derive
+from vchlib import checks, context, derive, verdict
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -133,16 +133,16 @@ def test_a_shared_base_lineage_stays_one_observation_across_families(b):
 
 
 def test_s_counts_one_family_once():
-    assert derive.root_score([("openai", 1.3), ("openai", 1.3), ("anthropic", 1.2)]) == 2.5
+    assert verdict.root_score([("openai", 1.3), ("openai", 1.3), ("anthropic", 1.2)]) == 2.5
 
 
 def test_the_score_groups_by_the_independence_key(b, monkeypatch):
     ix = derive.Index(b)
     v, cl = doc(b, "verdict.k-014-w3.example.json").data, ix.first("cluster", cluster_id="K-014").data
     seen = []
-    monkeypatch.setattr(derive, "root_score", lambda terms: seen.extend(terms) or 0.0)
-    derive.derived_score(ix, v, cl)
-    counted = [x["voter_model_key"] for x in v["votes"] if derive.vote_terms(ix, x, cl, v.get("calibration_version"))[2]]
+    monkeypatch.setattr(verdict, "root_score", lambda terms: seen.extend(terms) or 0.0)
+    verdict.derived_score(ix, v, cl)
+    counted = [x["voter_model_key"] for x in v["votes"] if verdict.vote_terms(ix, x, cl, v.get("calibration_version"))[2]]
     assert counted and [k for k, _ in seen] == [ix.independence_key(m) for m in counted]
 
 
@@ -157,13 +157,13 @@ def test_independent_sources_and_diversity_use_the_same_key(b, monkeypatch):
         return real(self, key)
     monkeypatch.setattr(derive.Index, "independence_key", spy)
     seen = []
-    real_obs = checks.vote_observation
-    monkeypatch.setattr(checks, "vote_observation", lambda c_, x, m: seen.append(x["voter_model_key"]) or real_obs(c_, x, m))
-    checks.derived_diversity_degraded(c, v, cl)
-    counted = [x["voter_model_key"] for x in v["votes"] if derive.vote_terms(c.ix, x, cl, v.get("calibration_version"))[2]]
+    real_obs = verdict.vote_observation
+    monkeypatch.setattr(verdict, "vote_observation", lambda c_, x, m: seen.append(x["voter_model_key"]) or real_obs(c_, x, m))
+    verdict.derive_verdict(c, v).diversity_degraded
+    counted = [x["voter_model_key"] for x in v["votes"] if verdict.vote_terms(c.ix, x, cl, v.get("calibration_version"))[2]]
     assert counted and seen == counted, "diversity groups the counted votes by their observation"
     gpt = {"voter_model_key": "gpt_flagship"}
-    assert checks.vote_observation(c, gpt, c.model("gpt_flagship")) == checks.vote_observation(
+    assert verdict.vote_observation(c, gpt, c.model("gpt_flagship")) == verdict.vote_observation(
         c, {"voter_model_key": "gpt_oss_self"}, c.model("gpt_oss_self"))
     calls.clear()
     derive.independent_families(c.ix, cl)
