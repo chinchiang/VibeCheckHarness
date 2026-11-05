@@ -17,7 +17,7 @@
      "old": "    b.docs = [d for d in b.docs if d.path not in removed]\n    # the main loader",
      "new": "    # the main loader",
      "k": "replaces_adds_and_removes"},
-    {"name": "builder refreshes config pins", "file": "tools/build_variants.py",
+    {"name": "builder refreshes config pins", "file": "tools/vchlib/seal.py",
      "old": "                if cfg is not None and ref != content_hash(cfg.data):",
      "new": "                if False:",
      "k": "builder_writes"},

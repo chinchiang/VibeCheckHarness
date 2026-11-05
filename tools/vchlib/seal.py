@@ -5,14 +5,28 @@ tests/conftest.py). See docs/adr/0002-reseal-module.md.
 
 Architecture refactor PR-C1 (no behaviour change): the rules were written once in the checker and copied into each
 writer; they now live here once. The writer helpers (current_key, sign_event_in_place) moved verbatim out of
-tools/sign_examples.py.
+tools/sign_examples.py. PR-C2: reseal, the one in-memory re-derive / re-sign / re-chain loop (moved verbatim out of
+tools/build_variants.py, where it was `resign`).
 
-TEST ONLY: sign_event_in_place signs with whatever private keys it is given; the writers pass the public test fixtures
-in tests/fixtures/TEST_ONLY_private_keys. The checker only ever reads the policy, it never signs.
+TEST ONLY: sign_event_in_place and reseal sign with whatever private keys they are given; the writers pass the public
+test fixtures in tests/fixtures/TEST_ONLY_private_keys. The checker only ever reads the policy, it never signs
+(tests/test_seal.py keeps checks.py from using reseal).
 """
 from __future__ import annotations
 
-from . import crypto, timeutil
+import hashlib
+import json
+import pathlib
+
+from . import crypto, derive, expectations, timeutil
+from .bundle import SIGNED_YAML, Bundle, dump_json, dump_jsonl, reload_json
+from .canonical import content_hash
+
+CFG = "docs/examples/"
+
+
+class ResealError(Exception):
+    """reseal could not bring the bundle back to a consistent state (no fixpoint, no valid TEST ONLY key)."""
 
 # v0.5: ASI09 spot checks are a person's act
 SIGNED_EVENTS = {"initiator_claim", "run_resume", "spot_check_result"}
@@ -52,7 +66,7 @@ def current_key(registry, person, at, by_fp):
             continue
         if timeutil.parse_dt(e["not_before"]) <= at <= timeutil.parse_dt(e["not_after"]):
             return by_fp[e["fingerprint"]]
-    raise SystemExit(f"no valid registry key for {person} at {at}")
+    raise ResealError(f"no valid registry key for {person} at {at}")
 
 
 def sign_event_in_place(ev: dict, registry, by_fp) -> None:
@@ -65,3 +79,69 @@ def sign_event_in_place(ev: dict, registry, by_fp) -> None:
             ev, current_key(registry, crypto.ANCHOR_SIGNER, at, by_fp))
     if event_is_signed(ev):
         ev["signature"] = crypto.sign_event(ev, ev["actor"]["id"], current_key(registry, ev["actor"]["id"], at, by_fp))
+
+
+def reseal(b: Bundle, keys, *, rounds: int = 30) -> None:
+    """Bring an edited bundle back to a consistent state, in place: apply every writer derivation, refresh the
+    engagement config_pins, re-sign the signed YAML, the gate records, feedback and report withdrawals, renumber and
+    re-chain (re-sign) the audit logs, until nothing changes. keys: TEST ONLY key name -> private key.
+
+    A test that wants an inconsistent bundle edits it after reseal. Raises ResealError without a fixpoint.
+    """
+    by_fp = {crypto.fingerprint(crypto.raw_public(k)): k for k in keys.values()}
+    for d in b.docs:                       # edits may have inserted or dropped events: renumber and refresh the raw lines
+        if d.kind == "audit-event" and d.data:
+            for i, ev in enumerate(d.data):
+                ev["seq"] = i + 1
+            reload_json(d, dump_jsonl(d.data))
+    for _ in range(rounds):
+        changed = False
+        docs = {d.path: d for d in b.docs}
+        for e in expectations.expectations(b, for_writer=True):
+            d = docs[e.file]
+            if derive.get_path(d.data, e.path) != e.expected:
+                derive.set_path(d.data, e.path, e.expected)
+                changed = True
+        eng = next((d for d in b.docs if d.kind == "engagement"), None)
+        if eng is not None:
+            for name, ref in (eng.data.get("config_pins") or {}).items():
+                cfg = next((d for d in b.docs if d.path == f"{CFG}{name}.yaml"), None)
+                if cfg is not None and ref != content_hash(cfg.data):
+                    eng.data["config_pins"][name] = content_hash(cfg.data)
+                    changed = True
+        for d in b.docs:
+            if pathlib.PurePosixPath(d.path).name in SIGNED_YAML:
+                for sig in d.data.get("signatures") or []:
+                    value = crypto.sign_document(d.data, sig["signer"], by_fp[sig["key_fingerprint"]])["value"]
+                    if sig.get("value") != value:
+                        sig["value"], changed = value, True
+            if d.kind == "gate-record":
+                rec = d.data
+                sigs = [] if gate_unsigned(rec) else \
+                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in required_signers(d.kind, rec)]
+                if sigs != rec.get("signatures"):
+                    rec["signatures"], changed = sigs, True
+            if d.kind in ("feedback", "report-withdrawal"):
+                rec = d.data
+                sigs = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in required_signers(d.kind, rec)]
+                if sigs != rec.get("signatures"):
+                    rec["signatures"], changed = sigs, True
+        registry = next(d for d in b.docs if d.kind == "key-registry").data
+        for d in b.docs:
+            if d.kind == "audit-event" and d.data:
+                prev = hashlib.sha256(d.data[0]["run_id"].encode()).hexdigest()
+                for i, ev in enumerate(d.data):
+                    ev["seq"] = i + 1
+                    ev["prev_hash"] = "sha256:" + prev
+                    sign_event_in_place(ev, registry, by_fp)
+                    prev = hashlib.sha256(json.dumps(ev, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+                text = dump_jsonl(d.data)
+                if text != d.text:
+                    reload_json(d, text)
+                    changed = True
+        for d in b.docs:
+            if not d.path.endswith(".jsonl") and d.path.endswith(".json"):
+                d.text = dump_json(d.data)
+        if not changed:
+            return
+    raise ResealError("no fixpoint")
