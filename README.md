@@ -155,7 +155,7 @@
 | `SUSPENDED` 與 resume | 暫停與恢復 | run 因 ROE 未生效、到期或 G0b 的時間窗而暫停；回到 `RUNNING` 必須有已錨定、人簽署的 `run_resume` 與新的 G0b `VERIFIED`（`E-RUN-RESUME`）；委任設定到期仍沒人續跑 → 系統寫 `resume_expired`，以 `COMPLETED_WITH_GAPS` 結束（gap `expired`）。`suspend` 變體停在 `SUSPENDED`；resume 與到期清理由測試在它之上建構（`test_v07_r11_anchor`、`test_v07_r12_flow`；審查 r12 之前這裡寫「suspend 變體走這條路」，不正確） |
 | `voted_after_round` | 投票時的輪次 | 票投下時叢集已有哪些成員：只有 `reporter.round` 不大於它的成員決定票的合格性（`derive.members_at_vote`）；上限是該版裁決之前已錨定的 CMD-2 計畫最高輪次＋1（`E-VERDICT-VOTE`，[05 §3](docs/05-bias-calibration.md#3-設計規則)） |
 | `refute_by_later_member_family` | 後加成員的反駁註記 | R15：反駁票的家族或血統之後才成為叢集成員，票仍有效，只加註記（[05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則)） |
-| `CAL_POLICY` | 校準政策常數 | `checks.CAL_POLICY`：validator 釘住的校準參數（例如 `high_precision_min`＝0.9），`calibration.yaml` 不能放寬（`E-CAL-POLICY`） |
+| `CAL_POLICY` | 校準政策常數 | `calibration.CAL_POLICY`：validator 釘住的校準參數（例如 `high_precision_min`＝0.9），`calibration.yaml` 不能放寬（`E-CAL-POLICY`） |
 | `g4_state`／`approved_since` | G4 核准狀態 | `derive.g4_state`：某一時刻測試案例的 G4 決定與「從哪一次 accept 起連續有效」；B4 job 開始時必須有效（[03 §6.6](docs/03-system-architecture.md#66-g4-核准狀態的時間語意)） |
 | `W-RESULT-G4-WITHDRAWN` | G4 核准已撤回 | 結果在有效的 G4 核准下執行，之後的 G4 round 撤回了核准：結果保留，測試案例不得再派送（警告） |
 | `fix_contradicted`／`regression_failed`／`fix_unverified` | 回歸註記 | regression run 的帶入叢集：PASS 但仍有工具訊號或反駁（`DISPUTED`）／回歸 FAIL／沒有回歸測試或沒跑，後兩者維持來源的確認狀態（R14、R16，[05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則)） |

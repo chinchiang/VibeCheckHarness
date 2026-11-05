@@ -143,21 +143,21 @@
     },
     {
       "name": "high-precision lower bound on raw n",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/calibration.py",
       "old": "    low = clopper_pearson_lower(tp / (tp + fp) * n_eff if tp + fp else 0, n_eff)\n",
       "new": "    low = clopper_pearson_lower(tp, tp + fp)\n",
       "k": "forty_hits_from_ten"
     },
     {
       "name": "high-precision rows from nine applications",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/calibration.py",
       "old": "    if apps < min_apps:\n        out.append(f\"apps {apps} < clustering.min_apps {min_apps}\")\n",
       "new": "",
       "k": "forty_hits_from_ten"
     },
     {
       "name": "Clopper-Pearson via the beta function drifts",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/calibration.py",
       "old": "        lo, hi = (mid, hi) if betainc(k, n - k + 1, mid) < alpha / 2 else (lo, mid)\n",
       "new": "        lo, hi = (mid, hi) if betainc(k, n - k + 1, mid) < alpha else (lo, mid)\n",
       "k": "clopper_pearson_still_matches"

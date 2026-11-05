@@ -360,7 +360,7 @@ R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
   - 理由：v0.4–v0.5 的 w＝2a−1 只看一邊。一個幾乎什麼都投支持的驗證者，TPR 很高，support 權重也很高；但它在非缺陷上也投支持（1−TNR 一樣高），所以它的支持票沒有提供任何資訊。對數概似比正好是這張票讓「是缺陷」的對數勝算增加多少，S＝Σ w × 立場因此是對數勝算的增量，θ 也在這個尺度上（範例 θ_confirm＝2.5：一張權重約 1.6 的票不夠，需要兩張獨立的支持）。
   - 例：TPR 0.8333、TNR 0.8071 → w_support＝ln(0.8333／0.1929)＝1.4633，w_refute＝ln(0.8071／0.1667)＝1.5775。TPR 0.95、TNR 0.05（永遠投支持）→ w_support＝ln(0.95／0.95)＝0。
   - 平滑：a ＝ (C ＋ k·ā ＋ 1) ／ (n ＋ k ＋ 2)，ā 是該模型該邊的跨桶原始正確率，k 是 `smoothing_k`；+1／+2 的先驗讓 a 嚴格落在 (0, 1)。v0.6 的 (C ＋ k·ā) ／ (n ＋ k) 在模型單邊全對時 a＝1，`lr_weights` 的比率除以零而回傳 0，最準的驗證者反而權重歸零。範例：nemotron_self 在 authz 的 support C＝34、n＝40、ā＝0.8333、k＝10 → a＝0.8333；refute C＝20、n＝24、ā＝0.8056 → a＝0.8071；w_support＝ln(0.8333／0.1929)＝1.4633。
-- **政策常數由 validator 釘住**（審查 r11，`E-CAL-POLICY`）：`smoothing_k`＝10、`near_zero_rules`（w_min 0.2、wilson_lower_max 0.5、n_min 10、abstain_rate_max 0.3）與 §5.7 的 `threshold_search` 限制（precision 下限 0.9、Wilson 下界 0.8、真缺陷比例 0.02、Wilson 上界 0.08、min_clusters 40）寫在 `checks.CAL_POLICY`；`calibration.yaml` 寫不同的數字就是錯誤。之前 validator 只檢查檔案自我一致，簽署委任設定的人看不出一份 2,000 行 YAML 裡 `wilson_lower_max: 0.0` 的意義。
+- **政策常數由 validator 釘住**（審查 r11，`E-CAL-POLICY`）：`smoothing_k`＝10、`near_zero_rules`（w_min 0.2、wilson_lower_max 0.5、n_min 10、abstain_rate_max 0.3）與 §5.7 的 `threshold_search` 限制（precision 下限 0.9、Wilson 下界 0.8、真缺陷比例 0.02、Wilson 上界 0.08、min_clusters 40）寫在 `calibration.CAL_POLICY`；`calibration.yaml` 寫不同的數字就是錯誤。之前 validator 只檢查檔案自我一致，簽署委任設定的人看不出一份 2,000 行 YAML 裡 `wilson_lower_max: 0.0` 的意義。
 - **「權重接近 0」的判準** [H]：每一邊各自判定，任一邊成立就標示該邊 `near_zero: true`，原因寫入 `near_zero_reasons`（依序對應下列四項：`w_below_min`、`wilson_lower_le_max`、`n_below_min`）。**任一邊 near_zero → 兩邊的 w 都是 0**，因為每個權重都用到兩邊的比率，一邊不可靠，另一邊的權重也不可靠：
   1. 該邊的 w ＜ 0.2；
   2. 原始正確率 C／n 的 Wilson 95% 下界 ≤ 0.5（和隨機分不開）；
@@ -599,7 +599,7 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 1. 在校準切分的 P 與 D 應用上執行候選掃描器，版本固定，並寫入該列的 `tool_version`。V 變形版與 B 公開 benchmark 不計入：V 與原版高度相關，B 不用於任何門檻（§5.1）。
 2. 每筆 SARIF 結果依 §4.1 的叢集鍵對到正規位置與桶；同一條規則在同一位置的重複結果只算一筆。
 3. 對到真值缺陷（植入缺陷，或經 §5.1 雙標註確認的自然缺陷）＝真陽性；對到誘餌或被標為誤報＝偽陽性；範圍外的不計。對不上植入缺陷的結果，照 §5.1 的雙標註流程判定。n＝真陽性＋偽陽性。
-4. `precision_lower95`＝真陽性／n 的 **Clopper-Pearson 雙尾 95% 區間下界**，以 §5.7 的設計效果校正：n 筆結果來自 `apps` 列出的應用（{`app_id`: 筆數}），n_eff＝n／DE、DE＝1＋(Σm_i²／n − 1)·ρ，下界以 (tp·n_eff／n, n_eff) 計算（第十三輪外部審查，`05-v0.14`；第十四輪，`05-v0.15`：不等大小的設計效果、應用必須在 corpus 中）。每一列記錄原始計數 `tp`、`fp`、`apps`、`holdout_n`、`holdout_tp`、`holdout_apps`，validator 由計數重算下界、n ≥ 40、至少 10 個應用與保留切分條件，不採信列上宣告的下界（`checks.high_precision_problems`、`E-CAL-HIGH-PRECISION`）；不符條件的列不是強工具佐證。選精確法，是因為它與 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 報告 k／n 的方法相同。
+4. `precision_lower95`＝真陽性／n 的 **Clopper-Pearson 雙尾 95% 區間下界**，以 §5.7 的設計效果校正：n 筆結果來自 `apps` 列出的應用（{`app_id`: 筆數}），n_eff＝n／DE、DE＝1＋(Σm_i²／n − 1)·ρ，下界以 (tp·n_eff／n, n_eff) 計算（第十三輪外部審查，`05-v0.14`；第十四輪，`05-v0.15`：不等大小的設計效果、應用必須在 corpus 中）。每一列記錄原始計數 `tp`、`fp`、`apps`、`holdout_n`、`holdout_tp`、`holdout_apps`，validator 由計數重算下界、n ≥ 40、至少 10 個應用與保留切分條件，不採信列上宣告的下界（`calibration.high_precision_problems`、`E-CAL-HIGH-PRECISION`）；不符條件的列不是強工具佐證。選精確法，是因為它與 [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) 報告 k／n 的方法相同。
 
 **列入條件**（全部成立）[H]：
 - n ≥ 40（與 §5.7 的最小叢集數相同）且 `apps` 至少 10 個應用（§5.7 的 `clustering.min_apps`）；

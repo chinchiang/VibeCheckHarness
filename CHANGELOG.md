@@ -8,6 +8,11 @@
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆出校準統計（PR-B0）
+- 校準政策與統計原封不動從 `checks.py` 搬到新的 `vchlib/calibration.py`：`CAL_POLICY`、`HIGH_PRECISION_MIN_DEFAULT`、`HIGH_PRECISION_MIN_N`／`HOLDOUT_MIN_N`／`HOLDOUT_MARGIN`、`high_precision_min`、`high_precision_problems`、`_betacf`、`betainc`、`clopper_pearson_lower`、`design_effect`、`effective_n_of`、`corpus_splits`、`clustering_icc`、`apps_problem`。裁決推導模組判斷強工具佐證（`sarif_is_strong`）要用到 `high_precision_problems`，不拆就得 import `checks`；這是候選 #3「校準模組」的機械搬移那一半，合併 calibration.yaml 的讀取與有效性規則留到之後。
+- `checks` 從 `calibration` import 回自己還要用的名稱；測試與 `conftest` 改用 `calibration.*`，不保留轉出口；README、05 §4.3／§5.7 附近與 `docs/schemas/README.md` 的程式名稱同步改名。
+- 突變清單 `r13_external`（3）、`r14_verdict`（4）的 7 個錨點改指向 `calibration.py`（錨定文字不變）。
+
 ### 拆出 `Ctx` 與推導值（PR-A）
 - `Ctx` 與 `REQUIRED_AUTOMATION` 原封不動從 `checks.py` 搬到新的 `vchlib/context.py`；推導值（`Expectation`、`expectations`、`compare` 與三個私有輔助函式）原封不動從 `derive.py` 搬到新的 `vchlib/expectations.py`，`derive.py` 只留領域判斷。之後的裁決推導模組要接收 `Ctx`、又要被推導值使用，不拆就會形成 derive → verdict → derive 的循環依賴。
 - 呼叫端（`checks`、`sign_examples`、`build_variants`、`conftest` 與測試）改用新路徑，`checks`／`derive` 不保留轉出口；`docs/schemas/README.md` 的 `E-DERIVED` 列同步改名。

@@ -27,7 +27,7 @@ import pytest
 from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive
 from test_v07_r11_anchor import renumber
 from vchlib import adjudicate as adj
-from vchlib import checks
+from vchlib import calibration, checks
 from vchlib.bundle import load_variant
 from vchlib.canonical import jcs
 from vchlib.checks import run_all
@@ -288,14 +288,14 @@ def test_the_bounds_shrink_with_fewer_applications(b):
     cs = cal["result"]["thresholds"]["theta_confirm"]["calibration"]
     cs["apps"] = apps_map(64, k=12)                                       # 64 clusters from 12 apps (5-6 each): n_eff shrinks
     problems = [m for _, m in checks.split_problems("theta_confirm", "calibration", cs, EXAMPLE_ICC)]
-    assert any("calibration.ci_low" in m and f"n_eff {checks.effective_n_of(cs['apps'], EXAMPLE_ICC):.2f}" in m for m in problems)
+    assert any("calibration.ci_low" in m and f"n_eff {calibration.effective_n_of(cs['apps'], EXAMPLE_ICC):.2f}" in m for m in problems)
 
 
 def test_the_example_bounds_are_recomputed_on_n_eff(b):
     assert checks.theta_problems(doc(b, "calibration.yaml").data) == []
     cal = doc(b, "calibration.yaml").data
     cs = cal["result"]["thresholds"]["theta_confirm"]["calibration"]
-    ne = checks.effective_n_of(cs["apps"], EXAMPLE_ICC)                  # r14: the apps' own counts, icc 0.06
+    ne = calibration.effective_n_of(cs["apps"], EXAMPLE_ICC)                  # r14: the apps' own counts, icc 0.06
     assert len(cs["apps"]) == 16 and cs["ci_low"] == round(checks.wilson_lower(59 / 64 * ne, ne), 4)
 
 
@@ -305,7 +305,7 @@ def test_the_clustering_policy_is_pinned(b):
     assert any("clustering.icc" in p for p in checks.policy_problems(cal["config"]))
     cal["config"]["clustering"] = {"min_apps": 3, "icc": 0.05}
     assert any("clustering.min_apps" in p for p in checks.policy_problems(cal["config"]))
-    assert checks.CAL_POLICY["clustering"] == {"min_apps": 10, "icc": 0.05}
+    assert calibration.CAL_POLICY["clustering"] == {"min_apps": 10, "icc": 0.05}
 
 
 def hp_row(n, tp, apps, h_apps=10):
@@ -316,17 +316,17 @@ def hp_row(n, tp, apps, h_apps=10):
 
 
 def test_forty_hits_from_ten_applications_are_not_forty_observations():
-    assert checks.high_precision_problems(hp_row(40, 40, 40), 0.9) == []                 # one hit per application: as before
-    assert any("lower bound" in p for p in checks.high_precision_problems(hp_row(40, 40, 10), 0.9))
-    assert checks.high_precision_problems(hp_row(41, 41, 10), 0.9) == []
-    assert any("apps 9 < clustering.min_apps 10" in p for p in checks.high_precision_problems(hp_row(41, 41, 9), 0.9))
+    assert calibration.high_precision_problems(hp_row(40, 40, 40), 0.9) == []                 # one hit per application: as before
+    assert any("lower bound" in p for p in calibration.high_precision_problems(hp_row(40, 40, 10), 0.9))
+    assert calibration.high_precision_problems(hp_row(41, 41, 10), 0.9) == []
+    assert any("apps 9 < clustering.min_apps 10" in p for p in calibration.high_precision_problems(hp_row(41, 41, 9), 0.9))
 
 
 def test_clopper_pearson_still_matches_the_binomial_tail_on_integers():
     import math
     for n, k in ((40, 40), (54, 53), (70, 68), (10, 3)):
         want = next(p for p in (i / 100000 for i in range(100000)) if sum(math.comb(n, j) * p ** j * (1 - p) ** (n - j) for j in range(k, n + 1)) >= 0.025)
-        assert abs(checks.clopper_pearson_lower(k, n) - want) < 2e-5
+        assert abs(calibration.clopper_pearson_lower(k, n) - want) < 2e-5
 
 
 def test_the_rule_version_is_05_v0_14(b):
