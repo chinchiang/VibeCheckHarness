@@ -25,7 +25,7 @@ from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
 
 from . import adjudicate as adj
-from . import crypto, derive, evidence, expectations, facets, llm_schema, safety, timeutil
+from . import crypto, derive, evidence, expectations, facets, llm_schema, safety, seal, timeutil
 from .bundle import Bundle, Doc, read_jsonl_lines
 from .calibration import (CAL_POLICY, HOLDOUT_MIN_N, apps_problem, clustering_icc, corpus_splits, effective_n_of,
                           high_precision_min, high_precision_problems)
@@ -47,7 +47,6 @@ GATE_ROLES = {
 }
 DETERMINISTIC_ROLES = {"aggregator", "scope_proxy", "executor"}
 NON_ADJUDICATING_ROLES = {"reporter"}
-SIGNED_EVENTS = {"initiator_claim", "run_resume", "spot_check_result"}   # v0.5: ASI09 spot checks are a person's act
 LEGAL_GATE = "法務閘門"
 M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
 # placeholder model IDs: <...>, {...}, or a TBD / TODO / FIXME / 實作時確認 token (case-insensitive)
@@ -528,7 +527,7 @@ def g_signatures(R: Report, c: Ctx):
                         "an EXPIRED record is written by the Gate Service: signatures must be [] (no approver decided)")
                 continue
             payload = signing_payload(rec)
-            approvers = {(a.get("person_id"), a.get("key_fingerprint")): a for a in rec.get("approvers", [])}
+            approvers = {(a.get("person_id"), a.get("key_fingerprint")): a for a in seal.required_signers("gate-record", rec)}
             for s in rec.get("signatures") or []:
                 key = (s.get("signer"), s.get("key_fingerprint"))
                 if key not in approvers:
@@ -543,11 +542,11 @@ def g_signatures(R: Report, c: Ctx):
         for ev in d.data:
             where = f"{d.path} seq {ev.get('seq')}"
             actor = ev.get("actor") or {}
-            if ev.get("event_type") in SIGNED_EVENTS:
+            if ev.get("event_type") in seal.SIGNED_EVENTS:
                 # v0.4: a claim or a resume is a person's act; actor.kind system / agent must not skip the signature
                 R.check(actor.get("kind") == "human", "E-AUDIT-ACTOR", where,
                         f"{ev.get('event_type')} must have actor.kind human (got {actor.get('kind')!r}); it is always signed")
-            if ev.get("event_type") in SIGNED_EVENTS and actor.get("kind") == "human":
+            if seal.event_is_signed(ev):
                 sig = ev.get("signature")
                 if not R.check(isinstance(sig, dict), "E-AUDIT-SIG", where, f"{ev.get('event_type')} by a human must be signed"):
                     continue
@@ -2619,7 +2618,7 @@ def g_feedback(R: Report, c: Ctx):
                 start = run_start(c, f.get("run_id"))
                 R.check(start is None or (at is not None and at >= start), "E-FEEDBACK", w,
                         f"recorded at {event.get('ts')}, before run {f.get('run_id')} started ({start})")
-            signers = [sb] + ([cs] if isinstance(cs, dict) else [])
+            signers = seal.required_signers("feedback", f)
             ok = len(sigs) == len(signers) and all(s.get("signer") == x.get("person_id") and s.get("key_fingerprint") == x.get("key_fingerprint")
                                                    for s, x in zip(sigs, signers))
             if R.check(ok, "E-FEEDBACK", w, "a feedback record carries one signature per signer (signed_by, then co_signed_by), by their keys"):
@@ -2670,7 +2669,7 @@ def g_report_withdrawal(R: Report, c: Ctx):
                 t = ts(R, told, w)
                 R.check(t is not None and at is not None and t >= at, "E-REPORT-WITHDRAWAL", w,
                         f"customer_notified_at {told} is before the withdrawal was signed ({x.get('withdrawn_at')})")
-            signers, sigs = x.get("signers") or [], x.get("signatures") or []
+            signers, sigs = seal.required_signers("report-withdrawal", x), x.get("signatures") or []
             roles = [s.get("role") for s in signers if isinstance(s, dict)]
             people = [s.get("person_id") for s in signers if isinstance(s, dict)]
             R.check(roles == list(WITHDRAWAL_ROLES), "E-REPORT-WITHDRAWAL", w,

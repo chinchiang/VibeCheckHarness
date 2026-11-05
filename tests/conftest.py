@@ -86,8 +86,7 @@ def rederive(bundle, keys, rounds=20):
     import hashlib
     import json
 
-    import sign_examples
-    from vchlib import derive, expectations
+    from vchlib import derive, expectations, seal
     from vchlib.bundle import reload_json
     by_fp = {crypto.fingerprint(crypto.raw_public(k)): k for k in keys.values()}
     registry = doc(bundle, "key-registry.yaml").data
@@ -102,8 +101,8 @@ def rederive(bundle, keys, rounds=20):
         for d in bundle.docs:
             if d.kind == "gate-record" and isinstance(d.data, dict):
                 rec = d.data
-                sigs = [] if rec.get("gate") in ("G0a", "G0b") or rec.get("outcome") == "EXPIRED" else \
-                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in rec["approvers"]]
+                sigs = [] if seal.gate_unsigned(rec) else \
+                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in seal.required_signers(d.kind, rec)]
                 if sigs != rec.get("signatures"):
                     rec["signatures"] = sigs
                     changed = True
@@ -112,7 +111,7 @@ def rederive(bundle, keys, rounds=20):
                 lines = []
                 for ev in d.data:
                     ev["prev_hash"] = "sha256:" + prev
-                    sign_examples.sign_event_in_place(ev, registry, by_fp)
+                    seal.sign_event_in_place(ev, registry, by_fp)
                     line = json.dumps(ev, ensure_ascii=False, separators=(",", ":"))
                     prev = hashlib.sha256(line.encode("utf-8")).hexdigest()
                     lines.append(line)
@@ -127,8 +126,10 @@ def rederive(bundle, keys, rounds=20):
 
 def resign_gate(bundle, suffix, keys, key_for=None):
     """Re-sign a gate record after mutating it (key_for: person_id -> TEST ONLY key name)."""
+    from vchlib import seal
     rec = doc(bundle, suffix).data
     key_for = key_for or {}
-    rec["signatures"] = [] if rec.get("outcome") == "EXPIRED" else \
-        [crypto.sign_document(rec, a["person_id"], keys[key_for.get(a["person_id"], a["person_id"])]) for a in rec["approvers"]]
+    rec["signatures"] = [] if seal.gate_unsigned(rec) else \
+        [crypto.sign_document(rec, a["person_id"], keys[key_for.get(a["person_id"], a["person_id"])])
+         for a in seal.required_signers("gate-record", rec)]
     return rec

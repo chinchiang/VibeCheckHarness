@@ -6,7 +6,15 @@
 
 ## 架構重構（非規格變更）
 
-依 2026-11-04 的架構審查（候選 #1「裁決推導模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
+依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
+
+### 簽章政策（PR-C1）
+依架構審查候選 #2「單一重新封存模組」（[ADR 0002](docs/adr/0002-reseal-module.md)，設計逐項經使用者決定），第 1 步：
+- 新增 `vchlib/seal.py`，「誰簽什麼」只寫一次：`SIGNED_EVENTS`、`gate_unsigned`、`required_signers(kind, data)`、`event_is_signed`。`checks.g_signatures`、`g_feedback`、`g_report_withdrawal` 改讀政策，錯誤碼分支與讀法不變；`checks.SIGNED_EVENTS` 移除，不留轉出口。
+- 寫入端（`sign_examples`、`build_variants.resign`、`conftest.rederive`／`resign_gate`）改讀同一份政策。寫入端讀 feedback 的 `co_signed_by` 由 truthy 改為「是物件」，與 checker 相同；`resign_gate` 也排除 G0a/G0b（26 個呼叫都不指向 G0a/G0b），與其他寫入端相同。
+- helper 原封不動搬家：`current_key`、`sign_event_in_place` → `seal`；`dump_json`、`dump_jsonl`、`load_events` → `bundle`。呼叫端（`build_variants`、`conftest`、`test_review_fixes`、`test_v07_r11_anchor`）改用新路徑，`sign_examples` 不留轉出口。
+- 突變錨點：沒有錨點落在改動的程式行上，`--anchors-only` 0 個失效，不需重新錨定。
+- 新增 `GLOSSARY.md` 的「簽章」詞條（簽章政策、重新封存）。
 
 ### 裁決推導模組（PR-B）
 - 新增 `vchlib/verdict.py`（[ADR 0001](docs/adr/0001-verdict-derivation-module.md)）。一個裁決版本的推導欄位只由 `derive_verdict(ctx, version) -> DerivedVerdict | None` 產出：`inputs`、`outcome`、`independent_sources`、`tool_corroboration`、`tool_signal`、`diversity_degraded`、`no_eligible_verifier`、`provisional`、`vote(i)`、`score`、`thresholds`、`test_evidence_results`／`test_evidence_class`、`executable_proof`。欄位都在第一次讀取時才計算並快取，例外的位置與順序和原本相同。

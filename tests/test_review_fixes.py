@@ -7,10 +7,9 @@ import json
 
 import pytest
 
-import sign_examples
 from conftest import codes, doc, rederive
 from vchlib import checks, cli, jsonstrict, safety
-from vchlib.bundle import read_jsonl_lines, reload_json
+from vchlib.bundle import dump_jsonl, load_events, read_jsonl_lines, reload_json
 from vchlib.checks import run_all
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
@@ -260,9 +259,9 @@ def test_cli_real_run_flag(capsys):
 # ================================================================ 14 JSONL line splitting
 def test_sign_examples_splits_on_newline_only():
     ev = {"seq": 1, "payload": {"note": "a\u2028b\u2029c\x85d\x0be"}}
-    text = sign_examples.dump_jsonl([ev, dict(ev, seq=2)])
+    text = dump_jsonl([ev, dict(ev, seq=2)])
     assert "\u2028" in text and len(text.splitlines()) > 2        # what the old code would have split
-    events = sign_examples.load_events(text)
+    events = load_events(text)
     assert [e["seq"] for e in events] == [1, 2] and events[0]["payload"]["note"] == ev["payload"]["note"]
     assert len(read_jsonl_lines(text)) == 2
 

@@ -26,8 +26,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import sign_examples as S  # noqa: E402
-from vchlib import crypto, derive, expectations, timeutil, yamlstrict  # noqa: E402
-from vchlib.bundle import SIGNED_YAML, VARIANTS as VARIANTS_DIR, Bundle, Doc, load_bundle, reload_json  # noqa: E402
+from vchlib import crypto, derive, expectations, seal, timeutil, yamlstrict  # noqa: E402
+from vchlib.bundle import SIGNED_YAML, VARIANTS as VARIANTS_DIR, Bundle, Doc, dump_json, dump_jsonl, load_bundle, reload_json  # noqa: E402
 from vchlib.canonical import content_hash  # noqa: E402
 from vchlib.checks import run_all  # noqa: E402
 
@@ -57,9 +57,9 @@ def dump_yaml(data) -> str:
 
 def dump(d: Doc) -> str:
     if d.path.endswith(".jsonl"):
-        return S.dump_jsonl(d.data)
+        return dump_jsonl(d.data)
     if d.path.endswith(".json"):
-        return S.dump_json(d.data)
+        return dump_json(d.data)
     return dump_yaml(d.data)
 
 
@@ -77,7 +77,7 @@ def drop(b: Bundle, *suffixes: str) -> None:
 
 
 def add(b: Bundle, path: str, kind: str, data) -> Doc:
-    d = Doc(path, kind, data, S.dump_jsonl(data) if path.endswith(".jsonl") else S.dump_json(data))
+    d = Doc(path, kind, data, dump_jsonl(data) if path.endswith(".jsonl") else dump_json(data))
     b.docs.append(d)
     return d
 
@@ -93,7 +93,7 @@ def resign(b: Bundle, keys, rounds: int = 30) -> None:
         if d.kind == "audit-event" and d.data:
             for i, ev in enumerate(d.data):
                 ev["seq"] = i + 1
-            reload_json(d, S.dump_jsonl(d.data))
+            reload_json(d, dump_jsonl(d.data))
     for _ in range(rounds):
         changed = False
         docs = {d.path: d for d in b.docs}
@@ -117,15 +117,13 @@ def resign(b: Bundle, keys, rounds: int = 30) -> None:
                         sig["value"], changed = value, True
             if d.kind == "gate-record":
                 rec = d.data
-                sigs = [] if rec["gate"] in ("G0a", "G0b") or rec["outcome"] == "EXPIRED" else \
-                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in rec["approvers"]]
+                sigs = [] if seal.gate_unsigned(rec) else \
+                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in seal.required_signers(d.kind, rec)]
                 if sigs != rec.get("signatures"):
                     rec["signatures"], changed = sigs, True
             if d.kind in ("feedback", "report-withdrawal"):
                 rec = d.data
-                signers = rec["signers"] if d.kind == "report-withdrawal" else \
-                    [rec["signed_by"]] + ([rec["co_signed_by"]] if rec.get("co_signed_by") else [])
-                sigs = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in signers]
+                sigs = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in seal.required_signers(d.kind, rec)]
                 if sigs != rec.get("signatures"):
                     rec["signatures"], changed = sigs, True
         registry = next(d for d in b.docs if d.kind == "key-registry").data
@@ -135,15 +133,15 @@ def resign(b: Bundle, keys, rounds: int = 30) -> None:
                 for i, ev in enumerate(d.data):
                     ev["seq"] = i + 1
                     ev["prev_hash"] = "sha256:" + prev
-                    S.sign_event_in_place(ev, registry, by_fp)
+                    seal.sign_event_in_place(ev, registry, by_fp)
                     prev = hashlib.sha256(json.dumps(ev, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
-                text = S.dump_jsonl(d.data)
+                text = dump_jsonl(d.data)
                 if text != d.text:
                     reload_json(d, text)
                     changed = True
         for d in b.docs:
             if not d.path.endswith(".jsonl") and d.path.endswith(".json"):
-                d.text = S.dump_json(d.data)
+                d.text = dump_json(d.data)
         if not changed:
             return
     raise SystemExit("no fixpoint")
