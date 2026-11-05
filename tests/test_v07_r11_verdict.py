@@ -119,9 +119,8 @@ def nvidia_member(b, rnd):
 def settle(b, keys, suffix="verdict.example.json"):
     c = Ctx(b)
     v = doc(b, suffix).data
-    cl = c.ix.first("cluster", cluster_id=v["cluster_id"]).data
-    x = verdict.verdict_inputs(c, v, cl)
-    out = adj.adjudicate(x)
+    dv = verdict.derive_verdict(c, v)
+    x, out = dv.inputs, dv.outcome
     v.update(status=out.status, status_cap=out.status_cap, advisory=out.advisory,
              annotations=[{"kind": k, "reason": "probe"} for k in sorted(out.annotations)], rule_trace=list(out.rules))
     rederive(b, keys)

@@ -142,7 +142,7 @@
      "new": "R.check(True, \"E-VERDICT-CALIBRATION\"",
      "k": "test_e_verdict_calibration"},
     {"name": "executable proof interpretation from another family", "file": "tools/vchlib/checks.py",
-     "old": "R.check(ib is None or (isinstance(ib, dict) and ib.get(\"family\") not in cl.data.get(\"families\", [])), \"E-VERDICT-PROOF\"",
+     "old": "R.check(ib is None or (isinstance(ib, dict) and ib.get(\"family\") not in dv.cluster.get(\"families\", [])), \"E-VERDICT-PROOF\"",
      "new": "R.check(True, \"E-VERDICT-PROOF\"",
      "k": "test_e_verdict_proof"},
     {"name": "vote model matches the registries", "file": "tools/vchlib/checks.py",

@@ -683,7 +683,7 @@ def preregistered(ix: "Index", tc: dict, tr: dict, control_kind: str, cluster: d
     return False
 
 
-def oracle_unreviewed(ix: "Index", tc: dict, tr: dict, cluster: dict) -> bool:
+def result_oracle_unreviewed(ix: "Index", tc: dict, tr: dict, cluster: dict) -> bool:
     """r14 (05-v0.15): a W4 result whose oracle an LLM wrote and no G2 decision has accepted; its FAIL stays E_fail_u and
     the verdict is annotated `oracle_unreviewed`."""
     return tr.get("phase") == "W4" and not oracle_preregistered_by_code(tc) and not g2_accepted(ix, cluster)
@@ -789,7 +789,7 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
             return "E_proof", "reproduced FAIL, deterministic oracle, pre-registered interpretation"
         # r14 (05-v0.15, C3): an LLM-written W4 oracle that G2 has not accepted is not proof, with or without an analyst
         # (an analyst LLM confirming an LLM's oracle is still no human review); it is a signal capped at LIKELY (R6)
-        if oracle_unreviewed(ix, tc, tr, cluster):
+        if result_oracle_unreviewed(ix, tc, tr, cluster):
             return "E_fail_u", "reproduced FAIL, LLM-written W4 oracle not yet accepted at G2 (oracle_unreviewed)"
         if eligible:
             return "E_proof", "reproduced FAIL, cross-family analyst"
@@ -876,13 +876,6 @@ def independence_evidence_ok(x: dict) -> bool:
     upper, n, lins = x.get("kappa_ci_upper"), x.get("n"), x.get("lineages")
     return (isinstance(upper, (int, float)) and not isinstance(upper, bool) and upper < INDEPENDENCE_SPLIT["kappa_ci_upper_max"]
             and type(n) is int and n >= INDEPENDENCE_SPLIT["n_min"] and isinstance(lins, list) and len(set(lins)) == 2)
-
-
-def strongest(classes) -> str | None:
-    for c in ("E_proof", "E_fail_u", "E_pass", "E_inc"):
-        if c in classes:
-            return c
-    return None
 
 
 def w4_became_disputed_clusters(ix: Index) -> dict[str, Any]:
@@ -990,5 +983,5 @@ def _equal(a, b) -> bool:
     return a == b
 
 
-__all__ = ["Index", "classify_result", "strongest", "gate_artifact",
+__all__ = ["Index", "classify_result", "gate_artifact",
            "get_path", "set_path", "fmt_path", "MISSING", "ZERO", "timeutil"]

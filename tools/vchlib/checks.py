@@ -31,11 +31,10 @@ from .calibration import (CAL_POLICY, HOLDOUT_MIN_N, apps_problem, clustering_ic
                           high_precision_min, high_precision_problems)
 from .canonical import CanonicalizationError, content_hash, jcs, sha256_hex, signing_payload
 from .context import REQUIRED_AUTOMATION, Ctx
-from .verdict import (derived_diversity_degraded, derived_independent_sources, derived_no_eligible_verifier,
-                      derived_provisional, derived_tool_corroboration, derived_tool_signal,
-                      eligible_verifier_families, g2_latest, is_verifier_vote, members_at_vote, PHASE_ORDER,
-                      PRE_G3_PHASES, _resolving_event, sarif_ref_problem, verdict_heads, verdict_inputs,
-                      verifier_template_controls, VERIFIER_TEMPLATE_ID, vote_model, vote_terms)
+from .verdict import (derive_verdict, derived_no_eligible_verifier, eligible_verifier_families, g2_latest,
+                      is_verifier_vote, members_at_vote, PHASE_ORDER, PRE_G3_PHASES, _resolving_event,
+                      sarif_ref_problem, verdict_heads, verifier_template_controls, VERIFIER_TEMPLATE_ID, vote_model,
+                      vote_terms)
 
 GATE_ROLES = {
     "G0a": {"app_owner", "management"},
@@ -3033,27 +3032,27 @@ def g_verdicts(R: Report, c: Ctx):
     for d in c.docs("verdict"):
         with doc_guard(R, d.path):
             v, w = d.data, d.path
-            cl = c.ix.first("cluster", cluster_id=v.get("cluster_id"))
-            if not R.check(cl is not None, "E-TRACE", w, f"cluster {v.get('cluster_id')} not found"):
+            dv = derive_verdict(c, v)
+            if not R.check(dv is not None, "E-TRACE", w, f"cluster {v.get('cluster_id')} not found"):
                 continue
             # self-declared rule inputs are cross-checked against the derived values (docs/05 §4.2) [H]
-            dd = derived_diversity_degraded(c, v, cl.data)
+            dd = dv.diversity_degraded
             R.check(v.get("diversity_degraded") is dd, "E-VERDICT-DIVERSITY", w,
                     f"diversity_degraded {v.get('diversity_degraded')} but the weighted-valid votes' registry families give {dd} "
-                    f"(eligible verifier families {sorted(eligible_verifier_families(c, cl.data))})")
-            ne = derived_no_eligible_verifier(c, cl.data)
+                    f"(eligible verifier families {sorted(eligible_verifier_families(c, dv.cluster))})")
+            ne = dv.no_eligible_verifier
             R.check(v.get("no_eligible_verifier") is ne, "E-VERDICT-NOELIGIBLE", w,
                     f"no_eligible_verifier {v.get('no_eligible_verifier')} but agents.yaml verifiers outside the cluster's families/lineages give {ne}")
-            tcx = derived_tool_corroboration(c, v, cl.data)
+            tcx = dv.tool_corroboration
             R.check(sorted(v.get("tool_corroboration") or []) == tcx, "E-VERDICT-TOOLCORR", w,
                     f"tool_corroboration {v.get('tool_corroboration')} != derived {tcx} (audit-backed SARIF refs of calibrated high-precision rules)")
-            tsx = derived_tool_signal(c, v, cl.data)
+            tsx = dv.tool_signal
             R.check(sorted(v.get("tool_signal") or []) == tsx, "E-VERDICT-TOOLSIGNAL", w,
                     f"tool_signal {v.get('tool_signal')} != derived {tsx} (other audit-backed SARIF refs + E_fail_u results)")
-            srcx = derived_independent_sources(c, v, cl.data)
+            srcx = dv.independent_sources
             R.check(v.get("independent_sources") == srcx, "E-VERDICT-SOURCES", w,
                     f"independent_sources {v.get('independent_sources')} != derived {srcx} (independent families + weak SARIF + independently authored E_fail_u)")
-            pv = derived_provisional(c, v, cl.data)
+            pv = dv.provisional
             R.check(v.get("provisional") is pv, "E-VERDICT-PROVISIONAL", w,
                     f"provisional {v.get('provisional')} != derived {pv} (no calibration version, theta_confirm null, or every eligible "
                     "verifier model has weight 0 in the cluster's bucket)")
@@ -3062,11 +3061,11 @@ def g_verdicts(R: Report, c: Ctx):
             # r14 (05-v0.15, internal review B7, user decision): a carried-in cluster has no members of its own to verify;
             # its status is decided by regression evidence only (R14 / R16), never by votes (a lone REFUTE made it
             # DISPUTED, a stronger one REJECTED and then R16 lifted it back to the source status)
-            if cl.data.get("carried_from"):
+            if dv.cluster.get("carried_from"):
                 R.check(not v.get("votes") and not v.get("missing_votes"), "E-VERDICT-VOTE", w,
                         f"{v.get('cluster_id')} is a carried-in cluster (carried_from): it accepts no votes and no missing_votes; "
                         "its status comes from the regression tests (docs/05 §4.2 R14 / R16)")
-            out = adj.adjudicate(verdict_inputs(c, v, cl.data))
+            out = dv.outcome
             R.check(v.get("status") == out.status, "E-VERDICT-STATUS", w, f"status {v.get('status')} but the rules give {out.status} (row {out.row})")
             R.check(v.get("status_cap") == out.status_cap, "E-VERDICT-STATUS", w, f"status_cap {v.get('status_cap')} != {out.status_cap}")
             R.check(v.get("advisory") is out.advisory, "E-VERDICT-STATUS", w, f"advisory {v.get('advisory')} != {out.advisory}")
@@ -3074,14 +3073,14 @@ def g_verdicts(R: Report, c: Ctx):
             R.check(kinds == out.annotations, "E-VERDICT-ANNOTATIONS", w, f"annotations {sorted(kinds)} != {sorted(out.annotations)}")
             rules = [str(x).split(":", 1)[0] for x in v.get("rule_trace", [])]
             if R.check(rules == out.rules, "E-VERDICT-TRACE", w, f"rule_trace rules {rules} != {out.rules}"):
-                x = verdict_inputs(c, v, cl.data)
-                for msg in trace_text_problems(v.get("rule_trace", []), out, x, weighted_vote_counts(c, v, cl.data)):
+                x = dv.inputs
+                for msg in trace_text_problems(v.get("rule_trace", []), out, x, weighted_vote_counts(c, v, dv.cluster)):
                     R.check(False, "E-VERDICT-TRACE", w, msg)
             if v.get("status") == "CONFIRMED_EXECUTABLE":
                 p = v.get("executable_proof") or {}
                 ib = p.get("interpretation_confirmed_by")
                 # a pre-registered deterministic interpretation needs no analyst (v0.3); an analyst, if any, is cross-family
-                R.check(ib is None or (isinstance(ib, dict) and ib.get("family") not in cl.data.get("families", [])), "E-VERDICT-PROOF", w,
+                R.check(ib is None or (isinstance(ib, dict) and ib.get("family") not in dv.cluster.get("families", [])), "E-VERDICT-PROOF", w,
                         "executable proof interpretation must come from another family")
             for vt in v.get("votes", []):
                 a = c.agents.get(vt.get("voter_agent_id")) if isinstance(vt.get("voter_agent_id"), str) else None
@@ -3098,16 +3097,16 @@ def g_verdicts(R: Report, c: Ctx):
                     # r12: as verdict.vote_valid, against the members when the vote was cast (r11 R15); r11 kept the current
                     # members here, so the bundle r11 was built for (a refute cast before a same-family member joined)
                     # could satisfy neither E-DERIVED (valid true) nor this check
-                    fams_v, lins_v = members_at_vote(c.ix, vt, cl.data)
+                    fams_v, lins_v = members_at_vote(c.ix, vt, dv.cluster)
                     R.check(vt.get("voter_family") not in fams_v
                             and c.ix.lineage_root(vt.get("voter_lineage")) not in c.ix.lineage_roots(lins_v),
                             "E-VERDICT-VOTE", w, f"self-review vote by {vt.get('voter_agent_id')} counted as valid (same family or base lineage)")
-                    bound = max_vote_round(c, v, cl.data)
+                    bound = max_vote_round(c, v, dv.cluster)
                     R.check(bound is None or type(vt.get("voted_after_round")) is not int or vt["voted_after_round"] <= bound,
                             "E-VERDICT-VOTE", w,
                             f"vote by {vt.get('voter_agent_id')}: voted_after_round {vt.get('voted_after_round')!r} but only rounds up to "
                             f"{bound} were dispatched (anchored CMD-2 plans) before this verdict version was recorded")
-                anon, rand = verifier_template_controls(c.ix, cl.data)
+                anon, rand = verifier_template_controls(c.ix, dv.cluster)
                 R.check(vt.get("anonymized") is anon and vt.get("order_randomized") is rand, "E-VERDICT-VOTE", w,
                         f"vote by {vt.get('voter_agent_id')}: anonymized/order_randomized {vt.get('anonymized')}/{vt.get('order_randomized')} "
                         f"must equal the run's {VERIFIER_TEMPLATE_ID} template ({anon}/{rand}); a vote cannot declare them")

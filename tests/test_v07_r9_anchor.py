@@ -177,17 +177,17 @@ def add_k301_verdict(b):
     ev = tail_event(b, FAUDIT, "verdict_changed", "B5", {"verdict_id": "V-301-1"}, "verdict-V-301-1")
     refix_nokey(b)
     c = context.Ctx(checks.quarantine(checks.Report(), b))
-    cl = c.ix.first("cluster", cluster_id="K-301").data
-    out = checks.adj.adjudicate(verdict.verdict_inputs(c, v, cl))
+    dv = verdict.derive_verdict(c, v)                                               # v.cluster_id is K-301
+    out = dv.outcome
     v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,
               "annotations": [{"kind": k, "reason": k} for k in sorted(out.annotations)],   # r12: R16 annotates K-301 (fix_unverified)
               "rule_trace": [f"{r}: probe" for r in out.rules],
-              "independent_sources": verdict.derived_independent_sources(c, v, cl),
-              "tool_corroboration": verdict.derived_tool_corroboration(c, v, cl),
-              "tool_signal": verdict.derived_tool_signal(c, v, cl),
-              "diversity_degraded": verdict.derived_diversity_degraded(c, v, cl),
-              "no_eligible_verifier": verdict.derived_no_eligible_verifier(c, cl),
-              "provisional": verdict.derived_provisional(c, v, cl), "rule_version": checks.adj.RULE_VERSION})
+              "independent_sources": dv.independent_sources,
+              "tool_corroboration": dv.tool_corroboration,
+              "tool_signal": dv.tool_signal,
+              "diversity_degraded": dv.diversity_degraded,
+              "no_eligible_verifier": dv.no_eligible_verifier,
+              "provisional": dv.provisional, "rule_version": checks.adj.RULE_VERSION})
     refix_nokey(b)
     ev["payload"].update({"status": v["status"], "verdict_sha256": content_hash(v)})
     assert rechain(b, FAUDIT)

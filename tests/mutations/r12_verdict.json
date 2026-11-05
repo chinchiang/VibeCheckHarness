@@ -67,8 +67,8 @@
     {
       "name": "self-review is judged at vote time",
       "file": "tools/vchlib/checks.py",
-      "old": "                    fams_v, lins_v = members_at_vote(c.ix, vt, cl.data)",
-      "new": "                    fams_v, lins_v = cl.data.get(\"families\", []), cl.data.get(\"lineages\")",
+      "old": "                    fams_v, lins_v = members_at_vote(c.ix, vt, dv.cluster)",
+      "new": "                    fams_v, lins_v = dv.cluster.get(\"families\", []), dv.cluster.get(\"lineages\")",
       "k": "r11_scenario_has_no_self_review"
     },
     {

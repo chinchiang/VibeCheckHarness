@@ -6,6 +6,8 @@ all read a verdict version's derived fields from here (architecture refactor PR-
 """
 from __future__ import annotations
 
+from functools import cached_property
+
 from . import adjudicate as adj
 from . import derive, safety, timeutil
 from .calibration import clustering_icc, corpus_splits, high_precision_min, high_precision_problems
@@ -590,7 +592,7 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         independent_families=len(derive.independent_families(c.ix, cluster)),   # recomputed (D14), not cluster.independent_families
         diversity_degraded=derived_diversity_degraded(c, v, cluster),   # derived, not self-declared
         g3_rejected=g3_rej,
-        phase={"W3_adjudicate": "W3", "G2_apply": "G2", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}.get(v.get("readjudicated_by")),
+        phase=PHASE_CODE.get(v.get("readjudicated_by")),
         prev_status=prev.data.get("status") if prev else None,
         regression_fixed=regression_fixed(c, v, cluster, run),
         carried_status=carried_status(c, cluster, run),
@@ -700,7 +702,11 @@ def required_regression_testcases(c: Ctx, cluster: dict, run: dict) -> set:
         cl, rn = cd.data, c.runs.get(src.get("run_id")) or {}
 
 
-PHASE_ORDER = {"W3_adjudicate": 0, "G2_apply": 1, "W4_readjudicate": 2, "B5_readjudicate": 3}
+# The adjudication phases (GLOSSARY: 裁決階段) keyed by readjudicated_by, in order: one table for the code the rules see
+# (adj.Inputs.phase) and the order the versions of a chain follow (E-VERDICT-PHASE). RESULT_PHASES is another concept:
+# which test phases a version may cite.
+PHASE_CODE = {"W3_adjudicate": "W3", "G2_apply": "G2", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}
+PHASE_ORDER = {k: i for i, k in enumerate(PHASE_CODE)}
 
 
 def verdict_heads(c: Ctx, verdict_ids) -> list[dict]:
@@ -708,3 +714,123 @@ def verdict_heads(c: Ctx, verdict_ids) -> list[dict]:
     vs = [x.data for x in (c.ix.first("verdict", verdict_id=i) for i in verdict_ids) if x is not None]
     superseded = {v.get("supersedes_verdict_id") for v in vs if v.get("supersedes_verdict_id") != v.get("verdict_id")}
     return [v for v in vs if v.get("verdict_id") not in superseded]
+
+
+def _merge_results(v, ix, results, cluster, classes):
+    old = (v.get("test_evidence") or {}).get("results", [])
+    merged = []
+    for i, tr in enumerate(results):
+        cls, why = derive.classify_result(ix, tr, cluster)
+        classes.append(cls)
+        reason = old[i].get("reason") if i < len(old) and isinstance(old[i], dict) else why
+        merged.append({"result_ref": content_hash(tr), "class": cls,
+                       "positive_control": (tr.get("positive_control") or {}).get("value"), "reason": reason})
+    return merged
+
+
+class DerivedVerdict:
+    """The derived fields of one verdict version (docs/05 §4.2): what the rules and the bundle give, never what the
+    version declares. The checker compares the declared fields with these, the derived values (expectations.py,
+    E-DERIVED) and the variant writer (tools/build_variants.py) read them from here.
+
+    Every field is computed when it is first read and then cached (ADR 0001): a field that cannot be derived from
+    broken input raises where and when a caller reads it, so each caller's per-document guard reports exactly what it
+    reported when the fields were separate functions. Do not turn this into an eagerly computed dataclass.
+    `version` and `cluster` are the bundle's own dicts (derive_verdict); fields are not recomputed if they change.
+    """
+
+    def __init__(self, c: Ctx, version: dict, cluster: dict):
+        self.ctx, self.version, self.cluster = c, version, cluster
+        self._votes: dict[int, tuple] = {}
+
+    # ---- what adjudicate() decides
+    @cached_property
+    def inputs(self) -> adj.Inputs:
+        return verdict_inputs(self.ctx, self.version, self.cluster)
+
+    @cached_property
+    def outcome(self) -> adj.Outcome:
+        """status, status_cap, advisory, annotation kinds and the rule_trace rules (row in `.row`)."""
+        return adj.adjudicate(self.inputs)
+
+    # ---- the self-declared rule inputs E-VERDICT-* cross-check
+    @cached_property
+    def independent_sources(self) -> int:
+        return derived_independent_sources(self.ctx, self.version, self.cluster)
+
+    @cached_property
+    def tool_corroboration(self) -> list[str]:
+        return derived_tool_corroboration(self.ctx, self.version, self.cluster)
+
+    @cached_property
+    def tool_signal(self) -> list[str]:
+        return derived_tool_signal(self.ctx, self.version, self.cluster)
+
+    @cached_property
+    def diversity_degraded(self) -> bool:
+        return derived_diversity_degraded(self.ctx, self.version, self.cluster)
+
+    @cached_property
+    def no_eligible_verifier(self) -> bool:
+        return derived_no_eligible_verifier(self.ctx, self.cluster)
+
+    @cached_property
+    def provisional(self) -> bool:
+        return derived_provisional(self.ctx, self.version, self.cluster)
+
+    # ---- the derived values E-DERIVED checks
+    def vote(self, i: int) -> tuple:
+        """(valid, weight, weighted_valid) of the i-th vote; one vote at a time, so a vote that breaks the derivation
+        does not hide the values of the votes before it."""
+        if i not in self._votes:
+            self._votes[i] = vote_terms(self.ctx.ix, self.version.get("votes", [])[i], self.cluster,
+                                        self.version.get("calibration_version"))
+        return self._votes[i]
+
+    @cached_property
+    def score(self) -> float:
+        return derived_score(self.ctx.ix, self.version, self.cluster)
+
+    @cached_property
+    def thresholds(self) -> tuple | None:
+        """(theta_confirm, theta_reject) of the cluster's CWE bucket, or None when they cannot be derived: the version
+        names no calibration, or another one than calibration.yaml (a derived (None, None) means "disabled")."""
+        t = self.ctx.ix.thresholds(self.cluster.get("cwe_bucket"))
+        version = self.version.get("calibration_version")
+        return t if version is not None and self.ctx.ix.calibration.get("calibration_version") == version else None
+
+    @cached_property
+    def _linked(self) -> tuple[list, list, list]:
+        results = linked_results(self.ctx.ix, self.cluster, self.version.get("readjudicated_by"))
+        classes: list = []
+        merged = _merge_results(self.version, self.ctx.ix, results, self.cluster, classes)
+        return results, classes, merged
+
+    @cached_property
+    def test_evidence_results(self) -> list[dict]:
+        return self._linked[2]
+
+    @cached_property
+    def test_evidence_class(self) -> str | None:
+        return adj.strongest(self._linked[1])
+
+    @cached_property
+    def executable_proof(self) -> dict | None:
+        results, classes, _ = self._linked
+        if self.test_evidence_class != "E_proof":
+            return None
+        tr = next(r for r, c in zip(results, classes) if c == "E_proof")
+        tc = self.ctx.ix.testcase_for(tr)
+        # v0.7 (review r8 F7): is_probabilistic, not n > 1, and only {n, k} (the verdict schema has no n_effective)
+        probabilistic = tc is not None and derive.is_probabilistic(tc.data, self.ctx.ix)
+        got = tr.get("trials") or {}
+        return {"testcase_id": tr.get("testcase_id"), "result_ref": content_hash(tr),
+                "trials": {"n": got.get("n"), "k": got.get("k")} if probabilistic else None,
+                "interpretation_confirmed_by": tr.get("interpreted_by")}
+
+
+def derive_verdict(c: Ctx, version: dict) -> DerivedVerdict | None:
+    """The derived fields of a verdict version, or None when its cluster is not in the bundle (callers report that
+    themselves: E-TRACE in the checker; the derived values skip the version)."""
+    cl = c.ix.first("cluster", cluster_id=version.get("cluster_id"))
+    return DerivedVerdict(c, version, cl.data) if cl is not None else None

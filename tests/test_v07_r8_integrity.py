@@ -13,7 +13,7 @@ ext6 a W4 result declares where its observations came from; SUT-sourced observat
 import copy
 
 from conftest import doc, rederive
-from vchlib import checks, crypto, derive, verdict
+from vchlib import crypto, derive, verdict
 from vchlib.bundle import Doc
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -176,4 +176,4 @@ def test_sut_sourced_observations_are_inconclusive(b, keys):
     assert cls == "E_inc" and "SUT" in why
     v = doc(b, "verdict.k-015-w4.example.json").data
     assert v["test_evidence"]["class"] == "E_inc"                          # re-derived by rederive
-    assert checks.adj.adjudicate(verdict.verdict_inputs(c, v, cl)).status != "CONFIRMED_EXECUTABLE"
+    assert verdict.derive_verdict(c, v).outcome.status != "CONFIRMED_EXECUTABLE"

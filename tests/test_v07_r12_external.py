@@ -85,7 +85,7 @@ def test_the_bundle_cannot_declare_fixed_while_the_proof_case_errors(reg):
     v["test_evidence"]["results"][0].update({"class": "E_inc", "positive_control": None})
     c = context.Ctx(b)
     v["test_evidence"]["results"].append(entry(c, "R-TC-031-01-1", "E_pass", True))
-    out = adj.adjudicate(verdict.verdict_inputs(c, v, c.ix.first("cluster", cluster_id="K-301").data))
+    out = verdict.derive_verdict(c, v).outcome                                    # v.cluster_id is K-301
     assert out.status != "FIXED" and "R14" not in out.rules
 
 

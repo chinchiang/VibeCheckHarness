@@ -159,7 +159,7 @@ def test_independent_sources_and_diversity_use_the_same_key(b, monkeypatch):
     seen = []
     real_obs = verdict.vote_observation
     monkeypatch.setattr(verdict, "vote_observation", lambda c_, x, m: seen.append(x["voter_model_key"]) or real_obs(c_, x, m))
-    verdict.derived_diversity_degraded(c, v, cl)
+    verdict.derive_verdict(c, v).diversity_degraded
     counted = [x["voter_model_key"] for x in v["votes"] if verdict.vote_terms(c.ix, x, cl, v.get("calibration_version"))[2]]
     assert counted and seen == counted, "diversity groups the counted votes by their observation"
     gpt = {"voter_model_key": "gpt_flagship"}

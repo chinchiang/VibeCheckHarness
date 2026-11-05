@@ -16,11 +16,11 @@ from typing import Any
 from . import timeutil
 from .bundle import Bundle, Doc, read_jsonl_lines
 from .canonical import approval_hash, content_hash, jcs, set_digest, sha256_hex, sha256_ref, text_hash
-from .derive import (CONFIG_KINDS, Index, MISSING, _equal, artifact_sha, classify_result, cluster_fingerprint,
-    execution_pins, gate_artifact, gate_record_sha256, get_path, is_probabilistic, item_hash, job_end_of,
-    positive_control_value, reachability_reached, rubric_severity, slice_identity, strongest, tool_results_ref,
-    w4_became_disputed_clusters)
-from .verdict import (derived_score, linked_results, vote_terms)
+from .context import Ctx
+from .derive import (CONFIG_KINDS, Index, MISSING, _equal, artifact_sha, cluster_fingerprint, execution_pins,
+    gate_artifact, gate_record_sha256, get_path, item_hash, job_end_of, positive_control_value, reachability_reached,
+    rubric_severity, slice_identity, tool_results_ref, w4_became_disputed_clusters)
+from .verdict import derive_verdict
 
 
 @dataclass
@@ -187,41 +187,29 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
             if tc:
                 exp(d, ["artifact_sha256"], tc.data.get("artifact_sha256"), "testcase.artifact_sha256")
 
-    # verdicts
+    # verdicts: every derived field of a verdict version comes from the verdict derivation module (verdict.py,
+    # ADR 0001). It needs a Ctx; a bundle that cannot give one sends every verdict document to `problems`.
+    vctx = None
     for d in ix.docs("verdict"):
         with guard(d):
-            v = d.data
-            cl = ix.first("cluster", cluster_id=v.get("cluster_id"))
-            t_conf, t_rej = ix.thresholds((cl.data if cl else {}).get("cwe_bucket"))
-            if not cl:
+            if vctx is None:
+                vctx = Ctx(b)
+            dv = derive_verdict(vctx, d.data)
+            if dv is None:
                 continue
-            cluster = cl.data
-            version = v.get("calibration_version")
-            for i, vote in enumerate(v.get("votes", [])):
-                valid, wgt, counts = vote_terms(ix, vote, cluster, version)
+            th = dv.thresholds          # looked up before the votes, as before (it can only fail on a broken calibration)
+            for i, _ in enumerate(d.data.get("votes", [])):
+                valid, wgt, counts = dv.vote(i)
                 exp(d, ["votes", i, "valid"], valid, "family/lineage not in cluster, anonymized, order randomized")
                 exp(d, ["votes", i, "weight"], wgt, "calibration.yaml w(model, cwe_bucket, side of the stance)")
                 exp(d, ["votes", i, "weighted_valid"], counts, "valid, w > 0, a verifier-role voter, stance SUPPORT or REFUTE")
-            exp(d, ["score"], derived_score(ix, v, cluster), "sum over base lineages of the mean w * stance of their weighted-valid votes")
-            if version is not None and ix.calibration.get("calibration_version") == version:
-                exp(d, ["theta_confirm"], t_conf, "calibration theta_confirm")
-                exp(d, ["theta_reject"], t_rej, "calibration theta_reject")
-            results = linked_results(ix, cluster, v.get("readjudicated_by"))
-            classes = []
-            exp(d, ["test_evidence", "results"], _merge_results(v, ix, results, cluster, classes), "linked testresults (docs/05 §4.2)")
-            cls = strongest(classes)
-            exp(d, ["test_evidence", "class"], cls, "strongest linked class")
-            proof = None
-            if cls == "E_proof":
-                tr = next(r for r, c in zip(results, classes) if c == "E_proof")
-                tc = ix.testcase_for(tr)
-                # v0.7 (review r8 F7): is_probabilistic, not n > 1, and only {n, k} (the verdict schema has no n_effective)
-                probabilistic = tc is not None and is_probabilistic(tc.data, ix)
-                got = tr.get("trials") or {}
-                proof = {"testcase_id": tr.get("testcase_id"), "result_ref": content_hash(tr),
-                         "trials": {"n": got.get("n"), "k": got.get("k")} if probabilistic else None,
-                         "interpretation_confirmed_by": tr.get("interpreted_by")}
-            exp(d, ["executable_proof"], proof, "from the E_proof testresult")
+            exp(d, ["score"], dv.score, "sum over base lineages of the mean w * stance of their weighted-valid votes")
+            if th is not None:
+                exp(d, ["theta_confirm"], th[0], "calibration theta_confirm")
+                exp(d, ["theta_reject"], th[1], "calibration theta_reject")
+            exp(d, ["test_evidence", "results"], dv.test_evidence_results, "linked testresults (docs/05 §4.2)")
+            exp(d, ["test_evidence", "class"], dv.test_evidence_class, "strongest linked class")
+            exp(d, ["executable_proof"], dv.executable_proof, "from the E_proof testresult")
 
     # disputed_after_g2: derived from verdicts carrying the w4_became_disputed annotation (docs/05 §4.2)
     became = w4_became_disputed_clusters(ix)
@@ -278,18 +266,6 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
 
     # (the audit hash chain is checked from raw lines in checks.py, E-AUDIT-CHAIN)
     return out
-
-
-def _merge_results(v, ix, results, cluster, classes):
-    old = (v.get("test_evidence") or {}).get("results", [])
-    merged = []
-    for i, tr in enumerate(results):
-        cls, why = classify_result(ix, tr, cluster)
-        classes.append(cls)
-        reason = old[i].get("reason") if i < len(old) and isinstance(old[i], dict) else why
-        merged.append({"result_ref": content_hash(tr), "class": cls,
-                       "positive_control": (tr.get("positive_control") or {}).get("value"), "reason": reason})
-    return merged
 
 
 def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):

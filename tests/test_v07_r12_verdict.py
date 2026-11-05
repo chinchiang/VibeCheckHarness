@@ -172,11 +172,10 @@ def test_carried_status_comes_from_the_parent_head(b):
 def test_rows_15_and_16_are_never_provisional(b, monkeypatch):
     c = Ctx(b)
     v = dict(doc(b, "verdict.k-014-w3.example.json").data, calibration_version=None)
-    cl = c.ix.first("cluster", cluster_id=v["cluster_id"]).data
     for x in (adj.Inputs(carried_status="CONFIRMED_EXECUTABLE", evidence={"E_fail_u"}),
               adj.Inputs(regression_fixed=True, evidence={"E_pass"}, strong_tool=True)):
         monkeypatch.setattr(verdict, "verdict_inputs", lambda *_a, _x=x: _x)
-        assert verdict.derived_provisional(c, v, cl) is False
+        assert verdict.derive_verdict(c, v).provisional is False
 
 
 # ================================================================ docs
@@ -193,7 +192,7 @@ def test_a_carried_clusters_inputs_carry_the_source_status(b):
     c = Ctx(b)
     cl = doc(b, "cluster.followup.k-301.example.json").data
     v = dict(copy.deepcopy(doc(b, "verdict.example.json").data), cluster_id=cl["cluster_id"], votes=[], missing_votes=[])
-    assert verdict.verdict_inputs(c, v, cl).carried_status == "CONFIRMED_EXECUTABLE"
+    assert verdict.derive_verdict(c, v).inputs.carried_status == "CONFIRMED_EXECUTABLE"
 
 
 def test_the_verdict_schema_knows_the_r12_annotations():

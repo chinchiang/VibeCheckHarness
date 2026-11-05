@@ -269,12 +269,11 @@ def test_diversity_counts_the_base_lineages_of_the_pool(b):
     verifier lineage derives from nemotron3 the pool is one base lineage and one vote is full diversity; v0.6 counted
     three families in E and kept the R8 cap."""
     v = doc(b, "verdict.k-014-w3.example.json").data
-    cl = doc(b, "cluster.k-014.example.json").data
-    assert verdict.derived_diversity_degraded(Ctx(b), v, cl)
+    assert verdict.derive_verdict(Ctx(b), v).diversity_degraded
     models = doc(b, "models.yaml").data
     for mk in ("gpt_flagship", "gpt_oss_self"):
         models[mk]["derived_from"] = "nemotron3"
-    assert not verdict.derived_diversity_degraded(Ctx(b), v, cl)
+    assert not verdict.derive_verdict(Ctx(b), v).diversity_degraded
 
 
 def test_a_lineage_cycle_is_rejected(b):
@@ -327,7 +326,7 @@ def test_weighted_valid_is_recomputed(b):
     vote["weighted_valid"], vote["stance"] = True, "REFUTE"
     c = Ctx(b)
     assert not verdict.vote_terms(c.ix, vote, cl, v["calibration_version"])[2]
-    assert verdict.verdict_inputs(c, v, cl).weighted_refute is False
+    assert verdict.derive_verdict(c, v).inputs.weighted_refute is False
     assert errors(b, "E-DERIVED", "k-014-w3")
 
 

@@ -118,8 +118,7 @@ def test_strong_tool_row_is_not_provisional(b, monkeypatch):
     from vchlib import checks, verdict
     c = Ctx(b)
     v = dict(doc(b, V014).data, calibration_version=None, theta_confirm=None)   # uncalibrated: provisional by default
-    cl = c.ix.first("cluster", cluster_id="K-014").data
-    assert verdict.derived_provisional(c, v, cl) is True
+    assert verdict.derive_verdict(c, v).provisional is True
     real = checks.adj.adjudicate
     monkeypatch.setattr(checks.adj, "adjudicate", lambda x: real(adj.Inputs(strong_tool=True, independent_families=1)))
-    assert verdict.derived_provisional(c, v, cl) is False                         # row 10 is not decided by votes
+    assert verdict.derive_verdict(c, v).provisional is False                      # row 10 is not decided by votes

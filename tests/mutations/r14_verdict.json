@@ -32,7 +32,7 @@
     {
       "name": "B7: a carried cluster may vote",
       "file": "tools/vchlib/checks.py",
-      "old": "            if cl.data.get(\"carried_from\"):\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
+      "old": "            if dv.cluster.get(\"carried_from\"):\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
       "new": "            if False:\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
       "k": "carried_cluster_accepts_no_votes"
     },
@@ -74,7 +74,7 @@
     {
       "name": "C3: an analyst stands in for G2",
       "file": "tools/vchlib/derive.py",
-      "old": "        if oracle_unreviewed(ix, tc, tr, cluster):\n            return \"E_fail_u\", \"reproduced FAIL, LLM-written W4 oracle not yet accepted at G2 (oracle_unreviewed)\"\n",
+      "old": "        if result_oracle_unreviewed(ix, tc, tr, cluster):\n            return \"E_fail_u\", \"reproduced FAIL, LLM-written W4 oracle not yet accepted at G2 (oracle_unreviewed)\"\n",
       "new": "",
       "k": "analyst_cannot_stand_in or llm_written_w4_fail_is_not_proof_before_g2 or annotated_oracle_unreviewed"
     },

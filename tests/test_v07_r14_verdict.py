@@ -242,8 +242,7 @@ def test_the_verdict_is_annotated_oracle_unreviewed(b, keys):
     rederive(b, keys)
     c = Ctx(b)
     v = doc(b, "verdict.k-015-w4.example.json").data
-    cl = doc(b, "cluster.k-015.example.json").data
-    x = verdict.verdict_inputs(c, v, cl)
+    x = verdict.derive_verdict(c, v).inputs
     assert x.oracle_unreviewed is True and "E_proof" not in x.evidence
     out = adj.adjudicate(x)
     assert "oracle_unreviewed" in out.annotations and "R12" in out.rules and out.status in ("LIKELY", "UNCORROBORATED")

@@ -163,10 +163,9 @@ def test_a_finding_belongs_to_one_cluster(b):
 def test_the_rules_use_the_derived_score(b):
     v = doc(b, "verdict.k-014-w3.example.json").data
     c = Ctx(b)
-    cl = c.ix.first("cluster", cluster_id="K-014").data
-    derived = verdict.verdict_inputs(c, v, cl).score
+    derived = verdict.derive_verdict(c, v).inputs.score
     v["score"] = round(derived + 0.0004, 4)                       # inside the 5e-4 tolerance of E-DERIVED
-    assert verdict.verdict_inputs(Ctx(b), v, cl).score == derived
+    assert verdict.derive_verdict(Ctx(b), v).inputs.score == derived
 
 
 # ================================================================ 1.8 PostgREST collection writes (external 1)
