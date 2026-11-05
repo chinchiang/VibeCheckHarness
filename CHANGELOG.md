@@ -8,6 +8,13 @@
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 記憶體內的重新封存（PR-C2）
+候選 #2 第 2 步（[ADR 0002](docs/adr/0002-reseal-module.md)）：
+- `build_variants.resign` 原封不動搬進 `vchlib/seal.py`，成為 `reseal(bundle, keys, *, rounds=30) -> None`。三個呼叫點都改用 `seal.reseal`；`build_variants` 不再自己做推導、簽章與串鏈，因此拿掉了因此用不到的 import 與 `CFG`。
+- 新增 `seal.ResealError`：`reseal` 不收斂（原本 `SystemExit("no fixpoint")`），以及 `current_key` 找不到有效的 TEST ONLY 金鑰（原本 `SystemExit`）時拋出。`build_variants.main` 把它轉回 `SystemExit`，訊息不變；`sign_examples` 與 `conftest.rederive` 碰到時，改由 traceback 顯示原本的訊息（只發生在範例壞掉時）。
+- 新增 `tests/test_seal.py`：`checks.py` 不得使用 `reseal`、`sign_event_in_place`、`current_key`（以 AST 檢查，已確認兩種違規都會讓測試失敗）；`reseal` 不改動已封存的範例 bundle；`reseal` 會重簽改過的 feedback（C4 之前的 `rederive` 不會）；兩種 `ResealError`。
+- 驗收：`build_variants --check` 通過，variant 輸出逐位元組相同。
+
 ### 簽章政策（PR-C1）
 依架構審查候選 #2「單一重新封存模組」（[ADR 0002](docs/adr/0002-reseal-module.md)，設計逐項經使用者決定），第 1 步：
 - 新增 `vchlib/seal.py`，「誰簽什麼」只寫一次：`SIGNED_EVENTS`、`gate_unsigned`、`required_signers(kind, data)`、`event_is_signed`。`checks.g_signatures`、`g_feedback`、`g_report_withdrawal` 改讀政策，錯誤碼分支與讀法不變；`checks.SIGNED_EVENTS` 移除，不留轉出口。

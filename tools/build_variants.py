@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import hashlib
-import json
 import pathlib
 import sys
 
@@ -26,13 +24,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import sign_examples as S  # noqa: E402
-from vchlib import crypto, derive, expectations, seal, timeutil, yamlstrict  # noqa: E402
-from vchlib.bundle import SIGNED_YAML, VARIANTS as VARIANTS_DIR, Bundle, Doc, dump_json, dump_jsonl, load_bundle, reload_json  # noqa: E402
-from vchlib.canonical import content_hash  # noqa: E402
+from vchlib import crypto, seal, timeutil, yamlstrict  # noqa: E402
+from vchlib.bundle import VARIANTS as VARIANTS_DIR, Bundle, Doc, dump_json, dump_jsonl, load_bundle  # noqa: E402
 from vchlib.checks import run_all  # noqa: E402
 
 EX = "docs/schemas/examples/"
-CFG = "docs/examples/"
 
 
 # ---------------------------------------------------------------- serialisation
@@ -84,67 +80,6 @@ def add(b: Bundle, path: str, kind: str, data) -> Doc:
 
 def fp(keys, name):
     return crypto.fingerprint(crypto.raw_public(keys[name]))
-
-
-# ---------------------------------------------------------------- re-derive and re-sign in memory
-def resign(b: Bundle, keys, rounds: int = 30) -> None:
-    by_fp = {crypto.fingerprint(crypto.raw_public(k)): k for k in keys.values()}
-    for d in b.docs:                       # edits may have inserted or dropped events: renumber and refresh the raw lines
-        if d.kind == "audit-event" and d.data:
-            for i, ev in enumerate(d.data):
-                ev["seq"] = i + 1
-            reload_json(d, dump_jsonl(d.data))
-    for _ in range(rounds):
-        changed = False
-        docs = {d.path: d for d in b.docs}
-        for e in expectations.expectations(b, for_writer=True):
-            d = docs[e.file]
-            if derive.get_path(d.data, e.path) != e.expected:
-                derive.set_path(d.data, e.path, e.expected)
-                changed = True
-        eng = next((d for d in b.docs if d.kind == "engagement"), None)
-        if eng is not None:
-            for name, ref in (eng.data.get("config_pins") or {}).items():
-                cfg = next((d for d in b.docs if d.path == f"{CFG}{name}.yaml"), None)
-                if cfg is not None and ref != content_hash(cfg.data):
-                    eng.data["config_pins"][name] = content_hash(cfg.data)
-                    changed = True
-        for d in b.docs:
-            if pathlib.PurePosixPath(d.path).name in SIGNED_YAML:
-                for sig in d.data.get("signatures") or []:
-                    value = crypto.sign_document(d.data, sig["signer"], by_fp[sig["key_fingerprint"]])["value"]
-                    if sig.get("value") != value:
-                        sig["value"], changed = value, True
-            if d.kind == "gate-record":
-                rec = d.data
-                sigs = [] if seal.gate_unsigned(rec) else \
-                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in seal.required_signers(d.kind, rec)]
-                if sigs != rec.get("signatures"):
-                    rec["signatures"], changed = sigs, True
-            if d.kind in ("feedback", "report-withdrawal"):
-                rec = d.data
-                sigs = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in seal.required_signers(d.kind, rec)]
-                if sigs != rec.get("signatures"):
-                    rec["signatures"], changed = sigs, True
-        registry = next(d for d in b.docs if d.kind == "key-registry").data
-        for d in b.docs:
-            if d.kind == "audit-event" and d.data:
-                prev = hashlib.sha256(d.data[0]["run_id"].encode()).hexdigest()
-                for i, ev in enumerate(d.data):
-                    ev["seq"] = i + 1
-                    ev["prev_hash"] = "sha256:" + prev
-                    seal.sign_event_in_place(ev, registry, by_fp)
-                    prev = hashlib.sha256(json.dumps(ev, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
-                text = dump_jsonl(d.data)
-                if text != d.text:
-                    reload_json(d, text)
-                    changed = True
-        for d in b.docs:
-            if not d.path.endswith(".jsonl") and d.path.endswith(".json"):
-                d.text = dump_json(d.data)
-        if not changed:
-            return
-    raise SystemExit("no fixpoint")
 
 
 # ---------------------------------------------------------------- the variants
@@ -455,7 +390,7 @@ def v_regression(b: Bundle, keys) -> None:
                                                                  "reason": "回歸 PASS，正對照通過"}]}})
     add(b, f"{EX}verdict.k-301-w3.example.json", "verdict", v1)
     add(b, f"{EX}verdict.k-301-b5.example.json", "verdict", v2)
-    resign(b, keys)
+    seal.reseal(b, keys)
     v2["test_evidence"]["results"][0]["result_ref"] = content_hash(res)
     for v in (v1, v2):
         dv = verdict.derive_verdict(context.Ctx(b), v)          # v.cluster_id is K-301
@@ -471,7 +406,7 @@ def v_regression(b: Bundle, keys) -> None:
                   "provisional": dv.provisional})
         next(e for e in log.data if e["event_type"] == "verdict_changed"
              and e["payload"]["verdict_id"] == v["verdict_id"])["payload"]["status"] = out.status
-        resign(b, keys)
+        seal.reseal(b, keys)
 
 
 # ---------------------------------------------------------------- overlay
@@ -480,7 +415,7 @@ def overlay(name: str, keys) -> tuple[dict[str, str], list[str], Bundle]:
     b = load_bundle(ROOT)
     b.variant = name
     VARIANTS[name](b, keys)
-    resign(b, keys)
+    seal.reseal(b, keys)
     base_by = {d.path: d for d in base.docs}
     files = {}
     for d in b.docs:
@@ -519,7 +454,10 @@ def main(argv=None) -> int:
     keys = S.load_keys()
     bad = 0
     for name in args.names or sorted(VARIANTS):
-        files, removed, b = overlay(name, keys)
+        try:
+            files, removed, b = overlay(name, keys)
+        except seal.ResealError as exc:            # no fixpoint / no valid TEST ONLY key: a clean exit, as before PR-C2
+            raise SystemExit(str(exc)) from exc
         errs = run_all(b).errors
         for i in errs[:20]:
             print(f"{name}: ERROR {i.code} {i.where}: {i.msg}")

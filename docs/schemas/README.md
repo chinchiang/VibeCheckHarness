@@ -133,7 +133,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-AUDIT-ANCHOR-SIG` | 每個 `audit_anchor` 的 `payload.z3_countersignature` 必須是金鑰登錄中 `z3-executor`（角色 `z3_executor`）對 JCS(`{run_id, seq, prev_hash}`) 的有效簽章；v0.5 改為 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`)，`domain` 為 `vibecheck/audit_anchor/v2`，`event_sha256` 蓋住錨點事件本身（去掉副簽） | `test_v04_round5_trust`、`test_v05_round6_group3`、`test_v07_r9_anchor` |
 | `E-AUDIT-ARTIFACT` | 已錨定的 `artifact_stored` 以 `payload.sha256` 釘住 run 的 W／B 階段產物：種子威脅（W5）、W0 inventory 與 redaction map、合併與外部 DFD（B1）、run 列出的每份 Commander 計畫（`plan_id`）。每份產物恰有一筆已錨定的事件，每筆事件指名本 run 一份 hash 相符的文件。審查 r9 只釘種子威脅（改種子文件的 `run_id` 就關掉了管線檢查）；審查 r11 補上其餘：已完成的 run 原本可以刪掉 inventory 的檔案、盲點與環境變數，報告與 run 紀錄仍自洽 | `test_v07_r11_anchor`、`test_v07_r9_anchor` |
 | `E-AUDIT-CHAIN` | 每筆事件的 `prev_hash` 必須是 sha256(run_id)（第一筆）或前一筆原始行的 sha256 | `test_v02_hardening`、`test_validator` |
-| `E-AUDIT-FEEDBACK` | 審查 r12：每筆已錨定的 `feedback_recorded` 都要對應 bundle 中同 `feedback_id`、內容 hash 相符的回饋紀錄（反向檢查；之前刪掉回饋紀錄——連同 SARIF 抑制與 ASI09 抽查母體——不會報錯） | `test_v07_r12_run` |
+| `E-AUDIT-FEEDBACK` | 審查 r12：每筆已錨定的 `feedback_recorded` 都要對應 bundle 中同 `feedback_id`、內容 hash 相符的回饋紀錄（反向檢查；之前刪掉回饋紀錄——連同 SARIF 抑制與 ASI09 抽查母體——不會報錯） | `test_seal`、`test_v07_r12_run` |
 | `E-AUDIT-GATE` | `gate_decision` 的 `payload.gate_record_sha256` 釘住所決定的關卡紀錄（去掉 `signatures` 的 content hash）。審查 r9 只釘關卡、結果與時間，核准者用自己的金鑰就能在決定被錨定之後增刪決定項目再重簽；只重簽相同內容不算變更 | `test_v05_round6_group1`、`test_v04_legal_trust`、`test_v05_round6_lowprio` 等 6 份 |
 | `E-AUDIT-IDEMPOTENCY` | `idempotency_key` 必填，格式 `<run_id>:<node>:<鍵>`，前兩段等於事件的 run_id 與 node，同一 run 內不重複 | `test_v04_round5_adjudication` |
 | `E-AUDIT-INITIATOR` | `initiator_claim` 事件的 actor 必須列在 `run.initiators` | `test_bl66_run_gates` |
@@ -294,7 +294,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-KR-SERVICE` | `z3_executor` 角色只能由服務身分 `z3-executor` 單獨持有；服務身分不是人員，不能出現在任何人員欄位 | `test_v05_round6_group3` |
 | `E-KR-VALIDITY` | 登錄項目的 `not_before` 必須早於 `not_after` | `test_bl66_trust` |
 | `E-SIG-BACKDATED` | 委任設定或 ROE 的簽章金鑰後來以非 `compromised` 原因撤銷時，該文件第一次被驗章（G0a／G0b 紀錄的收件時間）必須早於 `revoked_at`；v0.5 對 `not_after` 也一樣（首次驗章時金鑰已到期，或從未驗章而登錄顯示已到期） | `test_v04_round5_trust`、`test_v05_round6_group3` |
-| `E-SIG-BAD` | `alg` 不是 ed25519，或 Ed25519 簽章驗證失敗 | `test_v05_schema_backlog`、`test_v07_r12_flow`、`test_validator` |
+| `E-SIG-BAD` | `alg` 不是 ed25519，或 Ed25519 簽章驗證失敗 | `test_seal`、`test_v05_schema_backlog`、`test_v07_r12_flow` 等 4 份 |
 | `E-SIG-COMPROMISED` | 簽章金鑰以 `compromised` 撤銷：該金鑰的所有簽章一律無效 | `test_v04_round5_trust`、`test_validator` |
 | `E-SIG-EXPIRED` | 沒有有效的簽章時間，或簽章時間落在金鑰的 `not_before`..`not_after` 之外 | `test_bl66_trust` |
 | `E-SIG-EXTRA` | 簽章者不是文件預期的簽署人，或不是關卡紀錄的核准者 | `test_v05_round6_group3` |
