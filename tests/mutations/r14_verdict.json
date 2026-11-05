@@ -101,14 +101,14 @@
     },
     {
       "name": "B5: apps need not sum to n",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/calibration.py",
       "old": "    if sum(apps.values()) != n:\n        return f\"{split}.apps sum to {sum(apps.values())}, not n {n}\"\n",
       "new": "",
       "k": "split_names_its_applications"
     },
     {
       "name": "B5: apps need not be corpus applications",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/calibration.py",
       "old": "    if corpus_split is not None:\n        wrong = sorted(k for k in apps if corpus_split.get(k) != split)",
       "new": "    if False:\n        wrong = sorted(k for k in apps if corpus_split.get(k) != split)",
       "k": "split_names_its_applications or high_precision_rows_name"
@@ -122,7 +122,7 @@
     },
     {
       "name": "B6: the equal-size design effect",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/calibration.py",
       "old": "    return 1 + (sum(m * m for m in counts) / n - 1) * icc\n",
       "new": "    return 1 + (n / len(counts) - 1) * icc\n",
       "k": "design_effect_uses_the_actual_counts or unequal_applications_is_lower"
@@ -157,7 +157,7 @@
     },
     {
       "name": "B6: the high-precision holdout needs no bound",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/calibration.py",
       "old": "        if h_low < lim - HOLDOUT_MARGIN:\n",
       "new": "        if False:\n",
       "k": "high_precision_holdout_of_ten"

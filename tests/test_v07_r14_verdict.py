@@ -31,7 +31,7 @@ from conftest import CAL_APPS, EXAMPLE_ICC, apps_map, doc, hp_rule, rederive, sp
 from test_v03_adjudication import _ix_cluster, _w4
 from test_v07_r11_verdict import pin_calibration
 from vchlib import adjudicate as adj
-from vchlib import checks, derive
+from vchlib import calibration, checks, derive
 from vchlib.bundle import load_variant
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -287,28 +287,28 @@ def test_a_self_declared_n_apps_is_no_longer_accepted(b, keys):
 
 def test_the_high_precision_rows_name_their_applications(b):
     row = hp_rule(60, 59)
-    assert checks.high_precision_problems(row, 0.9, EXAMPLE_ICC, checks.corpus_splits(doc(b, CAL).data["config"])) == []
+    assert calibration.high_precision_problems(row, 0.9, EXAMPLE_ICC, calibration.corpus_splits(doc(b, CAL).data["config"])) == []
     row["apps"] = {"p-app-02": 60}
-    assert any("apps 1 < clustering.min_apps 10" in p for p in checks.high_precision_problems(row, 0.9, EXAMPLE_ICC))
+    assert any("apps 1 < clustering.min_apps 10" in p for p in calibration.high_precision_problems(row, 0.9, EXAMPLE_ICC))
     row = hp_rule(60, 59, ids=[f"ghost-{i}" for i in range(16)])
-    assert any("not corpus applications" in p for p in checks.high_precision_problems(row, 0.9, EXAMPLE_ICC, checks.corpus_splits(doc(b, CAL).data["config"])))
+    assert any("not corpus applications" in p for p in calibration.high_precision_problems(row, 0.9, EXAMPLE_ICC, calibration.corpus_splits(doc(b, CAL).data["config"])))
 
 
 # ================================================================ B6. design effect, icc floor, holdout bounds
 def test_the_design_effect_uses_the_actual_counts():
-    assert checks.design_effect([4] * 16, 0.05) == pytest.approx(1.15)                 # equal sizes: 1 + (m - 1) rho
-    assert checks.design_effect([32] + [1] * 9, 0.05) == pytest.approx(2.21, abs=0.01)  # 41 hits, 32 from one application
+    assert calibration.design_effect([4] * 16, 0.05) == pytest.approx(1.15)                 # equal sizes: 1 + (m - 1) rho
+    assert calibration.design_effect([32] + [1] * 9, 0.05) == pytest.approx(2.21, abs=0.01)  # 41 hits, 32 from one application
     assert checks.effective_n(41, 10, 0.05) == pytest.approx(41 / 1.155, abs=0.01)     # what 05-v0.14 computed for them
-    assert checks.effective_n_of({"a": 32, **{f"b{i}": 1 for i in range(9)}}, 0.05) == pytest.approx(41 / 2.21, abs=0.1)
-    assert checks.effective_n_of({}, 0.05) == 0.0
+    assert calibration.effective_n_of({"a": 32, **{f"b{i}": 1 for i in range(9)}}, 0.05) == pytest.approx(41 / 2.21, abs=0.1)
+    assert calibration.effective_n_of({}, 0.05) == 0.0
 
 
 def test_the_lower_bound_of_unequal_applications_is_lower(b):
     row = hp_rule(41, 41, icc=0.05, ids=[f"a{i}" for i in range(10)])  # 4-5 per application: 0.90 (as in docs/05 §5.10)
-    assert checks.high_precision_problems(row, 0.9) == []
+    assert calibration.high_precision_problems(row, 0.9) == []
     row = hp_rule(41, 41, icc=0.05, apps={"a0": 32, **{f"a{i}": 1 for i in range(1, 10)}})
-    row["precision_lower95"] = round(checks.clopper_pearson_lower(checks.effective_n_of(row["apps"], 0.05), checks.effective_n_of(row["apps"], 0.05)), 4)
-    assert row["precision_lower95"] < 0.85 and any("lower bound" in p for p in checks.high_precision_problems(row, 0.9))
+    row["precision_lower95"] = round(calibration.clopper_pearson_lower(calibration.effective_n_of(row["apps"], 0.05), calibration.effective_n_of(row["apps"], 0.05)), 4)
+    assert row["precision_lower95"] < 0.85 and any("lower bound" in p for p in calibration.high_precision_problems(row, 0.9))
 
 
 def test_icc_is_a_floor_that_the_measured_rho_raises(b, keys):
@@ -338,8 +338,8 @@ def test_a_holdout_generalises_on_its_confidence_bound(b):
 
 def test_a_high_precision_holdout_of_ten_is_not_enough(b):
     row = hp_rule(60, 59, holdout_n=10, holdout_tp=10)                      # point 1.0 passed 05-v0.14; the bound is 0.69
-    assert any("holdout lower bound" in p for p in checks.high_precision_problems(row, 0.9, EXAMPLE_ICC))
-    assert checks.high_precision_problems(hp_rule(60, 59), 0.9, EXAMPLE_ICC) == []   # 30 of 30 over 13 applications: 0.87
+    assert any("holdout lower bound" in p for p in calibration.high_precision_problems(row, 0.9, EXAMPLE_ICC))
+    assert calibration.high_precision_problems(hp_rule(60, 59), 0.9, EXAMPLE_ICC) == []   # 30 of 30 over 13 applications: 0.87
 
 
 # ================================================================ B3. the primary hypothesis is derived

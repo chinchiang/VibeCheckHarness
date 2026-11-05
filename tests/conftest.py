@@ -59,9 +59,9 @@ def apps_map(n, split="calibration", k=None, ids=None):
 
 def split_stats(tp, n, split="calibration", k=None, icc=EXAMPLE_ICC, recall=0.3, ids=None):
     """A consistent split statistic (precision and Wilson bounds recomputed on the design-effect-adjusted n_eff)."""
-    from vchlib import checks
+    from vchlib import calibration, checks
     apps = apps_map(n, split, k, ids) if n else {}
-    ne = checks.effective_n_of(apps, icc)
+    ne = calibration.effective_n_of(apps, icc)
     p = tp / n if n else 0.0
     return {"precision": round(p, 4), "recall": recall, "ci_low": round(checks.wilson_lower(p * ne, ne), 4),
             "ci_high": round(checks.wilson_upper(p * ne, ne), 4), "n": n, "tp": tp, "apps": apps}
@@ -69,11 +69,11 @@ def split_stats(tp, n, split="calibration", k=None, icc=EXAMPLE_ICC, recall=0.3,
 
 def hp_rule(n, tp, holdout_n=30, holdout_tp=30, k=None, h_k=None, icc=EXAMPLE_ICC, ids=None, h_ids=None, **fields):
     """A consistent high_precision_rules row over the example corpus (precision_lower95 recomputed on n_eff)."""
-    from vchlib import checks
+    from vchlib import calibration
     apps = apps_map(n, "calibration", k, ids)
-    ne = checks.effective_n_of(apps, icc)
+    ne = calibration.effective_n_of(apps, icc)
     row = {"adapter": "opengrep:scan", "rule_id": "vc.authz.update-without-owner", "tool_version": "1.6.0", "cwe_bucket": "authz",
-           "n": n, "tp": tp, "fp": n - tp, "precision_lower95": round(checks.clopper_pearson_lower(tp / n * ne, ne), 4) if n else 0.0,
+           "n": n, "tp": tp, "fp": n - tp, "precision_lower95": round(calibration.clopper_pearson_lower(tp / n * ne, ne), 4) if n else 0.0,
            "holdout_n": holdout_n, "holdout_tp": holdout_tp, "apps": apps, "holdout_apps": apps_map(holdout_n, "holdout", h_k, h_ids)}
     row.update(fields)
     return row

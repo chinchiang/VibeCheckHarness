@@ -15,7 +15,7 @@ import math
 import pytest
 
 from conftest import apps_map, doc, hp_rule
-from vchlib import checks, derive
+from vchlib import calibration, checks, derive
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -94,9 +94,9 @@ HP = hp_rule(60, 59, rule_id="r", icc=0.05)                             # a dire
 
 
 def test_a_measured_rule_passes():
-    assert checks.high_precision_problems(dict(HP), 0.9) == []
-    assert checks.clopper_pearson_lower(40, 40) == pytest.approx(0.9119, abs=1e-4)      # docs/05 §5.10
-    assert checks.clopper_pearson_lower(39, 40) == pytest.approx(0.8684, abs=1e-4)
+    assert calibration.high_precision_problems(dict(HP), 0.9) == []
+    assert calibration.clopper_pearson_lower(40, 40) == pytest.approx(0.9119, abs=1e-4)      # docs/05 §5.10
+    assert calibration.clopper_pearson_lower(39, 40) == pytest.approx(0.8684, abs=1e-4)
 
 
 @pytest.mark.parametrize("change, why", [
@@ -109,7 +109,7 @@ def test_a_measured_rule_passes():
     ({"holdout_n": 10, "holdout_tp": 10, "holdout_apps": apps_map(10, "holdout")}, "holdout lower bound"),   # r14: 10/10 -> 0.69
 ])
 def test_a_rule_is_recomputed_from_its_counts(change, why):
-    probs = checks.high_precision_problems(dict(HP, **change), 0.9)
+    probs = calibration.high_precision_problems(dict(HP, **change), 0.9)
     assert any(why in p for p in probs), probs
 
 
