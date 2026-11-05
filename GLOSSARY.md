@@ -27,3 +27,13 @@ _Avoid_：round、stage
 **推導欄位（derived field）**：
 裁決版本上必須由 bundle 中其他證據重新算出、不能由寫入者自行宣告的值。
 _Avoid_：計算欄位、自我宣告欄位、computed field
+
+## 簽章（Signing）
+
+**簽章政策（signing policy）**：
+「哪一份紀錄由誰簽」的規則：gate record 由 approvers 簽（G0a/G0b 與 EXPIRED 不簽）、feedback 由 signed_by 再 co_signed_by 簽、報告撤回由 signers 依序簽、human 的 initiator_claim／run_resume／spot_check_result 事件由 actor 簽。checker 與寫入端共用 `vchlib.seal` 的同一份。
+_Avoid_：簽章規則、signer rules
+
+**重新封存（reseal）**：
+修改 bundle 之後，用 TEST ONLY 金鑰重算推導值、重簽、重新串起稽核鏈，直到不再改變，讓 bundle 回到內部一致的狀態。只用於範例、variant 與測試，從不用於真正的核准。
+_Avoid_：重簽、resign、re-sign

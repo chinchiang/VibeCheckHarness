@@ -225,3 +225,21 @@ def reload_json(doc: Doc, text: str) -> None:
     """Replace a JSON / JSONL document's text (tests use this to inject e.g. duplicate keys)."""
     new = _json_doc(doc.path, doc.kind, text, jsonl=doc.path.endswith(".jsonl"))
     doc.text, doc.data, doc.load_error = new.text, new.data, new.load_error
+
+
+# ---------------------------------------------------------------- writer serialization (moved from tools/sign_examples.py, PR-C1)
+def dump_json(obj) -> str:
+    return json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
+
+
+def dump_jsonl(events) -> str:
+    return "".join(json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in events)
+
+
+def load_events(text: str) -> list:
+    """Audit JSONL -> events, split exactly like read_jsonl_lines (on "\n" only).
+
+    str.splitlines() would also split on U+2028 / U+2029 / U+0085 etc., which dump_jsonl writes
+    raw (ensure_ascii=False) inside string values, so the writer and the reader would disagree.
+    """
+    return [jsonstrict.loads(ln) for ln in read_jsonl_lines(text)]

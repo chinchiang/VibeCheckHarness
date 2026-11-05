@@ -18,8 +18,7 @@ import pytest
 
 from conftest import doc, rederive
 from test_v07_r9_anchor import AUDIT, FAUDIT, refix_nokey
-import sign_examples
-from vchlib.bundle import Doc, load_variant, reload_json
+from vchlib.bundle import Doc, dump_jsonl, load_variant, reload_json
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -60,7 +59,7 @@ def append(log, *events, after=None):
 def renumber(log):
     for n, ev in enumerate(log.data, 1):
         ev["seq"] = n
-    reload_json(log, sign_examples.dump_jsonl(log.data))        # keep the raw text in step with the events
+    reload_json(log, dump_jsonl(log.data))        # keep the raw text in step with the events
 
 
 def test_the_examples_are_clean(b, suspend_base):

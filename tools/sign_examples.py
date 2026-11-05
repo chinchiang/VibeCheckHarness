@@ -26,13 +26,12 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-from vchlib import crypto, derive, expectations, jsonstrict, timeutil, yamlstrict  # noqa: E402
-from vchlib.bundle import SIGNED_YAML, load_bundle, read_jsonl_lines  # noqa: E402
+from vchlib import crypto, derive, expectations, jsonstrict, seal, yamlstrict  # noqa: E402
+from vchlib.bundle import SIGNED_YAML, dump_json, dump_jsonl, load_bundle, load_events  # noqa: E402
 
 KEY_DIR = ROOT / "tests" / "fixtures" / "TEST_ONLY_private_keys"
 EXAMPLES = ROOT / "docs" / "schemas" / "examples"
 CONFIG = ROOT / "docs" / "examples"
-SIGNED_EVENTS = {"initiator_claim", "run_resume", "spot_check_result"}   # v0.7 (review r9): as checks.SIGNED_EVENTS
 PLACEHOLDER = re.compile(r'"(FP|PK):([a-z][a-z0-9_]*)"')
 
 
@@ -49,14 +48,6 @@ def write(path: pathlib.Path, text: str) -> bool:
         return False
     path.write_text(text, encoding="utf-8", newline="\n")
     return True
-
-
-def dump_json(obj) -> str:
-    return json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
-
-
-def dump_jsonl(events) -> str:
-    return "".join(json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in events)
 
 
 def replace_placeholders(keys) -> int:
@@ -119,10 +110,11 @@ def sign_gate_records(by_fp) -> int:
     n = 0
     for p in sorted(EXAMPLES.glob("gate-record.*.example.json")):
         rec = jsonstrict.loads(p.read_text(encoding="utf-8"))
-        if rec["gate"] in ("G0a", "G0b") or rec["outcome"] == "EXPIRED":
+        if seal.gate_unsigned(rec):
             rec["signatures"] = []
         else:
-            rec["signatures"] = [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in rec["approvers"]]
+            rec["signatures"] = [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]])
+                                 for a in seal.required_signers("gate-record", rec)]
         n += write(p, dump_json(rec))
     return n
 
@@ -132,8 +124,8 @@ def sign_feedback(by_fp) -> int:
     n = 0
     for p in sorted(EXAMPLES.glob("feedback.*.example.json")):
         rec = jsonstrict.loads(p.read_text(encoding="utf-8"))
-        signers = [rec["signed_by"]] + ([rec["co_signed_by"]] if rec.get("co_signed_by") else [])   # v0.7 (r8 M4)
-        rec["signatures"] = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in signers]
+        rec["signatures"] = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]])
+                             for x in seal.required_signers("feedback", rec)]
         n += write(p, dump_json(rec))
     return n
 
@@ -143,39 +135,10 @@ def sign_withdrawals(by_fp) -> int:
     n = 0
     for p in sorted(EXAMPLES.glob("report-withdrawal.*example.json")):
         rec = jsonstrict.loads(p.read_text(encoding="utf-8"))
-        rec["signatures"] = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in rec["signers"]]
+        rec["signatures"] = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]])
+                             for x in seal.required_signers("report-withdrawal", rec)]
         n += write(p, dump_json(rec))
     return n
-
-
-def current_key(registry, person, at, by_fp):
-    for e in registry["entries"]:
-        if e["person_id"] != person or e.get("revoked_at"):
-            continue
-        if timeutil.parse_dt(e["not_before"]) <= at <= timeutil.parse_dt(e["not_after"]):
-            return by_fp[e["fingerprint"]]
-    raise SystemExit(f"no valid registry key for {person} at {at}")
-
-
-def load_events(text: str) -> list:
-    """Audit JSONL -> events, split exactly like bundle.read_jsonl_lines (on "\\n" only).
-
-    str.splitlines() would also split on U+2028 / U+2029 / U+0085 etc., which dump_jsonl writes
-    raw (ensure_ascii=False) inside string values, so the writer and the reader would disagree.
-    """
-    return [jsonstrict.loads(ln) for ln in read_jsonl_lines(text)]
-
-
-def sign_event_in_place(ev: dict, registry, by_fp) -> None:
-    """Re-sign one audit event whose prev_hash is already set: human SIGNED_EVENTS get the actor's
-    signature; every audit_anchor gets the Z3 executor's countersignature (crypto.anchor_payload)."""
-    ev["signature"] = None
-    at = timeutil.parse_dt(ev["ts"])
-    if ev["event_type"] == "audit_anchor" and isinstance(ev.get("payload"), dict):
-        ev["payload"]["z3_countersignature"] = crypto.countersign_anchor(
-            ev, current_key(registry, crypto.ANCHOR_SIGNER, at, by_fp))
-    if ev["event_type"] in SIGNED_EVENTS and ev["actor"]["kind"] == "human":
-        ev["signature"] = crypto.sign_event(ev, ev["actor"]["id"], current_key(registry, ev["actor"]["id"], at, by_fp))
 
 
 def rebuild_audit(by_fp) -> int:
@@ -186,7 +149,7 @@ def rebuild_audit(by_fp) -> int:
         prev = hashlib.sha256(events[0]["run_id"].encode()).hexdigest()
         for ev in events:
             ev["prev_hash"] = "sha256:" + prev
-            sign_event_in_place(ev, registry, by_fp)
+            seal.sign_event_in_place(ev, registry, by_fp)
             line = json.dumps(ev, ensure_ascii=False, separators=(",", ":"))
             prev = hashlib.sha256(line.encode("utf-8")).hexdigest()
         n += write(p, dump_jsonl(events))
