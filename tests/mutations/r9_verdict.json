@@ -3,14 +3,14 @@
   "mutations": [
     {
       "name": "roots: mean per root",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        total += max(xs, key=abs) if same else sum(xs) / len(xs)",
       "new": "        total += sum(xs)",
       "k": "root_score_counts"
     },
     {
       "name": "roots: votes grouped by base lineage",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "            terms.append((root, wgt * STANCE.get(vote.get(\"stance\"), 0)))",
       "new": "            terms.append((vote.get(\"voter_agent_id\"), wgt * STANCE.get(vote.get(\"stance\"), 0)))",
       "k": "two_votes_of_one_root"

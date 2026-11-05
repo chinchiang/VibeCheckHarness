@@ -19,7 +19,7 @@ import json
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from conftest import codes, doc, rederive, resign_gate
-from vchlib import checks, crypto
+from vchlib import crypto, verdict
 from vchlib.bundle import reload_json
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -205,7 +205,7 @@ def _k014(c):
 def test_anchored_sarif_resolves(b):
     c = Ctx(b)
     ref = _k014(c)["sarif_refs"][0]
-    assert checks._resolving_event(c, _k014(c), ref)[0] is not None
+    assert verdict._resolving_event(c, _k014(c), ref)[0] is not None
 
 
 def test_unanchored_sarif_does_not_resolve(b):
@@ -213,7 +213,7 @@ def test_unanchored_sarif_does_not_resolve(b):
     end = next(e["seq"] for e in d.data if e["event_type"] == "tool_invocation_end")
     d.data[:] = [e for e in d.data if not (e["event_type"] == "audit_anchor" and e["seq"] > end)]
     c = Ctx(b)
-    ev, why = checks._resolving_event(c, _k014(c), _k014(c)["sarif_refs"][0])
+    ev, why = verdict._resolving_event(c, _k014(c), _k014(c)["sarif_refs"][0])
     assert ev is None and "unanchored" in why
 
 

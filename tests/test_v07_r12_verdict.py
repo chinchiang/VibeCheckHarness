@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Review r12 (docs/evidence/review-2026-10-28-r12.md), PR2: adjudication (rule_version 05-v0.11).
 
-  R15        E-VERDICT-VOTE judged self-review against the cluster's CURRENT members while derive.vote_valid used the
+  R15        E-VERDICT-VOTE judged self-review against the cluster's CURRENT members while verdict.vote_valid used the
              members at vote time (r11), so the bundle r11 was built for could satisfy neither check; and voted_after_round
              was taken as declared (now bounded by the CMD-2 plans anchored before the verdict version);
   policy     thresholds.high_precision_min is pinned (0.10 plus one rule at a lower bound of 0.13 turned a weak SARIF hit
@@ -20,7 +20,7 @@ import pytest
 from conftest import doc, rederive
 from test_v07_r11_verdict import REFUTE, nvidia_member, pin_calibration, settle
 from vchlib import adjudicate as adj
-from vchlib import checks, derive
+from vchlib import checks, verdict
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -93,8 +93,8 @@ def test_only_a_refute_is_a_refute_by_a_later_member(b):
     nvidia_member(b, 2)
     c = Ctx(b)
     cl = doc(b, "cluster.example.json").data
-    assert derive.later_member_overlap(c.ix, copy.deepcopy(REFUTE), cl)
-    assert not derive.later_member_overlap(c.ix, dict(copy.deepcopy(REFUTE), stance="SUPPORT"), cl)
+    assert verdict.later_member_overlap(c.ix, copy.deepcopy(REFUTE), cl)
+    assert not verdict.later_member_overlap(c.ix, dict(copy.deepcopy(REFUTE), stance="SUPPORT"), cl)
 
 
 # ================================================================ high_precision_min is policy
@@ -129,10 +129,10 @@ def test_the_proof_of_the_source_must_be_rerun(b):
     cluster = {"cluster_id": "K-901", "run_id": run["run_id"], "carried_from": {"run_id": RUN, "cluster_id": "K-005", "fingerprint": "x"}}
     other = content_hash(doc(b, "testresult.llm-pass.example.json").data)       # another testcase, not TC-012-01
     v = {"test_evidence": {"results": [{"result_ref": other, "class": "E_pass", "positive_control": True, "reason": "x"}]}}
-    assert not checks.regression_fixed(c, v, cluster, run)
+    assert not verdict.regression_fixed(c, v, cluster, run)
     v["test_evidence"]["results"].append({"result_ref": content_hash(doc(b, "testresult.example.json").data), "class": "E_pass",
                                           "positive_control": True, "reason": "x"})
-    assert checks.regression_fixed(c, v, cluster, run)
+    assert verdict.regression_fixed(c, v, cluster, run)
 
 
 # ================================================================ R16: a carried confirmed cluster keeps its status
@@ -165,8 +165,8 @@ def test_carried_status_comes_from_the_parent_head(b):
     c = Ctx(b)
     run = {"run_id": "run-2026-11-01-001", "run_kind": "followup", "parent_run_id": RUN}
     cluster = {"cluster_id": "K-901", "carried_from": {"run_id": RUN, "cluster_id": "K-005", "fingerprint": "x"}}
-    assert checks.carried_status(c, cluster, run) == "CONFIRMED_EXECUTABLE"
-    assert checks.carried_status(c, cluster, dict(run, parent_run_id="run-other")) is None
+    assert verdict.carried_status(c, cluster, run) == "CONFIRMED_EXECUTABLE"
+    assert verdict.carried_status(c, cluster, dict(run, parent_run_id="run-other")) is None
 
 
 def test_rows_15_and_16_are_never_provisional(b, monkeypatch):
@@ -175,8 +175,8 @@ def test_rows_15_and_16_are_never_provisional(b, monkeypatch):
     cl = c.ix.first("cluster", cluster_id=v["cluster_id"]).data
     for x in (adj.Inputs(carried_status="CONFIRMED_EXECUTABLE", evidence={"E_fail_u"}),
               adj.Inputs(regression_fixed=True, evidence={"E_pass"}, strong_tool=True)):
-        monkeypatch.setattr(checks, "verdict_inputs", lambda *_a, _x=x: _x)
-        assert checks.derived_provisional(c, v, cl) is False
+        monkeypatch.setattr(verdict, "verdict_inputs", lambda *_a, _x=x: _x)
+        assert verdict.derived_provisional(c, v, cl) is False
 
 
 # ================================================================ docs
@@ -193,7 +193,7 @@ def test_a_carried_clusters_inputs_carry_the_source_status(b):
     c = Ctx(b)
     cl = doc(b, "cluster.followup.k-301.example.json").data
     v = dict(copy.deepcopy(doc(b, "verdict.example.json").data), cluster_id=cl["cluster_id"], votes=[], missing_votes=[])
-    assert checks.verdict_inputs(c, v, cl).carried_status == "CONFIRMED_EXECUTABLE"
+    assert verdict.verdict_inputs(c, v, cl).carried_status == "CONFIRMED_EXECUTABLE"
 
 
 def test_the_verdict_schema_knows_the_r12_annotations():

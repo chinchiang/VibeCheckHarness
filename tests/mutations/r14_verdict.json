@@ -3,28 +3,28 @@
   "mutations": [
     {
       "name": "B1: the chain stops at the direct source",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        proof = result_testcases(c, src, {\"E_proof\"})\n        if proof:\n            return proof\n",
       "new": "        return result_testcases(c, src, {\"E_proof\"})\n",
       "k": "follow_the_carried_chain"
     },
     {
       "name": "B1: an empty requirement is still fixable",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    return bool(required) and bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"})",
       "new": "    return bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"})",
       "k": "never_fixed"
     },
     {
       "name": "B1: no E_fail_u fallback",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        if not fallback:\n            fallback = result_testcases(c, src, {\"E_fail_u\"})\n",
       "new": "        pass\n",
       "k": "only_a_reproduced_fail_requires"
     },
     {
       "name": "B1: regression_fixed needs a confirmed source verdict (moved from r11_verdict)",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    if not src or src.get(\"status\") not in adj.CONFIRMED:",
       "new": "    if not src:",
       "k": "non_confirmed_source_with_a_proof"
@@ -45,14 +45,14 @@
     },
     {
       "name": "B2: the verifier pool ignores shared observations",
-      "file": "tools/vchlib/checks.py",
-      "old": "        if m and m.get(\"family\") not in fams and c.ix.lineage_root(m.get(\"lineage\")) not in lins and isinstance(m.get(\"family\"), str) \\\n                and not derive.shares_observation(c.ix, a.get(\"model\"), cluster):",
+      "file": "tools/vchlib/verdict.py",
+      "old": "        if m and m.get(\"family\") not in fams and c.ix.lineage_root(m.get(\"lineage\")) not in lins and isinstance(m.get(\"family\"), str) \\\n                and not shares_observation(c.ix, a.get(\"model\"), cluster):",
       "new": "        if m and m.get(\"family\") not in fams and c.ix.lineage_root(m.get(\"lineage\")) not in lins and isinstance(m.get(\"family\"), str):",
       "k": "merged_with_the_reporter"
     },
     {
       "name": "B2: a vote ignores shared observations",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    if ix is not None and shares_observation(ix, v.get(\"voter_model_key\"), cluster,",
       "new": "    if False and shares_observation(ix, v.get(\"voter_model_key\"), cluster,",
       "k": "merged_with_the_reporter"

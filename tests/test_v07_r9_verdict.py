@@ -20,7 +20,7 @@ import copy
 import pytest
 
 from conftest import doc, rederive
-from vchlib import adjudicate, checks, context, derive
+from vchlib import adjudicate, checks, context, derive, verdict
 from vchlib.checks import run_all
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
@@ -40,10 +40,10 @@ def test_rule_version():
 
 # ================================================================ roots: one observation per base lineage
 def test_root_score_counts_each_root_once():
-    assert derive.root_score([("claude", 1.4425), ("claude", 1.4425)]) == pytest.approx(1.4425)
-    assert derive.root_score([("claude", 1.4425), ("gpt", 1.0)]) == pytest.approx(2.4425)
-    assert derive.root_score([("claude", 1.4425), ("claude", -1.5)]) == pytest.approx(-0.02875, abs=1e-4)
-    assert derive.root_score([]) == 0
+    assert verdict.root_score([("claude", 1.4425), ("claude", 1.4425)]) == pytest.approx(1.4425)
+    assert verdict.root_score([("claude", 1.4425), ("gpt", 1.0)]) == pytest.approx(2.4425)
+    assert verdict.root_score([("claude", 1.4425), ("claude", -1.5)]) == pytest.approx(-0.02875, abs=1e-4)
+    assert verdict.root_score([]) == 0
 
 
 def add_second_claude_verifier(b):
@@ -70,8 +70,8 @@ def test_two_votes_of_one_root_are_one_observation(b, keys):
     rederive(b, keys)
     ix = derive.Index(b)
     cl = ix.first("cluster", cluster_id="K-015").data
-    one = derive.derived_score(ix, {**v, "votes": [x for x in v["votes"] if x["voter_agent_id"] != "ver_4"]}, cl)
-    assert derive.derived_score(ix, v, cl) == pytest.approx(one)
+    one = verdict.derived_score(ix, {**v, "votes": [x for x in v["votes"] if x["voter_agent_id"] != "ver_4"]}, cl)
+    assert verdict.derived_score(ix, v, cl) == pytest.approx(one)
 
 
 # ================================================================ lineage: consistent derived_from (external review 2)

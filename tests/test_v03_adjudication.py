@@ -9,8 +9,9 @@ import pytest
 from conftest import codes, doc, rederive
 from vchlib import adjudicate as adj
 from vchlib.adjudicate import Inputs, adjudicate
-from vchlib.checks import (derived_diversity_degraded, derived_no_eligible_verifier, derived_provisional, run_all,
-                           verdict_inputs)
+from vchlib.checks import run_all
+from vchlib.verdict import (derived_diversity_degraded, derived_no_eligible_verifier, derived_provisional,
+                            verdict_inputs)
 from vchlib.context import Ctx
 from vchlib.derive import Index, classify_result
 

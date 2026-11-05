@@ -16,7 +16,7 @@ import copy
 import pytest
 
 from conftest import codes, doc
-from vchlib import checks, crypto, derive, jsonstrict, safety, yamlstrict
+from vchlib import checks, crypto, derive, jsonstrict, safety, verdict, yamlstrict
 from vchlib.bundle import reload_json
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -78,13 +78,13 @@ def test_round_one_needs_the_cmd1_dispatch(b):
 def test_eligible_verifiers_follow_the_data_class(b):
     c = Ctx(b)
     cl = c.ix.first("cluster", cluster_id="K-014").data
-    before = set(checks.eligible_verifier_models(c, cl))
+    before = set(verdict.eligible_verifier_models(c, cl))
     assert before
     dc = c.runs[cl["run_id"]]["data_class"]
     allowed = doc(b, "engagement.yaml").data["allowed_models"][dc]
     drop = sorted(before)[0]
     allowed.remove(drop)
-    assert drop not in checks.eligible_verifier_models(Ctx(b), cl)
+    assert drop not in verdict.eligible_verifier_models(Ctx(b), cl)
 
 
 def test_second_g4_round_keeps_earlier_approvals(b):

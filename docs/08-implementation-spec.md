@@ -347,12 +347,12 @@ class AdjudicationInputs(BaseModel):   # 欄位與 tools/vchlib/adjudicate.py �
     prev_status: str | None            # 被取代那一版裁決的狀態；第一版為 None
     regression_fixed: bool             # R14：regression run 的帶入叢集、來源為 CONFIRMED_*，carried_from 鏈上第一個持有 E_proof
                                        # 的裁決的每個測試案例在本 run 都只有合格 PASS（E_pass＋正對照），沒有 E_proof／E_fail_u
-                                       # （checks.regression_fixed、required_regression_testcases；05-v0.12 起不再接受 E_inc 或
+                                       # （verdict.regression_fixed、required_regression_testcases；05-v0.12 起不再接受 E_inc 或
                                        # 其他案例的 PASS 代替；05-v0.15 起沿鏈回溯，整條鏈沒有證明就不判 FIXED）
-    later_member_overlap: bool         # R15：有計權反駁票，其家族或基底血統在投票之後才成為叢集成員（derive.later_member_overlap）
-    carried_status: str | None         # R16：帶入叢集所代表的來源叢集最新裁決狀態（checks.carried_status）；非帶入叢集為 None
+    later_member_overlap: bool         # R15：有計權反駁票，其家族或基底血統在投票之後才成為叢集成員（verdict.later_member_overlap）
+    carried_status: str | None         # R16：帶入叢集所代表的來源叢集最新裁決狀態（verdict.carried_status）；非帶入叢集為 None
     oracle_unreviewed: bool            # R12 註記（05-v0.15）：有 LLM 撰寫、G2 尚未接受的 W4 測試的重現 FAIL（分類為 E_fail_u；
-                                       # checks.oracle_unreviewed）
+                                       # verdict.oracle_unreviewed）
     # w4_became_disputed：phase == "W4"、prev_status 不是 None 也不是 DISPUTED、新狀態為 DISPUTED
     # （例如 LIKELY 經 R11 → DISPUTED）；與 G2 是否已決定無關（05 §4.2）
 # 由 nodes 從投票、證據與 calibration.yaml 組成；純核心回傳 Outcome(status, row, rules,
@@ -1781,7 +1781,7 @@ class SessionProvider(Protocol):
 - **啟動檢查**：Gateway 在行程啟動與 `run_init` 時重算每個範本的 hash；與登錄檔不符 → `ConfigInvalid`，行程拒絕啟動。
 - **使用**：每個 LLM 請求的快取鍵含範本的 sha256（[03 §5.8](03-system-architecture.md#58-節點邊界規則)）；W2 reviewer 範本的 sha256 也進 `slice_id`（§11.3）。
 - **改版**：任何修改都是新的 `version`；舊版保留，讓舊的 run 能重現。
-- **與校準的關係**：`calibration.yaml` 的 `models[]` 記錄校準時的範本 hash（[05 §5.9](05-bias-calibration.md#59-校準設定與結果的欄位)）。run 中 verifier 的範本 hash 與校準時不同 → `calibrate check` 列出受影響的桶（結束碼 10），該 agent 在這個 run 的權重為 0。這等同 [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的「system prompt 範本 hash 改變」。`calibrate check` 與 validator 都強制：驗證者的範本 hash 與校準時不同，該票的權重為 0（`derive.vote_terms` 的不合格理由；第十三輪外部審查改正了這裡「validator 還沒檢查」的過時說法）。
+- **與校準的關係**：`calibration.yaml` 的 `models[]` 記錄校準時的範本 hash（[05 §5.9](05-bias-calibration.md#59-校準設定與結果的欄位)）。run 中 verifier 的範本 hash 與校準時不同 → `calibrate check` 列出受影響的桶（結束碼 10），該 agent 在這個 run 的權重為 0。這等同 [05 §5.8](05-bias-calibration.md#58-模型版本變更時的最小重跑集) 的「system prompt 範本 hash 改變」。`calibrate check` 與 validator 都強制：驗證者的範本 hash 與校準時不同，該票的權重為 0（`verdict.vote_terms` 的不合格理由；第十三輪外部審查改正了這裡「validator 還沒檢查」的過時說法）。
 
 **稽核**：`config_loaded` 事件列出每個設定檔的路徑與 hash；每次 LLM 呼叫的稽核紀錄含範本 ID 與版本（[03 §13](03-system-architecture.md#13-可觀測性與稽核)）。
 

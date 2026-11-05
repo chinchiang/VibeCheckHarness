@@ -202,7 +202,7 @@ def test_reproduced_black_box_fail_is_proof_without_an_eligible_analyst(b, keys)
 def test_tool_signal_from_e_fail_u(b, keys):
     """E_fail_u (a reproduced W4 FAIL without pre-registration or an eligible analyst) is a WEAK tool signal
     (v0.3): it goes to tool_signal and counts as one independent source; it never confirms on its own."""
-    from vchlib.checks import derived_independent_sources, derived_tool_signal, verdict_inputs
+    from vchlib.verdict import derived_independent_sources, derived_tool_signal, verdict_inputs
     from vchlib.context import Ctx
     from vchlib.adjudicate import adjudicate
     from vchlib.bundle import Doc

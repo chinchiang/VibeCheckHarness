@@ -28,7 +28,7 @@ import json
 import pytest
 
 from conftest import hp_rule, doc, rederive
-from vchlib import checks, derive, expectations, safety
+from vchlib import derive, expectations, safety, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.checks import report_metrics, run_all
 from vchlib.context import Ctx
@@ -270,11 +270,11 @@ def test_diversity_counts_the_base_lineages_of_the_pool(b):
     three families in E and kept the R8 cap."""
     v = doc(b, "verdict.k-014-w3.example.json").data
     cl = doc(b, "cluster.k-014.example.json").data
-    assert checks.derived_diversity_degraded(Ctx(b), v, cl)
+    assert verdict.derived_diversity_degraded(Ctx(b), v, cl)
     models = doc(b, "models.yaml").data
     for mk in ("gpt_flagship", "gpt_oss_self"):
         models[mk]["derived_from"] = "nemotron3"
-    assert not checks.derived_diversity_degraded(Ctx(b), v, cl)
+    assert not verdict.derived_diversity_degraded(Ctx(b), v, cl)
 
 
 def test_a_lineage_cycle_is_rejected(b):
@@ -326,8 +326,8 @@ def test_weighted_valid_is_recomputed(b):
     vote = next(x for x in v["votes"] if not x.get("weighted_valid"))
     vote["weighted_valid"], vote["stance"] = True, "REFUTE"
     c = Ctx(b)
-    assert not derive.vote_terms(c.ix, vote, cl, v["calibration_version"])[2]
-    assert checks.verdict_inputs(c, v, cl).weighted_refute is False
+    assert not verdict.vote_terms(c.ix, vote, cl, v["calibration_version"])[2]
+    assert verdict.verdict_inputs(c, v, cl).weighted_refute is False
     assert errors(b, "E-DERIVED", "k-014-w3")
 
 

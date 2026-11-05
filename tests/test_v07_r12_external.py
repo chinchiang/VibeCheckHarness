@@ -20,7 +20,7 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
-from vchlib import checks, context
+from vchlib import context, verdict
 from vchlib.bundle import load_variant
 from vchlib.checks import content_hash, run_all
 
@@ -46,7 +46,7 @@ def entry(c, result_id, cls, control):
 
 def fixed(c, *entries):
     run, cl = c.runs[RID], c.ix.first("cluster", cluster_id="K-301").data
-    return checks.regression_fixed(c, {"test_evidence": {"class": "E_pass", "results": list(entries)}}, cl, run)
+    return verdict.regression_fixed(c, {"test_evidence": {"class": "E_pass", "results": list(entries)}}, cl, run)
 
 
 def test_the_required_case_erroring_is_not_fixed_by_another_cases_pass(reg):
@@ -74,7 +74,7 @@ def test_a_source_without_any_failing_test_is_never_fixed(reg, monkeypatch):
     """r14 (05-v0.15, B1): a CONFIRMED_CORROBORATED source with no test evidence anywhere on its chain leaves no required
     testcase, so no PASS can show it fixed (R16 keeps the status, fix_unverified); 05-v0.12 accepted any one qualified PASS."""
     c = context.Ctx(reg)
-    monkeypatch.setattr(checks, "carried_source", lambda c, cl, run: {"status": "CONFIRMED_CORROBORATED", "test_evidence": {"results": []}})
+    monkeypatch.setattr(verdict, "carried_source", lambda c, cl, run: {"status": "CONFIRMED_CORROBORATED", "test_evidence": {"results": []}})
     assert not fixed(c, entry(c, "R-TC-031-01-1", "E_pass", True))
     assert not fixed(c, entry(c, "R-TC-031-01-1", "E_pass", False))
 
@@ -85,7 +85,7 @@ def test_the_bundle_cannot_declare_fixed_while_the_proof_case_errors(reg):
     v["test_evidence"]["results"][0].update({"class": "E_inc", "positive_control": None})
     c = context.Ctx(b)
     v["test_evidence"]["results"].append(entry(c, "R-TC-031-01-1", "E_pass", True))
-    out = adj.adjudicate(checks.verdict_inputs(c, v, c.ix.first("cluster", cluster_id="K-301").data))
+    out = adj.adjudicate(verdict.verdict_inputs(c, v, c.ix.first("cluster", cluster_id="K-301").data))
     assert out.status != "FIXED" and "R14" not in out.rules
 
 

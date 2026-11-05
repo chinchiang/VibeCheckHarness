@@ -13,7 +13,7 @@ import pytest
 
 from conftest import doc
 from vchlib import adjudicate as adj
-from vchlib import checks, derive
+from vchlib import derive, verdict
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -46,14 +46,14 @@ def test_only_a_replayed_g4_proof_overrides_g2(overrides, status, row):
 
 def test_the_b4_proof_of_k005_overrides(b):
     v = doc(b, "verdict.executable.example.json").data
-    assert checks.proof_overrides_g2(Ctx(b), v)
+    assert verdict.proof_overrides_g2(Ctx(b), v)
 
 
 def test_a_proof_without_a_replay_hit_does_not(b):
     tr = result(b, "R-TC-012-01-1")
-    assert checks.proof_can_override(Ctx(b), tr)
+    assert verdict.proof_can_override(Ctx(b), tr)
     tr["replay_k"] = 0
-    assert not checks.proof_can_override(Ctx(b), tr)
+    assert not verdict.proof_can_override(Ctx(b), tr)
 
 
 def test_a_w4_result_never_overrides_even_if_named_at_g4(b):
@@ -64,18 +64,18 @@ def test_a_w4_result_never_overrides_even_if_named_at_g4(b):
     # (2026-10-03T11:00+08:00); the phase guard of proof_can_override is what this test is about
     tr["executed_at"] = "2026-10-04T10:00:00+08:00"
     assert derive.g4_approved(derive.Index(b), tr) and tr["replay_k"] >= 1
-    assert not checks.proof_can_override(Ctx(b), tr)
+    assert not verdict.proof_can_override(Ctx(b), tr)
 
 
 def test_a_w4_proof_does_not_override(b):
     """V-015-2's proof is the W4 local RLS test WTC-015-01."""
-    assert not checks.proof_overrides_g2(Ctx(b), doc(b, "verdict.k-015-w4.example.json").data)
+    assert not verdict.proof_overrides_g2(Ctx(b), doc(b, "verdict.k-015-w4.example.json").data)
 
 
 def test_a_proof_without_g4_does_not_override(b):
     doc(b, "gate-record.g4.example.json").data["decisions"] = [
         dict(x, decision="reject") if x["item_id"] == "TC-012-01" else x for x in doc(b, "gate-record.g4.example.json").data["decisions"]]
-    assert not checks.proof_overrides_g2(Ctx(b), doc(b, "verdict.executable.example.json").data)
+    assert not verdict.proof_overrides_g2(Ctx(b), doc(b, "verdict.executable.example.json").data)
 
 
 # ================================================================ Result Analyst independence
@@ -166,18 +166,18 @@ def test_not_checked_does_not_escape_r0(b):
     ev = _k014_evidence(b)
     ev[:] = [dict(ev[0], match="NOT_FOUND"), dict(ev[0], match="NOT_CHECKED")]
     c = Ctx(b)
-    assert checks.all_evidence_not_found(c, c.ix.first("cluster", cluster_id="K-014").data)
+    assert verdict.all_evidence_not_found(c, c.ix.first("cluster", cluster_id="K-014").data)
 
 
 def test_grounded_evidence_keeps_the_cluster(b):
     ev = _k014_evidence(b)
     ev[:] = [dict(ev[0], match="NOT_FOUND"), dict(ev[0], match="MATCHED_SHIFTED")]
     c = Ctx(b)
-    assert not checks.all_evidence_not_found(c, c.ix.first("cluster", cluster_id="K-014").data)
+    assert not verdict.all_evidence_not_found(c, c.ix.first("cluster", cluster_id="K-014").data)
 
 
 def test_only_unchecked_evidence_is_not_r0(b):
     ev = _k014_evidence(b)
     ev[:] = [dict(ev[0], match="NOT_CHECKED")]
     c = Ctx(b)
-    assert not checks.all_evidence_not_found(c, c.ix.first("cluster", cluster_id="K-014").data)
+    assert not verdict.all_evidence_not_found(c, c.ix.first("cluster", cluster_id="K-014").data)

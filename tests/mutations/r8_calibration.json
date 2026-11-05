@@ -10,14 +10,14 @@
     },
     {
       "name": "fail_u always independent",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        if not (afams & fams) and not (c.ix.lineage_roots(alins) & roots):\n            return True",
       "new": "        if True:\n            return True",
       "k": "reporting_family_is_not_a_source"
     },
     {
       "name": "fail_u never independent",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        if not (afams & fams) and not (c.ix.lineage_roots(alins) & roots):\n            return True",
       "new": "        if False:\n            return True",
       "k": "independently_written_fail_u"

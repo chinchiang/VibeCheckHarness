@@ -101,7 +101,7 @@
     },
     {
       "name": "ext3 diversity by root",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    return len(roots) < min(2, len({c.ix.independence_key(k) or k for k in eligible_verifier_models(c, cluster)}))",
       "new": "    return len(roots) < min(2, len(eligible_verifier_families(c, cluster)))",
       "k": "base_lineages_of_the_pool"
@@ -143,9 +143,9 @@
     },
     {
       "name": "ext4 weighted_valid recomputed",
-      "file": "tools/vchlib/checks.py",
-      "old": "    votes = [x for x in v.get(\"votes\", []) if derive.vote_terms(c.ix, x, cluster, v.get(\"calibration_version\"))[2]]",
-      "new": "    votes = [x for x in v.get(\"votes\", []) if x.get(\"weighted_valid\") and derive.is_verifier_vote(c.ix, x)]",
+      "file": "tools/vchlib/verdict.py",
+      "old": "    votes = [x for x in v.get(\"votes\", []) if vote_terms(c.ix, x, cluster, v.get(\"calibration_version\"))[2]]",
+      "new": "    votes = [x for x in v.get(\"votes\", []) if x.get(\"weighted_valid\") and is_verifier_vote(c.ix, x)]",
       "k": "weighted_valid_is_recomputed"
     },
     {

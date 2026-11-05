@@ -17,9 +17,10 @@ from . import timeutil
 from .bundle import Bundle, Doc, read_jsonl_lines
 from .canonical import approval_hash, content_hash, jcs, set_digest, sha256_hex, sha256_ref, text_hash
 from .derive import (CONFIG_KINDS, Index, MISSING, _equal, artifact_sha, classify_result, cluster_fingerprint,
-    derived_score, execution_pins, gate_artifact, gate_record_sha256, get_path, is_probabilistic, item_hash,
-    job_end_of, linked_results, positive_control_value, reachability_reached, rubric_severity, slice_identity,
-    strongest, tool_results_ref, vote_terms, w4_became_disputed_clusters)
+    execution_pins, gate_artifact, gate_record_sha256, get_path, is_probabilistic, item_hash, job_end_of,
+    positive_control_value, reachability_reached, rubric_severity, slice_identity, strongest, tool_results_ref,
+    w4_became_disputed_clusters)
+from .verdict import (derived_score, linked_results, vote_terms)
 
 
 @dataclass

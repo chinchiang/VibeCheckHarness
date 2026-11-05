@@ -38,7 +38,7 @@
     },
     {
       "name": "membership is judged at vote time",
-      "file": "tools/vchlib/derive.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    if ix is None or type(vr) is not int or not cluster.get(\"member_finding_ids\"):",
       "new": "    if True:",
       "k": "stays_valid or follow_the_reporter_rounds"
@@ -73,7 +73,7 @@
     },
     {
       "name": "regression_fixed needs a positive control and no FAIL",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "    return bool(required) and bool(classes) and not (classes & {\"E_proof\", \"E_fail_u\"}) \\\n        and all(",
       "new": "    return bool(required) and bool(classes) \\\n        and all(",
       "k": "derived_from_the_parent"

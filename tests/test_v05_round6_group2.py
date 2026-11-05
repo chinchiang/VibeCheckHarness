@@ -13,7 +13,7 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import adjudicate as adj
-from vchlib import derive, expectations
+from vchlib import expectations, verdict
 from vchlib.adjudicate import Inputs, adjudicate
 from vchlib.context import Ctx
 
@@ -49,7 +49,7 @@ def test_abstention_is_not_weighted_valid(b):
 def _relevant(b, citation, stance="SUPPORT"):
     ix = Ctx(b).ix
     cl = ix.first("cluster", cluster_id="K-014").data
-    return derive.cited_relevant(ix, {"stance": stance, "cited_evidence": [citation]}, cl)
+    return verdict.cited_relevant(ix, {"stance": stance, "cited_evidence": [citation]}, cl)
 
 
 @pytest.mark.parametrize("cite", ["routes/invoices.ts:88", "routes/invoices.ts:88-88"])
@@ -99,9 +99,9 @@ def test_model_outside_valid_for_weighs_zero(b):
 def test_w4_version_does_not_see_b4_results(b):
     ix = Ctx(b).ix
     cl = ix.first("cluster", cluster_id="K-005").data
-    assert derive.linked_results(ix, cl, "B5_readjudicate")              # the B4 result of TC-012-01
-    assert derive.linked_results(ix, cl, "W4_readjudicate") == []
-    assert derive.linked_results(ix, cl, "W3_adjudicate") == []
+    assert verdict.linked_results(ix, cl, "B5_readjudicate")              # the B4 result of TC-012-01
+    assert verdict.linked_results(ix, cl, "W4_readjudicate") == []
+    assert verdict.linked_results(ix, cl, "W3_adjudicate") == []
 
 
 # ================================================================ config pins
@@ -115,11 +115,11 @@ def test_calibration_and_crosswalk_are_pinned(b, name):
 
 # ================================================================ provisional
 def test_strong_tool_row_is_not_provisional(b, monkeypatch):
-    from vchlib import checks
+    from vchlib import checks, verdict
     c = Ctx(b)
     v = dict(doc(b, V014).data, calibration_version=None, theta_confirm=None)   # uncalibrated: provisional by default
     cl = c.ix.first("cluster", cluster_id="K-014").data
-    assert checks.derived_provisional(c, v, cl) is True
+    assert verdict.derived_provisional(c, v, cl) is True
     real = checks.adj.adjudicate
     monkeypatch.setattr(checks.adj, "adjudicate", lambda x: real(adj.Inputs(strong_tool=True, independent_families=1)))
-    assert checks.derived_provisional(c, v, cl) is False                         # row 10 is not decided by votes
+    assert verdict.derived_provisional(c, v, cl) is False                         # row 10 is not decided by votes

@@ -9,7 +9,7 @@ r14 (rule_version 05-v0.15, fourth-round internal review B1 / B7 / C3, user deci
     05-v0.11-05-v0.14 let a REFUTE on a carried cluster land on row 8 / 9 and R16 lift the stronger
     refutation back to the source status (non-monotonic).
   - R14's required testcases follow the carried_from chain to the first verdict holding an E_proof
-    (checks.regression_fixed); a chain without one is never FIXED (R16, fix_unverified).
+    (verdict.regression_fixed); a chain without one is never FIXED (R16, fix_unverified).
   - A W4 FAIL is pre-registered proof only when the harness generated the oracle from a G1-approved
     structure (w4-testcase kind local_rls / fake_model) and both oracle controls PASSed; an LLM-written
     W4 test's FAIL is E_fail_u (at most LIKELY) with the `oracle_unreviewed` annotation until G2 accepts
@@ -37,7 +37,7 @@ v0.4 (rule_version 05-v0.4): three rule edges that could drop or downgrade a rea
     test_not_reproduced: a test that was never shown able to fail cannot refute.
 
 v0.7 (rule_version 05-v0.9, review r10 PR2):
-  - S counts each base lineage as its strongest vote when its votes agree (derive.root_score): the mean let a weaker
+  - S counts each base lineage as its strongest vote when its votes agree (verdict.root_score): the mean let a weaker
     SUPPORT of the same root lower S, so adding evidence could remove a confirmation.
   - An eligible Result Analyst that disagrees makes a pre-registered result E_inc; unknown W4 test authors are not
     independent; `trials.sampling: sampled` is a declaration, not a probabilistic signal.
@@ -46,7 +46,7 @@ v0.7 (rule_version 05-v0.9, review r10 PR2):
     n >= 10; a reproduced canary zeroes the model's weights. The example weights and scores changed, statuses did not.
 
 v0.7 (rule_version 05-v0.8, review r9 PR2):
-  - S counts each base lineage once, as the mean of its weighted-valid votes (derive.root_score): log likelihood ratios
+  - S counts each base lineage once, as the mean of its weighted-valid votes (verdict.root_score): log likelihood ratios
     add only for independent observations, and two verifiers of one root share its blind spots.
   - A W4 FAIL is pre-registered proof only when the test's authors are outside the cluster's families and roots; the
     FAIL replay rule uses the same probabilistic judgement as the rest of the classification.

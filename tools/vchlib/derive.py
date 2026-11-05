@@ -14,7 +14,6 @@ from .bundle import Bundle, Doc
 from .canonical import approval_hash, content_hash, jcs, set_digest, sha256_ref
 
 ZERO = "sha256:" + "0" * 64
-STANCE = {"SUPPORT": 1, "REFUTE": -1, "ABSTAIN": 0}
 
 
 class _Missing:
@@ -646,7 +645,7 @@ CODE_ORACLE_KINDS = ("local_rls", "fake_model")
 
 
 def g2_accepted(ix: "Index", cluster: dict) -> bool:
-    """The latest non-EXPIRED G2 record of the cluster's run that decides the cluster accepts it (checks.g2_latest reads the
+    """The latest non-EXPIRED G2 record of the cluster's run that decides the cluster accepts it (verdict.g2_latest reads the
     same records); r14 (05-v0.15): the human review that lets an LLM-written W4 oracle count as pre-registered."""
     dec = None
     for x in ix.gate_records(cluster.get("run_id"), "G2"):
@@ -867,16 +866,6 @@ def execution_pins(tc: dict, tr: dict) -> dict:
     return {"testcase_sha256": content_hash(tc), "artifact_sha256": tr.get("artifact_sha256"), "result_sha256": content_hash(tr)}
 
 
-def vote_terms(ix: "Index", vote: dict, cluster: dict, version) -> tuple[bool, float, bool]:
-    """(valid, weight, weighted_valid) of one vote. A vote by an agent without the verifier role is ignored
-    (E-VERDICT-VOTER-ROLE in checks); v0.5 (review 2026-10-25 A-3): an abstention takes a side neither way, so it is never
-    weighted-valid (v0.4 counted it, and one abstaining family could lift the R8 cap through diversity)."""
-    valid = vote_valid(vote, cluster, ix)
-    wgt = ix.weight(vote.get("voter_model_key"), cluster.get("cwe_bucket"), version, vote.get("stance"), cluster.get("run_id"))
-    counts = valid and wgt > 0 and is_verifier_vote(ix, vote) and vote.get("stance") in ("SUPPORT", "REFUTE")
-    return valid, wgt, counts
-
-
 # Second external review of r12 (05-v0.13): the M-2 evidence that splits one family into independent observations (docs/05
 # §4.3): kappa's upper confidence bound below the "diversity too low" bar of M-2 (κ ≥ 0.6, docs/05 §5.3), measured on at
 # least as many clusters as a calibration threshold needs (threshold_search.min_clusters)
@@ -889,55 +878,11 @@ def independence_evidence_ok(x: dict) -> bool:
             and type(n) is int and n >= INDEPENDENCE_SPLIT["n_min"] and isinstance(lins, list) and len(set(lins)) == 2)
 
 
-def root_score(terms) -> float:
-    """S from [(base lineage, w * stance)]: each root counts once (v0.7, review r9; v0.7 r10: its strongest vote). S adds
-    log likelihood ratios, which is only valid for independent observations; two verifiers of one base lineage share
-    its blind spots, so they are one observation. v0.7 added them, and a claude_sonnet + claude_opus pair (1.44 each)
-    passed theta_confirm 2.5 that no single vote reaches."""
-    by_root: dict = {}
-    for root, x in terms:
-        by_root.setdefault(root, []).append(x)
-    total = 0.0
-    for xs in by_root.values():
-        # v0.7 (review r10, rule_version 05-v0.9): votes of one root that agree count as its strongest vote; the mean let a
-        # weaker SUPPORT of the same root lower S below theta (adding evidence must never remove it). Votes of one root
-        # that disagree count as their mean; a SUPPORT and a REFUTE together are R3 (DISPUTED) whatever S is.
-        same = all(x >= 0 for x in xs) or all(x <= 0 for x in xs)
-        total += max(xs, key=abs) if same else sum(xs) / len(xs)
-    return round(total, 4)
-
-
-def derived_score(ix: "Index", v: dict, cluster: dict) -> float:
-    """S = sum over base lineages of the mean w * stance of their weighted-valid votes, recomputed (v0.5, review r7 1.7:
-    the rules use this value, not the verdict's own score, which E-DERIVED compares only within rounding; v0.7, review
-    r9: one observation per root, root_score)."""
-    terms = []
-    for vote in v.get("votes", []):
-        _, wgt, counts = vote_terms(ix, vote, cluster, v.get("calibration_version"))
-        if counts:
-            root = ix.independence_key(vote.get("voter_model_key")) or vote.get("voter_model_key")   # 05-v0.13: per observation
-            terms.append((root, wgt * STANCE.get(vote.get("stance"), 0)))
-    return root_score(terms)
-
-
 def strongest(classes) -> str | None:
     for c in ("E_proof", "E_fail_u", "E_pass", "E_inc"):
         if c in classes:
             return c
     return None
-
-
-# v0.5 (review 2026-10-25 A-7): the test phases a verdict version may see. A W4 version is written before any
-# black-box execution, so it cannot cite B4 results; v0.4 linked every result of the run to every version.
-RESULT_PHASES = {"W3_adjudicate": (), "G2_apply": (), "W4_readjudicate": ("W4",), "B5_readjudicate": ("W4", "B4")}
-
-
-def linked_results(ix: Index, cluster: dict, readjudicated_by: str | None = "B5_readjudicate") -> list[dict]:
-    phases = RESULT_PHASES.get(readjudicated_by, ())
-    rs = [d.data for d in ix.docs("testresult")
-          if d.data.get("run_id") == cluster.get("run_id") and cluster.get("cluster_id") in d.data.get("cluster_ids", [])
-          and d.data.get("phase") in phases]
-    return sorted(rs, key=lambda r: (timeutil.sort_key(r.get("executed_at")), str(r.get("result_id"))))
 
 
 def w4_became_disputed_clusters(ix: Index) -> dict[str, Any]:
@@ -948,157 +893,6 @@ def w4_became_disputed_clusters(ix: Index) -> dict[str, Any]:
             cl = ix.first("cluster", cluster_id=v.data.get("cluster_id"))
             out[v.data.get("cluster_id")] = cl.data.get("run_id") if cl else None
     return out
-
-
-VERIFIER_TEMPLATE_ID = "w3-verify"
-
-
-def verifier_template_controls(ix: "Index", cluster: dict) -> tuple[bool, bool]:
-    """v0.4: (anonymizes_candidates, randomizes_order) of the run's W3 verifier prompt template. These are
-    properties of the harness template recorded in the run manifest, not of the vote."""
-    run = ix.first("run", run_id=cluster.get("run_id"))
-    for t in ((run.data if run else {}) or {}).get("prompt_templates") or []:
-        if isinstance(t, dict) and t.get("template_id") == VERIFIER_TEMPLATE_ID:
-            return t.get("anonymizes_candidates") is True, t.get("randomizes_order") is True
-    return False, False
-
-
-CITE_LINE_RE = __import__("re").compile(r"^(?P<file>.+):(?P<a>[1-9][0-9]*)(?:-(?P<b>[1-9][0-9]*))?$")
-
-
-def _cite_lines(c: str) -> tuple[str, int, int] | None:
-    """`file:line` or `file:start-end` -> (file, start, end); anything else (no line, bad range) -> None."""
-    m = CITE_LINE_RE.match(c)
-    if m is None:
-        return None
-    a = int(m.group("a"))
-    b = int(m.group("b")) if m.group("b") else a
-    return (m.group("file"), a, b) if b >= a else None
-
-
-def cited_relevant(ix: "Index", v: dict, cluster: dict) -> bool:
-    """v0.5 (review 2026-10-25 A-4, A-5): at least one cited item is about this cluster.
-
-    - every vote: a `file:line[-line]` inside the line range of a member finding's code_snippet evidence (same
-      file), or `inventory:<pointer>` equal to a member's inventory_fact fact_ref;
-    - a REFUTE vote may also cite a line inside a member finding's slice (slice.files[] path and line range), or any
-      `inventory:<pointer>` that resolves in the run's W0 inventory: a refutation usually rests on code elsewhere
-      on the path (a middleware check, a policy) or on configuration.
-    v0.4 compared the file name only, so `file:99999` or a bare file name counted."""
-    from . import evidence
-    members = [ix.finding(fid) or {} for fid in cluster.get("member_finding_ids") or []]
-    ranges, facts = [], set()
-    for f in members:
-        for e in f.get("evidence") or []:
-            if not isinstance(e, dict):
-                continue
-            if e.get("kind") == "code_snippet" and isinstance(e.get("line_start"), int) and isinstance(e.get("line_end"), int):
-                ranges.append((e.get("file"), e["line_start"], e["line_end"]))
-            elif e.get("kind") == "inventory_fact":
-                facts.add(e.get("fact_ref"))
-    refute = v.get("stance") == "REFUTE"
-    if refute:
-        sids = {f.get("slice_id") for f in members}
-        for sl in ix.docs("slice"):
-            if sl.data.get("slice_id") in sids and sl.data.get("run_id") == cluster.get("run_id"):
-                ranges.extend((x.get("path"), x.get("line_start"), x.get("line_end"))
-                              for x in sl.data.get("files") or [] if isinstance(x, dict))
-        inv = ix.first("inventory", run_id=cluster.get("run_id"))
-    for c in v.get("cited_evidence") or []:
-        if not isinstance(c, str):
-            continue
-        if c.startswith("inventory:"):
-            ptr = c[len("inventory:"):]
-            if ptr in facts or (refute and inv is not None and evidence.resolves(inv.data, ptr)):
-                return True
-            continue
-        loc = _cite_lines(c)
-        if loc and any(loc[0] == f and isinstance(a, int) and isinstance(b, int) and a <= loc[1] and loc[2] <= b
-                       for f, a, b in ranges):
-            return True
-    return False
-
-
-def members_at_vote(ix: "Index", v: dict, cluster: dict) -> tuple[list, list]:
-    """r11 (05-v0.10): the cluster's (families, lineages) as they stood when the vote was cast: the members whose reporter
-    round is at most the vote's `voted_after_round`. Without the field (or without an index) every member counts, the
-    stricter reading. v0.7 r10 judged every vote against the members present now, so a same-family reporter added to the
-    cluster in a later round (CMD-2 extra dispatch, or a prompt injection that steers three reviewers to one spot)
-    silently voided a weighted REFUTE already cast."""
-    vr = v.get("voted_after_round")
-    if ix is None or type(vr) is not int or not cluster.get("member_finding_ids"):
-        return list(cluster.get("families") or []), list(cluster.get("lineages") or [])
-    fams, lins = set(), set()
-    for fid in cluster.get("member_finding_ids") or []:
-        rep = (ix.finding(fid) or {}).get("reporter") or {}
-        if type(rep.get("round")) is int and rep["round"] <= vr:
-            fams.add(rep.get("family")); lins.add(rep.get("lineage"))
-    return sorted(x for x in fams if x), sorted(x for x in lins if x)
-
-
-def member_observation_keys(ix: "Index", cluster: dict, up_to_round=None) -> set:
-    """r14 (05-v0.15, internal review B2): the independence keys (Index.independence_key) of the models that reported the
-    cluster's members (those with reporter.round <= up_to_round when given). A verifier whose key is among them shares an
-    observation with a reporter (same family, same base lineage, or merged through a fine-tune's derived_from), so it is
-    not independent of the cluster even when its family and lineage differ from every member's. 05-v0.13 merged such
-    models in S, the independent sources and diversity, but judged vote eligibility and the verifier pool on family and
-    lineage alone, so a model merged with a reporter through a third model could still be its eligible verifier."""
-    keys = set()
-    for fid in cluster.get("member_finding_ids") or []:
-        rep = (ix.finding(fid) or {}).get("reporter") or {}
-        if up_to_round is not None and not (type(rep.get("round")) is int and rep["round"] <= up_to_round):
-            continue
-        a = ix.agents.get(rep.get("agent_id")) if isinstance(rep.get("agent_id"), str) else None
-        for mk in (rep.get("model_key"), (a or {}).get("model") if isinstance(a, dict) else None):
-            k = ix.independence_key(mk)
-            if k is not None:
-                keys.add(k)
-    return keys
-
-
-def shares_observation(ix: "Index", model_key, cluster: dict, up_to_round=None) -> bool:
-    """r14 (05-v0.15): the model's independence key is one of the cluster's member observations."""
-    k = ix.independence_key(model_key)
-    return k is not None and k in member_observation_keys(ix, cluster, up_to_round)
-
-
-def later_member_overlap(ix: "Index", v: dict, cluster: dict) -> bool:
-    """r11: a weighted vote cast before a member of the voter's family or base lineage joined the cluster (R15 annotation).
-    r12: a REFUTE only, as the annotation's name says (refute_by_later_member_family); a SUPPORT cast before a same-family
-    member joined is not the case R15 shows."""
-    if v.get("stance") != "REFUTE":
-        return False
-    fams, lins = members_at_vote(ix, v, cluster)
-    now_f, now_l = cluster.get("families") or [], cluster.get("lineages") or []
-    overlap_now = v.get("voter_family") in now_f or v.get("voter_lineage") in now_l \
-        or ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(now_l)
-    overlap_then = v.get("voter_family") in fams or v.get("voter_lineage") in lins \
-        or ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(lins)
-    return overlap_now and not overlap_then
-
-
-def vote_valid(v: dict, cluster: dict, ix: "Index | None" = None) -> bool:
-    """docs/05 §4.2: family / lineage not in the cluster (r11: as the cluster stood when the vote was cast, members_at_vote);
-    candidates anonymised and order randomised (v0.4: by the run's verifier template, not by the vote's own flags); and
-    (v0.4) a cited item relevant to the cluster."""
-    fams, lins = members_at_vote(ix, v, cluster)
-    if v.get("voter_family") in fams or v.get("voter_lineage") in lins:
-        return False
-    if ix is not None and ix.lineage_root(v.get("voter_lineage")) in ix.lineage_roots(lins):
-        return False                                                    # v0.6 (review r7 3.9): same base lineage
-    if ix is not None and shares_observation(ix, v.get("voter_model_key"), cluster,
-                                             v.get("voted_after_round") if type(v.get("voted_after_round")) is int else None):
-        return False                                                    # r14 (05-v0.15): same independent observation
-    if ix is None:
-        return bool(v.get("anonymized")) and bool(v.get("order_randomized"))
-    anon, rand = verifier_template_controls(ix, cluster)
-    return anon and rand and bool(v.get("anonymized")) and bool(v.get("order_randomized")) and cited_relevant(ix, v, cluster)
-
-
-def is_verifier_vote(ix: "Index", v: dict) -> bool:
-    """Only agents.yaml agents with role verifier may vote (docs/05 §3); other votes are ignored."""
-    a = ix.agents.get(v.get("voter_agent_id")) if isinstance(v.get("voter_agent_id"), str) else None
-    return isinstance(a, dict) and a.get("role") == "verifier"
 
 
 # ---------------------------------------------------------------- gate artifacts

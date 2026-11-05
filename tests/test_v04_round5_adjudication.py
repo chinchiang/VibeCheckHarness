@@ -13,8 +13,9 @@ import copy
 import pytest
 
 from conftest import codes, doc
-from vchlib import derive, expectations
-from vchlib.checks import derived_provisional, run_all
+from vchlib import expectations, verdict
+from vchlib.checks import run_all
+from vchlib.verdict import derived_provisional
 from vchlib.context import Ctx
 
 V014, V202, V201 = "verdict.k-014-w3.example.json", "verdict.k-202-b5.example.json", "verdict.k-201-b5.example.json"
@@ -71,18 +72,18 @@ def test_irrelevant_citation_makes_the_vote_invalid(b):
     c = Ctx(b)
     vote = copy.deepcopy(doc(b, V014).data["votes"][0])
     cl = c.ix.first("cluster", cluster_id="K-014").data
-    assert derive.vote_valid(vote, cl, c.ix) is True
+    assert verdict.vote_valid(vote, cl, c.ix) is True
     vote["cited_evidence"] = ["app/support/agent.py:57"]          # a real line, but in another cluster's file
-    assert derive.vote_valid(vote, cl, c.ix) is False
+    assert verdict.vote_valid(vote, cl, c.ix) is False
 
 
 def test_inventory_citation_is_relevant_only_for_a_member_fact(b):
     c = Ctx(b)
     cl = c.ix.first("cluster", cluster_id="K-015").data
     vote = copy.deepcopy(doc(b, "verdict.k-015-w3.example.json").data["votes"][0])
-    assert derive.cited_relevant(c.ix, vote, cl)
+    assert verdict.cited_relevant(c.ix, vote, cl)
     vote["cited_evidence"] = ["inventory:/db/tables/1/rls_enabled"]
-    assert not derive.cited_relevant(c.ix, vote, cl)
+    assert not verdict.cited_relevant(c.ix, vote, cl)
 
 
 def test_vote_flags_come_from_the_verifier_template(b):

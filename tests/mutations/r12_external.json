@@ -3,14 +3,14 @@
   "mutations": [
     {
       "name": "each required case has its own qualified PASS",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)",
       "new": "        and required <= set(by_case)",
       "k": "erroring_is_not_fixed or needs_its_own_positive_control or pass_and_an_error"
     },
     {
       "name": "an unclear required case is not fixed",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/verdict.py",
       "old": "        and all(by_case.get(tc) and all(qualified(x) for x in by_case[tc]) for tc in required)",
       "new": "        and all(by_case.get(tc) and any(qualified(x) for x in by_case[tc]) for tc in required)",
       "k": "pass_and_an_error"
