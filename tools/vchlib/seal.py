@@ -60,12 +60,20 @@ def event_is_signed(ev: dict) -> bool:
     return ev.get("event_type") in SIGNED_EVENTS and (ev.get("actor") or {}).get("kind") == "human"
 
 
+def signing_key(by_fp, fingerprint, where):
+    """The TEST ONLY private key with this fingerprint; ResealError (not KeyError) when the fixtures have none."""
+    try:
+        return by_fp[fingerprint]
+    except KeyError:
+        raise ResealError(f"{where}: no TEST ONLY key for {fingerprint}") from None
+
+
 def current_key(registry, person, at, by_fp):
     for e in registry["entries"]:
         if e["person_id"] != person or e.get("revoked_at"):
             continue
         if timeutil.parse_dt(e["not_before"]) <= at <= timeutil.parse_dt(e["not_after"]):
-            return by_fp[e["fingerprint"]]
+            return signing_key(by_fp, e["fingerprint"], "key-registry.yaml")
     raise ResealError(f"no valid registry key for {person} at {at}")
 
 
@@ -112,18 +120,18 @@ def reseal(b: Bundle, keys, *, rounds: int = 30) -> None:
         for d in b.docs:
             if pathlib.PurePosixPath(d.path).name in SIGNED_YAML:
                 for sig in d.data.get("signatures") or []:
-                    value = crypto.sign_document(d.data, sig["signer"], by_fp[sig["key_fingerprint"]])["value"]
+                    value = crypto.sign_document(d.data, sig["signer"], signing_key(by_fp, sig["key_fingerprint"], d.name))["value"]
                     if sig.get("value") != value:
                         sig["value"], changed = value, True
             if d.kind == "gate-record":
                 rec = d.data
                 sigs = [] if gate_unsigned(rec) else \
-                    [crypto.sign_document(rec, a["person_id"], by_fp[a["key_fingerprint"]]) for a in required_signers(d.kind, rec)]
+                    [crypto.sign_document(rec, a["person_id"], signing_key(by_fp, a["key_fingerprint"], d.name)) for a in required_signers(d.kind, rec)]
                 if sigs != rec.get("signatures"):
                     rec["signatures"], changed = sigs, True
             if d.kind in ("feedback", "report-withdrawal"):
                 rec = d.data
-                sigs = [crypto.sign_document(rec, x["person_id"], by_fp[x["key_fingerprint"]]) for x in required_signers(d.kind, rec)]
+                sigs = [crypto.sign_document(rec, x["person_id"], signing_key(by_fp, x["key_fingerprint"], d.name)) for x in required_signers(d.kind, rec)]
                 if sigs != rec.get("signatures"):
                     rec["signatures"], changed = sigs, True
         registry = next(d for d in b.docs if d.kind == "key-registry").data

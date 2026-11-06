@@ -8,6 +8,13 @@
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 找不到 TEST ONLY 金鑰時的錯誤（PR-C2a）
+C3 動工前的小修正（候選 #2，[ADR 0002](docs/adr/0002-reseal-module.md)）：
+- `reseal` 簽 signed YAML、gate record、feedback、report withdrawal 時直接以 `by_fp[...]` 查金鑰，`current_key` 查 registry entry 的金鑰也一樣，所以 fixtures 裡沒有對應的私鑰時會拋出裸的 `KeyError`。現在 4 處都改走新的 `seal.signing_key(by_fp, fingerprint, where)`，改拋 `ResealError("<檔名>: no TEST ONLY key for <fingerprint>")`。訊息格式和舊版 `sign_examples` 簽 YAML 時的 `SystemExit` 相同，C3 改用 `reseal` 之後不會退步；`build_variants` 現在也會乾淨地結束。
+- `tests/test_seal.py` 新增 5 個參數化案例（roe.yaml、gate-record、feedback、report-withdrawal、key-registry 的 registry entry）。修正前 5 個都是斷言失敗（拿到的是 `KeyError`），修正後都通過。`signing_key` 也加入「checker 不得使用」的清單。
+- 新增突變清單 `tests/mutations/c2a_seal.json`，共 5 個突變：把錯誤換回 `KeyError`，以及 4 處查詢逐一換回 `by_fp[...]`。結果是 `CAUGHT 5/5`。
+- 只影響範例壞掉時的錯誤路徑，範例輸出不變。
+
 ### 記憶體內的重新封存（PR-C2）
 候選 #2 第 2 步（[ADR 0002](docs/adr/0002-reseal-module.md)）：
 - `build_variants.resign` 原封不動搬進 `vchlib/seal.py`，成為 `reseal(bundle, keys, *, rounds=30) -> None`。三個呼叫點都改用 `seal.reseal`；`build_variants` 不再自己做推導、簽章與串鏈，因此拿掉了因此用不到的 import 與 `CFG`。
