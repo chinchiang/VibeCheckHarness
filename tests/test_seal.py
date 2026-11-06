@@ -13,8 +13,8 @@ CHECKS = ROOT / "tools" / "vchlib" / "checks.py"
 
 
 def test_the_checker_never_reseals():
-    """checks.py reads the signing policy from seal but must not sign: no reseal / sign_event_in_place / current_key."""
-    writers = {"reseal", "sign_event_in_place", "current_key"}
+    """checks.py reads the signing policy from seal but must not sign: no reseal / sign_event_in_place / current_key / signing_key."""
+    writers = {"reseal", "sign_event_in_place", "current_key", "signing_key"}
     tree = ast.parse(CHECKS.read_text(encoding="utf-8"))
     used = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name)
             and n.value.id == "seal"}
@@ -49,3 +49,26 @@ def test_reseal_without_a_fixpoint_raises(b, keys):
 def test_no_valid_key_raises():
     with pytest.raises(seal.ResealError, match="no valid registry key"):
         seal.current_key({"entries": []}, "alice", None, {})
+
+
+UNKNOWN = "ed25519:SHA256:no-such-test-only-key"
+
+
+@pytest.mark.parametrize("name,edit", [
+    ("roe.yaml", lambda d: d["signatures"][0].update(key_fingerprint=UNKNOWN)),
+    ("gate-record.g1.example.json", lambda d: d["approvers"][0].update(key_fingerprint=UNKNOWN)),
+    ("feedback.k-016.example.json", lambda d: d["signed_by"].update(key_fingerprint=UNKNOWN)),
+    ("report-withdrawal.example.json", lambda d: d["signers"][0].update(key_fingerprint=UNKNOWN)),
+    ("key-registry.yaml", lambda d: [e.update(fingerprint=UNKNOWN) for e in d["entries"]]),
+])
+def test_a_signing_key_missing_from_the_fixtures_raises(b, keys, name, edit):
+    """No TEST ONLY key for a fingerprint: ResealError naming the file, not a bare KeyError (sign_examples turns it
+    into a clean exit, as its own YAML signer did before PR-C3)."""
+    edit(doc(b, name).data)
+    try:                                   # catch anything: a bare KeyError must fail an assertion, not error out
+        seal.reseal(b, keys)
+        raised = None
+    except Exception as exc:
+        raised = exc
+    assert isinstance(raised, seal.ResealError), repr(raised)
+    assert str(raised) == f"{name}: no TEST ONLY key for {UNKNOWN}"
