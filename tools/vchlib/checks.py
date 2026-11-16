@@ -168,10 +168,16 @@ def schema_formats(node, path="") -> list[tuple[str, str]]:
 
 
 def url_problem(url) -> str | None:
-    """D3: ROE URLs must be https://; http:// only for localhost / 127.0.0.1 / [::1] (MVP-1 local targets)."""
+    """D3: ROE URLs must be https://; http:// only for localhost / 127.0.0.1 / [::1] (MVP-1 local targets).
+    A backslash or userinfo (`user@host`) is refused: parsers disagree on which host such a URL names."""
     if not is_uri(url):
         return f"{url!r} is not an absolute URI"
+    if "\\" in url:
+        # urlsplit reads `https://good.com\\@evil.com/` as host evil.com, a WHATWG parser as host good.com
+        return f"{url!r} contains a backslash (parsers disagree on the host)"
     u = urlsplit(url)
+    if "@" in u.netloc:
+        return f"{url!r} contains userinfo (user@host): the host a reader sees may differ from the host connected to"
     if u.scheme.lower() == "https":
         return None
     if u.scheme.lower() == "http" and (u.hostname or "").lower() in LOCAL_HTTP_HOSTS:
@@ -431,6 +437,14 @@ def g_key_registry(R: Report, c: Ctx):
         root_fp = None
     pinned = (tk.get("org_root_key") or {}).get("fingerprint")
     R.check(root_fp is not None and root_fp == pinned, "E-KR-ROOT-PIN", w, f"org_root_public_key fingerprint {root_fp} != toolkit pin {pinned}")
+    if c.real_run:
+        # --real-run: the published TEST ONLY private keys can sign anything; a registry that trusts one is not a real registry
+        if root_pk in crypto.TEST_ONLY_PUBLIC_KEYS:
+            R.error("E-KR-TEST-ONLY", w, f"org_root_public_key is the published TEST ONLY key {crypto.TEST_ONLY_PUBLIC_KEYS[root_pk]!r} [--real-run]")
+        for e in c.entries:
+            name = crypto.TEST_ONLY_PUBLIC_KEYS.get(e.get("public_key"))
+            if name is not None:
+                R.error("E-KR-TEST-ONLY", f"{w} {e.get('person_id')}", f"public_key is the published TEST ONLY key {name!r} [--real-run]")
     sigs = kr.get("signatures") or []
     R.check(len(sigs) == 1 and sigs[0].get("signer") == "org_root" and sigs[0].get("key_fingerprint") == pinned,
             "E-KR-ROOT-SIG", w, "the registry must carry exactly one org_root signature by the pinned key")

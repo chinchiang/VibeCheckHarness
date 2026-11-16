@@ -28,6 +28,23 @@ def unb64(text: str) -> bytes:
     return base64.b64decode(text.encode("ascii"), validate=True)
 
 
+# Public halves of the private keys published in tests/fixtures/TEST_ONLY_private_keys (base64 raw Ed25519 -> name).
+# Anyone can sign with them, so `--real-run` refuses a registry that trusts one (E-KR-TEST-ONLY, docs/06 section 1.6).
+# tests/test_validator_url_and_real_run_regressions.py checks this table against the fixtures directory.
+TEST_ONLY_PUBLIC_KEYS = {
+    "/bw1qZLEQ9BHy7WpsvCwvgwe3BD7H1x5VU/wgrs2PU4=": "alice",
+    "8GxcVzu3GihM5KSY3MWwjmetv6MoT9r/eKuOrDR9DVo=": "carol",
+    "iAp2qfW6kdPet9HAmZTkWRFZlXjTs+822aUnZ6cIQho=": "dave",
+    "8+Fqgko2gh8pIjZn9WS64ul9EL3sIQFQXboR1uT3L8Q=": "erin",
+    "PBZo/tvlZln6CaK1FNk2G/iJwinxFTojO905LHKPO+4=": "erin_old",
+    "Xp3hSgL959BRVR/D8NbDlJ0KZ5QB4mT+miVSXMWYkiI=": "frank",
+    "7R6pV+FatuAyRI8DUOI+kMfWQMVzobicYM7JTiqjCRY=": "grace",
+    "xmU6747eeztSXpTebopZhX/0EKV5k4OTGB0Vghx0auA=": "heidi",
+    "z+t55vCMGk7Z3OWrKl7SMIAelWBOB8GmjWJHQkjZWjM=": "org_root",
+    "fsyrENMpQKkJ2Xr98gonu+0eL7B7/1MTH+4G+WxDRA8=": "z3_executor",
+}
+
+
 def fingerprint(raw_public_key: bytes) -> str:
     digest = hashlib.sha256(raw_public_key).digest()
     return "ed25519:SHA256:" + base64.b64encode(digest).decode("ascii").rstrip("=")

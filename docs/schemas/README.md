@@ -66,7 +66,7 @@
 python -m pip install -r requirements.txt      # 或 python -m pip install --user -r requirements.txt
 python tools/validate_schemas.py               # 最後一行應為 "all checks passed (...)"
 python -m pytest -q tests                      # 負向測試：每個竄改都要被對應的錯誤碼抓到
-python tools/validate_schemas.py --real-run    # 正式執行前：代理可達的佔位模型 ID 變成錯誤（目前範例通過：唯一的佔位模型 nemotron_cloud 沒有代理可達）
+python tools/validate_schemas.py --real-run    # 正式執行前：代理可達的佔位模型 ID 與 TEST ONLY 金鑰變成錯誤（目前範例的結束碼是 1：只剩 `E-KR-TEST-ONLY`，沒有 `E-MODEL-PLACEHOLDER`，因為唯一的佔位模型 nemotron_cloud 沒有代理可達）
 ```
 
 `tools/validate_schemas.py` 只是入口；檢查都在 [tools/vchlib](../../tools/vchlib/)。CI（`.github/workflows/validate.yml`）在 ubuntu 與 windows 上跑上面兩個命令與 `tools/check_doc_links.py`。
@@ -118,7 +118,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 
 下表由 [`tools/build_error_table.py`](../../tools/build_error_table.py) 維護：每個 validator 會回報的錯誤碼與警告碼恰好一列（`tools/vchlib` 中所有 `E-…`／`W-…` 字串），依家族分組、組內依字母排序；「守住的測試」欄由 `tests/` 中提到該碼的測試檔自動產生（最多列 3 份）。規則欄是手寫的說明；新增錯誤碼時先在表中補上規則，再執行 `python tools/build_error_table.py`。CI 以 `--check` 確認表格與程式一致。標「—」的錯誤碼目前沒有測試直接引用它。
 
-目前範例的預期警告只有一個：`nemotron_cloud` 的 litellm 是佔位模型 ID（`W-MODEL-PLACEHOLDER`；沒有 agent 會用到，`--real-run` 也不報錯）。U-11 已把 `claude_haiku` 換成 `claude_opus_48`（最早 2027-05-28 退役，不在委任期間內 [V][E:providers-52]）；U-12 已把 `gpt_flagship` 換成 `gpt-6-sol` [V][E:providers-46]。
+目前範例的預期警告只有一個：`nemotron_cloud` 的 litellm 是佔位模型 ID（`W-MODEL-PLACEHOLDER`；沒有 agent 會用到，`--real-run` 不因它報 `E-MODEL-PLACEHOLDER`；但範例的金鑰都是公開的 TEST ONLY 金鑰，`--real-run` 會報 `E-KR-TEST-ONLY`，所以範例本來就不能通過 `--real-run`）。U-11 已把 `claude_haiku` 換成 `claude_opus_48`（最早 2027-05-28 退役，不在委任期間內 [V][E:providers-52]）；U-12 已把 `gpt_flagship` 換成 `gpt-6-sol` [V][E:providers-46]。
 
 <!-- error-table:start -->
 
@@ -234,21 +234,21 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ROE-ENGAGEMENT` | ROE 的 `engagement.id`／`version` 必須等於 engagement.yaml 的 `engagement_id`／`version` | `test_bl66_run_gates` |
 | `E-ROE-INCIDENT` | ROE `incident_response` 的聯絡人在金鑰登錄中，`covers` 含 data_exposure、third_party_side_effect、shared_platform_impact、staging_outage | `test_v04_legal_trust` |
 | `E-ROE-MISSING` | 沒有 ROE；v0.5 起只在 bundle 含黑箱內容（測試案例、測試結果、威脅、G0b 以後的關卡紀錄或 `run.jobs`）時才是錯誤，純白箱 bundle 可以沒有 ROE | `test_v05_round6_lowprio` |
-| `E-ROE-PLATFORM` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates`、`test_v06_r7_methodology`、`test_v05_round6_group4` 等 4 份 |
+| `E-ROE-PLATFORM` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost），網址不得含反斜線或 userinfo（`user@host`），因為解析器對主機的讀法不一致；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates`、`test_v06_r7_methodology`、`test_v05_round6_group4` 等 4 份 |
 | `E-ROE-RELAY` | `relay` 的 `max_turns`、`max_spend_usd_per_job`、`max_spend_usd_per_run` 不能超過工具包的 relay 上限；relay 模型必須在委任該資料等級的 `allowed_models` | `test_bl66_run_gates` |
-| `E-ROE-RELAY-MODE` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
+| `E-ROE-RELAY-MODE` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-SOD`）https（http 只限 localhost），網址不得含反斜線或 userinfo（`user@host`），因為解析器對主機的讀法不一致；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
 | `E-ROE-RETENTION` | ROE `data_handling.retention_days` 不得長於委任的 `retention_days`（ROE 只能縮短） | `test_v02_hardening`、`test_review_fixes` |
 | `E-ROE-S3` | `activities.allowed_safety_classes` 永遠不能含 S3 | `test_bl66_run_gates` |
 | `E-ROE-SEED-MANIFEST` | （同一條規則也涵蓋 `E-SEED-SIDE-EFFECT`）ROE `db_access.seed_manifest_sha256` 等於 seed manifest 的內容 hash；W0 inventory 中 `writes: true` 的 GET／HEAD 端點都列在 `state_changing_reads`；審查 r7 1.5：W0 標為 `writes: true` 的端點不能列在 `read_only_endpoints` | `test_v04_round5_examples`、`test_v04_write_scope` |
 | `E-ROE-SIGNATORIES` | ROE 簽署人的角色必須涵蓋 G0b 的必要角色（test_lead、management、infrastructure_owner） | `test_bl66_run_gates` |
-| `E-ROE-SOD` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
+| `E-ROE-SOD` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`）https（http 只限 localhost），網址不得含反斜線或 userinfo（`user@host`），因為解析器對主機的讀法不一致；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
 | `E-ROE-STOP` | `stop_conditions` 中與工具包預設同名的數值只能更嚴（`min_*` 不低於預設，其他不高於預設）；`contacts` 不能是空的 | `test_v06_r7_methodology` |
 | `E-ROE-TARGETS` | ROE 目標的 ID 不重複；HTTP 目標只有 `base_url`、DB 目標只有 `endpoint`；所有權證明的方法與目標種類相符（DB 用 `db_comment`／`platform_project`） | `test_v05_round6_group4`、`test_v03_scope`、`test_validator_bypass_regressions` 等 4 份 |
 | `E-ROE-TOOLS` | `allowed_tools` 每一項都必須是 tools.yaml 中有 B4 可執行模式的工具；`denied_modes` 每一項都必須已登錄 | `test_bl66_run_gates` |
 | `E-ROE-TRANSFER` | （同一條規則也涵蓋 `E-ENG-TRANSFER`）data_class C 時，每個能收 C 級資料的雲端（非 Z4）家族有 `providers[].region` 與同區域的 `data_transfer.transfers[]`；跨出 `source_jurisdiction` 需要 `same_jurisdiction` 以外的機制與 reference；聲明者是委任設定簽署人。委任設定宣告跨境傳輸時，ROE `legal_review.scope.cross_border` 必須為 true | `test_v04_legal_trust` |
-| `E-ROE-URL` | （同一條規則也涵蓋 `E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_scope` |
+| `E-ROE-URL` | （同一條規則也涵蓋 `E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost），網址不得含反斜線或 userinfo（`user@host`），因為解析器對主機的讀法不一致；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_scope`、`test_validator_url_and_real_run_regressions` |
 | `E-ROE-VALIDITY` | ROE 的 `not_before` 必須早於 `not_after`，且有效期間落在委任有效期間內 | `test_bl66_run_gates` |
-| `E-ROE-WHOAMI` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
+| `E-ROE-WHOAMI` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost），網址不得含反斜線或 userinfo（`user@host`），因為解析器對主機的讀法不一致；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
 | `E-ROE-WINDOW` | 每個 `windows[]` 的時區與 HH:MM 時間必須可解析，start 不等於 end，`days` 非空且都是合法的星期 | `test_v03_robustness` |
 | `W-L2-MANAGEMENT` | `legal_review.attested_by` 沒有 legal_reviewer 角色而以 management 身分證明：報告中必須標示 | `test_bl66_run_gates` |
 | `W-L5-LITE` | Lite 委任中法務審查聲明由兼任測試負責人的同一人簽署（警告）；報告首頁必須寫明聲明為自行簽署 | `test_v03_gates`、`test_bl60_variants` |
@@ -292,6 +292,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-KR-ROOT-PIN` | `org_root_public_key` 的指紋必須等於 toolkit `org_root_key.fingerprint` 的釘選值 | `test_validator` |
 | `E-KR-ROOT-SIG` | 登錄必須恰好有一個由釘選根金鑰（`org_root`）做的簽章，且驗證通過 | `test_bl66_trust` |
 | `E-KR-SERVICE` | `z3_executor` 角色只能由服務身分 `z3-executor` 單獨持有；服務身分不是人員，不能出現在任何人員欄位 | `test_v05_round6_group3` |
+| `E-KR-TEST-ONLY` | 只在 `--real-run`：組織根金鑰或任何登錄項目的公鑰，等於 `tests/fixtures/TEST_ONLY_private_keys` 公開的測試金鑰之一（內嵌表 `crypto.TEST_ONLY_PUBLIC_KEYS`）時報錯；私鑰公開在 repo，任何人都能簽，不代表真人核准（`docs/06` §1.6） | `test_review_fixes`、`test_v03_robustness`、`test_validator_url_and_real_run_regressions` |
 | `E-KR-VALIDITY` | 登錄項目的 `not_before` 必須早於 `not_after` | `test_bl66_trust` |
 | `E-SIG-BACKDATED` | 委任設定或 ROE 的簽章金鑰後來以非 `compromised` 原因撤銷時，該文件第一次被驗章（G0a／G0b 紀錄的收件時間）必須早於 `revoked_at`；v0.5 對 `not_after` 也一樣（首次驗章時金鑰已到期，或從未驗章而登錄顯示已到期） | `test_v04_round5_trust`、`test_v05_round6_group3` |
 | `E-SIG-BAD` | `alg` 不是 ed25519，或 Ed25519 簽章驗證失敗 | `test_seal`、`test_v05_schema_backlog`、`test_v07_r12_flow` 等 4 份 |
@@ -332,7 +333,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-MODEL-FALLBACK-CLASS` | （同一條規則也涵蓋 `E-PROVENANCE`、`E-MODEL-RETIREMENT-DATE`、`E-RESULT-ANALYST-ROLE`）threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 | `test_v03_manifest` |
 | `E-MODEL-LINEAGE` | models.yaml 的 `derived_from` 必須是登錄中的另一個血統，而且不能形成循環（A → B → A 會讓兩者各自成為根、互相驗證）；審查 r9 外部 2：同一血統的所有模型宣告相同的 `derived_from`（v0.7 取檔案中最後一筆，調換 models.yaml 的順序就改變根） | `test_v07_r8_validator`、`test_v07_r9_verdict` |
 | `E-MODEL-NIM` | `nvidia_nim/` 開頭的模型（build.nvidia.com 試用端點）只能收 P 級資料，且不能用於 production | `test_bl66_pipeline` |
-| `E-MODEL-PLACEHOLDER` | models.yaml 的 `litellm` 看起來是佔位值（`<...>`、`{...}`、TBD、TODO、FIXME、實作時確認）時必須標 `placeholder: true`；真實 run（`--real-run`）中任何 agent 可達的佔位模型（主要或 fallback）是錯誤 | `test_review_fixes`、`test_v02_hardening` |
+| `E-MODEL-PLACEHOLDER` | models.yaml 的 `litellm` 看起來是佔位值（`<...>`、`{...}`、TBD、TODO、FIXME、實作時確認）時必須標 `placeholder: true`；真實 run（`--real-run`）中任何 agent 可達的佔位模型（主要或 fallback）是錯誤 | `test_review_fixes`、`test_v02_hardening`、`test_validator_url_and_real_run_regressions` |
 | `E-MODEL-RETIRED` | 被代理使用或在允許清單中的模型，其 `earliest_retirement` 早於委任開始 | `test_validator` |
 | `E-MODEL-RETIREMENT-DATE` | （同一條規則也涵蓋 `E-PROVENANCE`、`E-MODEL-FALLBACK-CLASS`、`E-RESULT-ANALYST-ROLE`）threat.modeled_by／invariants.drafted_by 對應登錄；fallback 鏈上的模型都能收該資料等級且在允許清單；退役日期格式；Result Analyst 必須是 result_analyst 角色 | `test_v03_robustness` |
 | `E-MODEL-STORE` | 能收 C 級資料的 `openai/` 模型必須設 `store: false` | `test_validator` |
