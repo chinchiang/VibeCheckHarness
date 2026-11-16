@@ -620,6 +620,7 @@ DENIED_NETWORKS = tuple(ipaddress.ip_network(n) for n in (
     "fec0::/10",           # deprecated site-local
     "fc00::/7",            # unique local
     "224.0.0.0/4", "ff00::/8",   # multicast
+    "::/96",               # deprecated IPv4-compatible (::127.0.0.1 is ::7f00:1): the embedded IPv4 address may be internal
 ))
 LOCAL_TEST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
@@ -724,14 +725,64 @@ PSL_EXCEPTIONS = {
 ENDPOINT_RE = re.compile(r"^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*):[0-9]{1,5}$")
 
 
+_LEGACY_IPV4_PART = re.compile(r"0[xX][0-9a-fA-F]*|[0-9]+")
+
+
+def _legacy_ipv4(h: str) -> tuple[str | None, bool]:
+    """inet_aton spellings of an IPv4 address: (canonical dotted quad | None, ambiguous).
+
+    '127.1' and '2130706433' are plain decimal short / integer forms: every resolver reads them the same way, so
+    they canonicalise to '127.0.0.1'. A hexadecimal ('0x7f.0.0.1') or leading-zero ('0177.0.0.1', octal in
+    some parsers, decimal in others) part is read differently by different parsers: ambiguous, never compared.
+    """
+    parts = h.split(".")
+    if not 1 <= len(parts) <= 4 or not all(_LEGACY_IPV4_PART.fullmatch(p) for p in parts):
+        return None, False
+    if any(p[:2] in ("0x", "0X") or (len(p) > 1 and p[0] == "0") for p in parts):
+        return None, True
+    nums = [int(p) for p in parts]
+    if any(n > 255 for n in nums[:-1]) or nums[-1] >= 256 ** (5 - len(nums)):
+        return None, False
+    value = 0
+    for n in nums[:-1]:
+        value = (value << 8) | n
+    value = (value << (8 * (5 - len(nums)))) | nums[-1]
+    return str(ipaddress.IPv4Address(value)), False
+
+
+def _strip_host(host) -> str:
+    h = str(host or "").strip().rstrip(".").lower()
+    return h[1:-1] if h.startswith("[") and h.endswith("]") else h
+
+
+def ambiguous_ip_host(host) -> bool:
+    """True for a host spelled as an IPv4 address in hexadecimal or leading-zero form (rejected, never compared)."""
+    return _legacy_ipv4(_strip_host(host))[1]
+
+
 def norm_host(host) -> str:
     """Comparable host name: trailing dot(s) removed, lower-cased, IDNA (punycode) encoded.
 
     'API.Example.com.' and 'api.example.com' are the same DNS name, so an exclusion must not be
     bypassable by a trailing dot, case or a Unicode spelling. When IDNA encoding fails (IPv6
     literal edge cases, empty label, over-long label) the lower-cased form is used.
+
+    IP literals are compared as addresses, not strings: brackets are dropped, IPv6 is compressed
+    ('[0:0:0:0:0:0:0:1]' -> '::1'), IPv4-mapped IPv6 becomes the IPv4 address, and decimal short or integer
+    IPv4 forms become the dotted quad ('127.1', '2130706433' -> '127.0.0.1'). Hexadecimal and leading-zero
+    IPv4 forms are left as written: `ambiguous_ip_host` flags them and callers refuse them.
     """
-    h = str(host or "").strip().rstrip(".").lower()
+    h = _strip_host(host)
+    try:
+        ip = ipaddress.ip_address(h)
+    except ValueError:
+        legacy, _ = _legacy_ipv4(h)
+        if legacy:
+            return legacy
+    else:
+        if ip.version == 6 and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        return str(ip)
     try:
         return h.encode("idna").decode("ascii").lower()
     except UnicodeError:
@@ -747,7 +798,9 @@ def host_of(base_url: str | None) -> str | None:
         return None
     if u.scheme.lower() not in ("http", "https"):
         return None
-    return (norm_host(h) or None) if h else None
+    if not h or ambiguous_ip_host(h):
+        return None
+    return norm_host(h) or None
 
 
 def endpoint_host(endpoint: str | None) -> str | None:
@@ -763,7 +816,9 @@ def endpoint_host(endpoint: str | None) -> str | None:
         h = urlsplit("//" + endpoint).hostname
     except ValueError:
         return None
-    return (norm_host(h) or None) if h else None
+    if not h or ambiguous_ip_host(h):
+        return None
+    return norm_host(h) or None
 
 
 def target_host(target: dict) -> str | None:
@@ -777,7 +832,7 @@ def host_matches(host: str | None, pattern) -> bool:
     """D2: exact match after norm_host, or a leading-wildcard pattern `*.example.com` that matches every
     subdomain of example.com (at any depth) but not example.com itself."""
     h = norm_host(host) if host else ""
-    if not h or not isinstance(pattern, str):
+    if not h or not isinstance(pattern, str) or ambiguous_ip_host(host) or ambiguous_ip_host(pattern):
         return False
     p = pattern.strip()
     if p.startswith("*."):

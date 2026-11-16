@@ -243,7 +243,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ROE-SIGNATORIES` | ROE 簽署人的角色必須涵蓋 G0b 的必要角色（test_lead、management、infrastructure_owner） | `test_bl66_run_gates` |
 | `E-ROE-SOD` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
 | `E-ROE-STOP` | `stop_conditions` 中與工具包預設同名的數值只能更嚴（`min_*` 不低於預設，其他不高於預設）；`contacts` 不能是空的 | `test_v06_r7_methodology` |
-| `E-ROE-TARGETS` | ROE 目標的 ID 不重複；HTTP 目標只有 `base_url`、DB 目標只有 `endpoint`；所有權證明的方法與目標種類相符（DB 用 `db_comment`／`platform_project`） | `test_v05_round6_group4`、`test_v03_scope`、`test_review_fixes` |
+| `E-ROE-TARGETS` | ROE 目標的 ID 不重複；HTTP 目標只有 `base_url`、DB 目標只有 `endpoint`；所有權證明的方法與目標種類相符（DB 用 `db_comment`／`platform_project`） | `test_v05_round6_group4`、`test_v03_scope`、`test_validator_bypass_regressions` 等 4 份 |
 | `E-ROE-TOOLS` | `allowed_tools` 每一項都必須是 tools.yaml 中有 B4 可執行模式的工具；`denied_modes` 每一項都必須已登錄 | `test_bl66_run_gates` |
 | `E-ROE-TRANSFER` | （同一條規則也涵蓋 `E-ENG-TRANSFER`）data_class C 時，每個能收 C 級資料的雲端（非 Z4）家族有 `providers[].region` 與同區域的 `data_transfer.transfers[]`；跨出 `source_jurisdiction` 需要 `same_jurisdiction` 以外的機制與 reference；聲明者是委任設定簽署人。委任設定宣告跨境傳輸時，ROE `legal_review.scope.cross_border` 必須為 true | `test_v04_legal_trust` |
 | `E-ROE-URL` | （同一條規則也涵蓋 `E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_scope` |

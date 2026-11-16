@@ -60,10 +60,8 @@ class _StrictLoader(yaml.reader.Reader, yaml.scanner.Scanner, yaml.parser.Parser
         if getattr(ev, "anchor", None):
             raise StrictYAMLError(f"anchor &{ev.anchor} not allowed (line {line})")
         tag = getattr(ev, "tag", None)
-        if isinstance(ev, yaml.ScalarEvent):
-            if tag is not None and ev.implicit == (False, False):
-                raise StrictYAMLError(f"explicit tag {tag} not allowed (line {line})")
-        elif tag is not None:
+        # any tag, including the non-specific '!' (PyYAML reads `! "1"` as the int 1, other parsers keep the string)
+        if tag is not None:
             raise StrictYAMLError(f"explicit tag {tag} not allowed (line {line})")
         return super().compose_node(parent, index)
 
