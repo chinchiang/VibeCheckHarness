@@ -146,7 +146,7 @@
 ### 1.6 人工關卡的完整性與簽章（D11）
 - 核准是**簽章紀錄**，綁定產物 hash；Policy Engine 驗的是紀錄，不是 checkpoint（[03 §6](03-system-architecture.md#6-人工關卡服務)）。
 - **金鑰信任根、撤銷語意、簽章格式與嚴格解析**：主頁是 [03 §6.1](03-system-architecture.md#61-金鑰登錄與驗章流程)（登錄由組織根金鑰簽署、`min_version` 防回滾、`compromised` 讓該金鑰的所有簽章失效、Ed25519 over RFC 8785 JCS、驗章前以嚴格 loader 拒絕重複鍵等）。ROE 與委任設定只能引用登錄中的指紋，不能自行宣告可信金鑰。
-- repo 內的測試私鑰只放在 `tests/fixtures/TEST_ONLY_private_keys/*.TEST_ONLY.pem`，只供測試驗章流程；用它們簽出的任何核准**不代表真實的人工核准**。正式登錄必須拒絕這些金鑰的指紋。
+- repo 內的測試私鑰只放在 `tests/fixtures/TEST_ONLY_private_keys/*.TEST_ONLY.pem`，只供測試驗章流程；用它們簽出的任何核准**不代表真實的人工核准**。正式登錄必須拒絕這些金鑰的指紋：`validate_schemas.py --real-run` 比對公鑰，組織根金鑰或任何登錄項目是其中之一就報 `E-KR-TEST-ONLY`（內嵌表 `crypto.TEST_ONLY_PUBLIC_KEYS`，與測試資料夾的一致性由測試鎖住）；設計階段的執行不檢查，範例 bundle 仍全是測試金鑰。
 - G5 的核准者不能是發起者。自動觸發的 run 在任何 G1 決定或 B 階段節點之前，必須由人以 `initiator_claim` 認領（D7）。
 - **職責分離依保證等級而定** [H]（定義見 [02 §1.7](02-methodology.md#17-保證等級liteteamfull)）：
   - **Team**：ROE 的每個簽署角色必須由不同的人擔任（`E-ROE-SOD`）；G4／G5 的分離同上。

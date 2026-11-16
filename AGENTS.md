@@ -14,6 +14,8 @@
 
 - `$improve-codebase-architecture`（或同類架構分析）產生的架構報告，一律存放在
   repo 根目錄的 `scratch/`，不要放在系統暫存目錄（`/tmp`、`%TEMP%`），因為關機後會被清除。
+- `/handoff` 產生的交接檔（handoff file），同樣一律存放在 repo 根目錄的 `scratch/`，
+  理由相同。
 - `scratch/` 已列入 `.gitignore`，內容不進版控。
 
 ## Interactive Next-Step Workflow

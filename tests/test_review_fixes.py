@@ -250,10 +250,14 @@ def test_real_run_follows_fallback_chains(b):
 
 
 def test_cli_real_run_flag(capsys):
-    # the examples have no agent-reachable placeholder model left (U-11/U-12 decided; nemotron_cloud is unreachable)
+    # the examples have no agent-reachable placeholder model left (U-11/U-12 decided; nemotron_cloud is unreachable),
+    # but every key in them is a published TEST ONLY key, so --real-run reports exactly E-KR-TEST-ONLY and nothing else
     assert cli.main(["--quiet"]) == 0
-    assert cli.main(["--quiet", "--real-run"]) == 0
-    assert "E-MODEL-PLACEHOLDER" not in capsys.readouterr().out
+    capsys.readouterr()
+    assert cli.main(["--quiet", "--real-run"]) == 1
+    out = capsys.readouterr().out
+    assert "E-MODEL-PLACEHOLDER" not in out
+    assert {ln.split()[1] for ln in out.splitlines() if ln.startswith("ERROR")} == {"E-KR-TEST-ONLY"}
 
 
 # ================================================================ 14 JSONL line splitting

@@ -7,6 +7,7 @@ import pytest
 
 from conftest import ROOT, codes, doc, rederive
 from vchlib import checks, cli, timeutil
+from vchlib.bundle import load_bundle
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
 
@@ -112,7 +113,10 @@ def test_one_bad_document_does_not_skip_the_group(b, monkeypatch):
 
 # ================================================================ D13
 def test_readme_real_run_statement_is_current():
-    """D13: docs/schemas/README.md said --real-run currently fails on gpt_flagship; it passes."""
+    """D13: docs/schemas/README.md said --real-run currently fails on gpt_flagship; it no longer does. It still exits 1
+    on the examples, but only with E-KR-TEST-ONLY (the example keys are published TEST ONLY keys), never E-MODEL-PLACEHOLDER."""
     text = (ROOT / "docs" / "schemas" / "README.md").read_text(encoding="utf-8")
     assert "目前範例會失敗" not in text
-    assert cli.main(["--quiet", "--real-run"]) == 0
+    errs = run_all(load_bundle(ROOT), real_run=True).errors
+    assert errs and {e.code for e in errs} == {"E-KR-TEST-ONLY"}
+    assert cli.main(["--quiet", "--real-run"]) == 1
