@@ -13,7 +13,7 @@
 - **十六進位與前導零的 IPv4 寫法直接拒絕**（使用者決定）：`0x7f.0.0.1`、`0177.0.0.1`、`127.0.0.01` 在不同解析器讀成不同位址，所以不比對也不正規化。`host_of`、`endpoint_host` 回傳 `None`，`host_matches` 不比對，ROE 檢查回報 `E-ROE-TARGETS`（HTTP 目標）或 `E-ROE-DB-SCOPE`（資料庫目標）。排除清單裡寫這種樣式的條目永遠不會比對成功，沒有另外加錯誤碼。
 - **`yamlstrict` 拒絕所有明確標籤**：原本只在 `implicit == (False, False)` 時擋，非特定標籤 `!` 的 `implicit` 是 `(False, True)`，所以 `a: ! "1"` 被 PyYAML 載成整數 `1`，其他解析器保留字串，簽章涵蓋的值就不一致。現在標籤不是 `None` 一律拒絕；`!!str`、`!local`、`!<tag:...>` 原本就被擋，行為不變。
 - **`safety.ip_problem` 拒絕 IPv4 相容位址**：`DENIED_NETWORKS` 加入 `::/96`，`::127.0.0.1`（即 `::7f00:1`）、`::10.0.0.1`、`::169.254.169.254` 不再被視為公開位址。`::1` 在 `local_target` 例外下仍可通過（該分支先於拒絕清單）。
-- 測試：新增 `tests/test_validator_bypass_regressions.py`，修正後共 35 個測試。先寫的 30 個在修正前 13 個失敗、17 個（對照組）通過；使用者決定十六進位與八進位改為拒絕後，那條斷言改成「被拒絕」並多加 1 個 ROE 端到端測試與參數化案例，修正後全數通過。對照組鎖住不能改壞的既有行為。`docs/schemas/README.md` 的錯誤碼表由 `build_error_table.py` 重新產生（`E-ROE-TARGETS` 的「守住的測試」多一個檔名）。
+- 測試：新增 `tests/test_validator_bypass_regressions.py`，修正後共 42 個測試。先寫的 30 個在修正前 13 個失敗、17 個（對照組）通過；使用者決定十六進位與八進位改為拒絕後，那條斷言改成「被拒絕」並多加 1 個 ROE 端到端測試與參數化案例，修正後全數通過；突變檢查（見下一小節）揪出 `endpoint_host` 與 `host_matches` 沒有測試守住十六進位與八進位的拒絕，另補 7 個測試。對照組鎖住不能改壞的既有行為。`docs/schemas/README.md` 的錯誤碼表由 `build_error_table.py` 重新產生（`E-ROE-TARGETS` 的「守住的測試」多一個檔名）。
 - 驗證：完整 `pytest` 1970 項通過（約 28 分鐘）；`validate_schemas`（4858 項）與 `build_variants`、`build_error_table`、證據帳本、參考文獻的 `--check`、文件連結、突變錨點都通過。只在 WSL 的 Python 3.14 驗證；Windows 與 Python 3.11 未驗證。
 - **尚未處理**（已在下一小節處理）：`https://good.com\@evil.com/` 在 Python 的 `urlsplit` 算成主機 `evil.com`，WHATWG 類解析器算成 `good.com`；`--real-run` 不拒絕 TEST ONLY 金鑰（`docs/06` §1.6 要求正式登錄拒絕）。
 
@@ -23,6 +23,7 @@
 - **新增 `E-KR-TEST-ONLY`**：`--real-run` 時，組織根金鑰或任何登錄項目的公鑰等於公開的 TEST ONLY 金鑰之一，就報錯（`docs/06` §1.6）。`crypto.TEST_ONLY_PUBLIC_KEYS` 內嵌 10 把公鑰，測試鎖住它與 `tests/fixtures/TEST_ONLY_private_keys` 一致，執行期不依賴測試資料夾存在；新增或輪替測試金鑰時兩邊要一起改。**限制**：只擋這 10 把已知金鑰，不能證明登錄是正式的（仍需 U-07）；設計階段（不帶 `--real-run`）不檢查，範例 bundle 照常通過。
 - **行為契約變更（使用者決定）**：範例 bundle 的 `--real-run` 原本結束碼 0，現在是 1，且錯誤碼只剩 `E-KR-TEST-ONLY`（根金鑰加 9 筆登錄項目共 10 個），沒有 `E-MODEL-PLACEHOLDER`。`test_review_fixes.py::test_cli_real_run_flag` 與 `test_v03_robustness.py::test_readme_real_run_statement_is_current` 的斷言隨之從「結束碼 0」改為「結束碼 1、只剩 `E-KR-TEST-ONLY`」，原意（證明沒有代理可達的佔位模型）保留。`docs/schemas/README.md` 的 `--real-run` 說明（兩處）、`E-ROE-URL` 的規則文字與錯誤碼表同步更新，`docs/06` §1.6 補上實際檢查的指引。持續整合目前沒有跑 `--real-run`，不受影響。
 - 測試：新增 `tests/test_validator_url_and_real_run_regressions.py`，共 33 個（網址繞過 14、網址對照 10、金鑰對照 3、內嵌表守門 1、`--real-run` 繞過 5），修正後全數通過；錯誤碼覆蓋測試（`test_bl66_coverage`）要求新碼被某個測試完整寫出名稱，所以另有一個斷言範例的 `--real-run` 錯誤碼集合恰好是 `E-KR-TEST-ONLY`。
+- **突變驗證**：新增 `tests/mutations/fix_bypasses_1.json`（9 項：排除比對的括號、壓縮、IPv4 映射、十進位短寫與整數、十六進位與八進位拒絕〔`host_of`、`endpoint_host`、`host_matches`〕、`yamlstrict` 的 `!`、`ip_problem` 的 `::/96`）與 `fix_bypasses_2.json`（6 項：`url_problem` 的反斜線與 userinfo、`E-KR-TEST-ONLY` 的根金鑰與登錄項目檢查、只在 `--real-run` 執行、內嵌公鑰表一致），結果 `CAUGHT 15/15`。第一次是 13/15（MISSED 2：資料庫目標的 `endpoint_host`、直接呼叫 `host_matches`），所以才補 `test_validator_bypass_regressions.py` 的 7 個測試（35 → 42 個）；`E-ROE-DB-SCOPE` 的錯誤碼表「守住的測試」欄隨之更新。
 - 驗證：完整 `pytest` 2003 項通過、結束碼 0（約 22 分鐘）；`validate_schemas`（4858 項）與 `build_variants`、`build_error_table`、證據帳本、參考文獻的 `--check`、文件連結、突變錨點都通過。只在 WSL 的 Python 3.14 驗證；Windows 與 Python 3.11 未驗證。
 
 ## 架構重構（非規格變更）

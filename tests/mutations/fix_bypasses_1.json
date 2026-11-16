@@ -1,0 +1,68 @@
+{
+ "tests": "tests/test_validator_bypass_regressions.py",
+ "mutations": [
+  {
+   "name": "IPv6 brackets are not stripped before comparing",
+   "file": "tools/vchlib/safety.py",
+   "old": "    return h[1:-1] if h.startswith(\"[\") and h.endswith(\"]\") else h",
+   "new": "    return h",
+   "k": "bracketed_ipv6 or ipv6_spellings or roe_check_reports_the_ipv6"
+  },
+  {
+   "name": "IPv6 literals are not compressed to one spelling",
+   "file": "tools/vchlib/safety.py",
+   "old": "        if ip.version == 6 and ip.ipv4_mapped:\n            ip = ip.ipv4_mapped\n        return str(ip)",
+   "new": "        return h",
+   "k": "ipv6_spellings or mapped"
+  },
+  {
+   "name": "IPv4-mapped IPv6 is not turned into the IPv4 address",
+   "file": "tools/vchlib/safety.py",
+   "old": "        if ip.version == 6 and ip.ipv4_mapped:",
+   "new": "        if False:",
+   "k": "mapped"
+  },
+  {
+   "name": "decimal short and integer IPv4 forms are compared as strings",
+   "file": "tools/vchlib/safety.py",
+   "old": "        if legacy:\n            return legacy",
+   "new": "        if False:\n            return legacy",
+   "k": "short_form or integer_form"
+  },
+  {
+   "name": "host_of accepts hex and octal IPv4 spellings",
+   "file": "tools/vchlib/safety.py",
+   "old": "    if not h or ambiguous_ip_host(h):\n        return None\n    return norm_host(h) or None\n\n\ndef endpoint_host",
+   "new": "    if not h:\n        return None\n    return norm_host(h) or None\n\n\ndef endpoint_host",
+   "k": "hex_and_octal or hex_or_octal"
+  },
+  {
+   "name": "endpoint_host accepts hex and octal IPv4 spellings",
+   "file": "tools/vchlib/safety.py",
+   "old": "    except ValueError:\n        return None\n    if not h or ambiguous_ip_host(h):",
+   "new": "    except ValueError:\n        return None\n    if not h:",
+   "k": "hex_database_endpoint or database_endpoint_in_hex"
+  },
+  {
+   "name": "host_matches compares hex and octal spellings",
+   "file": "tools/vchlib/safety.py",
+   "old": " or ambiguous_ip_host(host) or ambiguous_ip_host(pattern):",
+   "new": ":",
+   "k": "never_matched_even_against_itself"
+  },
+  {
+   "name": "yamlstrict lets the non-specific tag ! through",
+   "file": "tools/vchlib/yamlstrict.py",
+   "old": "        if tag is not None:\n            raise StrictYAMLError(f\"explicit tag {tag} not allowed (line {line})\")",
+   "new": "        if tag is not None and tag != \"!\":\n            raise StrictYAMLError(f\"explicit tag {tag} not allowed (line {line})\")",
+   "k": "non_specific_and_local"
+  },
+  {
+   "name": "IPv4-compatible IPv6 is a public address again",
+   "file": "tools/vchlib/safety.py",
+   "old": "    \"::/96\",               # deprecated IPv4-compatible",
+   "new": "    \"::/128\",              # deprecated IPv4-compatible",
+   "k": "ipv4_compatible"
+  }
+ ]
+}

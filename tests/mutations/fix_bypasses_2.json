@@ -1,0 +1,47 @@
+{
+ "tests": "tests/test_validator_url_and_real_run_regressions.py",
+ "mutations": [
+  {
+   "name": "url_problem accepts a backslash",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if \"\\\\\" in url:",
+   "new": "    if False:",
+   "k": "backslash or e_roe_url"
+  },
+  {
+   "name": "url_problem accepts userinfo",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if \"@\" in u.netloc:",
+   "new": "    if False:",
+   "k": "userinfo or e_roe_url"
+  },
+  {
+   "name": "--real-run does not check the org root key",
+   "file": "tools/vchlib/checks.py",
+   "old": "        if root_pk in crypto.TEST_ONLY_PUBLIC_KEYS:",
+   "new": "        if False:",
+   "k": "org_root_key_is_checked or exactly_e_kr_test_only"
+  },
+  {
+   "name": "--real-run does not check registry entries",
+   "file": "tools/vchlib/checks.py",
+   "old": "            if name is not None:",
+   "new": "            if False:",
+   "k": "refuses_the_test_only_keys or exactly_e_kr_test_only"
+  },
+  {
+   "name": "the TEST ONLY check runs without --real-run",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if c.real_run:\n        # --real-run: the published TEST ONLY",
+   "new": "    if True:\n        # --real-run: the published TEST ONLY",
+   "k": "design_run_with_test_only_keys_is_fine"
+  },
+  {
+   "name": "the embedded key table drifts from the fixtures",
+   "file": "tools/vchlib/crypto.py",
+   "old": "    \"/bw1qZLEQ9BHy7WpsvCwvgwe3BD7H1x5VU/wgrs2PU4=\": \"alice\",\n",
+   "new": "",
+   "k": "validator_table_equals"
+  }
+ ]
+}

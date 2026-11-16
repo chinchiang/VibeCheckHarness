@@ -59,6 +59,23 @@ class TestExclusionBypass:
         t["base_url"] = "https://0x7f.0.0.1/"
         assert "E-ROE-TARGETS" in codes(b)
 
+    @pytest.mark.parametrize("host", ["0x7f.0.0.1", "0177.0.0.1", "127.0.0.01"])
+    def test_a_hex_or_octal_spelling_is_never_matched_even_against_itself(self, host):
+        """host_matches guards itself: an exclusion written in an ambiguous spelling matches nothing, not even the same text."""
+        assert not safety.host_matches(host, host)
+        assert not safety.host_matches(host, "127.0.0.1")
+        assert not safety.host_matches("127.0.0.1", host)
+
+    @pytest.mark.parametrize("endpoint", ["0x7f.0.0.1:5432", "0177.0.0.1:5432", "127.0.0.01:5432"])
+    def test_a_database_endpoint_in_hex_or_octal_is_unparseable(self, endpoint):
+        assert safety.endpoint_host(endpoint) is None
+
+    def test_the_roe_check_refuses_a_hex_database_endpoint(self, b):
+        d = doc(b, "roe.yaml").data
+        t = next(x for x in d["targets"] if x.get("kind") == "database")
+        t["endpoint"] = "0x7f.0.0.1:5432"
+        assert "E-ROE-DB-SCOPE" in codes(b)
+
     def test_ipv4_mapped_ipv6_matches_the_ipv4_exclusion(self):
         assert excluded("https://[::ffff:127.0.0.1]/", ["127.0.0.1"])
 

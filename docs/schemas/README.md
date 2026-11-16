@@ -228,7 +228,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-L6` | 允許的工具中有 licenses.yaml 狀態為「法務閘門」的元件時，`legal_review.scope.component_licenses` 必須是 true（L-6） | `test_validator` |
 | `E-ROE-DATA-CLASS` | `data_handling.data_class` 必須等於委任的 `data_class` | `test_bl66_run_gates` |
 | `E-ROE-DB` | `db_access.target_id` 必須是 database 目標且 endpoint 字串與 `db_access.endpoint` 相同；`oracle_readonly_attested` 為 true；`seed_manifest_ref` 等於 seed manifest 的 `manifest_ref`；manifest 的 `db_target_id`、`engagement_id` 一致；每個 oracle query 的資料表都在 ROE `oracle_tables` | `test_review_fixes` |
-| `E-ROE-DB-SCOPE` | DB 目標的 `endpoint` 必須是可解析的 `host:port` 或 `[IPv6]:port`，主機不在 `exclusions.hosts` 中（比較前做結尾點、大小寫與 IDNA 正規化） | `test_review_fixes`、`test_v02_hardening`、`test_v03_scope` |
+| `E-ROE-DB-SCOPE` | DB 目標的 `endpoint` 必須是可解析的 `host:port` 或 `[IPv6]:port`，主機不在 `exclusions.hosts` 中（比較前做結尾點、大小寫與 IDNA 正規化） | `test_review_fixes`、`test_v02_hardening`、`test_v03_scope` 等 4 份 |
 | `E-ROE-DENYLIST` | `activities.denied_modes` 必須包含工具包內建的拒絕清單（`safety.TOOLKIT_DENYLIST`） | `test_validator` |
 | `E-ROE-EDGE-RANGE` | `targets[].edge_ip_ranges` 只用於 http 目標，每項是主機位元為 0 的 CIDR，且不與任何非公開網段重疊 | `test_v04_round5_trust` |
 | `E-ROE-ENGAGEMENT` | ROE 的 `engagement.id`／`version` 必須等於 engagement.yaml 的 `engagement_id`／`version` | `test_bl66_run_gates` |
