@@ -15,7 +15,15 @@
 - **`safety.ip_problem` 拒絕 IPv4 相容位址**：`DENIED_NETWORKS` 加入 `::/96`，`::127.0.0.1`（即 `::7f00:1`）、`::10.0.0.1`、`::169.254.169.254` 不再被視為公開位址。`::1` 在 `local_target` 例外下仍可通過（該分支先於拒絕清單）。
 - 測試：新增 `tests/test_validator_bypass_regressions.py`，修正後共 35 個測試。先寫的 30 個在修正前 13 個失敗、17 個（對照組）通過；使用者決定十六進位與八進位改為拒絕後，那條斷言改成「被拒絕」並多加 1 個 ROE 端到端測試與參數化案例，修正後全數通過。對照組鎖住不能改壞的既有行為。`docs/schemas/README.md` 的錯誤碼表由 `build_error_table.py` 重新產生（`E-ROE-TARGETS` 的「守住的測試」多一個檔名）。
 - 驗證：完整 `pytest` 1970 項通過（約 28 分鐘）；`validate_schemas`（4858 項）與 `build_variants`、`build_error_table`、證據帳本、參考文獻的 `--check`、文件連結、突變錨點都通過。只在 WSL 的 Python 3.14 驗證；Windows 與 Python 3.11 未驗證。
-- **尚未處理**：`https://good.com\@evil.com/` 在 Python 的 `urlsplit` 算成主機 `evil.com`，WHATWG 類解析器算成 `good.com`（未用實際 HTTP 用戶端確認會連到哪裡）；`--real-run` 不拒絕 TEST ONLY 金鑰（`docs/06` §1.6 要求正式登錄拒絕）。兩項都還沒有測試。
+- **尚未處理**（已在下一小節處理）：`https://good.com\@evil.com/` 在 Python 的 `urlsplit` 算成主機 `evil.com`，WHATWG 類解析器算成 `good.com`；`--real-run` 不拒絕 TEST ONLY 金鑰（`docs/06` §1.6 要求正式登錄拒絕）。
+
+### 網址歧義與 TEST ONLY 金鑰（`fix/validator-bypasses`；`rule_version` 不變）
+接續上一小節留下的兩項。先寫紅燈回歸測試（31 個：18 個失敗、13 個對照組通過），再修正；使用者決定兩項都「一律拒絕」，以及 `--real-run` 以公鑰比對 TEST ONLY 金鑰。
+- **`url_problem` 拒絕反斜線與 userinfo**：網址含 `\` 或 `user@host` 一律回報（`E-ROE-URL`）。`https://good.com\@evil.com/` 在 Python 的 `urlsplit` 算成主機 `evil.com`，WHATWG 類解析器（瀏覽器）把 `\` 當 `/`，算成 `good.com`，所以對 `good.com` 的排除會失效；`https://good.com@evil.com/` 則是看起來像 `good.com`、實際連到 `evil.com`。兩個呼叫點（ROE 的 `base_url` 與另一個網址欄位）都套用。**實際 HTTP 用戶端會連到哪裡尚未實測**，所以這是消除解析歧義，不是證實可被利用。`http://user@localhost:3000/` 這類本機例外也不再放行。
+- **新增 `E-KR-TEST-ONLY`**：`--real-run` 時，組織根金鑰或任何登錄項目的公鑰等於公開的 TEST ONLY 金鑰之一，就報錯（`docs/06` §1.6）。`crypto.TEST_ONLY_PUBLIC_KEYS` 內嵌 10 把公鑰，測試鎖住它與 `tests/fixtures/TEST_ONLY_private_keys` 一致，執行期不依賴測試資料夾存在；新增或輪替測試金鑰時兩邊要一起改。**限制**：只擋這 10 把已知金鑰，不能證明登錄是正式的（仍需 U-07）；設計階段（不帶 `--real-run`）不檢查，範例 bundle 照常通過。
+- **行為契約變更（使用者決定）**：範例 bundle 的 `--real-run` 原本結束碼 0，現在是 1，且錯誤碼只剩 `E-KR-TEST-ONLY`（根金鑰加 9 筆登錄項目共 10 個），沒有 `E-MODEL-PLACEHOLDER`。`test_review_fixes.py::test_cli_real_run_flag` 與 `test_v03_robustness.py::test_readme_real_run_statement_is_current` 的斷言隨之從「結束碼 0」改為「結束碼 1、只剩 `E-KR-TEST-ONLY`」，原意（證明沒有代理可達的佔位模型）保留。`docs/schemas/README.md` 的 `--real-run` 說明（兩處）、`E-ROE-URL` 的規則文字與錯誤碼表同步更新，`docs/06` §1.6 補上實際檢查的指引。持續整合目前沒有跑 `--real-run`，不受影響。
+- 測試：新增 `tests/test_validator_url_and_real_run_regressions.py`，共 33 個（網址繞過 14、網址對照 10、金鑰對照 3、內嵌表守門 1、`--real-run` 繞過 5），修正後全數通過；錯誤碼覆蓋測試（`test_bl66_coverage`）要求新碼被某個測試完整寫出名稱，所以另有一個斷言範例的 `--real-run` 錯誤碼集合恰好是 `E-KR-TEST-ONLY`。
+- 驗證：完整 `pytest` 2003 項通過、結束碼 0（約 22 分鐘）；`validate_schemas`（4858 項）與 `build_variants`、`build_error_table`、證據帳本、參考文獻的 `--check`、文件連結、突變錨點都通過。只在 WSL 的 Python 3.14 驗證；Windows 與 Python 3.11 未驗證。
 
 ## 架構重構（非規格變更）
 
