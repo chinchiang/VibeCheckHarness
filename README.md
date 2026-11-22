@@ -182,7 +182,7 @@ python tools/check_platform_suffixes.py --check  # 選用，需要網路：手�
 - **貢獻**：修正錯誤一定要附回歸測試，並證明拿掉修正時測試會失敗，見 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - **Windows**：驗證器需要 `tzdata`（已列在 requirements.txt）；在 cp950 主控台上執行其他工具時請設定 `PYTHONUTF8=1`。
 - **簽章**：範例檔帶有真正的 Ed25519 簽章，但使用的是 `tests/fixtures/TEST_ONLY_private_keys/` 裡的 **TEST ONLY** 金鑰；這些簽章**不代表任何真實的核准**。
-- CI：[.github/workflows/validate.yml](.github/workflows/validate.yml)（Ubuntu／Windows × Python 3.11／3.13，測試以 `-n auto` 平行執行；另有一個 `lint` job 跑 ruff 與覆蓋率報告；Actions 鎖 commit SHA、token 只有 `contents: read`；也跑上面四個 generator 的 `--check`）。PR 分支只由 `pull_request` 觸發，新的推送會取消進行中的舊一輪。外部連結檢查不在 CI 中，需要時手動執行 `python tools/check_external_links.py`。
+- CI：[.github/workflows/validate.yml](.github/workflows/validate.yml)（Ubuntu／Windows × Python 3.11／3.13，測試以 `-n auto` 平行執行；另有 `lint`（ruff）與 `coverage`（覆蓋率報告）兩個 job；Actions 鎖 commit SHA、token 只有 `contents: read`；也跑上面四個 generator 的 `--check`）。PR 分支只由 `pull_request` 觸發，新的推送會取消進行中的舊一輪。外部連結檢查不在 CI 中，需要時手動執行 `python tools/check_external_links.py`。
 - 依賴與授權：`requirements.txt`、`pyproject.toml`；開發工具在 `requirements-dev.txt`（不屬於 validator 的相依，檔頭列出授權）；授權見 [examples/licenses.yaml](docs/examples/licenses.yaml) 與 [06 §2.3](docs/06-security-legal-limitations.md#23-授權登錄表)。
 
 ## 授權

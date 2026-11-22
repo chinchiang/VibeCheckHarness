@@ -9,7 +9,7 @@
 2026-11-22 內部程式碼審查：單一 CI job 要 16–36 分鐘，PR 分支每次推送跑兩輪，repo 沒有 linter 與覆蓋率量測。不改 validator 規則、錯誤碼、schema 與範例。
 - **測試平行化**：CI 以 `python -m pytest -q -n auto tests` 執行。本機 4 核實測 2059 個測試由 22 分 06 秒降到 5 分 33 秒。測試原本就互相獨立（每個測試拿 `base_bundle.clone()`，寫檔都在 `tmp_path`），不需要改測試。
 - **CI 觸發**：`push` 只限 `main`，PR 分支由 `pull_request` 觸發（原本兩者同時觸發，同一個 commit 跑兩輪）；加上 `concurrency`，新的推送取消進行中的舊一輪。
-- **`lint` job**（Ubuntu × Python 3.13）：`ruff check tools tests`，以及 `tools/vchlib` 的覆蓋率報告（只輸出，不設門檻）。本機實測整體 97%（7022 行中 209 行未執行；最低的是 `cli.py` 83%、`yamlstrict.py` 85%、`llm_schema.py` 89%）。
+- **`lint` 與 `coverage` 兩個 job**（Ubuntu × Python 3.13）：`lint` 只跑 `ruff check tools tests`，一分鐘內有結果；`coverage` 輸出 `tools/vchlib` 的覆蓋率報告（只輸出，不設門檻）。兩者原本合在一個 job，以預設的追蹤方式量覆蓋率，在 CI 上要 34 分鐘，成為最慢的一環；`coverage` 改設 `COVERAGE_CORE=sysmon`（coverage.py 在 Python 3.12 以上的 `sys.monitoring` 核心），本機 5 分 36 秒，與不量覆蓋率的 5 分 33 秒相當，報告的數字相同。本機實測整體 97%（7022 行中 209 行未執行；最低的是 `cli.py` 83%、`yamlstrict.py` 85%、`llm_schema.py` 89%）。
 - **ruff 設定**（`pyproject.toml`）：只啟用語法錯誤與 pyflakes（`E9`、`F`），不做排版也不用 formatter，避免大量格式變動移動突變錨點。第一次執行有 25 個發現：22 個未使用的 import 與 1 個未使用的變數已移除（都在測試與 `build_variants.py`）；`checks.py` 的 2 個（迴圈變數 `field` 遮蔽 import、未使用的 `w_status`）是良性寫法，以 `per-file-ignores` 標註，不動 validator 的程式行。
 - **新檔 `requirements-dev.txt`**（`pytest-xdist`、`execnet`、`pytest-cov`、`coverage`、`ruff`，釘住版本）與 `pyproject.toml` 的 `dev` 選用相依。刻意不放進 `requirements.txt`：validator 會以 `licenses.yaml` 核對其中每個套件（`E-LIC-MISSING`），而 `licenses.yaml` 被簽章的委任設定釘住，放進去就要重簽所有範例。
 - README 的測試數量與時間（原寫 1925 個、8–15 分鐘）更新；CONTRIBUTING 補上平行執行與 lint。
