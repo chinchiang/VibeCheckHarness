@@ -635,6 +635,14 @@
           },
           "signed_result_ref": {
             "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "cname_chain": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "2026-11-22 內部審查（C4）：Z3 在 B0 解析目標主機時依序得到的 CNAME 名稱（不含目標主機本身；沒有 CNAME、或目標是資料庫時為空陣列）。其中任何一個名稱在共享平台網域之下時，這個目標就在該平台的基礎設施上：ok 為 true 需要 ROE 以該平台的 platform_project 證明所有權，並有該平台的 platform_policies（E-ROE-PLATFORM）"
           }
         },
         "required": [
@@ -643,7 +651,8 @@
           "ok",
           "checked_at",
           "batch_id",
-          "signed_result_ref"
+          "signed_result_ref",
+          "cname_chain"
         ]
       }
     },

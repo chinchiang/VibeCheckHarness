@@ -1612,6 +1612,7 @@ class SessionProvider(Protocol):
 **validator**（`E-ROE-PLATFORM`）：主機在清單中的目標必須用 `platform_project`，`platform` 必須等於該網域對應的值，而且 ROE 有同一個 `platform` 的 `platform_policies` 項目；這類主機一律不接受 `dns_txt`、`well_known_path`。`platform_project` 必須填齊 `platform`、`project_ref`、`evidence_ref`；`platform_policies[].accepted_by` 必須是登錄中的人。所有保證等級都適用，Lite 也一樣。
 
 **執行時**：
+- **自訂網域指向共享平台**（2026-11-22 內部審查）：清單只比對主機名稱，所以 `app.example.com` 以 CNAME 指向 `acme.vercel.app` 時，原本會被當成一般網域、以 DNS TXT 通過，也不要求平台政策。`B0_ownership_verify` 解析每個目標主機的 CNAME 鏈並記入 `run.ownership_results[].cname_chain`（依解析順序，不含目標主機本身；沒有 CNAME 或目標是資料庫時為空陣列）。鏈上任何一個名稱在清單中 → 這個目標比照該平台的主機處理：ROE 沒有以該平台的 `platform_project` 證明、或沒有該平台的 `platform_policies` 時，驗證結果為失敗（`ok: false`）。validator 檢查 `ok: true` 的結果符合這一條（`E-ROE-PLATFORM`，`checks.cname_platform_problems`）。**擋不到**：以 A／ALIAS 記錄直接指向平台 IP 的頂層網域（沒有 CNAME 可看），以及 CNAME 指向平台專用的別名網域而該網域不在清單中（例如 `cname.vercel-dns.com`）；這兩種要靠 ROE 簽署人如實宣告，列在 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 37 條。
 - `B0_ownership_verify` 對 `platform_project` 目標不做 DNS 或 well-known 檢查。結果記為「以平台專案宣告」（`OwnershipCheck.method: platform_project`），由 Z3 簽署，並附一次 S0 的可達性 GET。
 - `B4_preflight` 每批重驗 ROE 的簽章、效期，以及 `platform_policies` 仍然存在。
 - 報告標示「所有權以平台專案證明，未以 DNS 驗證」（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 37 條）。
@@ -1802,14 +1803,17 @@ class SessionProvider(Protocol):
 |---|---|---|
 | `family` | 例如 `anthropic`、`openai`、`nvidia` | 對應 `models.yaml` 的 `family` |
 | `zdr` | `confirmed`、`not_available`、`unknown` | 組織是否已取得該供應商的零資料保留（ZDR） |
-| `zdr_evidence_ref` | 文件參照或 null | 例如合約或供應商確認信的內部參照 |
+| `zdr_evidence_ref` | 文件參照或 null | 例如合約或供應商確認信的內部參照。`confirmed` 而且有雲端模型要收 C 級資料時不得為空 |
+| `zdr_models` | model key 的陣列 | 這份確認**明確涵蓋**的模型。供應商可以讓特定模型不適用 ZDR [V][E:providers-35]，所以確認是逐模型的；能收 C 級資料的雲端模型必須列在這裡。不是 `confirmed` 時為空陣列 |
+| `zdr_confirmed_at` | 時間或 null | 取得確認的時間；不晚於委任設定的 `issued_at` |
+| `zdr_expires_at` | 時間或 null | 確認的到期時間（合約到期日或約定的重新確認日）；不早於委任設定的 `validity.not_after`，也就是整個委任期間內確認都有效 |
 | `dpa_signed` | true 或 false | 是否已簽資料處理協議 |
 | `retention_days` | 整數或 null | 宣告的保留天數 |
 | `region` | 字串或 null | 資料處理的區域（ISO 3166-1 alpha-2）。能收 C 級資料的雲端家族不得為 null，且要有同區域的 `data_transfer.transfers[]`（`E-ENG-TRANSFER`，[03 §8.4](03-system-architecture.md#84-資料治理)） |
 
 **C 級路由規則**（`E-ENG-PROVIDER`）[H]：可能收到 C 級資料的 agent，它的模型必須符合下列其一：
 - 自架：`api_base` 的主機**完全等於** `toolkit.yaml` 的 `z4_model_hosts` 中的一項（v0.4；v0.3 只看主機名稱是否以 `z4-` 開頭，`https://z4-evil.attacker.example` 也會被當成自架）；或
-- 該家族在 `providers[]` 中是 `zdr: confirmed`，**而且** `dpa_signed: true`。
+- 該家族在 `providers[]` 中是 `zdr: confirmed`，**而且** `dpa_signed: true`，**而且**（2026-11-22 內部審查）`zdr_evidence_ref` 不為空、`zdr_models` 列出這個模型、`zdr_confirmed_at` ≤ `issued_at`、`zdr_expires_at` ≥ `validity.not_after`（`checks.zdr_problems`）。之前只看 `confirmed` 這一個字：沒有日期、沒有涵蓋範圍，供應商對個別模型的排除與合約到期都反映不出來。
 
 同一規則也套用到 fallback 鏈上的每個模型（`E-MODEL-FALLBACK-CLASS`）。Gateway 在執行時再檢查一次；不符 → `DataClassDenied`（§6.1），請求不送出。端點限制照舊：C 級不使用 Batch、Files 等不在 ZDR 範圍內的端點 [V][E:providers-28][E:providers-35]；OpenAI 一律 `store=false`（[03 §8.4](03-system-architecture.md#84-資料治理)）。
 

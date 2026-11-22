@@ -523,7 +523,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | 34 | **靜態抽取與呼叫圖一定不完整；WebSocket、SSE 的內容只能部分檢查** | 動態分派、反射、框架慣例；長連線的訊息內容不一定能逐則比對 [H] | 限制與盲點寫進切片與 inventory（[08 §11.3](08-implementation-spec.md#113-slicer)）；經 WebSocket／SSE 的測試限 S0／S1，並列入人工複核（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)） |
 | 35 | **kill switch 撤不回已經送出的請求** | 停止只能阻止下一個請求；已送出的請求可能已被處理 [H] | 每個 job 的請求白名單與預算、限速；S2 只在可快照還原時執行；外部整合一律 sandbox（#17） |
 | 36 | **快照與還原的能力依平台而定** | 託管 DB 或 BaaS 可能不開放快照，或還原很慢 [H] | `snapshot_method: none` 時不執行 S2（[03 §7.6](03-system-architecture.md#76-db-快照種子資料與-oracle-唯讀存取)）；需要 DB oracle 的測試改用只看 API 回應的 oracle |
-| 37 | **共享平台網域無法以 DNS 或 well-known path 證明所有權**（例如 `*.supabase.co`、`*.vercel.app`） | 平台控制這些網域的 DNS 與網站根目錄 [H] | 改用平台專案證明＋`platform_policies`（§2.1、[08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)），v0.6 另加技術證明（部署提供的 token 或回應標頭）；沒有技術證明只允許 S0；報告標示「所有權以平台專案證明，未以 DNS 驗證」 |
+| 37 | **共享平台網域無法以 DNS 或 well-known path 證明所有權**（例如 `*.supabase.co`、`*.vercel.app`） | 平台控制這些網域的 DNS 與網站根目錄 [H] | 改用平台專案證明＋`platform_policies`（§2.1、[08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)），v0.6 另加技術證明（部署提供的 token 或回應標頭）；沒有技術證明只允許 S0；報告標示「所有權以平台專案證明，未以 DNS 驗證」。自訂網域以 CNAME 指向清單中的平台網域時，B0 由解析到的 CNAME 鏈認出來並比照處理（`cname_chain`，`E-ROE-PLATFORM`）；以 A／ALIAS 記錄指向平台 IP、或 CNAME 指向不在清單中的平台別名網域時認不出來，只能靠 ROE 簽署人如實宣告 |
 | 38 | **校準完成前，所有裁決都是暫定的** | 權重全部為 0、θ＝+∞、高精準規則白名單為空，所以投票與工具結果都不能單獨確認（[05 §4.3](05-bias-calibration.md#43-投票加權)、[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）[H] | 裁決標示 `provisional`；確認只來自可執行證明；報告首頁說明 |
 | 39 | **簽章只證明「誰核准」，不證明「有仔細審過」** | 人可能照單全收（ASI09，§1.1）[H] | 關卡顯示證據而非只有敘事；可以部分核准；§1.1 的定期抽查與升級規則 |
 | 40 | **成本與結果都無法完全重現** | LLM 輸出有隨機性 [V][E:multi_llm_bias-11]；供應商會更新模型與價格 [H] | run manifest 記錄帶日期的模型 ID、prompt 範本 hash、工具版本與設定 hash（[08 §11.13](08-implementation-spec.md#1113-run-manifest-與-prompt-範本登錄)）；執行前估算成本並設上限（[08 §11.12](08-implementation-spec.md#1112-成本模型與價格)）；重跑只保證「分布相近」，不保證逐字相同 |
@@ -549,7 +549,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | nftables 授權 | 未查 | 補查 | toolkit_maintainer | M1 前 |
 | NIM 在本工具包中的使用是否屬於「開發／測試」用途 | 未確認 [V][E:providers-40] | 法務確認 | legal_reviewer | **M2 前** |
 | OpenAI API 條款 | 只經代理讀取 [V][E:providers-45] | 人工直接讀原文，再由法務確認 | legal_reviewer | **M2 前** |
-| GPT-6 系列在 ZDR 下是否有模型特定限制 | 公開文件沒有找到排除 [V][E:providers-48]；OpenAI 保留可對特定客戶讓特定模型不適用 ZDR 的權利 [V][E:providers-35] | 洽 OpenAI 取得書面確認；確認前 GPT-6 不收 C 級資料 | app_owner | **M2 前**（C 級資料送 OpenAI 前） |
+| GPT-6 系列在 ZDR 下是否有模型特定限制 | 公開文件沒有找到排除 [V][E:providers-48]；OpenAI 保留可對特定客戶讓特定模型不適用 ZDR 的權利 [V][E:providers-35] | 洽 OpenAI 取得書面確認；確認前 GPT-6 不收 C 級資料（委任設定的 `providers[].zdr_models` 必須逐一列出已確認的模型，沒有列的雲端模型不能收 C 級資料，`E-ENG-PROVIDER`；範例委任設定是虛構的，假設已取得這份確認） | app_owner | **M2 前**（C 級資料送 OpenAI 前） |
 | 可用於正式環境的 Nemotron 雲端路徑 | NVIDIA 託管沒有 ZDR [V][E:providers-42]；第三方託管的條款未審 | 逐家審 DPA；未審完只給 P 級 | toolkit_maintainer＋legal_reviewer | M2 前 |
 | Nemotron 託管端點的 json_schema 支援 | 未確認 | Gateway 整合測試實測 | toolkit_maintainer | M2 |
 | PrimeVul 樣本的重製 | 資料集授權未單獨標示 [P][E:vibe_risks-35] | 法務確認；未確認則只作內部評估 | legal_reviewer | M2 前 |

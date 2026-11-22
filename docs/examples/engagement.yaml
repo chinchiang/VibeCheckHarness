@@ -80,9 +80,10 @@ gate_approvers:               # 白箱關卡（ROE 生效前）的核准者；G0
   G2: [erin, heidi]
 
 providers:                    # 能收到 C 級資料的雲端模型：ZDR 已確認且 DPA 已簽；自架模型（Z4）不需要（E-ENG-PROVIDER）
-  - {family: anthropic, zdr: confirmed, zdr_evidence_ref: "doc:zdr-anthropic-2026-09", dpa_signed: true, retention_days: null, region: US}
-  - {family: openai, zdr: confirmed, zdr_evidence_ref: "doc:zdr-openai-2026-09", dpa_signed: true, retention_days: null, region: US}
-  - {family: nvidia, zdr: not_available, zdr_evidence_ref: null, dpa_signed: false, retention_days: null, region: null}   # 只用自架 Nemotron；雲端 NIM 只收 P
+  # 2026-11-22 內部審查（C6）：ZDR 確認是逐模型、有日期的；委任期間內必須一直有效
+  - {family: anthropic, zdr: confirmed, zdr_evidence_ref: "doc:zdr-anthropic-2026-09", zdr_models: [claude_sonnet, claude_opus_48], zdr_confirmed_at: "2026-09-10T00:00:00+08:00", zdr_expires_at: "2027-09-09T23:59:59+08:00", dpa_signed: true, retention_days: null, region: US}
+  - {family: openai, zdr: confirmed, zdr_evidence_ref: "doc:zdr-openai-2026-09", zdr_models: [gpt_flagship], zdr_confirmed_at: "2026-09-12T00:00:00+08:00", zdr_expires_at: "2027-09-11T23:59:59+08:00", dpa_signed: true, retention_days: null, region: US}   # 虛構的委任：假設已取得 06 §4 所說的逐模型書面確認
+  - {family: nvidia, zdr: not_available, zdr_evidence_ref: null, zdr_models: [], zdr_confirmed_at: null, zdr_expires_at: null, dpa_signed: false, retention_days: null, region: null}   # 只用自架 Nemotron；雲端 NIM 只收 P
 
 data_transfer:                # v0.4：G0a 驗章的跨境聲明（W2 在 G0b 之前就把程式碼送往雲端模型，E-ENG-TRANSFER）
   source_jurisdiction: TW
@@ -107,8 +108,8 @@ signatures:
   - signer: frank
     key_fingerprint: "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
     alg: ed25519
-    value: "0zIKXqlTuZQUJ9kErIV0dyJ8rTLBD9oHmzsVuw/vABEGurA8YSvXW6Ba5/N5cXnp1qbH5c5XYCQbLmUfkleMCQ=="
+    value: "uBzts4CouYdA+BBPl+KuPEdEfXEyypvqwuvZWZgurq53nz+BRHqz1nNBX0K4r3FCDJnqZjdlLz2ZBsynHorDCw=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "wEMCy3lQX3CgZHK94vcmmAsZy/CjiHKBjq1qaTxUhbfKmlpk38pugPdbH5ouOBkSiqigLABGkMjfcaHkgSrJAw=="
+    value: "t7htJJrUSisnbcGwfeMRyT4L7kQAKUkXzo4sCxVA2NRJl4VU/q4a5QV3teZ4L++ANDFNJNHf4MLWj4lbA7aKDg=="

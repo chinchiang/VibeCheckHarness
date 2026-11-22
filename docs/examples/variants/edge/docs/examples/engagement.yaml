@@ -102,18 +102,30 @@
 - "family": "anthropic"
   "zdr": "confirmed"
   "zdr_evidence_ref": "doc:zdr-anthropic-2026-09"
+  "zdr_models":
+  - "claude_sonnet"
+  - "claude_opus_48"
+  "zdr_confirmed_at": "2026-09-10T00:00:00+08:00"
+  "zdr_expires_at": "2027-09-09T23:59:59+08:00"
   "dpa_signed": true
   "retention_days": null
   "region": "US"
 - "family": "openai"
   "zdr": "confirmed"
   "zdr_evidence_ref": "doc:zdr-openai-2026-09"
+  "zdr_models":
+  - "gpt_flagship"
+  "zdr_confirmed_at": "2026-09-12T00:00:00+08:00"
+  "zdr_expires_at": "2027-09-11T23:59:59+08:00"
   "dpa_signed": true
   "retention_days": null
   "region": "US"
 - "family": "nvidia"
   "zdr": "not_available"
   "zdr_evidence_ref": null
+  "zdr_models": []
+  "zdr_confirmed_at": null
+  "zdr_expires_at": null
   "dpa_signed": false
   "retention_days": null
   "region": null
@@ -143,8 +155,8 @@
 - "signer": "frank"
   "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
   "alg": "ed25519"
-  "value": "DkafvTUfhCIohrKCZ08eNDzX0bBZ0FC4ElBGzBxkB7XsCFOSoqUssKYtzZyaV9WytycKsMH9KVohrbnLscRCCg=="
+  "value": "3hx7Ujdm/pXtsjXOA1iijUyJXerQMm06F7CsQtq6YNho8J+nSleQ0/UUrAtHsQh2aySS+EeKdu16oGdaj4yVBA=="
 - "signer": "carol"
   "key_fingerprint": "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
   "alg": "ed25519"
-  "value": "O3Et9zznrFxfAi6fNmN5B5VnghjpbC9rEm44ABb5oPySiPDAjWJe6e1909Ep2mGxrqypYrN98lIzUxRhCDn7CQ=="
+  "value": "DlXQ/VJ6YbO05qALDDZQqQMbX9guaLVuPcjFobM54XU6pBVLCDTkNeQrbguOYPpplPMmgGTy4r33AfFC3kBkCw=="

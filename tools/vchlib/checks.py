@@ -774,9 +774,32 @@ def provider_rules(R: Report, c: Ctx):
         if not m or "C" not in (m.get("data_classes") or []) or self_hosted(m, c):
             continue
         p = prov.get(m.get("family")) or {}
-        R.check(p.get("zdr") == "confirmed" and p.get("dpa_signed") is True, "E-ENG-PROVIDER", w,
-                f"{k} ({m.get('family')}) can receive C data (agents {sorted(users)}) but providers.{m.get('family')} is not "
-                f"zdr confirmed with a signed DPA (and the model is not self-hosted in Z4)")
+        if not R.check(p.get("zdr") == "confirmed" and p.get("dpa_signed") is True, "E-ENG-PROVIDER", w,
+                       f"{k} ({m.get('family')}) can receive C data (agents {sorted(users)}) but providers.{m.get('family')} is not "
+                       f"zdr confirmed with a signed DPA (and the model is not self-hosted in Z4)"):
+            continue
+        for msg in zdr_problems(R, e, p, k):
+            R.check(False, "E-ENG-PROVIDER", w, f"{k} ({m.get('family')}) can receive C data but {msg}")
+
+
+def zdr_problems(R: Report, e: dict, p: dict, model_key: str) -> list[str]:
+    """C6 (2026-11-22 review): what a `zdr: confirmed` line must also say before a cloud model receives C data. One word
+    in a signed file was the whole control; a provider may exclude single models from ZDR and a confirmation ends with
+    its contract. So the confirmation names its evidence, the models it covers and the period it holds for, and that
+    period covers the engagement: confirmed no later than issued_at, expiring no earlier than validity.not_after."""
+    fam, out, w = p.get("family"), [], "engagement.yaml"
+    if not p.get("zdr_evidence_ref"):
+        out.append(f"providers.{fam}.zdr_evidence_ref is empty (a confirmation without a reference cannot be reviewed)")
+    if model_key not in (p.get("zdr_models") or []):
+        out.append(f"providers.{fam}.zdr_models does not list it (the confirmation is per model)")
+    got, exp = ts(R, p.get("zdr_confirmed_at"), w, "zdr_confirmed_at"), ts(R, p.get("zdr_expires_at"), w, "zdr_expires_at")
+    issued, until = ts(R, e.get("issued_at"), w, "issued_at"), ts(R, (e.get("validity") or {}).get("not_after"), w, "validity.not_after")
+    if got is None or (issued is not None and got > issued):
+        out.append(f"providers.{fam}.zdr_confirmed_at {p.get('zdr_confirmed_at')!r} must be set and not later than issued_at {e.get('issued_at')!r}")
+    if exp is None or (until is not None and exp < until):
+        out.append(f"providers.{fam}.zdr_expires_at {p.get('zdr_expires_at')!r} must be set and not earlier than validity.not_after "
+                   f"{(e.get('validity') or {}).get('not_after')!r} (the confirmation must hold for the whole engagement)")
+    return out
 
 
 def c_cloud_families(c: Ctx) -> dict[str, list[str]]:
@@ -1245,6 +1268,37 @@ def platform_of(host: str | None) -> str | None:
         if h == suffix or h.endswith("." + suffix):
             return plat
     return None
+
+
+def chain_platforms(chain) -> dict[str, str]:
+    """C4 (2026-11-22 review): {name: platform} for the names of a resolved CNAME chain that lie under a shared-platform
+    suffix (safety.SHARED_PLATFORM_SUFFIXES)."""
+    out = {}
+    for name in chain if isinstance(chain, list) else []:
+        plat = platform_of(name) if isinstance(name, str) else None
+        if plat is not None:
+            out[name] = plat
+    return out
+
+
+def cname_platform_problems(c: Ctx, t: dict, o: dict) -> list[str]:
+    """C4: a custom domain that is a CNAME to a shared platform (app.example.com -> cname.vercel-dns.com is not caught;
+    app.example.com -> acme.vercel.app is) belongs to the platform's infrastructure just like acme.vercel.app. The ROE
+    check reads the host name only, so such a target passed with dns_txt and without the platform's testing policy.
+    The executor records the names it resolved (ownership_results[].cname_chain); an ok result whose chain reaches a
+    shared platform needs what a host on that platform needs: platform_project of that platform and its accepted
+    platform_policies entry."""
+    if o.get("ok") is not True:
+        return []
+    op, out = t.get("ownership_proof") or {}, []
+    policies = {p.get("platform") for p in c.roe.get("platform_policies") or [] if isinstance(p, dict)}
+    for name, plat in sorted(chain_platforms(o.get("cname_chain")).items()):
+        if not (op.get("method") == "platform_project" and op.get("platform") == plat):
+            out.append(f"{t.get('id')}: its host resolves through {name} (a shared {plat} domain), so ownership cannot be ok with "
+                       f"{op.get('method')!r}: the ROE must declare platform_project with platform {plat}")
+        elif plat not in policies:
+            out.append(f"{t.get('id')}: its host resolves through {name} (a shared {plat} domain) but the ROE has no platform_policies entry for {plat}")
+    return out
 
 
 def platform_rules(R: Report, c: Ctx):
@@ -1875,6 +1929,8 @@ def run_ownership(R: Report, c: Ctx, w: str, run: dict):
         want = (t.get("ownership_proof") or {}).get("method")
         R.check(o.get("method") == want, "E-RUN-OWNERSHIP", w,
                 f"{o.get('target_id')} was verified with {o.get('method')!r}, but the ROE declares {want!r} for it")
+        for msg in cname_platform_problems(c, t, o):
+            R.check(False, "E-ROE-PLATFORM", w, msg)
     ok = {o.get("target_id") for o in results if o.get("ok") is True}
     used = set()
     for jid, job in (run.get("jobs") or {}).items():

@@ -16,7 +16,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:e8a85fd40e125560be39d607dc078190b57a1c611da741fc25b59a16bb3c09a7",
+  "engagement_ref": "sha256:83cfae38376152185deae965b160b4b4cae647d2d97c592b3111230f7326c36a",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -122,7 +122,7 @@
       "gate_record_id": "GR-G0a-0003",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:e8a85fd40e125560be39d607dc078190b57a1c611da741fc25b59a16bb3c09a7",
+      "subject_hash": "sha256:83cfae38376152185deae965b160b4b4cae647d2d97c592b3111230f7326c36a",
       "job_id": null,
       "opened_at": "2026-09-25T14:00:00+08:00",
       "decided_at": "2026-09-25T14:00:00+08:00"
@@ -167,11 +167,11 @@
   "audit_anchors": [
     {
       "seq": 6,
-      "line_sha256": "sha256:681bf86044c64182c5199e4af83bfee638b0128b085499562964cf903df5e56d"
+      "line_sha256": "sha256:ece9e19d8e401bd50e745ae453db7f59403c5b8cb04f4551d35acc9a3f8dd1d1"
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:149d3cc234b834e4259d2097fc86d54b0bf554bddfb195c08b8448fcd3102d0a"
+      "line_sha256": "sha256:d94fc7f4cdfa13b6c2f7fc6f45db656d7069eb5559836df7c21fc4f843353e53"
     }
   ],
   "errors": [],

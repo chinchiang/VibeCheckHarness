@@ -4,6 +4,22 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## ZDR 宣告逐模型且有期限；CNAME 指向共享平台的自訂網域（2026-11-22 內部審查 C6、C4）
+
+CONTRIBUTING 第 2 類（審查核實成立的缺陷：兩處都是 validator 只憑一個宣告值放行）。`rule_version` 不變，沒有新增錯誤碼。
+
+- **C6 ZDR**
+  - 原本：`providers[].zdr: confirmed` 加 `dpa_signed: true` 就能讓雲端模型收 C 級資料；沒有日期、涵蓋範圍與到期日。06 §4 寫「取得逐模型書面確認前 GPT-6 不收 C 級資料」，但資料模型表達不了「逐模型」。
+  - 現在：`providers[]` 新增必填欄位 `zdr_models`、`zdr_confirmed_at`、`zdr_expires_at`。能收 C 級資料的雲端模型另需 `zdr_evidence_ref` 不為空、自己列在 `zdr_models`、確認時間 ≤ `issued_at`、到期時間 ≥ `validity.not_after`（`checks.zdr_problems`，沿用 `E-ENG-PROVIDER`）。
+  - 範例委任設定補上三個欄位（虛構的委任，假設已取得確認），重簽、重建變體。
+- **C4 共享平台**
+  - 原本：共享平台只比對目標主機名稱；自訂網域以 CNAME 指向 `acme.vercel.app` 時被當成一般網域，以 DNS TXT 通過、也不要求平台政策。
+  - 現在：`run.ownership_results[]` 新增必填欄位 `cname_chain`（B0 解析到的 CNAME 名稱）。`ok: true` 的結果若鏈上有名稱在共享平台清單中，ROE 必須以該平台的 `platform_project` 證明並有 `platform_policies`（`checks.cname_platform_problems`，沿用 `E-ROE-PLATFORM`）。
+  - 仍認不出：A／ALIAS 記錄直接指向平台 IP、CNAME 指向不在清單中的平台別名網域（例如 `cname.vercel-dns.com`）。寫入 08 §11.9 與 06 §3 第 37 條。
+- 文件：08 §11.9、§11.14；06 §3 #37、§4；錯誤碼表。
+- 新增 `tests/test_zdr_and_cname.py`（24 個測試；在 `00478dc` 上 22 個失敗，通過的 2 個是「未確認仍先被原規則擋下」與「nvidia 不需要確認」，原本就成立）與突變清單 `tests/mutations/zdr_and_cname.json`（`CAUGHT 22/22`）。
+- 沒有放寬任何檢查；邊界值（確認於簽發當下、到期於委任結束當下）與一般的 CNAME 鏈有「仍然通過」的測試。
+
 ## Lite 的單機部署 profile 與 `vibecheck init` 規格（09 BL-70；使用者決定 D10）
 
 CONTRIBUTING 第 3 類。`rule_version` 不變。新增錯誤碼 `E-ENG-DEPLOYMENT`、`E-REPORT-ANCHOR`。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。六項部署決定是使用者授權下由實作者決定的，列在審查紀錄供確認。

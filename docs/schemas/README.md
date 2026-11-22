@@ -235,7 +235,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ROE-ENGAGEMENT` | ROE 的 `engagement.id`／`version` 必須等於 engagement.yaml 的 `engagement_id`／`version` | `test_bl66_run_gates` |
 | `E-ROE-INCIDENT` | ROE `incident_response` 的聯絡人在金鑰登錄中，`covers` 含 data_exposure、third_party_side_effect、shared_platform_impact、staging_outage | `test_v04_legal_trust` |
 | `E-ROE-MISSING` | 沒有 ROE；v0.5 起只在 bundle 含黑箱內容（測試案例、測試結果、威脅、G0b 以後的關卡紀錄或 `run.jobs`）時才是錯誤，純白箱 bundle 可以沒有 ROE | `test_v05_round6_lowprio` |
-| `E-ROE-PLATFORM` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates`、`test_v06_r7_methodology`、`test_v05_round6_group4` 等 4 份 |
+| `E-ROE-PLATFORM` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-WHOAMI`、`E-ROE-RELAY-MODE`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例；2026-11-22 內部審查（C4）：`run.ownership_results[].cname_chain` 有名稱落在共享平台網域時，`ok: true` 需要 ROE 以該平台的 platform_project 證明並有 platform_policies | `test_zdr_and_cname`、`test_v03_gates`、`test_v06_r7_methodology` 等 5 份 |
 | `E-ROE-RELAY` | `relay` 的 `max_turns`、`max_spend_usd_per_job`、`max_spend_usd_per_run` 不能超過工具包的 relay 上限；relay 模型必須在委任該資料等級的 `allowed_models` | `test_bl66_run_gates` |
 | `E-ROE-RELAY-MODE` | （同一條規則也涵蓋 `E-ROE-URL`、`E-ROE-PLATFORM`、`E-ROE-WHOAMI`、`E-ROE-SOD`）https（http 只限 localhost）；共用平台網域需 platform_project＋platform_policies；用到的角色需 whoami；adaptive relay 只在 full；ROE 簽署角色由不同人擔任；沒有 `technical_proof`（部署提供的 token 或回應標頭；資料庫用 `COMMENT ON DATABASE`）的共享平台目標只允許 S0 測試案例 | `test_v03_gates` |
 | `E-ROE-RETENTION` | ROE `data_handling.retention_days` 不得長於委任的 `retention_days`（ROE 只能縮短） | `test_v02_hardening`、`test_review_fixes` |
@@ -269,7 +269,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ENG-OWNERSHIP` | `code_ownership.attested_by` 必須是 app_owner、同時是委任的簽署人，且 `attestation` 為 true | `test_bl66_trust` |
 | `E-ENG-PRICING` | 第十三輪外部審查（[08 §11.12](../08-implementation-spec.md#1112-成本模型與價格)）：`agents.yaml` 用到的模型（含 `fallback_models` 與 `models.yaml` 的 `fallback` 鏈）若 `hosting: cloud` 且 `pricing: null`，委任設定必須有 `budgets.price_assumptions.<model_key>`（兩個單價都 > 0、鍵是 models.yaml 的模型），否則 USD 上限無法強制，run 拒絕；之前文件稱 fail-closed，但價格未知的模型照跑、只在報告寫「費用不完整」 | `test_v07_r13_external` |
 | `E-ENG-PROFILE` | （同一條規則也涵蓋 `E-ENG-PROVIDER`、`E-PROFILE-SAFETY`）能收 C 級資料的雲端模型需 ZDR confirmed＋DPA（自架＝`api_base` 主機完全等於 toolkit.yaml `z4_model_hosts` 的一項，v0.4）；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 | `test_v03_gates` |
-| `E-ENG-PROVIDER` | （同一條規則也涵蓋 `E-ENG-PROFILE`、`E-PROFILE-SAFETY`）能收 C 級資料的雲端模型需 ZDR confirmed＋DPA（自架＝`api_base` 主機完全等於 toolkit.yaml `z4_model_hosts` 的一項，v0.4）；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告 | `test_v03_gates`、`test_v04_validator` |
+| `E-ENG-PROVIDER` | （同一條規則也涵蓋 `E-ENG-PROFILE`、`E-PROFILE-SAFETY`）能收 C 級資料的雲端模型需 ZDR confirmed＋DPA（自架＝`api_base` 主機完全等於 toolkit.yaml `z4_model_hosts` 的一項，v0.4）；role_consolidation 只在 lite；lite 只允許 S0／S1（MANUAL 除外）；`W-L5-LITE`：lite 且 acknowledged 時法務自證只是警告；2026-11-22 內部審查（C6）：`zdr: confirmed` 另需 `zdr_evidence_ref`、`zdr_models` 列出該模型、`zdr_confirmed_at` ≤ `issued_at`、`zdr_expires_at` ≥ `validity.not_after` | `test_zdr_and_cname`、`test_v03_gates`、`test_v04_validator` |
 | `E-ENG-PUBLISH` | `publishing` 關閉時 platform 為 null、token_scopes 為空；開啟時平台為 github、權杖範圍只能是 metadata:read／issues:write／pull_requests:write | `test_v05_schema_backlog` |
 | `E-ENG-SIGNATORIES` | 簽署人的角色必須涵蓋 G0a 的必要角色（app_owner、management） | `test_bl66_trust` |
 | `E-ENG-TELEMETRY` | `telemetry_disabled` 必須是 true | `test_bl66_trust` |
@@ -514,7 +514,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-JSON-STRICT` | JSON／JSONL 以嚴格模式載入：重複鍵、非有限數字、超出範圍的整數等一律拒絕；被拒的稽核檔不再做後續的鏈與錨點檢查（不連鎖報錯） | `test_review_fixes`、`test_v02_hardening`、`test_v05_round6_lowprio` |
 | `E-KIND` | 每份文件的種類必須有對應的 schema | `test_bl66_config` |
 | `E-LOAD` | 已知種類的文件因嚴格 YAML／JSON 以外的原因無法載入 | `test_bl66_config` |
-| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 30 份 |
+| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 31 份 |
 | `E-SCHEMA-FORMAT` | （同一條規則也涵蓋 `E-INPUT-SHAPE`）見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 | `test_v03_scope` |
 | `E-SCHEMA-ID` | schema 的 `$id` 必須等於檔名 | `test_bl66_config` |
 | `E-SCHEMA-META` | schema 必須通過 2020-12 meta-schema 檢查，且 `$schema` 是 2020-12 | `test_bl66_config` |

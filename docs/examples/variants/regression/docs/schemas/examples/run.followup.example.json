@@ -22,7 +22,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:e8a85fd40e125560be39d607dc078190b57a1c611da741fc25b59a16bb3c09a7",
+  "engagement_ref": "sha256:83cfae38376152185deae965b160b4b4cae647d2d97c592b3111230f7326c36a",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -115,7 +115,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:22e6399178522507134530b6da13fcff195f6a65cfb4973c1c88968bae841521"
+      "signed_result_ref": "sha256:22e6399178522507134530b6da13fcff195f6a65cfb4973c1c88968bae841521",
+      "cname_chain": []
     },
     {
       "target_id": "tgt-staging-app",
@@ -123,7 +124,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:09f71321ae9f341a484d4ae241f002d48babd0dae265ea44f1b610b30e64c130"
+      "signed_result_ref": "sha256:09f71321ae9f341a484d4ae241f002d48babd0dae265ea44f1b610b30e64c130",
+      "cname_chain": []
     },
     {
       "target_id": "tgt-canary",
@@ -131,7 +133,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:65fc31e7792457fff205fe0987cd0634e6ed854c666a4911fd4b8e175652aa02"
+      "signed_result_ref": "sha256:65fc31e7792457fff205fe0987cd0634e6ed854c666a4911fd4b8e175652aa02",
+      "cname_chain": []
     },
     {
       "target_id": "tgt-staging-db",
@@ -139,7 +142,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:dd6b69e37959711407e107c89b7ec007b8dd986f13371014397125af6bb88dc4"
+      "signed_result_ref": "sha256:dd6b69e37959711407e107c89b7ec007b8dd986f13371014397125af6bb88dc4",
+      "cname_chain": []
     }
   ],
   "b1_external_ref": null,
@@ -192,7 +196,7 @@
       "gate_record_id": "GR-G0a-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:e8a85fd40e125560be39d607dc078190b57a1c611da741fc25b59a16bb3c09a7",
+      "subject_hash": "sha256:83cfae38376152185deae965b160b4b4cae647d2d97c592b3111230f7326c36a",
       "job_id": null,
       "opened_at": "2026-10-07T10:00:00+08:00",
       "decided_at": "2026-10-07T10:01:00+08:00"
@@ -277,31 +281,31 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:277a657545fe017d1eafefdaf287876c130b2311559a7dac11beaca232c5766f"
+      "line_sha256": "sha256:a776615c29bc5c33980507a243c2c095541f0ac62fbe2af8d68484661d534b7a"
     },
     {
       "seq": 11,
-      "line_sha256": "sha256:5093906d16b27eb910653d438d5a702d08f02a92ba6a22c693d6162115e4d197"
+      "line_sha256": "sha256:76910fe330cbe18d0343792dee7c5dc5a03eae11bcd82f9141fb852bc692c9d2"
     },
     {
       "seq": 16,
-      "line_sha256": "sha256:aca6fb3f1b11b086c7ad447496f5bd78ea5df189eff2a7b3da5a80a60eb76276"
+      "line_sha256": "sha256:16c7fabb9bd2848ae383175b72208909e6280dd7190438bb8e26ac46263cd55d"
     },
     {
       "seq": 21,
-      "line_sha256": "sha256:8ac0e9d909a17dcad93ae8639c4a5185b15f0fd9c5d282b895b92355b79bcea3"
+      "line_sha256": "sha256:b4b1cc458c84570cd3fb99123fa86823fd3d91e86360522c7ab4299ea4ae681a"
     },
     {
       "seq": 26,
-      "line_sha256": "sha256:cd1c0e8ce832d1b6624cace05245a1dcbd558faec4b5cab82d9453d0d4869b82"
+      "line_sha256": "sha256:72eaf7f7c64212c19e762854ba61005e1ea8d574fe47680ca15d2da8e809a2f9"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:568da95d3c64c96d967b3a46700d4d29310437119a016de20c6e42af33785789"
+      "line_sha256": "sha256:5deabb2f6c570940635ea78f3df6b5c82cf53ebb83e94e6eafce9a6829aa76ad"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:0eb6f4025e915718007717eba0803be4d928186d9b04d5165fa8dc528200dc3c"
+      "line_sha256": "sha256:ff96909bcb78f66a8757498a0080fad86844d2e56b869dbb1adafca8f1e22d01"
     }
   ],
   "errors": [],
