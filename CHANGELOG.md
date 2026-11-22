@@ -4,6 +4,21 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## Lite 的單機部署 profile 與 `vibecheck init` 規格（09 BL-70；使用者決定 D10）
+
+CONTRIBUTING 第 3 類。`rule_version` 不變。新增錯誤碼 `E-ENG-DEPLOYMENT`、`E-REPORT-ANCHOR`。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。六項部署決定是使用者授權下由實作者決定的，列在審查紀錄供確認。
+
+- **原本**：第十四輪審查指出 MVP-0 的預設入口（Lite）照三區部署的規格無法在一台開發機上啟動，當時決定「MVP-0 實作計畫時再訂」；`vibecheck init` 只有一列「規格待訂」。
+- **現在**：
+  - 委任設定新增選用欄位 `deployment_profile`（`three_zone` 預設／`single_host`）。`single_host` 只能與 `assurance_profile: lite`、已確認的 `role_consolidation` 並用，而且只做白箱（bundle 不得有 G0b／G3／G4／G5 紀錄）：`checks.deployment_problems`（`E-ENG-DEPLOYMENT`）。
+  - D10：單機 profile 的錨點是本機錨點（副簽程式與 Run Controller 同一個 OS 使用者；格式不變）。報告清單新增必填欄位 `audit_anchor`（`countersigned`／`local`），依 `deployment_profile` 推導（`E-REPORT-ANCHOR`）。Team／Full 的 Z3 副簽規則沒有變。
+  - 08 新增 §11.20：八項部署規定（金鑰、存放、錨點、報告標示、Z2、checkpointer、套件存在性、模型呼叫）、`vibecheck init` 的六個步驟、確定性最小切片（MVP-0a：W0＋W1＋SARIF，沒有 LLM 呼叫）、信任界線。08 §4.2 的 `init` 列、§10 U-05／U-07、§11.19、報告首頁同步。
+  - 07 §1.3：「待訂」改為六項決定的表；註明尚未實作、各平台相容性未實測。README、00、02 §1.7、03 schema 表、09 BL-70（狀態改為「規格已訂…未實作」）同步。
+- 範例：`report-manifest.example.json` 加 `audit_anchor: countersigned`；重簽、重建變體。範例委任設定沒有動（省略即 `three_zone`）。
+- 新增 `tests/test_lite_single_host.py`（16 個測試；在 `e2ee36f` 上 14 個失敗，通過的 2 個是「三區部署的錨點仍需 Z3 副簽」與其對照，原本就成立）與突變清單 `tests/mutations/lite_single_host.json`（`CAUGHT 24/24`）。
+- 受影響的既有測試（沒有放寬斷言）：`test_v07_r14_docs.py` 中鎖住「待訂」字樣的三個測試改為斷言「已訂定」並且舊字樣不再出現；`r14_docs.json` 三個錨點、`r11_contracts.json` 一個錨點。
+- **限制**：這是規格與兩條 validator 規則；CLI、單機部署與一份完整簽章的單機範例都還沒有。
+
 ## 裁決規則 `05-v0.17`：LLM 撰寫的 W4 oracle 由人在 G3 逐項核准（使用者決定 D3）
 
 CONTRIBUTING 第 3 類。問題、選項與理由記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。新增錯誤碼 `E-GATE-ORACLE`。

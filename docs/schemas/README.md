@@ -130,7 +130,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-AUDIT-ANCHOR` | 每個 `gate_decision` 之後緊接一個 `audit_anchor`；兩個錨點之間的事件數不超過 `toolkit.yaml` 的 `audit.anchor_interval_events`；`run.audit_anchors` 的每一項指名一個 `audit_anchor` 事件，且與稽核檔的錨點事件一一對應 | `test_v02_hardening` |
 | `E-AUDIT-ANCHOR-GAP` | Z3 對每個副簽的錨點編上本委任的遞增編號 `payload.anchor_counter`（在副簽範圍內）：所有 run 的錨點編號必須是 1、2、3…不重複、不缺號，而且依收件時間排序。只控制 Z1 的人把一個 run 截回較早的錨點（刪掉 B4 證據、G5、B5 裁決與報告）時，之後的錨點已經用過被刪掉的編號，所以會留下缺號 | `test_v07_r9_anchor` |
 | `E-AUDIT-ANCHOR-MISMATCH` | `run.audit_anchors[].line_sha256` 必須等於稽核檔中該 `seq` 那一行原始位元組的 sha256，而且那一行是 `audit_anchor` 事件 | `test_v02_hardening` |
-| `E-AUDIT-ANCHOR-SIG` | 每個 `audit_anchor` 的 `payload.z3_countersignature` 必須是金鑰登錄中 `z3-executor`（角色 `z3_executor`）對 JCS(`{run_id, seq, prev_hash}`) 的有效簽章；v0.5 改為 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`)，`domain` 為 `vibecheck/audit_anchor/v2`，`event_sha256` 蓋住錨點事件本身（去掉副簽） | `test_v04_round5_trust`、`test_v05_round6_group3`、`test_v07_r9_anchor` |
+| `E-AUDIT-ANCHOR-SIG` | 每個 `audit_anchor` 的 `payload.z3_countersignature` 必須是金鑰登錄中 `z3-executor`（角色 `z3_executor`）對 JCS(`{run_id, seq, prev_hash}`) 的有效簽章；v0.5 改為 JCS(`{domain, run_id, seq, prev_hash, event_sha256}`)，`domain` 為 `vibecheck/audit_anchor/v2`，`event_sha256` 蓋住錨點事件本身（去掉副簽） | `test_v04_round5_trust`、`test_lite_single_host`、`test_v05_round6_group3` 等 4 份 |
 | `E-AUDIT-ARTIFACT` | 已錨定的 `artifact_stored` 以 `payload.sha256` 釘住 run 的 W／B 階段產物：種子威脅（W5）、W0 inventory 與 redaction map、合併與外部 DFD（B1）、run 列出的每份 Commander 計畫（`plan_id`）。每份產物恰有一筆已錨定的事件，每筆事件指名本 run 一份 hash 相符的文件。審查 r9 只釘種子威脅（改種子文件的 `run_id` 就關掉了管線檢查）；審查 r11 補上其餘：已完成的 run 原本可以刪掉 inventory 的檔案、盲點與環境變數，報告與 run 紀錄仍自洽 | `test_v07_r11_anchor`、`test_v07_r9_anchor` |
 | `E-AUDIT-CHAIN` | 每筆事件的 `prev_hash` 必須是 sha256(run_id)（第一筆）或前一筆原始行的 sha256 | `test_v02_hardening`、`test_validator` |
 | `E-AUDIT-FEEDBACK` | 審查 r12：每筆已錨定的 `feedback_recorded` 都要對應 bundle 中同 `feedback_id`、內容 hash 相符的回饋紀錄（反向檢查；之前刪掉回饋紀錄——連同 SARIF 抑制與 ASI09 抽查母體——不會報錯） | `test_seal`、`test_v07_r12_run` |
@@ -261,6 +261,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-ENG-BUDGET` | 每一層 `max_cost_usd` 等上限必填、階段上限不超過 run_total；`budgets.families` 的家族是 models.yaml 的家族、上限不超過 run_total | `test_v05_schema_backlog`、`test_v03_gates` |
 | `E-ENG-CONFIG-PIN` | `config_pins` 另釘 `toolkit`（toolkit.yaml）；`E-TOOLKIT`：`gate_queues.g2/g3/g4_max_items` ≥ 1<br>engagement `config_pins` 等於 models／agents／tools／licenses 的內容 hash（sha256(JCS)）；v0.5 加入 calibration、crosswalk（決定裁決與威脅連結） | `test_v04_legal_trust`、`test_v05_round6_group2`、`test_v07_r8_integrity` |
 | `E-ENG-DATA-CLASS` | `data_class` 必須是 P 或 C | `test_bl66_trust` |
+| `E-ENG-DEPLOYMENT` | 2026-11-22 內部審查（BL-70、D10）：`deployment_profile: single_host`（Lite 的單機 profile，[08 §11.20](../08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)）只能與 `assurance_profile: lite` 並用，需要已確認的 `role_consolidation`，而且只做白箱：bundle 不得有 G0b／G3／G4／G5 的關卡紀錄 | `test_lite_single_host` |
 | `E-ENG-LANE-A` | `lane_a_model` 必須在該資料等級的 `allowed_models` | `test_bl66_trust` |
 | `E-ENG-MISSING` | bundle 沒有 engagement.yaml | `test_bl66_trust` |
 | `E-ENG-MODEL-CLASS` | `allowed_models.<等級>` 列出的模型必須能收該等級的資料（models.yaml `data_classes`） | `test_bl66_trust` |
@@ -493,6 +494,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 |---|---|---|
 | `E-CHECKPOINT` | checkpoint 的 run 必須存在，`run_status`／`thread_id` 與 run 相符；C 級資料的 checkpoint 必須加密 | `test_bl66_config` |
 | `E-REPORT` | report-manifest 的 run 必須存在；`advisory` 只在 Lane A 為 true；審查 r11：`evidential` 在 `assurance_profile: lite` 必須是 `self_attested`，其他為 `separated`；`verdict_counts` 等於每叢集最新裁決的計數；`manual_review_clusters` 與 run 相同；audit_log artifact 必須存在；gate_record artifact 必須恰好是該 run 的所有關卡紀錄 | `test_bl66_config`、`test_v07_r11_contracts` |
+| `E-REPORT-ANCHOR` | 2026-11-22 內部審查（BL-70、D10）：報告清單的 `audit_anchor` 依委任設定的 `deployment_profile` 推導：`single_host` 為 `local`（本機錨點，不能作為對外證據），其餘為 `countersigned` | `test_lite_single_host` |
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate；v0.5 BL-20：access_matrix_coverage、endpoint_slice_coverage、endpoint_test_coverage）由 run 的測試結果、testcase 的 access_cells、切片與 request_allowlist 重算；審查 r7（外部審查 5）：覆蓋率分成 `planned_*`（測試案例宣告的計畫）與 `executed_*`（只算有有效執行結果的測試案例：outcome PASS／FAIL、對照全部 PASS、有已錨定且 hash 相符的 `sandbox_job_end`），兩者都重算 | `test_v05_schema_backlog`、`test_v03_adjudication`、`test_v05_r7_pipeline` |
 | `E-REPORT-QUEUE` | `report_only_clusters` 每項是白箱叢集、最新裁決 `UNCORROBORATED`、不是種子威脅；`over_cap_items` 的 G2 項是沒有 G2 決定的 DISPUTED／UNCORROBORATED 種子叢集，且 G2 紀錄恰好有 `gate_queues.g2_max_items` 項決定；G3 項是 threat_id 沒有 G3 決定的種子威脅（seed_id）；清單也重算完整性：每個威脅被 G3 判為 over_cap 的種子都要列出 | `test_v04_round5_examples`、`test_v05_round6_group4`、`test_v06_r7_methodology` |
 | `E-REPORT-WITHDRAWAL` | 審查 r12（[06 §1.9](../06-security-legal-limitations.md#19-營運手冊金鑰外洩備份與報告撤回h) 第 4 點、BL-54）：報告撤回是委任層級的簽署文件，不寫進被撤回 run 的稽核檔（那個 run 已經以 `run_end` 錨點結束）。`engagement_id` 是本委任；`withdrawn_report_id` 指向 bundle 中的報告、`withdrawn_run_id` 是它的 run，同一份報告只撤回一次；`withdrawn_at` 不早於報告的 `generated_at`，`customer_notified_at` 不早於 `withdrawn_at`；`superseded_by_report_id` 不為 null 時指向另一個較晚開始的 run 的報告，且產生時間較晚；`signers` 依序是 `test_lead`、`security_reviewer`，兩個不同的人（lite 已確認的 `role_consolidation` 除外），每人一筆簽章（以 `withdrawn_at` 驗證，角色由 `E-SIG-ROLE` 檢查） | `test_v07_r12_flow`、`test_v07_r12_examples` |
@@ -512,7 +514,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 | `E-JSON-STRICT` | JSON／JSONL 以嚴格模式載入：重複鍵、非有限數字、超出範圍的整數等一律拒絕；被拒的稽核檔不再做後續的鏈與錨點檢查（不連鎖報錯） | `test_review_fixes`、`test_v02_hardening`、`test_v05_round6_lowprio` |
 | `E-KIND` | 每份文件的種類必須有對應的 schema | `test_bl66_config` |
 | `E-LOAD` | 已知種類的文件因嚴格 YAML／JSON 以外的原因無法載入 | `test_bl66_config` |
-| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 29 份 |
+| `E-SCHEMA` | 文件不符合其 JSON Schema（訊息列出位置與 schema 的錯誤說明） | `test_review_fixes`、`test_v03_manifest`、`test_v03_scope` 等 30 份 |
 | `E-SCHEMA-FORMAT` | （同一條規則也涵蓋 `E-INPUT-SHAPE`）見第 1 組；每份文件各自受保護：一份文件的意外錯誤只產生一個 `E-INTERNAL`，同組其他文件照常檢查；審查 r7 第 5 組：推導值（`E-DERIVED`）與 inventory／invariants／baseline 的追溯檢查也逐份文件保護 | `test_v03_scope` |
 | `E-SCHEMA-ID` | schema 的 `$id` 必須等於檔名 | `test_bl66_config` |
 | `E-SCHEMA-META` | schema 必須通過 2020-12 meta-schema 檢查，且 `$schema` 是 2020-12 | `test_bl66_config` |

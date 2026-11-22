@@ -1,0 +1,173 @@
+{
+ "tests": "tests/test_lite_single_host.py",
+ "mutations": [
+  {
+   "name": "single_host in any profile",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if profile(c) != \"lite\":\n        out.append(f\"deployment_profile single_host is only allowed",
+   "new": "    if False:\n        out.append(f\"deployment_profile single_host is only allowed",
+   "k": "refused_outside_lite"
+  },
+  {
+   "name": "no role_consolidation needed",
+   "file": "tools/vchlib/checks.py",
+   "old": "    elif consolidation_person(c) is None:\n        out.append(\"deployment_profile single_host needs",
+   "new": "    elif False:\n        out.append(\"deployment_profile single_host needs",
+   "k": "needs_the_acknowledged"
+  },
+  {
+   "name": "black-box gates allowed",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if gates:\n        out.append(f\"deployment_profile single_host is white-box only",
+   "new": "    if False:\n        out.append(f\"deployment_profile single_host is white-box only",
+   "k": "white_box_only"
+  },
+  {
+   "name": "white-box gates counted too",
+   "file": "tools/vchlib/checks.py",
+   "old": "if d.data.get(\"gate\") in ROE_GATES})\n    if gates:",
+   "new": "if d.data.get(\"gate\")})\n    if gates:",
+   "k": "white_box_only or may_be_single_host"
+  },
+  {
+   "name": "the problems are never reported",
+   "file": "tools/vchlib/checks.py",
+   "old": "    for m in deployment_problems(c):\n        R.check(False, \"E-ENG-DEPLOYMENT\", w, m)\n",
+   "new": "",
+   "k": "refused_outside_lite or needs_the_acknowledged or white_box_only"
+  },
+  {
+   "name": "every engagement is checked as single_host",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if deployment(c) != SINGLE_HOST:\n        return []\n    out = []",
+   "new": "    out = []",
+   "k": "examples_are_three_zone"
+  },
+  {
+   "name": "the default is single_host",
+   "file": "tools/vchlib/checks.py",
+   "old": "return c.engagement.get(\"deployment_profile\") or \"three_zone\"",
+   "new": "return c.engagement.get(\"deployment_profile\") or \"single_host\"",
+   "k": "examples_are_three_zone or three_zone_report"
+  },
+  {
+   "name": "single_host reports countersigned",
+   "file": "tools/vchlib/checks.py",
+   "old": "ANCHOR_LABEL = {SINGLE_HOST: \"local\"}",
+   "new": "ANCHOR_LABEL = {}",
+   "k": "says_local_anchor or may_be_single_host"
+  },
+  {
+   "name": "every report says local",
+   "file": "tools/vchlib/checks.py",
+   "old": "want_anchor = ANCHOR_LABEL.get(deployment(c), \"countersigned\")",
+   "new": "want_anchor = ANCHOR_LABEL.get(deployment(c), \"local\")",
+   "k": "three_zone_report or examples_are_three_zone"
+  },
+  {
+   "name": "the label is not checked",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(rm.get(\"audit_anchor\") == want_anchor, \"E-REPORT-ANCHOR\", w,",
+   "new": "            R.check(True, \"E-REPORT-ANCHOR\", w,",
+   "k": "says_local_anchor or three_zone_report or audit_anchor_is_required"
+  },
+  {
+   "name": "schema: audit_anchor optional",
+   "file": "docs/schemas/report-manifest.schema.json",
+   "old": "    \"evidential\",\n    \"audit_anchor\"\n  ]",
+   "new": "    \"evidential\"\n  ]",
+   "k": "audit_anchor_is_required"
+  },
+  {
+   "name": "schema: any profile name",
+   "file": "docs/schemas/engagement.schema.json",
+   "old": "      \"enum\": [\n        \"three_zone\",\n        \"single_host\"\n      ],",
+   "new": "      \"enum\": [\n        \"three_zone\",\n        \"single_host\",\n        \"laptop\"\n      ],",
+   "k": "schema_knows"
+  },
+  {
+   "name": "the anchor signature is waived",
+   "file": "tools/vchlib/checks.py",
+   "old": "                    R.check(ok, \"E-AUDIT-ANCHOR-SIG\", where, \"audit_anchor needs a valid z3_countersignature by \"",
+   "new": "                    R.check(True, \"E-AUDIT-ANCHOR-SIG\", where, \"audit_anchor needs a valid z3_countersignature by \"",
+   "k": "still_needs_the_z3 or keeps_the_same_format"
+  },
+  {
+   "name": "08 without the section",
+   "file": "docs/08-implementation-spec.md",
+   "old": "### 11.20 Lite 的單機部署 profile 與 `vibecheck init`[H]",
+   "new": "### 11.20 Lite 的單機部署 profile[H]",
+   "k": "08_specifies"
+  },
+  {
+   "name": "08 anchor row hides the limit",
+   "file": "docs/08-implementation-spec.md",
+   "old": "能偵測檔案損毀與事後誤改，**擋不住本人重寫整條鏈**",
+   "new": "能偵測檔案損毀與事後誤改",
+   "k": "08_specifies"
+  },
+  {
+   "name": "08 init overwrites",
+   "file": "docs/08-implementation-spec.md",
+   "old": "6. 不覆寫既有的 `DIR`：",
+   "new": "6. 覆寫既有的 `DIR`：",
+   "k": "08_specifies"
+  },
+  {
+   "name": "08 init row deferred again",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `vibecheck init` | `[--dir DIR]` | 只用於 Lite 的單機 profile（[§11.20]",
+   "new": "| `vibecheck init` | `[--dir DIR]` | 規格待訂（[§11.20]",
+   "k": "08_specifies"
+  },
+  {
+   "name": "08 U-05 applies to single_host",
+   "file": "docs/08-implementation-spec.md",
+   "old": "**正式部署不得在沒有 KMS 的情況下啟動**（`single_host` 的 Lite 除外：用作業系統 keychain，[§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)）",
+   "new": "**正式部署不得在沒有 KMS 的情況下啟動**",
+   "k": "08_specifies"
+  },
+  {
+   "name": "08 home page without the label",
+   "file": "docs/08-implementation-spec.md",
+   "old": "單機 profile 另標「稽核鏈為本機錨點，不能作為對外證據」（`audit_anchor: local`），",
+   "new": "",
+   "k": "08_specifies"
+  },
+  {
+   "name": "07 drops a decision",
+   "file": "docs/07-roadmap.md",
+   "old": "| checkpointer | SqliteSaver，一個目錄同時只有一個 run |\n",
+   "new": "",
+   "k": "six_decisions"
+  },
+  {
+   "name": "07 claims it runs",
+   "file": "docs/07-roadmap.md",
+   "old": "尚未實作：這是規格，CLI 與單機部署要到 MVP-0 才寫；各平台 keychain 與容器執行環境的相容性沒有實測過 [A]。",
+   "new": "",
+   "k": "six_decisions"
+  },
+  {
+   "name": "07 without the first slice",
+   "file": "docs/07-roadmap.md",
+   "old": "**確定性最小切片（MVP-0a）**",
+   "new": "**最小切片**",
+   "k": "six_decisions"
+  },
+  {
+   "name": "09 BL-70 still open",
+   "file": "docs/09-backlog.md",
+   "old": "規格已訂、validator 已檢查；CLI 與單機部署未實作，沒有單機 profile 的完整範例 |",
+   "new": "待辦 |",
+   "k": "point_at_the_specification"
+  },
+  {
+   "name": "02 without the label",
+   "file": "docs/02-methodology.md",
+   "old": "單機 profile（`deployment_profile: single_host`，",
+   "new": "單機 profile（",
+   "k": "point_at_the_specification"
+  }
+ ]
+}

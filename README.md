@@ -1,7 +1,7 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
 > **狀態**：設計文件，第十四輪審查（2026-10-30）與 2026-11-22 內部審查後；裁決規則版本 `05-v0.17`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十四輪（內部三組審查）；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
-> **定位**（第十二輪第二次外部審查）：**針對 AI 生成應用的安全測試控制框架**，兩個使用層級——`lite` 是單人開發者的白箱快速檢查（MVP-0 的預設入口；單機部署 profile 待訂，[07 §1.3](docs/07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)、[09 BL-70](docs/09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）；`team`／`full` 是企業與供應鏈評估（職責分離、多人關卡、黑箱 staging 測試）。關卡永遠是人的決定，不做自動核准。
+> **定位**（第十二輪第二次外部審查）：**針對 AI 生成應用的安全測試控制框架**，兩個使用層級——`lite` 是單人開發者的白箱快速檢查（MVP-0 的預設入口；單機部署 profile 的規格在 [08 §11.20](docs/08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)，尚未實作，[07 §1.3](docs/07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)）；`team`／`full` 是企業與供應鏈評估（職責分離、多人關卡、黑箱 staging 測試）。關卡永遠是人的決定，不做自動核准。
 > **第一次讀**：先看 [docs/00 總覽](docs/00-overview.md)（端到端流程、自動與人工的分界、依角色的閱讀路徑）。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
 > **語言**：正體中文；證據原文保留英文（見 [`docs/evidence/ledger.md`](docs/evidence/ledger.md)）。

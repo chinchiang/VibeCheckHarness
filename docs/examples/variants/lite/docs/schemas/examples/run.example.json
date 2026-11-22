@@ -299,7 +299,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:da5ffbc6465ba15fc87df3685a96cb58c1223a3f8785eb572e319a046e265c8e",
+  "report_manifest_ref": "sha256:f6448b2b7139362f6647724fdaf28260aa9333c2158564f1422327f4d2074212",
   "gate_records": [
     {
       "gate": "G0a",
@@ -458,7 +458,7 @@
     },
     {
       "seq": 63,
-      "line_sha256": "sha256:525e66a9aef705a1b91156f49da61a699f57dabb0ba416f760e8e10db7705a44"
+      "line_sha256": "sha256:5b8bb724196df42273fd898bc007b0e7fe217896734c8559c9daf7687ece1d94"
     }
   ],
   "errors": [],

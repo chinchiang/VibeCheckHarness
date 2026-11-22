@@ -1224,7 +1224,7 @@ erDiagram
 | `gate-record.schema.json` | 人工關卡的簽章紀錄（G0a、G0b、G1–G5、GB）；逐項決定帶 `item_sha256` 與 `carried_from`（§6.3，`E-GATE-CARRY`）；G5 帶 `g4_gate_record_id`（`E-G5-G4`）；G3 可帶 `oracle_approvals`（`E-GATE-ORACLE`） |
 | `roe.schema.json` | 交戰規則。`targets[].build_identity`、`ownership_proof.method: platform_project`、`platform_policies[]`、登入的 `mfa`／`captcha_bypass`／`idp`／`whoami`、`storage_state_encrypted`、`relay.mode` |
 | `commander-plan.schema.json` | 指揮官計畫。`extra_dispatch[].target` 為 `{kind, id}`、`round` |
-| `engagement.schema.json` | 委任設定（G0a）：程式碼所有權、資料等級、每個等級允許的模型。`assurance_profile`、`role_consolidation`、`gate_approvers`、`providers[]` |
+| `engagement.schema.json` | 委任設定（G0a）：程式碼所有權、資料等級、每個等級允許的模型。`assurance_profile`、`deployment_profile`（選用；`single_host`＝Lite 單機 profile，`E-ENG-DEPLOYMENT`）、`role_consolidation`、`gate_approvers`、`providers[]` |
 | `model-registry.schema.json` | `models.yaml`（family、lineage、資料等級、同家族 fallback）。`pricing`、`rate_limits`、`tokenizer`（都可為 null） |
 | `agent-registry.schema.json` | `agents.yaml`（角色、模型、工具權限）。Commander 無工具、Invariant Drafter 用 `read_inventory`、Result Analyst 池 |
 | `run.schema.json` | run 紀錄：狀態 enum、`run_kind`、`parent_run_id`、`reuse`、預算、關卡參照。`config_refs`、`prompt_templates[]`、`tool_versions[]`、`rule_version`、`baseline_run_id` |
@@ -1235,7 +1235,7 @@ erDiagram
 | `crosswalk.schema.json` | 對照表 |
 | `seed-manifest.schema.json` | 種子資料清單（ID、表、重置方式）。`namespace`、`seeding`、`teardown`、`reseed_per_trial`、`create_only_endpoints[]`（`{target_id, method, path_template}`）、每個種子的 `path_templates[]` |
 | `calibration.schema.json` | 校準設定與結果。`result.high_precision_rules[]`（強佐證的規則白名單：`adapter`、`rule_id`、`tool_version`、`cwe_bucket`、`n`、`precision_lower95`）與門檻 `result.thresholds.high_precision_min` |
-| `report-manifest.schema.json` | 報告清單（產物 hash）。`metrics`（`results_total`、`results_invalid`、`control_pass_rate`）、`build_unverified_targets[]`（不含 `tester_controlled` 目標）、`absent_fingerprints[]` |
+| `report-manifest.schema.json` | 報告清單（產物 hash）。`metrics`（`results_total`、`results_invalid`、`control_pass_rate`）、`build_unverified_targets[]`（不含 `tester_controlled` 目標）、`absent_fingerprints[]`、`evidential`、`audit_anchor`（`E-REPORT-ANCHOR`） |
 | `tool-registry.schema.json` | `tools.yaml`：工具 ID 與 `tool:mode` |
 | `key-registry.schema.json` | 金鑰登錄（§6.1） |
 | `audit-event.schema.json` | 稽核事件（§13） |

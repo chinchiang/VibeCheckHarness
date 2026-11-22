@@ -1,6 +1,6 @@
 # 08 實作規格
 
-> 本文件的讀者是要動手寫程式的工程師。讀完之後，除了 [§10](#10-尚未決定需使用者決定) 列出的使用者決定與 [09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)（Lite 的單機部署 profile）之外，應該不需要再做設計決定就能開始 M1。
+> 本文件的讀者是要動手寫程式的工程師。讀完之後，除了 [§10](#10-尚未決定需使用者決定) 列出的使用者決定之外，應該不需要再做設計決定就能開始 M1。Lite 的單機部署 profile 在 [§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)（2026-11-22 內部審查訂定；之前是待訂的 [09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）。
 >
 > - [§10](#10-尚未決定需使用者決定) 只列**需要使用者決定**的事項，各附未決定時的預設做法。
 > - [§11](#11-元件規格補充) 補上 v0.3 的元件規格（W0 抽取器、工具結果合併、Slicer、Scope Proxy、Session Provider、SARIF 等）。
@@ -510,7 +510,7 @@ class ToolAdapter(ABC):
 
 | 指令 | 參數 | 做什麼 | 結束碼 | 里程碑 |
 |---|---|---|---|---|
-| `vibecheck init` | `[--dir DIR]` | **規格待訂**（[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)；[07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)）：Lite 的首次設定——產生本機金鑰、只有一個人的金鑰登錄與委任設定草稿，供本人簽署（G0a）。單機部署 profile 訂定前不實作 | — | MVP-0（待訂） |
+| `vibecheck init` | `[--dir DIR]` | 只用於 Lite 的單機 profile（[§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)）：檢查環境、產生三把金鑰存入 keychain、寫出只有一個人的金鑰登錄與委任設定草稿（`deployment_profile: single_host`），本人確認後簽署（就是 G0a 的核准）。不覆寫既有目錄、不啟動 run、不連網 | 目錄已有設定、沒有 keychain 也沒有通行碼、本人未確認 → 非 0 | MVP-0 |
 | `vibecheck config validate` | `[--dir DIR]` | 驗證 §5 的 7 種設定檔（schema＋跨檔規則，例如 fallback 必須同家族） | 0/3/4 | M1 |
 | `vibecheck keys verify` | `REGISTRY [--accept]` | 驗根簽章與版本；`--accept` 把該版本寫成「上次接受的版本」（需要 `toolkit_maintainer` 身分簽章） | 0/3/4 | M1 |
 | `vibecheck keys show` | `[--person ID] [--fingerprint FP]` | 列出登錄項、角色、效期、撤銷狀態 | 0/6 | M1 |
@@ -996,9 +996,9 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | U-02 | 自架 Nemotron 與 gpt-oss 的 GPU 與主機（Z4）：數量、型號、機房 | 使用者 | C 級資料只能送到已簽 ZDR 的雲端模型；若都沒有，C 級 repo 無法做多家族審查 | M2 |
 | U-03 | 法務閘門（[07 §3](07-roadmap.md#3-入口閘門法務與查證)）：Anthropic 條款、TruffleHog、psycopg 的散布形式、Semgrep 規則與 CodeQL、NIM 用途、OpenAI 條款、PrimeVul、k6、OWASP CC BY-SA | `legal_reviewer` | 對應的元件停用（該表的「未確認則」欄） | M1–M5 |
 | U-04 | 保留期限（§7.5）與是否需要外部 WORM 錨點 | 法務、engagement | 使用 §7.5 的預設值；錨點只寫在 Postgres（只能偵測意外損壞與單點竄改，[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) 第 16 條） | M1 |
-| U-05 | CAS 加密所用的 KMS 與 AEAD 演算法 | 使用者的資安團隊 | 測試用的 KEK 實作只允許在 `fast` 線與 `security` 線使用；**正式部署不得在沒有 KMS 的情況下啟動** | M1 |
+| U-05 | CAS 加密所用的 KMS 與 AEAD 演算法 | 使用者的資安團隊 | 測試用的 KEK 實作只允許在 `fast` 線與 `security` 線使用；**正式部署不得在沒有 KMS 的情況下啟動**（`single_host` 的 Lite 除外：用作業系統 keychain，[§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)） | M1 |
 | U-06 | 核准者的簽章方式：本地 PEM（M1 預設）、OpenSSH `ssh-keygen -Y`、硬體金鑰 | 資安團隊 | 只支援本地加密 PEM；改用其他方式需要修改 D11 與 `key-registry` 的 `alg` | M1–M2 |
-| U-07 | 組織根金鑰的產生與保管、金鑰登錄的發行流程 | 資安團隊 | 只有測試用的根金鑰；正式 engagement 無法啟動 | M1 |
+| U-07 | 組織根金鑰的產生與保管、金鑰登錄的發行流程 | 資安團隊 | 只有測試用的根金鑰；正式 engagement 無法啟動（`single_host` 的 Lite 除外：`vibecheck init` 在本機產生根金鑰，[§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)） | M1 |
 | U-08 | Z2 使用 gVisor 還是 Firecracker；Z1／Z2／Z3 的主機與網路配置 | 使用者、維運 | M1 以 gVisor（runsc）實作與測試；Firecracker 延後 | M1 |
 | U-09 | 關卡通知的管道（Email、聊天工具） | 使用者 | 只有 `gate list` 輪詢；逾時仍照 03 §6.2 計算 | M2 |
 | U-10 | Calibration 語料的標註人力（兩位標註者＋仲裁者）與預算（05 §5.1） | 使用者 | M2 的出口準則 M2-X1 無法完成 | M2 |
@@ -1876,7 +1876,7 @@ class SessionProvider(Protocol):
 - **已知的限制**：函式改名或檔案搬移 → 舊指紋 `absent`、新指紋 `new`，不會被當成同一個問題 [H]。
 
 **白箱報告（`whitebox-report.md`，`report export --format markdown`）的區段**（第十四輪內部審查 C8；之前 02 W5 寫產出它，CLI 卻只有 json／sarif／html）[H]：
-1. **首頁**：委任、run、commit、`assurance_profile` 與模式標示（Lite 時「單人模式，未經職責分離」、`evidential: self_attested`，而且每個 `CONFIRMED_EXECUTABLE` 都寫成「自我核准的可執行證明」並在首頁說明：G1 的存取矩陣與 G4 的 oracle 由同一人核准，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)；校準前「暫定（校準前）」的比例與 `single_best_resampled` 標示）、每個關卡的實際等待時間、預算用量與「強制／依假設上界估算」。
+1. **首頁**：委任、run、commit、`assurance_profile` 與模式標示（Lite 時「單人模式，未經職責分離」、`evidential: self_attested`，單機 profile 另標「稽核鏈為本機錨點，不能作為對外證據」（`audit_anchor: local`），而且每個 `CONFIRMED_EXECUTABLE` 都寫成「自我核准的可執行證明」並在首頁說明：G1 的存取矩陣與 G4 的 oracle 由同一人核准，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)；校準前「暫定（校準前）」的比例與 `single_best_resampled` 標示）、每個關卡的實際等待時間、預算用量與「強制／依假設上界估算」。
 2. **確認項**：`CONFIRMED_*` 與 `LIKELY` 叢集，依 rubric 嚴重度排序；每項附位置、桶、證據（測試 ID、oracle、對照）、違反的 G1 條目、`baseline_state`、是否暫定、`oracle_unreviewed`。
 3. **爭議與人審清單**：`DISPUTED`、G2 的 `needs_info`、`post_g2_conflict`、`over_cap_items`。
 4. **只列報告**：`report_only_clusters`（tool-only 與低嚴重度 `UNCORROBORATED`）、相依弱點（`sca`）、供應鏈（`package_existence`）、secrets（只有位置與 HMAC）。
@@ -2062,10 +2062,42 @@ W4 需要安裝相依並建置受測程式 [H]：
 | 項目 | 規定 |
 |---|---|
 | 身分 | 金鑰登錄中 `person_id: z3-executor`、角色只有 `z3_executor`（`E-KR-SERVICE`：服務身分不得兼任任何人員角色，不能當發起者或核准者） |
-| 金鑰存放 | 獨立行程，以不同的 OS 使用者（或作業系統 keychain）持有私鑰；Z1（Run Controller、Audit Writer）的行程讀不到。Team／Full 放在另一台主機；Lite 可以在同一台機器，但仍是獨立行程與使用者 |
+| 金鑰存放 | 獨立行程，以不同的 OS 使用者（或作業系統 keychain）持有私鑰；Z1（Run Controller、Audit Writer）的行程讀不到。Team／Full 放在另一台主機；`three_zone` 的 Lite 可以在同一台機器，但仍是獨立行程與使用者。例外：`deployment_profile: single_host` 的 Lite 用本機錨點（同一個 OS 使用者的子行程，[§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)），報告標示 `audit_anchor: local` |
 | 介面 | RPC `countersign(request) → response`（第十四輪內部審查 C5 改寫）：request＝`{engagement_id, run_id, seq, draft_anchor_event, lines_since_last_anchor}`（`draft_anchor_event` 是還沒有 `anchor_counter` 與副簽的錨點事件）；response＝`{anchor_counter, countersignature}`。Z3 以 `(run_id, seq, event_sha256)` 為冪等鍵：同一個請求重送回傳同一個計數與簽章（Z3 簽了、Z1 當掉再重送時不會多消耗編號，否則錨點編號會出現缺口、`E-AUDIT-ANCHOR-GAP` 誤報）；計數器與每個 run 上一個錨點的 hash 都持久化在 Z3。Z3 重算這段的 `prev_hash` 鏈與錨點事件的 `event_sha256`（`anchor_counter` 在被簽的 hash 內，所以由 Z3 編號並一起回傳），以 `vibecheck/audit_anchor/v2` domain tag 簽 `{domain, run_id, seq, prev_hash, event_sha256}`。鏈接不上或編號倒退 → 拒簽；Z1 寫稽核事件 `anchor_rejected`（[03 §13.2](03-system-architecture.md#132-事件類型enum)，payload 帶 Z3 回傳的理由），run 進 `SUSPENDED` |
 | 不做 | MVP-0 沒有 Z3 自產的事件（`tool_invocation_*` 在 Z2、沒有 `sandbox_job_*`、沒有所有權驗證），所以 03 §13.1 的「核對 Z3 自己產生的事件」留到 MVP-1 的完整 Z3（[09 BL-36](09-backlog.md)）；沒有網路出站 |
 | 信任界線 | 副簽只證明「這些行在簽章時已存在、之後沒被改」。Lite 的一人同時持有 Z1 與 Z3 的金鑰，整條鏈仍可重寫（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16、#26），報告維持 `evidential: self_attested`；Team／Full 的 Z3 主機由不同的人管理才有對外證據力 |
 | 可用性 | 服務不可用時 Audit Writer 不能寫錨點，依 §6.1 的 `Z3Unavailable` 處理（唯一的一版；第十四輪內部審查之前這裡寫「等待」、§6.1 寫 `SUSPENDED`）：依 §6.2 重試，用盡 → run `SUSPENDED`，寫 `run_status_changed`，結束碼 9；需要錨定的事件（關卡決定、階段結束、`audit.anchor_interval_events` 的計數到期）在 Z3 恢復並寫入錨點之前**不寫入**（fail-closed，[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)），所以關卡決定在 Z3 不可用期間不會生效 |
 
 **Run Controller 的排程**：關卡逾時的 EXPIRED 紀錄、委任設定到期的 `resume_expired` 清理（[03 §5.2](03-system-architecture.md#52-主狀態圖)）都由 Run Controller 的排程寫入，目標是期限後 1 小時內；validator 只要求 EXPIRED 不早於期限（[03 §6.2](03-system-architecture.md#62-關卡逾時預設值)）。
+
+### 11.20 Lite 的單機部署 profile 與 `vibecheck init`[H]
+
+**為什麼要有**：§3、§7、§11.19 是為 Team／Full 的三區部署寫的；照那些規定，Lite 沒辦法在一台開發機上啟動（KMS、正式根金鑰、獨立 OS 使用者的副簽行程、gVisor、Postgres、套件鏡像）。第十四輪內部審查把這件事列為待訂（[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)），2026-11-22 內部審查訂定如下（使用者授權由實作者決定；D10）。
+
+**範圍**：委任設定寫 `deployment_profile: single_host` 時適用。只允許與 `assurance_profile: lite` 並用（`E-ENG-DEPLOYMENT`）；`team`／`full` 一律是 `three_zone`（預設值，可省略）。單機 profile 只涵蓋 MVP-0（白箱、不連目標）；要跑 B 階段，改用 `three_zone`。
+
+| 項目 | 單機 profile 的規定 | 與三區部署的差別 |
+|---|---|---|
+| 金鑰數量 | 仍是三把：根金鑰（只簽金鑰登錄）、本人的人員金鑰、`z3-executor` 服務金鑰。資料格式與 validator 規則完全相同 | 沒有差別；三把都由同一個人持有 |
+| 金鑰存放 | 作業系統 keychain（macOS Keychain、Windows Credential Manager、Linux Secret Service）；沒有 keychain 時用通行碼加密的金鑰檔（scrypt＋AEAD），每次 run 輸入通行碼 | §10 U-05「沒有 KMS 不得啟動」與 U-07「正式根金鑰」只適用 `three_zone` |
+| 錨點副簽 | **本機錨點**：副簽程式是 CLI 啟動的子行程，與 Run Controller 同一個 OS 使用者；介面仍是 §11.19 的 `countersign`，`anchor_counter` 仍連續 | 不要求獨立 OS 使用者或另一台主機。能偵測檔案損毀與事後誤改，**擋不住本人重寫整條鏈** |
+| 報告標示 | 報告清單 `audit_anchor: "local"`（`E-REPORT-ANCHOR`），首頁在「單人模式」字樣旁加「稽核鏈為本機錨點，不能作為對外證據」；`evidential` 仍是 `self_attested` | `three_zone` 為 `"countersigned"` |
+| Z2 沙箱 | 需要容器執行環境：Linux 用 gVisor 或 rootless 容器；macOS／Windows 用 Docker Desktop、Podman machine 或 WSL2 內的容器（都是 Linux VM 內的容器）。容器一律 `--network none`、唯讀掛載 repo。`vibecheck doctor` 找不到容器執行環境時結束碼非 0；此時只能跑「確定性最小切片」中不執行受測程式碼的部分（見下） | 三區部署只接受 gVisor |
+| checkpointer | SqliteSaver，檔案在 `--dir` 之下；同一個目錄同時只允許一個 run（檔案鎖） | 三區部署用 PostgresSaver（§7.1） |
+| 套件存在性 | 允許直連公開 registry 的中繼資料 API（只送套件名稱與版本，不下載內容）；`vibecheck init` 會顯示「套件名稱會送到公開 registry」並要求確認，拒絕時 W1 的套件存在性檢查列為 gap | 三區部署一律經鏡像 |
+| 模型呼叫 | 與三區部署相同：只經 Model Gateway，遮罩先於任何 LLM 呼叫（MVP0-X2） | 沒有差別 |
+
+**`vibecheck init [--dir DIR]`**（只用於單機 profile；一次）：
+
+1. 檢查環境：Python 版本、keychain 是否可用、容器執行環境（同 `vibecheck doctor`）。
+2. 產生三把 Ed25519 金鑰，存入 keychain（或通行碼加密的金鑰檔）。私鑰不寫進 `DIR`。
+3. 寫出 `DIR/key-registry.yaml`：一個人員項目（本人，持有 Lite 需要的全部角色）與 `z3-executor` 服務項目，以根金鑰簽章。
+4. 寫出委任設定**草稿** `DIR/engagement.yaml`：`assurance_profile: lite`、`deployment_profile: single_host`、`role_consolidation`（聲明文字由本人確認）、資料等級、預算、允許的模型、跨境聲明。草稿不帶簽章。
+5. 顯示草稿的重點（範圍、資料等級、會呼叫哪些模型供應商、套件名稱是否送公開 registry），本人確認後以人員金鑰簽章。這一步就是 G0a 的核准（[07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h) 的人工操作契約）。
+6. 不覆寫既有的 `DIR`：目錄已有金鑰登錄或委任設定時結束碼非 0，要重來必須指定新的目錄或先由本人移除舊的。
+
+`init` 不啟動 run、不呼叫任何模型、不連網（步驟 1 的環境檢查除外，它也不連網）。
+
+**確定性最小切片**（MVP-0 的第一個可交付物，[07 §1.1](07-roadmap.md#11-分段-mvp) 的 MVP-0a）：W0（secrets 掃描與遮罩、inventory）＋W1（SCA、套件存在性、確定性規則）＋SARIF 輸出。沒有任何 LLM 呼叫，所以不需要模型金鑰、Model Gateway 與 G1；產出是 inventory、工具結果與 SARIF（只有工具來源的 result），沒有裁決、沒有叢集投票、沒有報告清單。它的用途是讓第一個使用者在最少設定下拿到結果，並提早驗證 W0 抽取器與 SARIF 的穩定性（MVP0-X1 的三個植入問題都必須在這個切片就找得到）。
+
+**信任界線**（與 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16、#26 一致）：單機 profile 的簽章、錨點與收件時間都由同一個人、同一台機器產生，只供自查。它保留完整的資料格式，是為了讓同一份產出日後能在 `three_zone` 部署下重跑比對，不是為了證據力。

@@ -184,5 +184,6 @@
   "report_only_clusters": [
     "K-016"
   ],
-  "evidential": "separated"
+  "evidential": "separated",
+  "audit_anchor": "countersigned"
 }

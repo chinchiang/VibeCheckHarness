@@ -90,7 +90,20 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 
 **Lite 白箱快速模式是 MVP-0 的預設入口**（第十二輪第二次外部審查；之前是 pilot 未達門檻時的降階備案）：只跑 MVP-0（白箱、不連網、沒有 G0b 與 B 階段）。`vibecheck init` 在本機產生一把金鑰，建立只有一個人的金鑰登錄與委任設定；報告首頁標示「單人、自行簽署、只有白箱」。
 
-**Lite 的單機部署 profile 待訂**（第十四輪內部審查 C1，使用者決定：MVP-0 實作計畫時再訂，[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）[H]：目前的規格是為 Team／Full 的三區部署寫的，照規格 Lite 無法在一台開發機上啟動——`vibecheck init` 還沒有規格（[08 §4.2](08-implementation-spec.md#42-指令) 只列了它的位置）；正式部署要求 KMS（[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-05：沒有 KMS 不得啟動）與正式的組織根金鑰（U-07）；要三把金鑰（根、人員、`z3-executor`）與一個以不同 OS 使用者執行的副簽行程（[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)）；Z2 以 gVisor 實作，只有 Linux；checkpointer 是 Postgres；W1 的套件存在性要經鏡像。單機 profile 要決定的事項：根金鑰與人員金鑰是否同一把、KMS 的本機替代（作業系統 keychain）、副簽行程在同一台機器的隔離方式、macOS／Windows 的 Z2 替代（容器或 WSL）、SQLite checkpointer、是否允許直連套件 registry。在它訂定之前，MVP-0 的 Lite 只能在 Linux 主機上以 Team 的部署方式跑；README 與 00 的「單一開發者模式」指的是這個 profile 訂定後的使用方式。
+**Lite 的單機部署 profile**（第十四輪內部審查 C1 列為待訂；2026-11-22 內部審查訂定，[08 §11.20](08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)，[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）[H]：其他章節的規格是為 Team／Full 的三區部署寫的，照那些規定 Lite 無法在一台開發機上啟動——要 KMS（[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) U-05）與正式的組織根金鑰（U-07）、以不同 OS 使用者執行的副簽行程（[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)）、只有 Linux 才有的 gVisor、Postgres checkpointer、套件鏡像。委任設定寫 `deployment_profile: single_host` 時改用下列規定（只允許 `lite`，只做白箱；`E-ENG-DEPLOYMENT`）：
+
+| 要決定的事 | 決定 |
+|---|---|
+| 根金鑰與人員金鑰是否同一把 | 不同：仍是三把金鑰（根、人員、`z3-executor`），資料格式與 validator 規則不變；三把由同一人持有 |
+| KMS 的本機替代 | 作業系統 keychain；沒有時用通行碼加密的金鑰檔 |
+| 副簽行程的隔離 | 不隔離：本機錨點，與 Run Controller 同一個 OS 使用者的子行程；報告標示 `audit_anchor: local`（`E-REPORT-ANCHOR`），不能作為對外證據 |
+| macOS／Windows 的 Z2 | 容器（Docker Desktop、Podman machine 或 WSL2 內的容器），`--network none`；沒有容器執行環境時只能跑不執行受測程式碼的部分 |
+| checkpointer | SqliteSaver，一個目錄同時只有一個 run |
+| 套件 registry | 允許直連公開 registry 的中繼資料 API（只送套件名稱與版本），`vibecheck init` 時由本人確認；拒絕則該檢查列為 gap |
+
+`vibecheck init` 的步驟也在 08 §11.20。尚未實作：這是規格，CLI 與單機部署要到 MVP-0 才寫；各平台 keychain 與容器執行環境的相容性沒有實測過 [A]。README 與 00 的「單一開發者模式」指的是這個 profile。
+
+**確定性最小切片（MVP-0a）**：MVP-0 之中先交付 W0＋W1＋SARIF——沒有任何 LLM 呼叫，不需要模型金鑰與 G1，產出是 inventory、工具結果與只有工具來源的 SARIF。MVP0-X1 的三個植入問題都必須在這個切片就找得到（每一個本來就要求有不靠 LLM 的輸出路徑）。它不是新的階段，只是 MVP-0 內部的交付順序。
 
 **人工操作的契約**（第十三輪外部審查：之前的「只需確認一次」沒有說是哪個關卡）[H]：
 

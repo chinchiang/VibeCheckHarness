@@ -166,7 +166,7 @@ flowchart TD
 | G3 與 G4 同一次審查 | 可以 | 只在測試計畫只有 S0／S1 job 時 | 同 `team` |
 | 多輪 LLM relay | 只有 `scripted` | 只有 `scripted` | `scripted` 或 `adaptive` |
 | 法務審查聲明（06 L-5） | 兼任者可以自己聲明：警告 `W-L5-LITE`，報告首頁寫明「法務審查聲明為自行簽署」 | 聲明者不能是 `test_lead`（`E-L5`） | 同 `team` |
-| 報告首頁 | 標示「單人模式，未經職責分離，也未經獨立抽查」（Lite 沒有第二個人，ASI09 抽查不適用，`E-SPOT-CHECK`），並附聲明全文；有 `W-L5-LITE` 時另標示法務審查聲明為自行簽署。審查 r11：report-manifest 的 `evidential: self_attested`（Team／Full 為 `separated`，`E-REPORT`）——一人持有所有金鑰與主機，簽章、錨點與收件時間只供自查；誤報只能以 `wont_fix`／`needs_info` 自簽抑制（報告標示「自行抑制」），不能記錄 `false_positive`（[08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)）。**確認的標示**：Lite 的 `CONFIRMED_EXECUTABLE` 在報告中一律寫成「自我核准的可執行證明」，首頁說明它的意思——存取矩陣（G1）與測試的 oracle（G4）都由同一個人核准，而這個人不一定讀得懂程式碼；規則保證的是「測試照核准的內容執行、結果可重播」，不保證核准的內容是對的。Team／Full 不加這個字樣 | — | — |
+| 報告首頁 | 標示「單人模式，未經職責分離，也未經獨立抽查」（Lite 沒有第二個人，ASI09 抽查不適用，`E-SPOT-CHECK`），並附聲明全文；有 `W-L5-LITE` 時另標示法務審查聲明為自行簽署。審查 r11：report-manifest 的 `evidential: self_attested`（Team／Full 為 `separated`，`E-REPORT`）；單機 profile（`deployment_profile: single_host`，[08 §11.20](08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)）另有 `audit_anchor: local`，首頁標示「稽核鏈為本機錨點，不能作為對外證據」（`E-REPORT-ANCHOR`）——一人持有所有金鑰與主機，簽章、錨點與收件時間只供自查；誤報只能以 `wont_fix`／`needs_info` 自簽抑制（報告標示「自行抑制」），不能記錄 `false_positive`（[08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)）。**確認的標示**：Lite 的 `CONFIRMED_EXECUTABLE` 在報告中一律寫成「自我核准的可執行證明」，首頁說明它的意思——存取矩陣（G1）與測試的 oracle（G4）都由同一個人核准，而這個人不一定讀得懂程式碼；規則保證的是「測試照核准的內容執行、結果可重播」，不保證核准的內容是對的。Team／Full 不加這個字樣 | — | — |
 | G2 的決定 | 只有 `accept`／`needs_info`：一個不讀程式碼的使用者不該做對投票與 SARIF 而言是最終決定的 `reject`（R10），而 Lite 沒有 S2 證明能推翻；爭議留在報告裡（`E-GATE-OUTCOME`） | `reject` 由資安審查者決定 | 同 `team` |
 
 - **兼任者**在金鑰登錄中仍須具備每個兼任的角色；兼任只免除「必須是不同的人」，不免除角色登錄與簽章。

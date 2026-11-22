@@ -6,7 +6,7 @@
 
 ## 1. 它是什麼、不是什麼
 
-**定位**（第十二輪第二次外部審查）：**針對 AI 生成應用的安全測試控制框架**。`lite` 給單人開發者做白箱快速檢查（MVP-0 的預設入口；單機部署 profile 待訂，訂定前只能以 Team 的部署方式跑，[07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)、[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）；`team`／`full` 給企業與供應鏈評估，治理要求（職責分離、多人關卡、簽章與錨定）都在這兩個等級。Supabase、Firebase 等託管 DB 通常無法快照還原，這類目標的黑箱測試預期只有 S0／S1（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #36）。
+**定位**（第十二輪第二次外部審查）：**針對 AI 生成應用的安全測試控制框架**。`lite` 給單人開發者做白箱快速檢查（MVP-0 的預設入口；單機部署 profile 的規格在 [08 §11.20](08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)，尚未實作，[07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)）；`team`／`full` 給企業與供應鏈評估，治理要求（職責分離、多人關卡、簽章與錨定）都在這兩個等級。Supabase、Firebase 等託管 DB 通常無法快照還原，這類目標的黑箱測試預期只有 S0／S1（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #36）。
 
 **VibeCheck Harness 是**一套防禦性的測試方法與系統架構，對象是 AI 生成（vibe-coded）的 Web／API 應用與含 LLM 功能的應用：
 - **先白箱**：多個來自不同廠商的 LLM 各自獨立審查程式碼，再由不同家族的模型交叉驗證。

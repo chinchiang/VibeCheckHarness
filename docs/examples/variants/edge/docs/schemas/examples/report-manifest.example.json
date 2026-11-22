@@ -182,5 +182,6 @@
   "absent_fingerprints": [],
   "over_cap_items": [],
   "report_only_clusters": [],
-  "evidential": "separated"
+  "evidential": "separated",
+  "audit_anchor": "countersigned"
 }

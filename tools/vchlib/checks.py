@@ -737,6 +737,8 @@ def g_engagement(R: Report, c: Ctx):
     elif isinstance(rc, dict) and rc.get("acknowledged") is True:
         R.check(rc.get("person_id") in c.persons and bool(rc.get("statement")), "E-ENG-PROFILE", w,
                 "an acknowledged role_consolidation needs a registry person_id and a statement")
+    for m in deployment_problems(c):
+        R.check(False, "E-ENG-DEPLOYMENT", w, m)
     provider_rules(R, c)
     transfer_rules(R, c)
     config_pin_rules(R, c)
@@ -1502,6 +1504,33 @@ ROE_GATES = ("G0b", "G3", "G4", "G5")
 
 def profile(c: Ctx) -> str:
     return c.engagement.get("assurance_profile") or "team"
+
+
+SINGLE_HOST = "single_host"
+ANCHOR_LABEL = {SINGLE_HOST: "local"}          # report-manifest.audit_anchor by deployment profile; otherwise "countersigned"
+
+
+def deployment(c: Ctx) -> str:
+    """BL-70 / D10 (2026-11-22 review): the engagement's deployment profile; an engagement that names none is three_zone."""
+    return c.engagement.get("deployment_profile") or "three_zone"
+
+
+def deployment_problems(c: Ctx) -> list[str]:
+    """The single-host profile (docs/08 section 11.20) is the one-person, white-box deployment: one OS user holds every key
+    and runs the anchor countersigner. It is only for assurance_profile lite with an acknowledged role_consolidation, and
+    it has no black-box phase (the Scope Proxy and the executor zone are safety controls, not evidence; it has neither)."""
+    if deployment(c) != SINGLE_HOST:
+        return []
+    out = []
+    if profile(c) != "lite":
+        out.append(f"deployment_profile single_host is only allowed with assurance_profile lite (got {profile(c)})")
+    elif consolidation_person(c) is None:
+        out.append("deployment_profile single_host needs an acknowledged role_consolidation (one person holds every key)")
+    gates = sorted({d.data.get("gate") for d in c.docs("gate-record") if d.data.get("gate") in ROE_GATES})
+    if gates:
+        out.append(f"deployment_profile single_host is white-box only, but the bundle has {', '.join(gates)} records "
+                   "(the black-box phase needs the three_zone deployment)")
+    return out
 
 
 def consolidation_person(c: Ctx) -> str | None:
@@ -5551,6 +5580,10 @@ def g_misc(R: Report, c: Ctx):
             want_ev = "self_attested" if profile(c) == "lite" else "separated"
             R.check(rm.get("evidential") == want_ev, "E-REPORT", w,
                     f"evidential must be {want_ev!r} for assurance_profile {profile(c)} (Lite evidence is self-attested), not {rm.get('evidential')!r}")
+            # BL-70 / D10: a single-host engagement's anchors are countersigned by the operator's own process; the report says so
+            want_anchor = ANCHOR_LABEL.get(deployment(c), "countersigned")
+            R.check(rm.get("audit_anchor") == want_anchor, "E-REPORT-ANCHOR", w,
+                    f"audit_anchor must be {want_anchor!r} for deployment_profile {deployment(c)}, not {rm.get('audit_anchor')!r}")
             final = verdict_heads(c, run.get("verdicts", []))       # v0.5 (V-4): a broken chain is E-VERDICT-CHAIN
             counts = {s: sum(1 for v in final if v.get("status") == s) for s in FINAL_STATUSES}
             R.check(rm.get("verdict_counts") == counts, "E-REPORT", w, f"verdict_counts must be {counts} (latest verdict per cluster)")
