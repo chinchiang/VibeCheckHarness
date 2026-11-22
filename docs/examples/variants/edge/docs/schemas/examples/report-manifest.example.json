@@ -52,52 +52,52 @@
     {
       "kind": "verdict",
       "ref": "V-005-1",
-      "sha256": "sha256:1d0297bdf8d6042d092693a48fd5cf4720f1efc19f669c7d2c1252c6cc2d6b8d"
+      "sha256": "sha256:375f7e8fa3dc37fd93f2fc5f0f6f393565016f035abf970a6d3ca52eb41aaf70"
     },
     {
       "kind": "verdict",
       "ref": "V-011-1",
-      "sha256": "sha256:704a1e780b2826f831dfc22004c1b38fb6a8efdc129cbf94bdf42c49eeaa2ea0"
+      "sha256": "sha256:6e97f20f4e5006c0de3867cb1d50305c2a95cd302c6380a0c6818ca1a2fcd1d9"
     },
     {
       "kind": "verdict",
       "ref": "V-005-2",
-      "sha256": "sha256:d2617e180b1a65fee45e9a02e781a6cf045db713f361e8e351a81f1f9190e8ae"
+      "sha256": "sha256:553d84bffcf1f06905b623fedd4df147eb3fd0b93fc2e9ac7ceb7355435b6bf0"
     },
     {
       "kind": "verdict",
       "ref": "V-011-2",
-      "sha256": "sha256:49bf43c7ce919fe0648511b5b4a205315a9909c48b078720ba91da5986f7a1ab"
+      "sha256": "sha256:ee95e3d27c7066d2348d278f5a6e44034c5a28269cb7675af156e5ce434d98c0"
     },
     {
       "kind": "verdict",
       "ref": "V-015-1",
-      "sha256": "sha256:b98023de830c462556a2e867e7d775bbfbf17a3fb2fd77882331c6ca65c1d355"
+      "sha256": "sha256:44f0c24e468e8bc954ce8babfaab40992751ec65c296a6d1d8d8fb6f27ec018f"
     },
     {
       "kind": "verdict",
       "ref": "V-201-1",
-      "sha256": "sha256:4c62ce4bc72d203dfb239c94deb42ec3c21f7fa3b5486dceda195cebaea5ea39"
+      "sha256": "sha256:34091e3c1f67650027015c074fec6c3b1ff694244740858e4f46d4aea7c8d53c"
     },
     {
       "kind": "verdict",
       "ref": "V-202-1",
-      "sha256": "sha256:db960a5b485a73e9dc32005127e3505092bd229c690a4e9ee16cbd1f22239388"
+      "sha256": "sha256:39fac91b3879791299e2d049f4ee861fb0ad59b4e1a50019ef2a36fa80dd3cd5"
     },
     {
       "kind": "verdict",
       "ref": "V-014-1",
-      "sha256": "sha256:7903563d11784d2e86b9d19537d9709807fdfda496e4370f1632ceb4014c01b0"
+      "sha256": "sha256:9b5dc81044ae9870b0aaa20908834ab0aa31a1eb2179c8eb368a42f35bea4a0f"
     },
     {
       "kind": "verdict",
       "ref": "V-015-2",
-      "sha256": "sha256:5585e79a05fb28593702b63326df4c8e780b267a3e2696381b3c4c378c827df5"
+      "sha256": "sha256:7999a49af35ef18156010934e278b4d725a16efe676a807397940e21c8fa6b66"
     },
     {
       "kind": "verdict",
       "ref": "V-016-2",
-      "sha256": "sha256:71ddb4d57d7977a8720b1eee02c70909fd12bdc143fb441966b209cb8366bfd0"
+      "sha256": "sha256:ed84ee3d64e9f27714d2ecf8bf238311b55aa90df815584914a37521a59d4646"
     },
     {
       "kind": "gate_record",
@@ -142,7 +142,7 @@
     {
       "kind": "audit_log",
       "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
-      "sha256": "sha256:3465e405189b28bf1d656f2a4ac30393b8f0bc7cd0ecce654fa573450befbdb6"
+      "sha256": "sha256:066f92af4bd746f4ee3558f20c41a1381cd1e7946d9874eb59300395b77af9d1"
     },
     {
       "kind": "followup_draft",

@@ -88,7 +88,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.16"
+RULE_VERSION = "05-v0.17"
 EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_pass_weak", "E_inc"]
 PASS_CLASSES = frozenset({"E_pass", "E_pass_weak"})   # D6 (05-v0.16): E_pass has a PASSed oracle_can_fail control, E_pass_weak has none
 

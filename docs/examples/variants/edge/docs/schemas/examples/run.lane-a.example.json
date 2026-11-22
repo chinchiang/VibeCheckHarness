@@ -51,7 +51,7 @@
     }
   ],
   "tool_versions": [],
-  "rule_version": "05-v0.16",
+  "rule_version": "05-v0.17",
   "roe_ref": null,
   "repo_commit": "9b7e3d2f1a4c6e8b0d2f4a6c8e0b2d4f6a8c0e1b",
   "owasp_llm_version": "2026",
@@ -171,7 +171,7 @@
     },
     {
       "seq": 9,
-      "line_sha256": "sha256:edea4a7b49725479af1f47321bac27df3dfea12873216111330b2f259b3717b1"
+      "line_sha256": "sha256:784d2da6cc660cce3bb2b805193de1075ab827ee32514f0ee9cdd37fd8126e25"
     }
   ],
   "errors": [],

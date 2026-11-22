@@ -330,8 +330,8 @@ def test_clopper_pearson_still_matches_the_binomial_tail_on_integers():
 
 
 def test_the_rule_version_is_05_v0_14(b):
-    assert adj.RULE_VERSION == "05-v0.16"
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.16"}
+    assert adj.RULE_VERSION == "05-v0.17"
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.17"}
 
 
 # ================================================================ 5, 6, 9. the specification

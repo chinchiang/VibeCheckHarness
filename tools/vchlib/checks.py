@@ -1512,6 +1512,36 @@ def consolidation_person(c: Ctx) -> str | None:
     return None
 
 
+def oracle_approval_problems(R, c, rec: dict, w) -> None:
+    """D3 (2026-11-22 review, 05-v0.17, user decision): `oracle_approvals` of a gate record. After W4 a person reads the
+    oracle of each LLM-written W4 test and approves it item by item; the approval is what makes its interpretation
+    pre-registered (derive.w4_oracle_approved). It is recorded in the G3 record, signed with it, and pins the testcase:
+      - only a G3 record carries it;
+      - each item names a w4-testcase of the record's run, once;
+      - not one whose oracle the harness generated (derive.CODE_ORACLE_KINDS): nothing to approve there;
+      - an `accept` pins the testcase as it is in the bundle (testcase_sha256 = its approval hash)."""
+    oa = rec.get("oracle_approvals")
+    if oa is None:
+        return
+    R.check(rec.get("gate") == "G3", "E-GATE-ORACLE", w,
+            f"oracle_approvals belongs to a G3 record, not {rec.get('gate')} (the W4 oracles are reviewed with the seed threats)")
+    seen = set()
+    for d in oa if isinstance(oa, list) else []:
+        if not isinstance(d, dict):
+            continue
+        tid = d.get("testcase_id")
+        R.check(tid not in seen, "E-GATE-ORACLE", w, f"oracle_approvals names {tid} twice")
+        seen.add(tid)
+        tc = next((t.data for t in c.docs("w4-testcase") if t.data.get("testcase_id") == tid and t.data.get("run_id") == rec.get("run_id")), None)
+        if not R.check(tc is not None, "E-GATE-ORACLE", w, f"oracle_approvals names {tid}, which is not a W4 testcase of run {rec.get('run_id')}"):
+            continue
+        R.check(not derive.oracle_preregistered_by_code(tc), "E-GATE-ORACLE", w,
+                f"{tid} is a {tc.get('kind')} test: the harness generated its oracle, there is nothing for a person to approve")
+        if d.get("decision") == "accept":
+            R.check(d.get("testcase_sha256") == derive.approval_hash(tc), "E-GATE-ORACLE", w,
+                    f"the approval of {tid} pins {d.get('testcase_sha256')}, the testcase is {derive.approval_hash(tc)} (it changed: review it again)")
+
+
 def gate_sod(R: Report, c: Ctx, rec: dict, w: str):
     """E1: a person approves a gate in at most one of its required roles (lite + acknowledged consolidation excepted)."""
     by_person: dict = {}
@@ -1747,6 +1777,7 @@ def g_gates(R: Report, c: Ctx):
             lim_r = GATE_MAX_ROUNDS.get(gate, 1)
             R.check(isinstance(rec.get("round"), int) and 1 <= rec.get("round") <= lim_r, "E-GATE-ROUND", w,
                     f"{gate} round {rec.get('round')!r} exceeds the {lim_r}-round limit of docs/02 §1.4 (the run is ABORTED / the item rejected after it)")
+            oracle_approval_problems(R, c, rec, w)
             if gate == "G4":
                 for a in rec.get("approvers", []):
                     R.check(a.get("person_id") in run.get("initiators", []), "E-G4-INITIATOR", w,

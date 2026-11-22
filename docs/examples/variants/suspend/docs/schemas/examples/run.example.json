@@ -107,7 +107,7 @@
       "image_digest": "sha256:e2d8cec51f6bf7afe4163fff09ad5e4834df51b225b4018efd4d9fe69cd93878"
     }
   ],
-  "rule_version": "05-v0.16",
+  "rule_version": "05-v0.17",
   "roe_ref": "sha256:d2394a0ed1ba897b9f869a0da1dc190d0243e929fd906be337b093d77d92cc39",
   "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "owasp_llm_version": "2026",
@@ -316,7 +316,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:929983aa07b8a07a671e07d664579d857fbd57bda20282ff9f6faf8cc7e53c01",
+  "report_manifest_ref": "sha256:c7b29b15419acd7c5db2e623cc7921856c44f37eec32304bb1baec3359194388",
   "gate_records": [
     {
       "gate": "G0a",
@@ -452,39 +452,39 @@
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:b1bfa78a24edf334948b79582aac08f7c02df6e3a990635c9be2e5efbbd1f401"
+      "line_sha256": "sha256:fe661309630c4e2d0970b3676b4b25d00db6ed68b86bd0ef9de4c166b3283f10"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:ede0077478b435048744b2e7c52adb75d703e4bedb80cb72b2a5be2b7a0db2fe"
+      "line_sha256": "sha256:b9a69294ac4ba02a6030f2649d38cdf9e44431b2d00f744db5363af15ba8abab"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:75439db9dbe11f19bb370bb7a3866dd2710fb66de678e6580746c74dc0811ef6"
+      "line_sha256": "sha256:00caa581524011efa58991260b73e95d4a5815419905a06bde9b92d7f61059cd"
     },
     {
       "seq": 37,
-      "line_sha256": "sha256:0bfd13d681abf276e5ebbed48222014310e31a20a44eb8f4f72d792ddfb9a040"
+      "line_sha256": "sha256:561e417ed5385d8632bb6083d9794896713d0cd3496032d9bc7201285c17d4a5"
     },
     {
       "seq": 43,
-      "line_sha256": "sha256:a1876f69630afb2510b916e042c4431790969792fd11193cc58e9bfdbd9d4a15"
+      "line_sha256": "sha256:d00ef5bc8b6ee5441ff77854b6bbe2194f343695b7bfee336c0b4a964e194726"
     },
     {
       "seq": 48,
-      "line_sha256": "sha256:99d140ff99b5ccb99f1919cb44fedac427e218e2264dac7ea02e37d172978528"
+      "line_sha256": "sha256:cbf87775bd850901084c2d5918b9b1a2ba6df3410c434826c168497a65a7e775"
     },
     {
       "seq": 57,
-      "line_sha256": "sha256:3e84cd17255987b589090914284da806c260efb69ca6d52acec1c5a4a868c6e6"
+      "line_sha256": "sha256:39c2bf6c65f5f1a9cd9b84dc71e22f7fdb5b0ad17cd1a5a5def5c86aa2c48ef0"
     },
     {
       "seq": 62,
-      "line_sha256": "sha256:c478b2b4dc5507197bf572af5e7996531796f78af05af8eef520e3525af88377"
+      "line_sha256": "sha256:e1202e354f2e0a05b2e0f62f5e947657c336c696d00d915af344ee45466ecdbf"
     },
     {
       "seq": 71,
-      "line_sha256": "sha256:ea28410a1d1b7a885c8ce31c56429eafc9937d1faae6f38ddd03ed005806dfeb"
+      "line_sha256": "sha256:879b32df221764cdc9beef2ad8c11695bdfeefce10426f74335f24099e958746"
     }
   ],
   "errors": [],

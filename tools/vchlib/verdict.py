@@ -225,7 +225,7 @@ def is_verifier_vote(ix: "Index", v: dict) -> bool:
 
 
 # ============================================================== 13 verdicts
-PRE_G3_PHASES = ("W3_adjudicate", "G2_apply", "W4_readjudicate")
+PRE_G3_PHASES = derive.PRE_ORACLE_REVIEW_PHASES     # one list: versions written before G3 (R13, and D3: no G3 oracle approval)
 
 
 def g3_rejected(c: Ctx, v: dict, cluster: dict) -> bool:
@@ -517,7 +517,7 @@ def fail_u_independent(c: Ctx, v: dict, cluster: dict) -> bool:
     pre-registration, no eligible analyst) reached LIKELY. It stays a signal for R4 row 7 (a dispute is safer)."""
     fams, roots = set(cluster.get("families") or []), c.ix.lineage_roots(cluster.get("lineages"))
     for tr in linked_results(c.ix, cluster, v.get("readjudicated_by")):
-        if derive.classify_result(c.ix, tr, cluster)[0] != "E_fail_u":
+        if derive.classify_result(c.ix, tr, cluster, v.get("readjudicated_by"))[0] != "E_fail_u":
             continue
         afams, alins = derive.test_author_families(c.ix, tr)
         if not (afams & fams) and not (c.ix.lineage_roots(alins) & roots):
@@ -614,15 +614,16 @@ def high_severity(c: Ctx, cluster: dict) -> bool:
 def analyst_disagrees(c: Ctx, v: dict, cluster: dict) -> bool:
     """D4 (05-v0.16, user decision): an eligible Result Analyst disagrees with a linked result whose interpretation was
     pre-registered; derive.classify_result keeps the class and marks the reason, the verdict is annotated."""
-    return any(derive.ANALYST_DISAGREES in derive.classify_result(c.ix, tr, cluster)[1]
+    return any(derive.ANALYST_DISAGREES in derive.classify_result(c.ix, tr, cluster, v.get("readjudicated_by"))[1]
                for tr in linked_results(c.ix, cluster, v.get("readjudicated_by")))
 
 
 def oracle_unreviewed(c: Ctx, v: dict, cluster: dict) -> bool:
     """r14 (05-v0.15, internal review C3, user decision): a linked W4 result classifies as E_fail_u only because an LLM wrote
-    its oracle and G2 has not accepted the cluster (derive.classify_result); the verdict is annotated `oracle_unreviewed`."""
+    its oracle and no person has approved that oracle at G3 (derive.w4_oracle_approved, D3 / 05-v0.17; a version written
+    before G3 never has the approval); the verdict is annotated `oracle_unreviewed`."""
     for tr in linked_results(c.ix, cluster, v.get("readjudicated_by")):
-        cls, why = derive.classify_result(c.ix, tr, cluster)
+        cls, why = derive.classify_result(c.ix, tr, cluster, v.get("readjudicated_by"))
         if cls == "E_fail_u" and "oracle_unreviewed" in why:
             return True
     return False
@@ -739,7 +740,7 @@ def _merge_results(v, ix, results, cluster, classes):
     old = (v.get("test_evidence") or {}).get("results", [])
     merged = []
     for i, tr in enumerate(results):
-        cls, why = derive.classify_result(ix, tr, cluster)
+        cls, why = derive.classify_result(ix, tr, cluster, v.get("readjudicated_by"))
         classes.append(cls)
         reason = old[i].get("reason") if i < len(old) and isinstance(old[i], dict) else why
         merged.append({"result_ref": content_hash(tr), "class": cls,

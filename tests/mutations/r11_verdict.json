@@ -60,8 +60,8 @@
     {
       "name": "a pre-registered PASS needs independent authors",
       "file": "tools/vchlib/derive.py",
-      "old": "    if preregistered(ix, tc, tr, \"oracle_can_fail\", cluster) and authors_independent(ix, tr, cluster):",
-      "new": "    if preregistered(ix, tc, tr, \"oracle_can_fail\", cluster):",
+      "old": "    if preregistered(ix, tc, tr, \"oracle_can_fail\", cluster, phase) and authors_independent(ix, tr, cluster):",
+      "new": "    if preregistered(ix, tc, tr, \"oracle_can_fail\", cluster, phase):",
       "k": "reporting_family_is_inconclusive"
     },
     {
@@ -81,7 +81,7 @@
     {
       "name": "the rule version is bumped",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.16\"",
+      "old": "RULE_VERSION = \"05-v0.17\"",
       "new": "RULE_VERSION = \"05-v0.9\"",
       "k": "rule_version_is_05_v0_10"
     },

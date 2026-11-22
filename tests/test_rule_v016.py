@@ -31,7 +31,7 @@ def errors(b, code):
 
 
 def test_the_rule_version_and_the_examples():
-    assert adj.RULE_VERSION == "05-v0.16"
+    assert adj.RULE_VERSION == "05-v0.17"
     assert adj.EVIDENCE_ORDER == ["E_proof", "E_fail_u", "E_pass", "E_pass_weak", "E_inc"]
     assert "pass_positive" not in Inputs.__dataclass_fields__
 

@@ -126,18 +126,20 @@ def test_docs02_result_analyst_text_matches_derive():
     assert "不論解讀是否事先登記，結果都是 `E_inc`" not in doc
 
 
-def test_docs05_g2_accept_exception_is_stated():
+def test_docs05_g2_accept_is_not_a_rule_input():
+    # 05-v0.15 / 05-v0.16 had one exception (derive.g2_accepted pre-registered an LLM-written W4 test); 05-v0.17 (D3) moved
+    # that entry to the G3 record's oracle_approvals, so the sentence names the function that now decides it
     from vchlib import derive
-    assert callable(derive.g2_accepted)
+    assert callable(derive.w4_oracle_approved) and not hasattr(derive, "g2_accepted")
     line = next(ln for ln in text("05-bias-calibration.md").splitlines() if "G2 的 accept 與 NEEDS_INFO" in ln)
-    assert "`derive.g2_accepted`" in line, line
+    assert "`derive.w4_oracle_approved`" in line and "`derive.g2_accepted`" not in line, line
 
 
 def test_docs05_edge_table_uses_current_preregistration():
     doc = text("05-bias-calibration.md")
     assert "需求全部經 G1 簽核、`oracle_can_pass` 對照為 PASS 的 W4 測試" not in doc
     row = next(ln for ln in doc.splitlines() if ln.startswith("| 可重現、由確定性 oracle 判定的 FAIL"))
-    assert "`oracle_can_fail`" in row and "G2 `accept`" in row, row
+    assert "`oracle_can_fail`" in row and "G3 `oracle_approvals`" in row, row
 
 
 def test_docs05_kappa_batch_matches_calibration_example():

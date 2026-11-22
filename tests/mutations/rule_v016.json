@@ -26,6 +26,6 @@
     {"name": "D6: only p_u is recognised", "file": "tools/vchlib/checks.py", "old": "BOUND_CLAIM_RE = re.compile(r\"p_u|上界|upper\\s+bound|信賴\", re.IGNORECASE)", "new": "BOUND_CLAIM_RE = re.compile(r\"p_u\", re.IGNORECASE)", "k": "stated_bound_on_a_weak_pass"},
     {"name": "D6: every reason is refused", "file": "tools/vchlib/checks.py", "old": "BOUND_CLAIM_RE = re.compile(r\"p_u|上界|upper\\s+bound|信賴\", re.IGNORECASE)", "new": "BOUND_CLAIM_RE = re.compile(r\"\", re.IGNORECASE)", "k": "plain_reason_on_a_weak_pass"},
     {"name": "D6: the schema forgets the class", "file": "docs/schemas/verdict.schema.json", "old": "                \"E_pass\",\n                \"E_pass_weak\",\n", "new": "                \"E_pass\",\n", "k": "schema_knows"},
-    {"name": "the rule version is 05-v0.15 again", "file": "tools/vchlib/adjudicate.py", "old": "RULE_VERSION = \"05-v0.16\"", "new": "RULE_VERSION = \"05-v0.15\"", "k": "rule_version_and_the_examples"}
+    {"name": "the rule version is 05-v0.15 again", "file": "tools/vchlib/adjudicate.py", "old": "RULE_VERSION = \"05-v0.17\"", "new": "RULE_VERSION = \"05-v0.15\"", "k": "rule_version_and_the_examples"}
   ]
 }

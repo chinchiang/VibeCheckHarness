@@ -88,8 +88,8 @@
     {
       "name": "W4 author independence",
       "file": "tools/vchlib/derive.py",
-      "old": "        if preregistered(ix, tc, tr, \"oracle_can_pass\", cluster) and authors_independent(ix, tr, cluster):",
-      "new": "        if preregistered(ix, tc, tr, \"oracle_can_pass\", cluster):",
+      "old": "        if preregistered(ix, tc, tr, \"oracle_can_pass\", cluster, phase) and authors_independent(ix, tr, cluster):",
+      "new": "        if preregistered(ix, tc, tr, \"oracle_can_pass\", cluster, phase):",
       "k": "reporting_family"
     },
     {
@@ -116,7 +116,7 @@
     {
       "name": "rule_version",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.16\"",
+      "old": "RULE_VERSION = \"05-v0.17\"",
       "new": "RULE_VERSION = \"05-v0.7\"",
       "k": "rule_version"
     }

@@ -107,7 +107,7 @@
       "image_digest": "sha256:e2d8cec51f6bf7afe4163fff09ad5e4834df51b225b4018efd4d9fe69cd93878"
     }
   ],
-  "rule_version": "05-v0.16",
+  "rule_version": "05-v0.17",
   "roe_ref": "sha256:5245fd73d02348158239563acc43578c601bb4790ac6b19656026578ce7f7b63",
   "repo_commit": "4f2a9c1e8b3d5f7a9c1e2d4b6f8a0c2e4d6b8f0a",
   "owasp_llm_version": "2026",
@@ -316,7 +316,7 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:d5ddae278a1e5908a0e9a7bea4b3a36ca9f9cfb3628c3b18904e0e20ac28dad9",
+  "report_manifest_ref": "sha256:dbf746c3528f052e1b35fcccafb14e174cca48efbcc054e910fb80c845123469",
   "gate_records": [
     {
       "gate": "G0a",
@@ -452,39 +452,39 @@
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:b1bfa78a24edf334948b79582aac08f7c02df6e3a990635c9be2e5efbbd1f401"
+      "line_sha256": "sha256:fe661309630c4e2d0970b3676b4b25d00db6ed68b86bd0ef9de4c166b3283f10"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:ede0077478b435048744b2e7c52adb75d703e4bedb80cb72b2a5be2b7a0db2fe"
+      "line_sha256": "sha256:b9a69294ac4ba02a6030f2649d38cdf9e44431b2d00f744db5363af15ba8abab"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:75439db9dbe11f19bb370bb7a3866dd2710fb66de678e6580746c74dc0811ef6"
+      "line_sha256": "sha256:00caa581524011efa58991260b73e95d4a5815419905a06bde9b92d7f61059cd"
     },
     {
       "seq": 37,
-      "line_sha256": "sha256:ec57262e227786832c78ebc14ff08764f10564bc28860aa37a8eb645111dc693"
+      "line_sha256": "sha256:bf633048d13f8219e2d817ae1ae3955abe3160913cccd1ac14692e993c8dde07"
     },
     {
       "seq": 43,
-      "line_sha256": "sha256:ab4c353f2bf58acdd65ebf44e0cc1d0b29066fac9af50ec2317c51b534362ee5"
+      "line_sha256": "sha256:f3c90b7b6986f3c15a709c1889dcd1fa6c5c1730f295c5b3572c7634319dac4a"
     },
     {
       "seq": 48,
-      "line_sha256": "sha256:c1651905231193933755c2c42d3e2d274290f54203e4ae2f1e1284cb068d5566"
+      "line_sha256": "sha256:7ef176f183f4065caeae45ff08c0fec4448c7ad2e7ce10ccbb36b6d2fff51f85"
     },
     {
       "seq": 57,
-      "line_sha256": "sha256:37ef91a2086925092ccb5c3d5fedd9263c24d894d7d7d80a808e2ac0eb4f8998"
+      "line_sha256": "sha256:36058f3a37def2d9e33758ed071ea079b86e9b14a63a1daaf9683c8c69f8ee1b"
     },
     {
       "seq": 62,
-      "line_sha256": "sha256:9fbc64d7e55d6276e8fec18416175ab1c4f9845fad210e028ddbe25e2aef499c"
+      "line_sha256": "sha256:d0f150edd2653c83304e0f6ca4f3c0ff9ccb60aed792de2c86dbfcfd186b0edc"
     },
     {
       "seq": 71,
-      "line_sha256": "sha256:670f0a08839bfffae1129c2396d8d2973cadfca9a3d26217dcd45088b26c839c"
+      "line_sha256": "sha256:4cc47aa3933c3948b1f8cff603b55478c15f7dfcbc873a9cc91107cf9e8b4dc1"
     }
   ],
   "errors": [],

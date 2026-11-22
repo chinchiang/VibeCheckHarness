@@ -2,7 +2,29 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.16`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
+
+## 裁決規則 `05-v0.17`：LLM 撰寫的 W4 oracle 由人在 G3 逐項核准（使用者決定 D3）
+
+CONTRIBUTING 第 3 類。問題、選項與理由記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。新增錯誤碼 `E-GATE-ORACLE`。
+
+- **原本**（`05-v0.15`／`05-v0.16`）：叢集經 G2 `accept` 之後，LLM 撰寫的 W4 測試算事先登記，它的重現 FAIL 是 `E_proof`（`CONFIRMED_EXECUTABLE`）。G2 在 W4 之前：接受叢集的人沒有讀過當時還不存在的 oracle。
+- **現在**：事先登記的入口是 G3 紀錄的 `oracle_approvals[]`（`testcase_id`、`testcase_sha256`、`decision`），隨紀錄簽章。
+  - `derive.w4_oracle_approved`：該 run 最新一筆非 EXPIRED 的 G3 紀錄中提到這個測試的項目是 `accept`，而且 `testcase_sha256` 等於測試案例現在的 approval hash（核准後改過就不成立）。
+  - 只對 G3 之後的裁決版本生效：`W3_adjudicate`／`G2_apply`／`W4_readjudicate` 的版本不能使用（`derive.PRE_ORACLE_REVIEW_PHASES`，與 R13 的 `verdict.PRE_G3_PHASES` 是同一份清單）；`classify_result`、`preregistered`、`result_oracle_unreviewed` 多一個 `phase` 參數，`verdict.py` 的四個呼叫點傳入裁決版本的階段。
+  - `derive.g2_accepted` 移除：G2 的決定不再影響任何測試證據的分類（05 §4.2「G2 的 accept…不是規則輸入」不再有例外）。
+  - 程式產生 oracle 的測試（`local_rls`／`fake_model`）不受影響：不需要核准，仍需要兩種對照都 PASS。
+- validator：`checks.oracle_approval_problems`（`E-GATE-ORACLE`）——只有 G3 紀錄能帶；每項指向同一 run 的 W4 測試案例、不重複、不是程式產生 oracle 的測試；`accept` 的雜湊必須相符。
+- `gate-record.schema.json`：選用欄位 `oracle_approvals`。
+- `RULE_VERSION` 升為 `05-v0.17`；全部裁決與 run 範例的 `rule_version` 更新，重簽範例、重建變體。**範例的裁決狀態都沒變**（範例的 W4 測試是 `local_rls`）。
+- 沒有 G3 的 run（只做白箱）：LLM 撰寫的 W4 FAIL 維持 `E_fail_u`（最高 `LIKELY`，加註 `oracle_unreviewed`）。
+- 文件：00、02 W4、03 §6（GateRecord）與 schema 表、05 §4.2（事先登記 (b)、R12、G2 那一句、邊界情況表、規則版本）、06 §3 #45、08、schemas README。
+- 新增 `tests/test_w4_oracle_approval.py`（24 個測試；在 `ec6409c` 的程式上 21 個失敗，通過的 3 個是「程式產生的 oracle 不需核准」「仍需兩種對照」「對照沒過仍不是證明」，原本就成立）與突變清單 `tests/mutations/w4_oracle_approval.json`（`CAUGHT 26/26`）。
+- 受新語意影響而更新的既有測試（沒有放寬斷言）：
+  - `test_v07_r14_verdict.py::test_g2_acceptance_promotes_an_llm_written_w4_fail` 改為 `test_a_g3_oracle_approval_promotes_an_llm_written_w4_fail`：先斷言只有 G2 接受時是 `E_fail_u`，再斷言 G3 核准後是 `E_proof`。
+  - `test_doc_consistency.py::test_docs05_g2_accept_exception_is_stated` 改為 `test_docs05_g2_accept_is_not_a_rule_input`；邊界情況表的斷言由「G2 `accept`」改為「G3 `oracle_approvals`」。
+  - 規則版本的斷言 18 處（`05-v0.16` → `05-v0.17`）。
+  - 突變清單的錨點：7 份清單的 `RULE_VERSION`、`r9_verdict.json`／`r11_verdict.json`／`r14_verdict.json` 中 `preregistered(...)` 的呼叫、`doc_consistency.json` 的 2 項、`r9_examples.json` 與 `r10_docs.json` 的版本字樣。
 
 ## 無法證明唯讀的 GET／HEAD 視為寫入（使用者決定 D5）
 

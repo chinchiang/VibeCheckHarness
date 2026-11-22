@@ -19,6 +19,12 @@
   "note":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"G3 駁回種子威脅或調降風險時必填（docs/02 §5）"},
   "carried_from":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{"run_id":{"$ref":"common.schema.json#/$defs/run_id"},"gate_record_id":{"type":"string","pattern":"^GR-[0-9A-Za-z-]+$"},"item_sha256":{"$ref":"common.schema.json#/$defs/sha256"}},"required":["run_id","gate_record_id","item_sha256"]},{"type":"null"}],"description":"v0.5（BL-21）：只有 G1／G3 的 accept：這一項的內容沒有變，沿用祖先 run 的核准（E-GATE-CARRY）。本紀錄仍由本 run 的核准者簽章；沿用只省下重審內容。null＝本 run 重新審查"}},
   "required":["item_id","item_sha256","decision","risk_override","note","carried_from"]},"minItems":1},
+"oracle_approvals":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+  "testcase_id":{"type":"string","pattern":"^WTC-[0-9A-Za-z-]+$"},
+  "testcase_sha256":{"$ref":"common.schema.json#/$defs/sha256","description":"核准當下該 W4 測試案例的 approval hash；測試案例之後有任何變更，這筆核准就不再成立"},
+  "decision":{"enum":["accept","reject"]}},
+  "required":["testcase_id","testcase_sha256","decision"]},"minItems":1,
+  "description":"2026-11-22 內部審查 D3（rule_version 05-v0.17，使用者決定）：只有 G3，選用。W4 之後由人逐項讀過 LLM 撰寫的 W4 測試的 oracle 並核准；核准（accept）且雜湊相符，該測試的解讀才算事先登記（docs/05 §4.2），而且只對 G3 之後的裁決版本生效。由程式產生 oracle 的測試（local_rls、fake_model）不列入。隨本紀錄一起簽章（E-GATE-ORACLE）"},
 "gb":{"anyOf":[{"type":"object","additionalProperties":false,"properties":{
   "phase":{"enum":["W","B","run_total"]},
   "choice":{"anyOf":[{"enum":["extend","stop_phase","abort"]},{"type":"null"}],"description":"extend→APPROVED；stop_phase→REJECTED；abort→APPROVED 且 run 轉 ABORTED；第十四輪：outcome EXPIRED 時為 null（沒有人決定，new_caps 也是 null；E-GATE-OUTCOME）"},
