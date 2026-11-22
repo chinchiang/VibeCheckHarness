@@ -17,7 +17,7 @@
     {"name": "C9: W0 extractors back in M2", "file": "docs/07-roadmap.md", "old": "| M1 基礎與安全控制 | 12 | 7 |", "new": "| M1 基礎與安全控制 | 10 | 6 |", "k": "belong_to_m1"},
     {"name": "C10: six person-weeks again", "file": "docs/05-bias-calibration.md", "old": "≈ **30 人週**", "new": "≈ **6 人週**", "k": "thirty_person_weeks"},
     {"name": "C11: R0-R13 again", "file": "docs/00-overview.md", "old": "Aggregator（規則 R0–R16）", "new": "Aggregator（規則 R0–R13）", "k": "r0_to_r13"},
-    {"name": "C11: 43 again", "file": "README.md", "old": "45 條明列", "new": "43 條明列", "k": "limitation_count"},
+    {"name": "C11: 43 again", "file": "README.md", "old": "46 條明列", "new": "43 條明列", "k": "limitation_count"},
     {"name": "C12: CI without the anchor check", "file": ".github/workflows/validate.yml", "old": "      - name: Mutation anchors still match the source\n        run: python tools/mutation_check.py --anchors-only tests/mutations/*.json\n        shell: bash\n", "new": "", "k": "ci_runs_the_anchor_check"},
     {"name": "C12: two freeze exceptions", "file": "CONTRIBUTING.md", "old": "三種都照下一節的規則附回歸測試", "new": "兩種都照下一節的規則附回歸測試", "k": "third_freeze_exception"},
     {"name": "D: rfc8785 required again", "file": "pyproject.toml", "old": "reference = [\"rfc8785==0.1.4\"]", "new": "reference = []", "k": "optional_extra"},

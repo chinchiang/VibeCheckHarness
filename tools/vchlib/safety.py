@@ -53,6 +53,10 @@ from urllib.parse import unquote, urlsplit
 
 ORDER = ("S0", "S1", "S2", "S3")
 STATE_CHANGING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+# 2026-11-22 internal review: the only methods is_mutation treats as reads. Anything else (a lower-case or missing
+# method, PURGE, MOVE, COPY, MKCOL ...) is a write: the testcase schema allows seven methods, but a Scope Proxy that
+# ports this function sees whatever the client sent.
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 READ_ONLY_GRAPHQL = frozenset({"query", "introspection"})
 
 # Modes the toolkit never runs. ROE denied_modes can only add to this set.
@@ -84,7 +88,18 @@ def is_normalized(path: str) -> bool:
         return False
     if any(c in path for c in "%\\?#"):
         return False
+    if not path_chars_ok(path):
+        return False
     return all(s not in (".", "..") for s in segments(path))
+
+
+def path_chars_ok(path: str) -> bool:
+    """2026-11-22 internal review: no control character (U+0000-001F, U+007F) and already in NFKC form. A router or
+    file system that drops a NUL / tab or folds a full-width letter would otherwise serve `/admin\t/x` or `/ａdmin/x`
+    as `/admin/x`, which an exclusion of `/admin/*` does not match. Non-ASCII segments in NFKC form stay allowed."""
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in path):
+        return False
+    return unicodedata.is_normalized("NFKC", path)
 
 
 def is_placeholder(seg: str) -> bool:
@@ -273,7 +288,7 @@ def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None) 
         return True
     if r.get("method") == "POST" and _endpoint_in(manifest, "read_only_endpoints", r) is not None:
         return False
-    return r.get("method") in STATE_CHANGING
+    return r.get("method") not in SAFE_METHODS
 
 
 SEED_REF_RE = re.compile(r"^\{seed:([a-z0-9_]+)\}$")
@@ -310,6 +325,30 @@ def object_ref_problems(r: dict, manifest, creates: dict[str, dict]) -> list[str
 ID_KEY_RE = re.compile(r"^(id|.*_id|.*Id|.*ID)$")
 # v0.5 (review 2026-10-25 H-6): plural id keys address several objects at once; never bound
 IDS_KEY_RE = re.compile(r"^(ids|.*_ids|.*Ids|.*IDs)$")
+# 2026-11-22 internal review: the two patterns above let `userid`, `uid`, `guid`, `uuid`, `pk`, `user-id` and `USER_ID`
+# carry any value. The extra patterns are case-insensitive: the bare identifier words, the same words after a
+# separator (`_`, `-`, `.`), camel-case Uuid / Guid, and a common noun directly followed by `id` (`userid`). "Any key
+# ending in id" is not used: it would bind `paid`, `valid`, `void`, `grid` and `android`. Still a heuristic: a field
+# that names an object by meaning (`owner`, `email`, `slug`) is not recognised (docs/06 section 3, docs/09 BL-74).
+ID_WORDS = "id|uid|uuid|guid|pk"
+ID_NOUNS = ("user|owner|account|acct|order|customer|tenant|org|organization|organisation|project|item|product|invoice|"
+            "session|member|team|group|author|creator|parent|doc|document|file|post|comment|message|record|object|"
+            "entity|client|profile|workspace|company|payment|subscription")
+ID_KEY_EXTRA_RE = re.compile(rf"^(({ID_WORDS}|key)|.*[_\-.]({ID_WORDS})|({ID_NOUNS})id)$", re.IGNORECASE)
+ID_KEY_CAMEL_RE = re.compile(r"^.*[a-z0-9](Uuid|UUID|Guid|GUID|Pk|PK)$")
+IDS_KEY_EXTRA_RE = re.compile(rf"^((ids|uids|uuids|guids|pks|keys)|.*[_\-.](ids|uids|uuids|guids|pks)|({ID_NOUNS})ids)$",
+                              re.IGNORECASE)
+IDS_KEY_CAMEL_RE = re.compile(r"^.*[a-z0-9](Uuids|UUIDs|Guids|GUIDs)$")
+
+
+def is_id_key(key: str) -> bool:
+    """The key names one object (docs/08 section 11.7); a plural key is not an id key (is_ids_key)."""
+    return bool(ID_KEY_RE.match(key) or ID_KEY_EXTRA_RE.match(key) or ID_KEY_CAMEL_RE.match(key))
+
+
+def is_ids_key(key: str) -> bool:
+    """The key addresses several objects at once."""
+    return bool(IDS_KEY_RE.match(key) or IDS_KEY_EXTRA_RE.match(key) or IDS_KEY_CAMEL_RE.match(key))
 # PostgREST logical operators in the query string (or=(...), and=(...), not.or=...)
 POSTGREST_LOGICAL = re.compile(r"^(not\.)?(or|and)$")
 POSTGREST_EQ = re.compile(r"^eq\.(.+)$")
@@ -349,9 +388,9 @@ def request_binding_problem(query, body, allowed: set[str], require_binding: boo
             return f"query parameter {k!r} is not a string"
         if POSTGREST_LOGICAL.match(k):
             return f"query parameter {k}= (PostgREST logical operator) can select other objects"
-        if IDS_KEY_RE.match(k):
+        if is_ids_key(k):
             return f"query parameter {k} addresses several objects"
-        if ID_KEY_RE.match(k):
+        if is_id_key(k):
             values = v if isinstance(v, list) else [v]
             for x in values:
                 x = str(x)
@@ -369,9 +408,9 @@ def request_binding_problem(query, body, allowed: set[str], require_binding: boo
         cur = stack.pop()
         if isinstance(cur, dict):
             for k, v in cur.items():
-                if isinstance(k, str) and IDS_KEY_RE.match(k):
+                if isinstance(k, str) and is_ids_key(k):
                     return f"{k} addresses several objects"
-                if isinstance(k, str) and ID_KEY_RE.match(k):
+                if isinstance(k, str) and is_id_key(k):
                     if isinstance(v, (dict, list)):
                         return f"{k} holds a {type(v).__name__}: an id-like key must hold one bound value"
                     if v is not None:
@@ -448,7 +487,7 @@ def allowlist_match(target_id: str, method: str, path: str, allowlist: list, res
     same target and method: a literal must be equal; {seed:k} / {created:s} must equal its resolved value
     (`resolve`, from the seed manifest and the run's create responses); a plain {name} matches one non-empty
     segment only on a read (is_mutation false), never on a write."""
-    if not isinstance(path, str) or normalize_for_match(path) != path.lower() or "%" in path:
+    if not isinstance(path, str) or normalize_for_match(path) != path.lower() or "%" in path or not path_chars_ok(path):
         return None
     segs = segments(path)
     for r in allowlist or []:
@@ -620,6 +659,10 @@ DENIED_NETWORKS = tuple(ipaddress.ip_network(n) for n in (
     "fec0::/10",           # deprecated site-local
     "fc00::/7",            # unique local
     "224.0.0.0/4", "ff00::/8",   # multicast
+    # 2026-11-22 internal review: is_global is True for both. ::7f00:1 is ::127.0.0.1 and ::a9fe:a9fe is
+    # ::169.254.169.254; a stack or translator that still honours the embedded address reaches loopback / metadata.
+    "::/96",               # IPv4-compatible IPv6 (deprecated, RFC 4291 section 2.5.5.1)
+    "192.88.99.0/24",      # 6to4 relay anycast (deprecated, RFC 7526)
 ))
 LOCAL_TEST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 

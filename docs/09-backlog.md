@@ -90,6 +90,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-71 | r14 B10 | 跨 bundle 的校準與規則版本釘選：重新校準或 `rule_version` 升版後，`regression` run 與母 run 不能在同一個 bundle 驗證；R14／R16 讀到的是今日規則重算的母狀態。要定義母 run 的裁決以什麼版本凍結、跟進 run 如何引用 | [02 §1.6](02-methodology.md#16-執行種類與後續執行)、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | M3 | 待辦 |
 | BL-72 | r14 D | validator 對帳投票與稽核：裁決的 `votes[]` 對應 `llm_response` 事件（每張票一次驗證者呼叫）、`missing_votes[]` 對應 `missing_vote` 事件；02／03 要先寫明對應規則 | [03 §13.2](03-system-architecture.md#132-事件類型enum)、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | M2 | 待辦 |
 | BL-73 | r14 C10 | Calibration Lab 的實際人力與語料刷新：§5.1 的 30 人週估算、模型更換後的新批次、κ 最小批量，由 U-10 的決定與第一批標註的實測回填 | [05 §5.1](05-bias-calibration.md#51-語料)、[07 §1.5](07-roadmap.md#15-人力與時程估算-h) | M2 | 待辦 |
+| BL-74 | 2026-11-22 內部審查 | 寫入請求的 body 樣板比對：測試案例宣告每個寫入請求的完整 body 樣板，Scope Proxy 只放行把 `{seed:}`／`{created:}` 代換後與樣板完全相等的 body（比照 `safety.server_action_problem`），取代依鍵名猜測哪些欄位是物件 ID 的做法；要改 testcase schema、範例與簽章 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #46 | MVP-1 | 待辦 |
 
 ## 5. 已完成（保留編號供追溯）
 

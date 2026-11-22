@@ -4,6 +4,18 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.15`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）。
 
+## Scope Proxy 參考實作補強（2026-11-22 內部程式碼審查）
+
+CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：以繞過輸入實測 `vchlib/safety.py`（產品的 Scope Proxy 要移植的參考實作）。沒有新增錯誤碼，schema、範例與 `rule_version` 都不變；`validate_schemas.py` 與 `build_variants.py --check` 的結果相同。
+- **位址**：`ip_problem("::7f00:1")`（即 `::127.0.0.1`）、`("::a9fe:a9fe")`（即 `::169.254.169.254`）與 `("192.88.99.1")` 回傳「允許」，因為 Python 的 `is_global` 對它們是 True。`DENIED_NETWORKS` 加上 IPv4-compatible（`::/96`）與已廢止的 6to4 中繼任播（`192.88.99.0/24`）。`::1` 作為本機目標仍然允許。
+- **物件 ID 綁定**（使用者決定：擴充鍵名規則，根本解記入待辦）：`request_binding_problem` 只認 `id`、`*_id`、`*Id`、`*ID`，`userid`、`uid`、`guid`、`uuid`、`pk`、`user-id`、`USER_ID` 帶任意值都通過。新增 `is_id_key`／`is_ids_key`：原有樣式不變，另加不分大小寫的識別字（`uid`、`uuid`、`guid`、`pk`、`key`）、接在 `_`／`-`／`.` 之後的寫法、駝峰的 `*Uuid`／`*Guid`／`*Pk`、常見名詞直接接 `id`，以及對應的複數。不採用「任何以 id 結尾的鍵」（`paid`、`valid`、`grid` 會被擋）。這仍是啟發式：`owner`、`email`、`slug` 認不出來，列為 06 §3 的第 46 條限制；根本解（比對整個 body 樣板）記為 09 BL-74。
+- **`is_mutation` 改為 fail-closed**：原本 POST／PUT／PATCH／DELETE 以外的方法都當讀取，`delete`、`PURGE`、`MOVE`、缺少方法都是「讀取」。現在只有 `SAFE_METHODS`（GET、HEAD、OPTIONS）算讀取。testcase schema 只允許七個方法，執行期的 `allowlist_match` 也要求方法完全相等，所以這是縱深防禦。
+- **路徑字元**：`is_normalized` 與 `allowlist_match` 另外拒絕控制字元（U+0000–001F、U+007F）與非 NFKC 形式的路徑（`path_chars_ok`）；`/admin\t/x`、`/ａdmin/x` 原本可以寫進樣板而不符合 `/admin/*` 的排除。NFKC 形式的非 ASCII 路徑段仍可使用。執行期原本就拒絕含 `%` 的路徑，所以這也是縱深防禦。
+- 文件：08 §11.7、03 §2、04 §5 的程式清單同步；06 §3 新增 #46（共 46 條，README 與 00 的條數同步）；09 新增 BL-74。
+- 新增 `tests/test_safety_hardening.py`（110 個案例）：修正類的測試在修正前都失敗；另有測試確認沒有擋掉正常輸入（公開位址、`paid`／`valid` 等一般鍵、GET／HEAD／OPTIONS、中文路徑），原有的 ID 鍵與 `is_mutation` 的宣告式例外也都不變。
+- 新增突變清單 `tests/mutations/safety_hardening.json`：20 個突變，`CAUGHT 20/20`。第一次執行有 1 個 MISSED（query 的 ID 鍵測試在舊規則下也會因為沒有任何綁定而被擋），測試已改為先綁定 `id` 再加入新鍵。
+- 受影響的既有測試：`tests/test_v07_r14_docs.py` 的條數由 45 改為 46；兩個既有突變的錨點跟著條數更新（`r14_docs.json` 的「C11: 43 again」、`doc_consistency.json` 的 06 分類表，後者另加 #46 一個突變，共 26 個，`CAUGHT 26/26`）。直接呼叫這些函式的 7 個測試檔（224 個測試）不需修改。
+
 ## 文件一致性修正（2026-11-22 內部審查）
 
 CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實與它的唯一來源（程式、`tools.yaml`、schema、範例）不一致。只改文件文字與一段 docstring，錯誤碼、schema、範例與 `rule_version`（維持 `05-v0.15`）都不變。

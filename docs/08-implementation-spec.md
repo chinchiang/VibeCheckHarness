@@ -1471,7 +1471,7 @@ class SeedService(Protocol):
 **DNS 固定與 CDN** [H]：
 - 每個 job 開始時（`open_job`）解析一次主機（dnspython [V][E:orchestration-58]），答案固定在該 job 的 `pinned_ips`。job 期間不再解析，也不理會 TTL；連不上固定的 IP → 該請求失敗，不重新解析。
 - 下一個 job 重新解析。這樣 CDN 輪替 IP 時，每個 job 仍有一組固定、可以稽核的位址。
-- 解析到的每個 IP 都必須是公開位址；私有、loopback、link-local 與雲端 metadata 位址一律擋下。判定以參考實作 `vchlib.safety.ip_problem` 為準（Scope Proxy 以 parity 測試對齊），除了 `not is_global` 之外，另外擋下 `DENIED_NETWORKS`：NAT64（`64:ff9b::/96`、`64:ff9b:1::/48`）、IPv4-mapped（`::ffff:0:0/96`，改以 IPv4 連線才套用 IPv4 規則）、6to4（`2002::/16`）、Teredo（`2001::/32`）、`fec0::/10`、`fc00::/7` 與 multicast。Python 的 `is_global` 對 `64:ff9b::a9fe:a9fe`（經 NAT64 到達 169.254.169.254）與 `fec0::1` 都回傳 True，所以不能只用它。
+- 解析到的每個 IP 都必須是公開位址；私有、loopback、link-local 與雲端 metadata 位址一律擋下。判定以參考實作 `vchlib.safety.ip_problem` 為準（Scope Proxy 以 parity 測試對齊），除了 `not is_global` 之外，另外擋下 `DENIED_NETWORKS`：NAT64（`64:ff9b::/96`、`64:ff9b:1::/48`）、IPv4-mapped（`::ffff:0:0/96`，改以 IPv4 連線才套用 IPv4 規則）、6to4（`2002::/16`）、Teredo（`2001::/32`）、`fec0::/10`、`fc00::/7`、multicast、IPv4-compatible（`::/96`，已廢止；`::7f00:1` 就是 `::127.0.0.1`、`::a9fe:a9fe` 就是 `::169.254.169.254`）與已廢止的 6to4 中繼任播（`192.88.99.0/24`）。Python 的 `is_global` 對 `64:ff9b::a9fe:a9fe`（經 NAT64 到達 169.254.169.254）、`fec0::1`、`::7f00:1` 與 `192.88.99.1` 都回傳 True，所以不能只用它。
 - **DNS 解析器**[H]：Scope Proxy 使用 Z3 自己的遞迴解析器，不使用目標或工具容器提供的解析器；工具容器沒有 DNS。DNSSEC 驗證在可用時開啟；解析結果與 TTL 記入請求紀錄。唯一的例外是 MVP-1 的本地目標（`localhost`、`127.0.0.1`、`[::1]`），而且只限 Z3 與目標在同一台隔離主機上。
 - ROE 為目標宣告了 CDN 邊緣 IP 範圍（`targets[].edge_ip_ranges`，v0.4）時，每個解析出的 IP 都必須在範圍內，否則該 job 不開始（參考實作 `safety.ip_in_ranges`；範圍本身必須是公開位址空間的 CIDR，`E-ROE-EDGE-RANGE`）。沒有宣告時照 §10 U-18 的預設：只套用上面的規則（每個 job 固定一次解析結果，並擋下非公開位址）。
 - 每批開始時的所有權重驗（`B4_preflight`）照舊。
@@ -1482,14 +1482,16 @@ class SeedService(Protocol):
 3. 合併連續的 `/`；
 4. 解析 `.` 與 `..`；
 5. 轉成小寫，再與同樣轉成小寫的樣板比對。
+
+樣板與具體路徑都不得含控制字元（U+0000–001F、U+007F），而且必須已是 NFKC 形式（`safety.path_chars_ok`，由 `is_normalized` 與 `allowlist_match` 呼叫）：會丟掉 NUL／tab 或把全形字母折成半形的路由器與檔案系統，會把 `/admin\t/x`、`/ａdmin/x` 當成 `/admin/x` 提供，而 `/admin/*` 的排除比對不到它們。NFKC 形式的非 ASCII 路徑段（例如中文）仍可使用 [H]。
 - 正規化後符合任何排除樣板 → 擋下（fail-closed）。例如排除 `/admin/billing/*` 時，`/Admin/billing/x`、`/admin;jsessionid=1/billing/x`、`/admin/%62illing/x` 都會被擋下。
 - 解碼一次之後仍含「`%`＋兩個十六進位字元」（雙重編碼）→ 擋下 [H]。
 - **反斜線**：解碼後的 `\` 一律視為 `/`（部分伺服器把 `\` 當成路徑分隔，例如 IIS 與部分 Node 路由器）；`/admin%5Cbilling/x` 正規化為 `/admin/billing/x`，會被 `/admin/billing/*` 擋下。
 - **method override**[H]：請求中的 `X-HTTP-Method-Override`、`X-HTTP-Method`、`X-Method-Override` 標頭一律移除並記錄，query 或表單 body 中的 `_method` 參數 → 擋下（`safety.METHOD_OVERRIDE_HEADERS`／`METHOD_OVERRIDE_PARAMS`）。否則一個核准為 GET 或 POST 的請求可以在伺服器端變成 DELETE。
-- **body 與 query 的物件 ID 綁定**[H]：白名單只約束目標、方法與路徑；寫入請求的 body 或 query 若含 ID 類欄位（鍵名為 `id`、`*_id`、`*Id`、`*ID`，任何巢狀層級），值必須是本請求路徑上的 `{seed:}`／`{created:}` 或 `object_refs` 解析後的值之一，否則擋下（參考實作 `safety.body_id_problem`，parity 測試對齊）。v0.4 宣稱這也涵蓋 Server Action 參數與 PostgREST 過濾條件，實際上擋不住（審查 2026-10-25 H-6）：參考實作沒有看 query，`id=eq.X` 反而因為值帶運算子前綴被擋；沒有過濾條件的整表 `PATCH`、`or=(...)`、`ids: [...]`、`{"invoice_id": [999]}`、`where: {id: {eq: ...}}` 與 Server Action 的位置參數全部放行。
+- **body 與 query 的物件 ID 綁定**[H]：白名單只約束目標、方法與路徑；寫入請求的 body 或 query 若含 ID 類欄位（`safety.is_id_key`，任何巢狀層級：鍵名為 `id`、`*_id`、`*Id`、`*ID`；不分大小寫的 `uid`、`uuid`、`guid`、`pk`、`key`，以及這些識別字接在 `_`、`-`、`.` 之後的鍵，例如 `user-id`、`USER_ID`、`orders.id`、`row_pk`；駝峰的 `*Uuid`、`*Guid`、`*Pk`；常見名詞直接接 `id` 的 `userid`、`ownerid`、`orderid` 等。不採用「任何以 id 結尾的鍵」，否則 `paid`、`valid`、`grid` 會被擋。這仍是依鍵名的啟發式：以語意指名物件的欄位如 `owner`、`email`、`slug` 認不出來，見 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #46 與 [09 BL-74](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)），值必須是本請求路徑上的 `{seed:}`／`{created:}` 或 `object_refs` 解析後的值之一，否則擋下（參考實作 `safety.body_id_problem`，parity 測試對齊）。v0.4 宣稱這也涵蓋 Server Action 參數與 PostgREST 過濾條件，實際上擋不住（審查 2026-10-25 H-6）：參考實作沒有看 query，`id=eq.X` 反而因為值帶運算子前綴被擋；沒有過濾條件的整表 `PATCH`、`or=(...)`、`ids: [...]`、`{"invoice_id": [999]}`、`where: {id: {eq: ...}}` 與 Server Action 的位置參數全部放行。
   - **v0.5 規則**（參考實作 `safety.request_binding_problem`，parity 測試對齊）：
     - query：ID 類參數只接受原值或 PostgREST 的 `eq.<值>`；其他運算子（`in.`、`neq.`、`gt.`、`like.`、`is.`、`not.` 等）與邏輯參數 `or=`／`and=` 一律擋下，因為它們能選到綁定物件以外的資料列。
-    - body：ID 類鍵下的陣列或物件、複數 ID 鍵（`ids`、`*_ids`、`*Ids`、`*IDs`）一律擋下；頂層是陣列的 body（位置參數）不以鍵名綁定，見下一點。
+    - body：ID 類鍵下的陣列或物件、複數 ID 鍵（`safety.is_ids_key`：`ids`、`*_ids`、`*Ids`、`*IDs`，以及上面各種寫法的複數）一律擋下；頂層是陣列的 body（位置參數）不以鍵名綁定，見下一點。
     - 路徑沒有變數段的寫入，query 或 body 中至少要有一個已綁定的 ID，否則擋下（整表 `PATCH`／`DELETE`）。
     - 區分「選哪些列」與「寫什麼值」。PostgREST 的 `PATCH`／`PUT`／`DELETE` 會作用於 query 選到的每一列，body 是新的內容，不是篩選條件，所以 `PATCH /rest/v1/invoices` 加上 body `{"invoice_id": <已綁定值>}` 仍是整表寫入。路徑沒有變數段的這三種方法，選取條件只能來自 query 的 `<id>=eq.<已綁定值>`；body 中 ID 類鍵的值仍必須是已綁定的值（不能把資料寫到別人名下）。只有 POST（RPC、action 呼叫、建立）可以由 body 綁定。Scope Proxy 必須把請求方法傳給參考實作；沒有方法時視為會選取列的寫入（fail closed）。
   - **Server Action**：位置參數沒有鍵名可比對。測試案例的 `request_allowlist[].server_action` 宣告 `{action_id, args}`；Scope Proxy 只在 `Next-Action` 標頭等於 `action_id`、body 等於把 `{seed:}`／`{created:}` 代換成解析值後的 `args` 時放行（`safety.server_action_problem`）。任何參照解析不到就拒絕（不再代換成 null 後拿去比對）；比對區分 JSON 型別，遞迴比較型別與值（`true` ≠ `1`，`1` ≠ `1.0`）。validator 檢查：只能用在 POST、沒有變數段的路徑，`args` 用到的參照都要列在 `object_refs`（`E-TC-MUTATION-SCOPE`）。

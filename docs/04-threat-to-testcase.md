@@ -409,6 +409,7 @@ from urllib.parse import urlsplit, unquote
 
 ORDER = ("S0", "S1", "S2", "S3")
 STATE_CHANGING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})   # 只有這三個算讀取；其他方法（含小寫、未知、缺少）一律當寫入
 READ_ONLY_GRAPHQL = frozenset({"query", "introspection"})       # allow-list 項目的 graphql_operation
 
 # 工具包永遠不跑的模式。ROE 的 denied_modes 必須包含這兩項，只能「再加」（E-ROE-DENYLIST）。
@@ -455,6 +456,8 @@ def is_normalized(path: str) -> bool:
     if not path.startswith("/") or "//" in path:
         return False
     if any(c in path for c in "%\\?#"):
+        return False
+    if not path_chars_ok(path):          # 不含控制字元（U+0000–001F、U+007F），且已是 NFKC 形式
         return False
     return all(s not in (".", "..") for s in segments(path))
 
@@ -551,7 +554,7 @@ def is_mutation(r, roe, manifest) -> bool:
         return True
     if r.method == "POST" and endpoint_in(manifest, "read_only_endpoints", r):
         return False
-    return r.method in STATE_CHANGING
+    return r.method not in SAFE_METHODS   # fail-closed：不認得的方法當寫入
 
 
 def object_ref_problems(r, manifest, creates) -> list[str]:
