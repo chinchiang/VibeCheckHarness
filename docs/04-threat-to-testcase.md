@@ -336,6 +336,18 @@ vibe-coded 應用常直接把 BaaS（Supabase／Firebase）暴露給瀏覽器 [H
 | T／E：受測應用的 CI／CD workflow | — | `pull_request_target` workflow 不 checkout PR head 後執行其中的程式；`${{ github.event.* }}` 等不可信值不直接展開到 `run:`；workflow 權杖權限最小（inventory `features: ci_workflows`） | CI pipeline | **只做白箱**：W1 自有 Opengrep 規則掃 `.github/workflows/*.yml`；不觸發、不執行受測應用的 workflow | 白箱 `opengrep:scan`（自有規則，候選 [H]） | S0 | —（未對到官方 ID） |
 | I／T：IaC 與平台設定 | API8 | `vercel.json` 的標頭、重寫與轉址，`supabase/config.toml` 的 auth 設定（例如註冊與電子郵件確認），以及 IaC 中的公開資源符合 G1 `policies`（inventory `features: iac`） | 部署設定 | **白箱**：W1 自有規則比對設定與 G1 `policies`；staging 上的實際設定由 A 表「外洩檔案」「私有回應快取」等列以黑箱驗證 | 白箱 `opengrep:scan`（自有規則，候選 [H]） | S0 | —（未對到官方 ID） |
 
+**這張表沒有涵蓋的類別**（2026-11-22 內部審查）[H]：下列攻擊面沒有任何一列，也沒有樣板 adapter。威脅模型（B2）仍可能列出這類威脅；此時測試案例只能是 `MANUAL`（報告列為「未由工具包測試」），或由 G4 逐項核准的 `GENERATED_SCRIPT`。報告的覆蓋說明必須列出這一段，不能讓「Binding 表每一列都測了」被讀成「常見攻擊面都測了」。
+
+| 類別 | 沒有涵蓋什麼 | 目前最接近的列 |
+|---|---|---|
+| WebSocket／SSE 與自建即時通道 | 連線建立後的訊息層授權、跨租戶訂閱、訊息注入；只有 Supabase Realtime 有一列 | 「Realtime 訂閱隔離」 |
+| OAuth／OIDC 流程 | `state` 與 PKCE 是否驗證、redirect URI 比對、授權碼重放、帳號連結的混淆 | 「Open redirect（伺服器端）」只涵蓋一般的轉址允許清單 |
+| JWT 驗證細節 | `alg: none`、對稱／非對稱演算法混淆、`kid` 注入、未驗 `aud`／`iss`、過期處理 | 存取控制各列只把權杖當成「某個使用者」，不測權杖本身 |
+| LLM 輸出的渲染外洩 | 模型輸出中的 Markdown 圖片或連結被前端自動載入，把對話內容帶到外部網址；輸出被當成 HTML 插入 | 「非 LLM 的 XSS」與 LLM 列都不測前端如何渲染模型輸出 |
+| 黑箱注入（Lite） | SQL／命令／樣板注入的主動測試只有 `zap:active`（S2），Lite 不跑 | 見上面「Lite 沒有黑箱注入測試」 |
+
+這些列為待辦（[09 BL-75](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）；補上之前，對應的限制是 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #49。
+
 這兩個 inventory 旗標（`ci_workflows`、`iac`）讓 `cicd_iac` 成為必要審查面向（[02 W2](02-methodology.md#w2-多家族獨立審查)）。
 
 - Escape.tech 對公開 vibe-coded 應用的被動掃描發現，主要問題類別是 Supabase RLS 設定錯誤、前端 bundle 內含 token、缺少認證 [P][E:vibe_risks-26]；CVE-2025-48757 也是 RLS 問題（CVE 標為 disputed）[V][E:vibe_risks-23]。所以 A 表中 RLS 與 bundle 兩列、以及 E 表整組是 vibe-coded 應用的優先項目。

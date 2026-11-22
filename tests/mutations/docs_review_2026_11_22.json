@@ -1,0 +1,152 @@
+{
+ "tests": "tests/test_docs_review_2026_11_22.py",
+ "mutations": [
+  {
+   "name": "B9: confirmatory is not derived",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if ph.get(\"confirmatory\") is not confirmatory:\n        out.append(f\"primary_hypothesis: confirmatory",
+   "new": "    if False:\n        out.append(f\"primary_hypothesis: confirmatory",
+   "k": "cannot_be_confirmatory or first_use_cannot"
+  },
+  {
+   "name": "B9: any count is a first use",
+   "file": "tools/vchlib/checks.py",
+   "old": "    confirmatory = type(prior) is int and prior == 0",
+   "new": "    confirmatory = type(prior) is int",
+   "k": "cannot_be_confirmatory or nothing_is_shown"
+  },
+  {
+   "name": "B9: a missing count is a first use",
+   "file": "tools/vchlib/checks.py",
+   "old": "    confirmatory = type(prior) is int and prior == 0",
+   "new": "    confirmatory = not prior",
+   "k": "first_use_cannot"
+  },
+  {
+   "name": "B9: a reused holdout still shows a winner",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if not confirmatory:\n        want = \"not_shown\"",
+   "new": "    if False:\n        want = \"not_shown\"",
+   "k": "nothing_is_shown"
+  },
+  {
+   "name": "B9: nothing is ever shown",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if not confirmatory:\n        want = \"not_shown\"",
+   "new": "    if True:\n        want = \"not_shown\"",
+   "k": "nothing_is_shown"
+  },
+  {
+   "name": "B9 schema: the count is optional",
+   "file": "docs/schemas/calibration.schema.json",
+   "old": "            \"primary_comparison\",\n            \"holdout_prior_unblindings\"\n          ]",
+   "new": "            \"primary_comparison\"\n          ]",
+   "k": "first_use_cannot"
+  },
+  {
+   "name": "B9: M-6 tunes on the holdout again",
+   "file": "docs/05-bias-calibration.md",
+   "old": "超出範圍 → 這一版 M-6 **不通過**，照實報告；",
+   "new": "超出範圍時要有記錄在案的門檻調整，才算通過；",
+   "k": "m6_no_longer"
+  },
+  {
+   "name": "B9: 05 hides what the validator cannot check",
+   "file": "docs/05-bias-calibration.md",
+   "old": "- validator 無法查證登記的次數是否屬實（它只看得到一份 `calibration.yaml`）；跨版本的對帳要靠 `holdout_access_log` 的保存與人工審查 [A]。\n",
+   "new": "",
+   "k": "m6_no_longer"
+  },
+  {
+   "name": "B8: precision is said to transfer",
+   "file": "docs/05-bias-calibration.md",
+   "old": "只對**這份語料的缺陷密度**成立，不能直接當成真實應用上的 precision。",
+   "new": "可以當成真實應用上的 precision。",
+   "k": "precision_does_not_transfer"
+  },
+  {
+   "name": "C8: wrong per-vector bound",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "每個向量 3 個樣本 → 上界 **63%**",
+   "new": "每個向量 3 個樣本 → 上界 **5%**",
+   "k": "power_of_the_self_test"
+  },
+  {
+   "name": "C8: wrong pooled bound",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "8 個向量合計 24 個樣本 → **11.7%**",
+   "new": "8 個向量合計 24 個樣本 → **1.2%**",
+   "k": "power_of_the_self_test"
+  },
+  {
+   "name": "C8: wrong sample size",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "需要 **59** 個樣本都沒有失敗",
+   "new": "需要 **30** 個樣本都沒有失敗",
+   "k": "power_of_the_self_test"
+  },
+  {
+   "name": "C8: the self-test is called proof",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "通過不等於「能抵抗 prompt injection」，報告與對外說明不得這樣引用。",
+   "new": "",
+   "k": "power_of_the_self_test"
+  },
+  {
+   "name": "C9: row 49 dropped from its category",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "| #12、#24、#25、#26、#39、#40、#49 |",
+   "new": "| #12、#24、#25、#26、#39、#40 |",
+   "k": "three_outward or covers_every_numbered"
+  },
+  {
+   "name": "C9: the report is a pentest again",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "**報告不是滲透測試報告，也不是合規證明**",
+   "new": "**報告的定位**",
+   "k": "three_outward"
+  },
+  {
+   "name": "C9: backdoors row softened",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "校準語料沒有對抗樣本（[05 §5.1](05-bias-calibration.md#51-語料)），沒有量測過這類情況的召回率 [H]",
+   "new": "召回率待量測",
+   "k": "three_outward"
+  },
+  {
+   "name": "C7: a category removed",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "| JWT 驗證細節 | `alg: none`",
+   "new": "| 權杖 | `alg: none`",
+   "k": "uncovered_attack_surfaces"
+  },
+  {
+   "name": "C7: the warning removed",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "報告的覆蓋說明必須列出這一段，不能讓「Binding 表每一列都測了」被讀成「常見攻擊面都測了」。",
+   "new": "",
+   "k": "uncovered_attack_surfaces"
+  },
+  {
+   "name": "C7: BL-75 closed",
+   "file": "docs/09-backlog.md",
+   "old": "| MVP-2 | 待辦；目前這些類別只能以 `MANUAL` 或 G4 核准的 `GENERATED_SCRIPT` 處理 |",
+   "new": "| MVP-2 | 已完成 |",
+   "k": "uncovered_attack_surfaces"
+  },
+  {
+   "name": "D2: 03 says proxy again",
+   "file": "docs/03-system-architecture.md",
+   "old": "- 每次執行的 token 用量由 Model Gateway 逐次呼叫記錄，",
+   "new": "- 每次執行的 token 預算由 LiteLLM proxy 追蹤，",
+   "k": "how_litellm_is_used"
+  },
+  {
+   "name": "D2: the version is called pinned",
+   "file": "docs/03-system-architecture.md",
+   "old": "選定前不能宣稱「已鎖版本」。",
+   "new": "",
+   "k": "how_litellm_is_used"
+  }
+ ]
+}

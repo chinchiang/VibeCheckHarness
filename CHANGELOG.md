@@ -4,6 +4,19 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## 保留切分只用一次、三條新限制與其他文件修正（2026-11-22 內部審查 B8、B9、C7、C8、C9、D2）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼。06 §3 的限制由 48 條變為 51 條。
+
+- **B9 保留切分只用一次**：05 的 M-6 原本要求「超出範圍時要有記錄在案的門檻調整，才算通過」，等於在保留切分上調參，與 §5.7 矛盾。現在超出範圍就是不通過；調整只能在校準切分上以新版本進行。`calibration.yaml` 新增必填的 `preregistration.holdout_prior_unblindings` 與推導欄位 `primary_hypothesis.confirmatory`；重複使用的保留切分上，`confirmatory` 為 false、`outcome` 一律 `not_shown`（`checks.hypothesis_problems`，沿用 `E-CAL-HYPOTHESIS`）。範例重算 `doc_sha256` 與 `config_pins.calibration`，重簽。validator 無法查證登記的次數是否屬實。
+- **B8**：05 §5.3 寫明 precision 型指標只對語料的缺陷密度成立，要同時報告每個缺陷的 recall 與每個應用的誤報數。
+- **C8**：06 §1.2.1 寫明注入自測的檢定力——每個向量 3 個樣本時「0 次失敗」的 95% 上界是 63%，24 個合計是 11.7%，對單一向量宣稱 ≤ 5% 需要 59 個樣本；ST-5 偵測不到 10 個百分點的差距；沒有適應性攻擊者。自測定位為回歸用的煙霧測試，不得引用為抗注入的證據。
+- **C9**：06 §3 新增 #49（報告不是滲透測試報告或合規證明）、#50（不偵測蓄意植入的後門）、#51（無法驗證 staging 等同正式環境）；分類表、README、00 的條數同步。
+- **C7**：04 §4.3 新增「這張表沒有涵蓋的類別」（WebSocket／SSE、OAuth／OIDC、JWT 驗證細節、LLM 輸出的渲染外洩、Lite 的黑箱注入）與處理方式；補列的工作記為 09 BL-75。
+- **D2**：03 §8 原本寫「token 預算由 LiteLLM proxy 追蹤」，與 08「只有 `gateway` 模組 import `litellm`」不一致；改為函式庫方式並寫明理由。另寫明 LiteLLM 的版本尚未選定，選定前不能宣稱已鎖版本。
+- 新增 `tests/test_docs_review_2026_11_22.py`（12 個測試；在 `67463cf` 上全部失敗）與突變清單 `tests/mutations/docs_review_2026_11_22.json`（`CAUGHT 21/21`）。
+- 受影響的既有測試：限制條數的斷言 48 → 51（`test_v07_r14_docs.py`）；`r14_docs.json` 一個錨點、`doc_consistency.json` 兩個錨點。沒有放寬斷言。
+
 ## ZDR 宣告逐模型且有期限；CNAME 指向共享平台的自訂網域（2026-11-22 內部審查 C6、C4）
 
 CONTRIBUTING 第 2 類（審查核實成立的缺陷：兩處都是 validator 只憑一個宣告值放行）。`rule_version` 不變，沒有新增錯誤碼。

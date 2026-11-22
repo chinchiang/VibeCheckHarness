@@ -4967,6 +4967,14 @@ def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
     if ph.get("comparator") != want:
         out.append(f"primary_hypothesis: comparator {ph.get('comparator')!r} is not the registered "
                    f"preregistration.primary_comparison.comparator {want!r}")
+    # 2026-11-22 review (B9; docs/05 §5.6 "the holdout is used once"): thresholds retuned after a holdout was unblinded are
+    # no longer tested on unseen data. A later calibration version on the same holdout registers how often it was
+    # unblinded before; its result is then exploratory, and an exploratory result cannot claim that a strategy won
+    prior = pre.get("holdout_prior_unblindings")
+    confirmatory = type(prior) is int and prior == 0
+    if ph.get("confirmatory") is not confirmatory:
+        out.append(f"primary_hypothesis: confirmatory {ph.get('confirmatory')!r} but preregistration.holdout_prior_unblindings "
+                   f"{prior!r} gives {confirmatory} (a holdout unblinded before supports only an exploratory result)")
     h1 = lo > 0
     if ph.get("h1") is not h1:
         out.append(f"primary_hypothesis: h1 {ph.get('h1')!r} but ci_low {lo} {'>' if h1 else '<='} 0 gives {h1}")
@@ -4976,8 +4984,11 @@ def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
     if not h1 and h2 is not None:
         out.append(f"primary_hypothesis: h2 {h2!r} but H2 is not evaluated when H1 fails (fixed-sequence procedure): null")
     want = ("multi_family_wins" if h2 else "recall_only") if h1 else ("single_best_wins" if hi < 0 else "not_shown")
+    if not confirmatory:
+        want = "not_shown"                              # B9: nothing is shown on a holdout that was seen before
     if ph.get("outcome") != want:
-        out.append(f"primary_hypothesis: outcome {ph.get('outcome')!r} but h1 {h1} / h2 {h2!r} / ci_high {hi} give {want!r}")
+        out.append(f"primary_hypothesis: outcome {ph.get('outcome')!r} but h1 {h1} / h2 {h2!r} / ci_high {hi} / confirmatory "
+                   f"{confirmatory} give {want!r}")
     psi = max(x for x in (pre.get("psi_assumed"), ph.get("psi_observed")) if num(x)) if any(num(x) for x in (pre.get("psi_assumed"), ph.get("psi_observed"))) else None
     rho = max(x for x in (pre.get("rho_assumed"), ph.get("rho_observed")) if num(x)) if any(num(x) for x in (pre.get("rho_assumed"), ph.get("rho_observed"))) else None
     need = required_holdout_n(pre.get("min_effect"), psi, rho, pre.get("alpha", 0.05))

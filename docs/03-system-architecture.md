@@ -175,7 +175,7 @@ flowchart TB
 | 多模型閘道 | **LiteLLM**（MIT core）[V][E:orchestration-29] | 提供 `anthropic/`、`openai/`、`nvidia_nim/` [V][E:providers-20]、`hosted_vllm/` [C][E:providers-22]；有預算、fallback、負載平衡 | **OpenRouter**：SaaS（查核者推定為封閉原始碼：未找到路由平台本身的原始碼），多一個資料接收者 [V][E:orchestration-32] |
 | 工具互通 | 內部 Python adapter 為主，MCP 選配 | MCP 最新規格 2026-07-28（stateless）[V][E:orchestration-35]；遵循 MCP security best practices（禁止 token passthrough、最小權限、沙箱化本地 server）[V][E:orchestration-36] | — |
 
-**LiteLLM 的供應鏈風險**：1.82.7 與 1.82.8 曾在 PyPI 被植入竊密程式（2026-03-24，約 40 分鐘）[V][E:orchestration-31]。→ 鎖版本＋hash、不在 Gateway 以外的地方持有金鑰。另外，fallback **只允許同家族**（§8.1）。
+**LiteLLM 的供應鏈風險**：1.82.7 與 1.82.8 曾在 PyPI 被植入竊密程式（2026-03-24，約 40 分鐘）[V][E:orchestration-31]。→ 鎖版本＋hash、不在 Gateway 以外的地方持有金鑰。**版本尚未選定**：設計文件只排除這兩個版本，確切版本在 [08 §9.2](08-implementation-spec.md#92-m1-前兩週的工單) T-01 建立含 hash 的鎖檔時選定並登錄到 `licenses.yaml`（目前該列的 `usage` 是 `reference`，表示這個 repo 沒有安裝它）；選定前不能宣稱「已鎖版本」。另外，fallback **只允許同家族**（§8.1）。
 
 LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:orchestration-03]）**不是**本設計的主軸。本設計採「確定性狀態圖＋在指定節點呼叫 Commander」（§4）。
 
@@ -1155,7 +1155,7 @@ v0.1 沒有定義 Z3 如何碰到 staging DB。v0.2 的設計（全部 [H]；ROE
 - 每個家族設並行上限，並以 token bucket 限速。
 - 遵守 `Retry-After`；重試有上限，用盡記為缺票。
 - NVIDIA 試用端點的速率限制沒有公布數字 [V][E:providers-09]，所以預設並行度要低，並依觀察到的 429 自動降速。
-- 每次執行的 token 預算由 LiteLLM proxy 追蹤，Budget Tracker 彙整到 run 與階段層級（§11）。OSS-CRS 也是用 proxy 限制每個系統的 USD 預算 [V][E:reference_systems-13]。
+- 每次執行的 token 用量由 Model Gateway 逐次呼叫記錄，Budget Tracker 彙整到 run 與階段層級（§11）。**LiteLLM 以函式庫方式在 Gateway 行程內使用，不另起 LiteLLM proxy 行程**（[08 §1.2](08-implementation-spec.md#12-依賴方向) 的 import 規則：只有 `gateway` 模組 import `litellm`；2026-11-22 內部審查：之前這一句寫「由 LiteLLM proxy 追蹤」，與 08 不一致）。不用 proxy 的理由：金鑰只留在一個行程、少一個要鎖版本與監聽埠的元件、預算上限由本工具包自己的 Budget Tracker 強制而不是 LiteLLM 的預算功能。OSS-CRS 是用 proxy 限制每個系統的 USD 預算 [V][E:reference_systems-13]，做法不同。
 
 ## 9. Agent 名冊
 

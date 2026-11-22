@@ -91,6 +91,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-72 | r14 D | validator 對帳投票與稽核：裁決的 `votes[]` 對應 `llm_response` 事件（每張票一次驗證者呼叫）、`missing_votes[]` 對應 `missing_vote` 事件；02／03 要先寫明對應規則 | [03 §13.2](03-system-architecture.md#132-事件類型enum)、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | M2 | 待辦 |
 | BL-73 | r14 C10 | Calibration Lab 的實際人力與語料刷新：§5.1 的 30 人週估算、模型更換後的新批次、κ 最小批量，由 U-10 的決定與第一批標註的實測回填 | [05 §5.1](05-bias-calibration.md#51-語料)、[07 §1.5](07-roadmap.md#15-人力與時程估算-h) | M2 | 待辦 |
 | BL-74 | 2026-11-22 內部審查 | 寫入請求的 body 樣板比對：測試案例宣告每個寫入請求的完整 body 樣板，Scope Proxy 只放行把 `{seed:}`／`{created:}` 代換後與樣板完全相等的 body（比照 `safety.server_action_problem`），取代依鍵名猜測哪些欄位是物件 ID 的做法；要改 testcase schema、範例與簽章 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #46 | MVP-1 | 待辦 |
+| BL-75 | 2026-11-22 內部審查 C7 | Binding 表補列：WebSocket／SSE 的訊息層授權、OAuth／OIDC（`state`、PKCE、redirect URI）、JWT 驗證細節（`alg`、`kid`、`aud`／`iss`）、LLM 輸出的渲染外洩（Markdown 圖片與連結）、Lite 可用的 S0／S1 注入檢查；每列要有需求來源、oracle 與安全等級，新 adapter 要登錄到 `tools.yaml` | [04 §4.3](04-threat-to-testcase.md#43-binding-表)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #49 | MVP-2 | 待辦；目前這些類別只能以 `MANUAL` 或 G4 核准的 `GENERATED_SCRIPT` 處理 |
 
 ## 5. 已完成（保留編號供追溯）
 

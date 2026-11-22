@@ -19,7 +19,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
-  "engagement_ref": "sha256:7f2df39e0908d869499cdaa37d224d2b55098091719834aabf065311306e0957",
+  "engagement_ref": "sha256:fdd92d8c2cac819f9fff3a8dab6a41ab6a64b39fab53a03c6d8d30078cc4f9ad",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -35,7 +35,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:5eb13b0d0490f8e3baf1e8c9317020f0fbd8ecaa65643abfbc03d887133e2d01"
+      "sha256": "sha256:61102d96c43291295f5de84e4c8b4bf218c5970399150e51516fcd82667de8fe"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -321,14 +321,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:0cb4765b61436aed633e6cbdca2e892d4015946b056ca827eba93ab3f7c8836e",
+  "report_manifest_ref": "sha256:32cd28b70e596c76f7fed83e66abe38aea19fbd149f7f53fa6f7953a93778b94",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:7f2df39e0908d869499cdaa37d224d2b55098091719834aabf065311306e0957",
+      "subject_hash": "sha256:fdd92d8c2cac819f9fff3a8dab6a41ab6a64b39fab53a03c6d8d30078cc4f9ad",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"
@@ -449,47 +449,47 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:f504a17ba3253410a5bdfb4b91260671fcbb40f538f25e9ac311281e309af1bc"
+      "line_sha256": "sha256:19a1a24b5679de12517d02c0b1c8cb100bce8f48ecf9c9d7dcfc979cff76326b"
     },
     {
       "seq": 13,
-      "line_sha256": "sha256:5f1e6b31370f7b28f8044b335017dd87872c48842dd6d328b06afed62df462f3"
+      "line_sha256": "sha256:07e8c222bda15ee89bc1e10d46094f2bbef6b5af5164b03206280d96c0b447d2"
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:2426a76acec9ceba69c90a279da4943c365c80340d7888f59e44b6e851444c54"
+      "line_sha256": "sha256:b8659e7baa5c02a9f9761792b75e925e5f6deaf994e0c367953c99ff1d14d10a"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:9920078dc3a49298acb4427a82f93c4039820df1c8f1440587bb099334504bd1"
+      "line_sha256": "sha256:eea66b9c9836372fc6d62978ab550a3e7ff620582f8cdc1918e2ed19b88b0051"
     },
     {
       "seq": 35,
-      "line_sha256": "sha256:6b4be550d3b20964f3bc228568197173e8d44313caca209185af1484d4b10756"
+      "line_sha256": "sha256:9d47462c2c879f1dbf817afa171b6122e22e89b2c64dd720d6511722f57d4f09"
     },
     {
       "seq": 38,
-      "line_sha256": "sha256:97c4e20cb51670ae1a2bfab2c22a13d2eeeb6a61a65bc4e71276d1715e3566e7"
+      "line_sha256": "sha256:453d02c36ecf857a0869f9b700941447e0a8f7fc319ac663c06460c96f58e8e7"
     },
     {
       "seq": 44,
-      "line_sha256": "sha256:8cefb32266aa3e18889b3ab15f8c0ebc6dcd75055fa25ab2344a8b3ce7db197c"
+      "line_sha256": "sha256:52f1ea416870dc936037b67da2b6351b92dbb1db4092b2056943efc71f2f6a36"
     },
     {
       "seq": 49,
-      "line_sha256": "sha256:e269135b217b8fa75625f5b388c8c41d45547d21a8bc453b703f7773fd57073c"
+      "line_sha256": "sha256:3e0f0c07537bfea74d79eb87602d8abbe091cbdc064127f8603917d3196ce697"
     },
     {
       "seq": 58,
-      "line_sha256": "sha256:6807fe0ce1844c832e913837bef69781257c72ac8d866b18be78e85019bba2dc"
+      "line_sha256": "sha256:3d83391de2bbf353f3ba2c97c03c25c2f8754edecc010e876ef200e679f4e311"
     },
     {
       "seq": 63,
-      "line_sha256": "sha256:fe97c047450f7f25bb71934356e981faac0fbf0bf7ec707bba6e77a8b88be1ef"
+      "line_sha256": "sha256:3d6dc2a3482880bc4760f10caf280d0d2e15e4467aa30639c40a0a713e833540"
     },
     {
       "seq": 72,
-      "line_sha256": "sha256:5ac0f82412a72a1dc3cff6e224a40a672cbb61988e781b46c8ed478e8830788a"
+      "line_sha256": "sha256:b1d549bbca8ec5bd2a54c47147d33e9a8356d108397c53fefcda8c9d73c36782"
     }
   ],
   "errors": [],

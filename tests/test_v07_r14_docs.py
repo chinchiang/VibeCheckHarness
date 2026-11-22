@@ -159,7 +159,7 @@ def test_no_document_still_says_r0_to_r13(rel):
 
 
 def test_the_limitation_count_and_the_feature_flag_rules():
-    assert "48 條明列" in text("README.md") and "完整的 48 條見" in doc("00-overview.md")
+    assert "51 條明列" in text("README.md") and "完整的 51 條見" in doc("00-overview.md")
     s8 = doc("08-implementation-spec.md")
     assert "`ci_workflows`＝repo 有 CI／CD 設定檔（`.github/workflows/*.yml`" in s8 and "`iac`＝repo 有 IaC 或平台設定檔" in s8
     assert "R14／R16 決定的裁決（第 14–16 列，審查 r12）與黑箱叢集是 false" in s8

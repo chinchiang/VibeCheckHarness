@@ -19,7 +19,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:83cfae38376152185deae965b160b4b4cae647d2d97c592b3111230f7326c36a",
+  "engagement_ref": "sha256:eee4799b181f7bb9795f2d6a8542ea3352d269abf82b263de42da3d67d344b20",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -35,7 +35,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:5eb13b0d0490f8e3baf1e8c9317020f0fbd8ecaa65643abfbc03d887133e2d01"
+      "sha256": "sha256:61102d96c43291295f5de84e4c8b4bf218c5970399150e51516fcd82667de8fe"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -320,14 +320,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:683e6b7e02d23618835bde41a93ff40bcbe0999e7a1cafe16fbcf28337924e3f",
+  "report_manifest_ref": "sha256:808ddd351278bbaa253832e09cfe0c0323ca13d348fac63eb222f10319444931",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:83cfae38376152185deae965b160b4b4cae647d2d97c592b3111230f7326c36a",
+      "subject_hash": "sha256:eee4799b181f7bb9795f2d6a8542ea3352d269abf82b263de42da3d67d344b20",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"
@@ -448,47 +448,47 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:5d2710f189e6c574ae71db4c7ae6753e1550f9b32a5b499cba48e7a7d8e20178"
+      "line_sha256": "sha256:62ba25b182e3f9057d8de3e6d60671706648b048241841750eba0b407edaaec7"
     },
     {
       "seq": 13,
-      "line_sha256": "sha256:46b8d8d0cde1b7137228f31915db5fdec12ba413daa940f424275c1f16069e40"
+      "line_sha256": "sha256:77bc92e02cd5cafd216fa1d8904cb3b5e9a0c62dd589e78087db13f420eaa81e"
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:b8986c318181ffc7c54b7ad157bcd620ea4445d331d1d1cf45340dcbe07ed533"
+      "line_sha256": "sha256:2200b043c7081edb55e1ce06853d72598988301ab1b7759ff0f33b9f4ea51bdb"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:de080ff6e3ccdb4086078b49a5624769c58c03b396c9c6a804057fd5e28b783e"
+      "line_sha256": "sha256:f90c885b8111fe4b602704e6722bef8924c8ff2ef93eadc788afe5cb9109c15f"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:2f1b8b2868d1ff92dafdac6a9f950d76cd7c64e7669085cd4bfa15ddfaa2ddd1"
+      "line_sha256": "sha256:17dbc74b0264fa3383d994e780d334168c161c7654001bbc044a416dd27405d1"
     },
     {
       "seq": 37,
-      "line_sha256": "sha256:74c355773bc2a82f9df8c53c954072c11ec51ba290f17bc92d91ec26bef8f5bd"
+      "line_sha256": "sha256:590e61396a054d835ccc0841d75d79d6550bb708a6800f0b8c427a0eacaf355e"
     },
     {
       "seq": 43,
-      "line_sha256": "sha256:46c1f57905919034b8038b4ca06101c4a5cb5539421258194fa9743094f08747"
+      "line_sha256": "sha256:14839cec16e3757a716d205511e76a08c377859fd41445379acee770f962c4a0"
     },
     {
       "seq": 48,
-      "line_sha256": "sha256:188b17e88de461b2f26e6ba64574f11546260eb3e612253b0f2d6d5109ce3c3d"
+      "line_sha256": "sha256:85a6744a04f4995a923a8fa18cee78497447fb172f3b903afcbf3fd304718f3f"
     },
     {
       "seq": 57,
-      "line_sha256": "sha256:e5c4ae2dfcbb2e0b074b44cd68f85268d3413f2d39189a9460bb8d719712913b"
+      "line_sha256": "sha256:3007c2f49294dde7c2b0366a76945a292a9a7538b13710b7890acc0608f87e09"
     },
     {
       "seq": 62,
-      "line_sha256": "sha256:b2d2dbda857ef799a8afc8f9a51467c02c2873f5edcff5d7887ae1077f031910"
+      "line_sha256": "sha256:59a87d54aec7b90d0babac01c0410b0385acce9e81bd78af131a08921e7470f4"
     },
     {
       "seq": 71,
-      "line_sha256": "sha256:37482f733cbb868d7c952b351d5da7321a4facb1478314cf58df65d88d45e518"
+      "line_sha256": "sha256:f9d79d704e1521d32d4e11c28b304fca806ae5381af85c2571fce509675594a6"
     }
   ],
   "errors": [],

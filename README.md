@@ -42,7 +42,7 @@
 | 以 Python 實作 | LangGraph＋LiteLLM＋Pydantic；套件配置、介面、CLI、錯誤分類、測試與完成定義見 08；資料模型驗證器與參考演算法（裁決規則、安全等級、JCS、Ed25519 驗章）已用 Python 撰寫並有測試 | [03 §3](docs/03-system-architecture.md#3-框架選型)、[07](docs/07-roadmap.md)、[08](docs/08-implementation-spec.md)、[tools/](tools/) | 本次只交付文件、驗證工具與參考實作，工具包本體尚未實作 |
 | Nemotron 同時支援雲端（build.nvidia.com）與自架（NIM／vLLM） | 兩種模式都接在 LiteLLM；雲端只收公開或合成程式碼，機密碼只用自架 | [03 §8.2](docs/03-system-architecture.md#82-nemotron-雙模式)、[examples/serving](docs/examples/serving/README.md) | 雲端試用條款禁止機密資訊與正式用途；自架需要 GPU |
 | 文件放在 repo 根目錄 | `README.md`＋`docs/` | — | — |
-| 做不到的事就說做不到 | 48 條明列，分成四類（LLM 與方法的本質限制、環境與平台、組織與法務前提、本版範圍） | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
+| 做不到的事就說做不到 | 51 條明列，分成四類（LLM 與方法的本質限制、環境與平台、組織與法務前提、本版範圍） | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
 | 設計文件與驗證器互相驗證 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經多輪獨立審查（最新一輪見狀態列），validator 與範例互相驗證，但**工具包本身尚未實作**，數字都是設計假設；2026-09-26 的深度審查逐項記錄在 [review-2026-09-26](docs/evidence/review-2026-09-26.md)，2026-10-24 的設計審查在 [review-2026-10-24](docs/evidence/review-2026-10-24.md) | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
 
 ## 文件導覽
