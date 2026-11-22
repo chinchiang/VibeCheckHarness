@@ -4,6 +4,18 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.16`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）。
 
+## 投票分支標為未啟用、Lite 的確認標示、校準主要假設改為端到端對照（使用者決定 D1／D7／D9）
+
+CONTRIBUTING 第 3 類。`rule_version` 不變（沒有改裁決規則），沒有新增錯誤碼。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。
+
+- **D1 投票分支標為「校準證明可行前未啟用」**：05 §5.1 新增可行性表，由該節自己的語料目標數換算（目標正例 × 250／610）。以最低目標數，最大的桶在校準切分約 37 個正例，可行門檻要 40 個經投票確認的叢集，沒有任何一個桶可行。規則與程式保留；05 §4.3 開頭標示啟用狀態。回報者與驗證者的不對稱（D8）只在投票分支啟用時有影響，隨同暫緩。
+- **D7 Lite 報告的確認標示**：`CONFIRMED_EXECUTABLE` 寫成「自我核准的可執行證明」，首頁說明存取矩陣（G1）與 oracle（G4）由同一人核准（02 §1.7、08 報告首頁）。文件規定；報告產生器尚未實作。
+- **D9 主要假設改為 ④ 對 ④′**：原本比的是「≥ 2 個家族都回報」對「同一模型 3 次取樣中 ≥ 2 次回報」，但管線不用這條接受規則（單一家族回報的叢集仍是 `UNCORROBORATED`、成為種子威脅），結果卻會切換預設策略。現在比完整管線（arm 4）與「單一最佳模型取樣 3 次＋同樣的工具佐證與可執行驗證」（新 arm 4s），差異只來自多家族；③ 對 ② 降為次要分析。
+  - `calibration.schema.json`：`preregistration.primary_comparison`（必填）、arm `4s`、`primary_hypothesis.comparator` 只允許 `4s`。
+  - validator：`checks.primary_comparison_problems`（`E-CAL-ARMS`：兩組都在 `arms` 中，比較基準用 arm 1 的模型、取樣 3 次、與實驗組同一個 `acceptance_rule`、都不是 exploratory）；`hypothesis_problems` 檢查結果的 `comparator` 等於登記的（`E-CAL-HYPOTHESIS`）。
+  - 範例 `calibration.yaml`：新增 arm 4s 與 `primary_comparison`，`comparator` 由 `2a` 改為 `4s`；`doc_sha256`、委任的 `config_pins.calibration` 重算，重簽範例、重建變體。範例的數字（Δ、CI）沒有重新模擬，是示意資料。
+- 新增 `tests/test_decisions_d1_d7_d9.py`（14 個測試，在 `4da5735` 上全部失敗）與突變清單 `tests/mutations/decisions_d1_d7_d9.json`（`CAUGHT 19/19`）。
+
 ## 審查的完整發現與設計決策提案進版控
 
 2026-11-22 內部審查的兩份工作文件原本只在不進版控的 `scratch/`，使用者決定保存：

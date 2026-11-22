@@ -19,7 +19,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:5990be98af2fbe1576a7a075a373f460ae5292e239bfb46f428e20cd313258f1",
+  "engagement_ref": "sha256:e8a85fd40e125560be39d607dc078190b57a1c611da741fc25b59a16bb3c09a7",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -35,7 +35,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:8509011c7d66c1e1b65e59978045289f5467dee94af56e382a9e0451dd326f2f"
+      "sha256": "sha256:5eb13b0d0490f8e3baf1e8c9317020f0fbd8ecaa65643abfbc03d887133e2d01"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -316,14 +316,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:e18c1314792821a1d8e54de5c923cc75d0b65c41ba2297db714351fba9e5144e",
+  "report_manifest_ref": "sha256:be1615e791e50e25a9859767209b52b68d6819acee8376819e904df94e474f08",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:5990be98af2fbe1576a7a075a373f460ae5292e239bfb46f428e20cd313258f1",
+      "subject_hash": "sha256:e8a85fd40e125560be39d607dc078190b57a1c611da741fc25b59a16bb3c09a7",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"
@@ -444,47 +444,47 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:22591e8f1b84974c8788b386c39b24d27f4d15236aca53a4307bf8407320c644"
+      "line_sha256": "sha256:062fd93fd199fea1f213283006234ba5189789c57f9f41e37c973d5534b1ef69"
     },
     {
       "seq": 13,
-      "line_sha256": "sha256:1e1abb91261b77cbc10b8accd737fe9c25dddb07a2ddb650ef6c61ffd9d0389c"
+      "line_sha256": "sha256:d6a32c3a2c65a1c4ec75f6aba24e344a232fb540319da9df22b0f638bfb4685e"
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:b33b1e92564b23b2b1e24d2607c9791ff7e63dc95661ea14d864c3b4abb81f29"
+      "line_sha256": "sha256:b1bfa78a24edf334948b79582aac08f7c02df6e3a990635c9be2e5efbbd1f401"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:c8f011afcf49cf9920f219017816cc784380639e17d1349e33a3de407c3f45f8"
+      "line_sha256": "sha256:ede0077478b435048744b2e7c52adb75d703e4bedb80cb72b2a5be2b7a0db2fe"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:8b637176f963b2d0eca3a6f7df0116fa756c184aa5daed1988155cd4a9e28b08"
+      "line_sha256": "sha256:75439db9dbe11f19bb370bb7a3866dd2710fb66de678e6580746c74dc0811ef6"
     },
     {
       "seq": 37,
-      "line_sha256": "sha256:3a634cc6ae80b6db50b361526c351bb2609f53551415e4a0d317a06c39056fc5"
+      "line_sha256": "sha256:c187443877b809eb52f1fabfb2b0a0cd3bfcfa05e7b20ec53aed3f43c3699c93"
     },
     {
       "seq": 43,
-      "line_sha256": "sha256:69e9690315cd73e3586881a07707b44d1a53ad20edf3603db5be523469ac6abc"
+      "line_sha256": "sha256:6c47997a3b5c1a5fcae830befb273dc11bc90cc62ddd3c2c2b4e7c73b2fbce6c"
     },
     {
       "seq": 48,
-      "line_sha256": "sha256:5801c2cfbea8087b053754dac44175a078c643aef4eed7b0b46faba19b7f10b7"
+      "line_sha256": "sha256:00e82878d9ac101852a7a82003e0fe380ee53fd2e8579e1985965354f63c0759"
     },
     {
       "seq": 57,
-      "line_sha256": "sha256:93e3e4e6da33eb62d325cdabc5dd020bffa477398664fb46439b220f90f767c6"
+      "line_sha256": "sha256:6f5f701875204aff547bda30be2907a15bba997a58dd8ae4961100018b7eecc1"
     },
     {
       "seq": 62,
-      "line_sha256": "sha256:fd100c6ae46b1fa7651c21c6159fecabb1c9a1b9d0d40bd0673e9c0bfe753012"
+      "line_sha256": "sha256:6fa067faa8f8e7c072b9e8438a6f58b5fa28864ec407d82a739f5c891270ed8b"
     },
     {
       "seq": 71,
-      "line_sha256": "sha256:8d322cbbebabcbb17a842f5c93ee1e307db3579eb49430d1284ec1ace06712bb"
+      "line_sha256": "sha256:136a9cafc94bd1ea8417190e87c2d607789e3cdafccef505dcb98cd36ce0dd2d"
     }
   ],
   "errors": [],

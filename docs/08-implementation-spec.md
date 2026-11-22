@@ -1876,7 +1876,7 @@ class SessionProvider(Protocol):
 - **已知的限制**：函式改名或檔案搬移 → 舊指紋 `absent`、新指紋 `new`，不會被當成同一個問題 [H]。
 
 **白箱報告（`whitebox-report.md`，`report export --format markdown`）的區段**（第十四輪內部審查 C8；之前 02 W5 寫產出它，CLI 卻只有 json／sarif／html）[H]：
-1. **首頁**：委任、run、commit、`assurance_profile` 與模式標示（Lite 時「單人模式，未經職責分離」、`evidential: self_attested`；校準前「暫定（校準前）」的比例與 `single_best_resampled` 標示）、每個關卡的實際等待時間、預算用量與「強制／依假設上界估算」。
+1. **首頁**：委任、run、commit、`assurance_profile` 與模式標示（Lite 時「單人模式，未經職責分離」、`evidential: self_attested`，而且每個 `CONFIRMED_EXECUTABLE` 都寫成「自我核准的可執行證明」並在首頁說明：G1 的存取矩陣與 G4 的 oracle 由同一人核准，[02 §1.7](02-methodology.md#17-保證等級liteteamfull)；校準前「暫定（校準前）」的比例與 `single_best_resampled` 標示）、每個關卡的實際等待時間、預算用量與「強制／依假設上界估算」。
 2. **確認項**：`CONFIRMED_*` 與 `LIKELY` 叢集，依 rubric 嚴重度排序；每項附位置、桶、證據（測試 ID、oracle、對照）、違反的 G1 條目、`baseline_state`、是否暫定、`oracle_unreviewed`。
 3. **爭議與人審清單**：`DISPUTED`、G2 的 `needs_info`、`post_g2_conflict`、`over_cap_items`。
 4. **只列報告**：`report_only_clusters`（tool-only 與低嚴重度 `UNCORROBORATED`）、相依弱點（`sca`）、供應鏈（`package_existence`）、secrets（只有位置與 HMAC）。

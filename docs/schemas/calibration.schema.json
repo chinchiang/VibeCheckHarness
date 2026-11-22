@@ -64,6 +64,23 @@
             },
             "registered_at": {
               "$ref": "common.schema.json#/$defs/datetime"
+            },
+            "primary_comparison": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "treatment",
+                "comparator"
+              ],
+              "properties": {
+                "treatment": {
+                  "const": "4"
+                },
+                "comparator": {
+                  "const": "4s"
+                }
+              },
+              "description": "2026-11-22 內部審查（使用者決定 D9；docs/05 §5.6）：主要假設比較的兩組——完整管線（arm 4）對單一最佳模型取樣 3 次加上同樣的工具佐證與可執行驗證（arm 4s）。兩組都必須在 config.arms 中（E-CAL-ARMS）"
             }
           },
           "required": [
@@ -77,7 +94,8 @@
             "rho_assumed",
             "ni_margin",
             "bootstrap_resamples",
-            "registered_at"
+            "registered_at",
+            "primary_comparison"
           ]
         },
         "corpus": {
@@ -201,6 +219,7 @@
                   "2b",
                   "3",
                   "4",
+                  "4s",
                   "5"
                 ]
               },
@@ -708,9 +727,9 @@
               "properties": {
                 "comparator": {
                   "enum": [
-                    "2a",
-                    "2b"
-                  ]
+                    "4s"
+                  ],
+                  "description": "2026-11-22：主要假設的比較基準是 arm 4s，必須等於 preregistration.primary_comparison.comparator（E-CAL-HYPOTHESIS）"
                 },
                 "delta": {
                   "type": "number",

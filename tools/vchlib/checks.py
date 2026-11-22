@@ -4837,6 +4837,13 @@ def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
         return ["primary_hypothesis: delta, ci_low and ci_high are required numbers"]
     if not lo <= d <= hi:
         out.append(f"primary_hypothesis: delta {d} is outside its interval [{lo}, {hi}]")
+    # 2026-11-22 review (D9, user decision; docs/05 §5.6): the result is about the comparison that was registered. The
+    # primary comparison is the full pipeline against the single best model resampled with the same back end (4 vs 4s);
+    # a result that names another comparator answers a question nobody pre-registered
+    want = (pre.get("primary_comparison") or {}).get("comparator") if isinstance(pre.get("primary_comparison"), dict) else None
+    if ph.get("comparator") != want:
+        out.append(f"primary_hypothesis: comparator {ph.get('comparator')!r} is not the registered "
+                   f"preregistration.primary_comparison.comparator {want!r}")
     h1 = lo > 0
     if ph.get("h1") is not h1:
         out.append(f"primary_hypothesis: h1 {ph.get('h1')!r} but ci_low {lo} {'>' if h1 else '<='} 0 gives {h1}")
@@ -4859,6 +4866,37 @@ def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
     elo, ehi, ed = ex.get("ci_low"), ex.get("ci_high"), ex.get("recall_diff_vs_arm3")
     if all(num(x) for x in (elo, ehi, ed)) and not elo <= ed <= ehi:
         out.append(f"exploratory: recall_diff_vs_arm3 {ed} is outside its interval [{elo}, {ehi}] (ci_low <= estimate <= ci_high)")
+    return out
+
+
+RESAMPLED_ARM_SAMPLES = 3      # docs/05 §5.6: the comparator resamples the single best model three times
+
+
+def primary_comparison_problems(cfg: dict) -> list[str]:
+    """2026-11-22 review (D9, user decision; docs/05 §5.6): the registered primary comparison names two arms of the
+    configuration, and its comparator is the single best model (the model of arm 1) resampled RESAMPLED_ARM_SAMPLES times
+    with the pipeline's back end. The pipeline keeps a cluster one family reported (UNCORROBORATED, a seed threat), so
+    comparing the ">= 2 agree" rule of arms 3 and 2 measured a rule the pipeline does not use, and its result switched
+    the default strategy; comparing arm 4 with arm 2 mixed the effect of several families with that of the tools."""
+    pc = (cfg.get("preregistration") or {}).get("primary_comparison")
+    if not isinstance(pc, dict):
+        return ["preregistration.primary_comparison is required (treatment and comparator arms)"]
+    arms = {a.get("arm"): a for a in cfg.get("arms") or [] if isinstance(a, dict)}
+    out = [f"preregistration.primary_comparison.{k} {pc.get(k)!r} is not an arm of config.arms"
+           for k in ("treatment", "comparator") if pc.get(k) not in arms]
+    if out:
+        return out
+    comp, best, treat = arms[pc["comparator"]], arms.get("1") or {}, arms[pc["treatment"]]
+    if comp.get("model_keys") != best.get("model_keys"):
+        out.append(f"arm {pc['comparator']}: model_keys {comp.get('model_keys')} must be those of arm 1 {best.get('model_keys')} "
+                   "(the single best model)")
+    if comp.get("n_samples") != RESAMPLED_ARM_SAMPLES:
+        out.append(f"arm {pc['comparator']}: n_samples {comp.get('n_samples')!r} must be {RESAMPLED_ARM_SAMPLES}")
+    if comp.get("acceptance_rule") != treat.get("acceptance_rule"):
+        out.append(f"arm {pc['comparator']}: acceptance_rule {comp.get('acceptance_rule')!r} must equal that of arm "
+                   f"{pc['treatment']} {treat.get('acceptance_rule')!r} (the same back end, so only the families differ)")
+    if comp.get("exploratory") is not False or treat.get("exploratory") is not False:
+        out.append("the arms of the primary comparison are not exploratory")
     return out
 
 
@@ -5186,6 +5224,8 @@ def g_calibration(R: Report, c: Ctx):
         R.check(arm.get("exploratory") is (arm.get("arm") == "5"), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: only arm 5 is exploratory")
         R.check(set(arm.get("model_keys", [])) <= set(keys), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: unknown model keys")
     R.check((res.get("exploratory") or {}).get("arm") == "5", "E-CAL-ARMS", w, "result.exploratory.arm must be 5")
+    for msg in primary_comparison_problems(cfg):
+        R.error("E-CAL-ARMS", w, msg)
     for row in ((res.get("metrics") or {}).get("M-11") or {}).get("by_model", []):
         want = "support_leaning" if row.get("value") is not None and row["value"] < 0.5 else None
         R.check(row.get("flag") == want, "E-CAL-M11", w, f"M-11 {row.get('model_key')}: flag must be {want}")

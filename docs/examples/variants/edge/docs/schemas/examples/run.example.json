@@ -19,7 +19,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
-  "engagement_ref": "sha256:7878855ba12d627cabd394d6c60dc074d80c65a78f6ba164cb96698111cc6807",
+  "engagement_ref": "sha256:33f1e04270d7957db1b8432af49ff194689dbe0b316247b07a1de3d964f4747e",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -35,7 +35,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:8509011c7d66c1e1b65e59978045289f5467dee94af56e382a9e0451dd326f2f"
+      "sha256": "sha256:5eb13b0d0490f8e3baf1e8c9317020f0fbd8ecaa65643abfbc03d887133e2d01"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -317,14 +317,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:315aa25360ca3cd6ac3de96da2519db9e2d53d05746136ee078a0a0c06050936",
+  "report_manifest_ref": "sha256:c199bb5627de61744381812e01d589f712e558ccc55c2c1b09e1b66f0d07c55e",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:7878855ba12d627cabd394d6c60dc074d80c65a78f6ba164cb96698111cc6807",
+      "subject_hash": "sha256:33f1e04270d7957db1b8432af49ff194689dbe0b316247b07a1de3d964f4747e",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"
@@ -445,47 +445,47 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:f6152914b6e8e7f79a2b0ad72d4463935d02f9329956fe3b90ed9515af07fe11"
+      "line_sha256": "sha256:746d36cee00b34a0f14d8e60d86b604ea87659d3381e20c7142851fe2e0b52fc"
     },
     {
       "seq": 13,
-      "line_sha256": "sha256:38dd21a1ade42ae859357f5ab82ccfa4ee9359a9382ad53a8b62b7782bfd4493"
+      "line_sha256": "sha256:47b465f51f3c1b7d459dbc2a97d9dded3bcc682c6e4485f52bbdf2eb2f871679"
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:f7fb193a3b53e3ebbaade19c2e76513bb12f18347f661bfd0eaf4d9d7eb7e5f5"
+      "line_sha256": "sha256:e64b8b6eb08736406c5ad75604bbb7dc7805b8d3f6d7a61b65d47059dd33ef74"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:0883e04f5b9554a7c9502d649693460f5bff34d3e2241bb1c484d96fe974c229"
+      "line_sha256": "sha256:6f306501ffa2dbccfdb19ff85addff2c5661e6ad3164a43b8280d37587c21b04"
     },
     {
       "seq": 35,
-      "line_sha256": "sha256:0d32e29ba04f443970f35cd039f0a65915c2d77d031888290c8393dc02ff330a"
+      "line_sha256": "sha256:3034a4271e4a46aa31dd59659a087498fc733ebbf9f3d7d43a5361832e7a5614"
     },
     {
       "seq": 38,
-      "line_sha256": "sha256:d8124d201bfe6d11b15beb5e495f21cc3e8ed53376d8c7e6925055df25507631"
+      "line_sha256": "sha256:65a5475795528c28ca3350223379eee87ec7add225fa5f73cc35e70e0af83779"
     },
     {
       "seq": 44,
-      "line_sha256": "sha256:fe0b47c74082e5bad959bbd75fcea9a0547af3473a23c99182bf87e0aef65747"
+      "line_sha256": "sha256:503e649e040f102fb40f0fb7751e841a75ccb0227d579fdc9c4bdfd1bb4f3461"
     },
     {
       "seq": 49,
-      "line_sha256": "sha256:da5846f27ac445747ed1048c117340982af640db8c549d4f57c8032a71d30c10"
+      "line_sha256": "sha256:f319ec402a299631126e590da97921b92269b81b59633d1e7a760e25461e440e"
     },
     {
       "seq": 58,
-      "line_sha256": "sha256:8d6c0322e2d044b79bbc5c9ceabe2dd86d28b863d963429d0da059f299500bc6"
+      "line_sha256": "sha256:6bdf5b4e8519f479cf67a652f7d921dbba07a77b0bcdbb5f97a19808ee3faa8d"
     },
     {
       "seq": 63,
-      "line_sha256": "sha256:dc860578a48a48adf48000c0036de0322b2cd16a1e8a228d97685436d5bb171c"
+      "line_sha256": "sha256:13039697b3a0e7adfb790f99b6d6e001d903b42e86a8ef1b81abfaf6572869c7"
     },
     {
       "seq": 72,
-      "line_sha256": "sha256:384b81d3e014542c0d813ad4ec02fe49bf871c342f774c9a20fe81d217c15c6c"
+      "line_sha256": "sha256:7c1cbe3e3b79b12db80a1782373d4b3838c0bf4ed5d2576305411f757dc45092"
     }
   ],
   "errors": [],
