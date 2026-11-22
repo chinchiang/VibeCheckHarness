@@ -539,13 +539,25 @@ def graphql_declared(r, roe) -> bool:
     return r.method in {"GET", "POST"} and r.path in roe.target(r.target_id).graphql_paths
 
 
-def is_mutation(r, roe, manifest) -> bool:
+def read_is_proven(r, manifest, proven_reads) -> bool:
+    """GET／HEAD 已知不改狀態：seed manifest 的 read_only_endpoints 宣告了它（同目標、同方法、路徑同形），
+    或 W0 inventory 有這個端點而且 writes 為 false（proven_reads＝這些端點的 (方法, 路徑形狀)；HEAD 也可由同一路徑的
+    GET 證明）。inventory 不認得的端點、writes 為 true 或 null（抽取器判斷不出來）都不算證明。"""
+    if endpoint_in(manifest, "read_only_endpoints", r):
+        return True
+    shape = path_shape(r.path)
+    return (r.method, shape) in proven_reads or (r.method == "HEAD" and ("GET", shape) in proven_reads)
+
+
+def is_mutation(r, roe, manifest, proven_reads) -> bool:
     """寫入＝POST／PUT／PATCH／DELETE 與 GraphQL mutation；graphql_operation 為 query 或
     introspection 的請求只有在 graphql_declared 時才是讀取（即使以 POST 送出）。
     graphql_operation 是測試設計者（LLM）的宣稱：v0.3 在任何路徑都採信它，
     `POST /api/admin/purge` 標成 query 就能跳過綁種子檢查。
     v0.4：seed manifest 的 state_changing_reads（會改變狀態的 GET／HEAD）是寫入；
-    read_only_endpoints（以 POST 送出的唯讀端點）不是。兩份清單隨 seed manifest 由基礎設施擁有者簽署。"""
+    read_only_endpoints（以 POST 送出的唯讀端點）不是。兩份清單隨 seed manifest 由基礎設施擁有者簽署。
+    GET／HEAD 預設不是讀取：AI 生成的應用最不遵守 HTTP 語意（GET /api/x/delete?id=、GET /logout），所以只有
+    read_is_proven 的 GET／HEAD 才算讀取，其餘視為寫入（要綁種子、至少 S1；綁不了種子就是 S3）。OPTIONS 仍是讀取。"""
     if r.graphql_operation == "mutation":
         return True
     if r.graphql_operation in READ_ONLY_GRAPHQL and graphql_declared(r, roe):
@@ -554,7 +566,9 @@ def is_mutation(r, roe, manifest) -> bool:
         return True
     if r.method == "POST" and endpoint_in(manifest, "read_only_endpoints", r):
         return False
-    return r.method not in SAFE_METHODS   # fail-closed：不認得的方法當寫入
+    if r.method not in SAFE_METHODS:      # fail-closed：不認得的方法當寫入
+        return True
+    return r.method in {"GET", "HEAD"} and not read_is_proven(r, manifest, proven_reads)
 
 
 def object_ref_problems(r, manifest, creates) -> list[str]:

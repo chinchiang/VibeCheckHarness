@@ -45,7 +45,7 @@
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:50b805b9bf6a06811d823e12f5ef6547303546287bbc162335f16cb16ff90ed9"
+      "sha256": "sha256:c13dd8aebddf894322f6b6d971932ea467c568c89f1fecad4d66e1b90f8f49b3"
     }
   },
   "prompt_templates": [
@@ -63,7 +63,7 @@
     }
   ],
   "rule_version": "05-v0.16",
-  "roe_ref": "sha256:8cbdc9389af8ec2ea7b82330d7d643d12bc2b6bb576b94eb556a15f0c9a3d4e4",
+  "roe_ref": "sha256:d2394a0ed1ba897b9f869a0da1dc190d0243e929fd906be337b093d77d92cc39",
   "repo_commit": "7d3e1a0c4b2e9f6d1a8c3b5e7f9a2d4c6e8b0f1a",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
@@ -141,7 +141,7 @@
       "gate_record_id": "GR-G0b-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:8cbdc9389af8ec2ea7b82330d7d643d12bc2b6bb576b94eb556a15f0c9a3d4e4",
+      "subject_hash": "sha256:d2394a0ed1ba897b9f869a0da1dc190d0243e929fd906be337b093d77d92cc39",
       "job_id": null,
       "opened_at": "2026-10-07T10:01:00+08:00",
       "decided_at": "2026-10-07T10:02:00+08:00"
@@ -214,19 +214,19 @@
     },
     {
       "seq": 14,
-      "line_sha256": "sha256:131bede82118ce0689743fca5e23ebeb0b13cb7818474e9a33a71ea98c083ea1"
+      "line_sha256": "sha256:ed7f9e98b8101bc34fe8adb5ac313bdda257474f9206f6259f4c6de848fd3cbd"
     },
     {
       "seq": 19,
-      "line_sha256": "sha256:8e878607db39d075b49a054e1ff115dd451e254b1dedd0e838ffb2d1ecec0ab8"
+      "line_sha256": "sha256:38acd0d047b9f13e6c5aff58e68e73a4b0bd26b5dfca7167c0ea714144237c9d"
     },
     {
       "seq": 22,
-      "line_sha256": "sha256:aa727de15635ad28e3ff507dcd5c1722ab290a6fc861338c68eef83e03731ae9"
+      "line_sha256": "sha256:aab46198ca1be0f4c6e4272a6480691e4e8985e0c7ce2aa5b32036a4dc783c84"
     },
     {
       "seq": 25,
-      "line_sha256": "sha256:a9faea177987ad22e26036c2af3c7dd38893b748f67a7cf43dcb25fb68f42fdc"
+      "line_sha256": "sha256:feae535c77f5e28a443d012ee55e567db87e360bf6f872ecbe4a46992c03a65e"
     }
   ],
   "errors": [],

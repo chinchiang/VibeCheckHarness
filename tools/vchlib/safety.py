@@ -274,11 +274,34 @@ def _endpoint_in(manifest, key: str, r: dict) -> dict | None:
     return None
 
 
-def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None) -> bool:
+READ_PROOF_METHODS = frozenset({"GET", "HEAD"})
+
+
+def path_shape(path) -> str | None:
+    """A path template with every {variable} segment reduced to {} (placeholder names do not matter)."""
+    return re.sub(r"\{[^/}]*\}", "{}", path) if isinstance(path, str) else None
+
+
+def read_is_proven(r: dict, manifest=None, proven_reads=None) -> bool:
+    """D5 (2026-11-22 review, user decision): a GET / HEAD request is known not to change state. Either the signed seed
+    manifest declares it in read_only_endpoints (same target, method and path shape), or the W0 inventory has the endpoint
+    with writes false: `proven_reads` is the set of (method, path shape) of those endpoints (checks.proven_reads); a HEAD
+    is also proven by its GET. No inventory knowledge (None) proves nothing."""
+    if _endpoint_in(manifest, "read_only_endpoints", r) is not None:
+        return True
+    shape, proven = path_shape(r.get("path")), proven_reads or ()
+    return (r.get("method"), shape) in proven or (r.get("method") == "HEAD" and ("GET", shape) in proven)
+
+
+def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None, proven_reads=None) -> bool:
     """POST / PUT / PATCH / DELETE and GraphQL mutations. A GraphQL query / introspection is a read only on
     a ROE-declared GraphQL path (v0.4); elsewhere the label is ignored and the HTTP method decides.
     v0.4: a GET / HEAD in the manifest's state_changing_reads is a mutation; a POST in read_only_endpoints
-    is not."""
+    is not.
+    D5 (2026-11-22 review, user decision): a GET / HEAD is a read only when that is proven (read_is_proven). AI-generated
+    applications are the ones that least respect HTTP semantics (GET /api/x/delete?id=, GET /logout); until then a GET
+    was a read unless somebody had declared it a state-changing read, so the safety class depended on how complete that
+    declaration was. An unproven GET is a write: it needs a seed binding and is at least S1. OPTIONS stays a read."""
     op = r.get("graphql_operation")
     if op == "mutation":
         return True
@@ -288,7 +311,9 @@ def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None) 
         return True
     if r.get("method") == "POST" and _endpoint_in(manifest, "read_only_endpoints", r) is not None:
         return False
-    return r.get("method") not in SAFE_METHODS
+    if r.get("method") not in SAFE_METHODS:
+        return True
+    return r.get("method") in READ_PROOF_METHODS and not read_is_proven(r, manifest, proven_reads)
 
 
 SEED_REF_RE = re.compile(r"^\{seed:([a-z0-9_]+)\}$")
@@ -478,7 +503,7 @@ def json_equal(a, b) -> bool:
 
 
 def allowlist_match(target_id: str, method: str, path: str, allowlist: list, resolve: dict[str, str],
-                    gql: dict[str, set[str]] | None = None, manifest=None) -> dict | None:
+                    gql: dict[str, set[str]] | None = None, manifest=None, proven_reads=None) -> dict | None:
     """v0.5 (review 2026-10-25 §4.3) reference rule for the Scope Proxy (docs/08 §11.7): the allow-list entry a concrete
     request matches, or None (blocked).
 
@@ -496,7 +521,7 @@ def allowlist_match(target_id: str, method: str, path: str, allowlist: list, res
         tsegs = segments(r.get("path", ""))
         if len(tsegs) != len(segs):
             continue
-        write = is_mutation(r, gql, manifest)
+        write = is_mutation(r, gql, manifest, proven_reads)
         ok = True
         for t, s in zip(tsegs, segs):
             if SEED_SEG_RE.match(t) or CREATED_SEG_RE.match(t):
@@ -571,7 +596,7 @@ def created_path_allowed(path: str, step: str, source: dict, endpoint: dict) -> 
                for t in endpoint["created_resource"]["path_templates"])
 
 
-def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list[str]:
+def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None, proven_reads=None) -> list[str]:
     """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope).
     `roe` supplies the declared GraphQL paths (v0.4); without it no request is a GraphQL read."""
     out = []
@@ -626,7 +651,7 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
                        f"for {r.get('target_id')} (targets[].graphql_paths), or not over GET/POST")
         elif r.get("graphql_operation") == "mutation" and r.get("method") != "POST":
             out.append(f"{where}: a GraphQL mutation is sent only over POST (v0.5)")
-        if is_mutation(r, gql, manifest):
+        if is_mutation(r, gql, manifest, proven_reads):
             var = [s for s in segments(path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
             create = _create_endpoint(manifest, r)
@@ -844,7 +869,7 @@ def registry_entry(tools: dict, adapter: str) -> dict | None:
     return None if spec is None else {"tool": tool, "mode": mode, **spec}
 
 
-def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None) -> tuple[str, list[str]]:
+def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None, proven_reads=None) -> tuple[str, list[str]]:
     """Return (class, trace). `manifest` = the seed manifest named by tc.seed_manifest_ref (dict), or None."""
     tb = tc["tool_binding"]
     acts = roe["activities"]
@@ -908,7 +933,7 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
         if r.get("graphql_operation") is not None and not r.get("graphql_document_sha256"):
             return "S3", [f"{r['method']} {r['path']}: a GraphQL request pins its document (graphql_document_sha256)"]
     # every mutation is seed-bound or a create in the run namespace; seeds only on their own resources
-    scope = mutation_scope_problems(tc, manifest, roe)
+    scope = mutation_scope_problems(tc, manifest, roe, proven_reads)
     if scope:
         return "S3", [f"{MUTATION_SCOPE}: {p}" for p in scope]
 
@@ -926,9 +951,10 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
     if any(r["method"] in STATE_CHANGING for r in reqs):
         level = hi(level, "S1")
         trace.append("state-changing method -> >=S1")
-    elif any(is_mutation(r, gql, manifest) for r in reqs):
+    elif any(is_mutation(r, gql, manifest, proven_reads) for r in reqs):
         level = hi(level, "S1")
-        trace.append("mutation on a read method -> >=S1")
+        trace.append("mutation on a read method (a GraphQL mutation, a declared state-changing read, or a GET / HEAD not "
+                     "proven read-only) -> >=S1")
     if any(_endpoint_in(manifest, "state_changing_reads", r) is not None for r in reqs):
         level = hi(level, "S1")
         trace.append("state-changing GET/HEAD (seed manifest state_changing_reads) -> >=S1")
@@ -939,7 +965,7 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
             trace.append(f"{r['method']} {r['path']}: create-only endpoint with uncontained {ce.get('side_effects')} side effects -> >=S2")
             break
     for r in reqs:
-        effects = seed_side_effects(manifest, roe, r) if is_mutation(r, gql, manifest) else None
+        effects = seed_side_effects(manifest, roe, r) if is_mutation(r, gql, manifest, proven_reads) else None
         if effects is not None:
             level = hi(level, "S2")
             trace.append(f"{r['method']} {r['path']}: writes a seed with uncontained {effects} side effects -> >=S2")

@@ -96,7 +96,9 @@ def test_request_without_a_method_is_a_write():
 
 @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS"])
 def test_safe_methods_are_still_reads(method):
-    assert safety.is_mutation({"method": method, "path": "/x", "target_id": "t"}) is False
+    # D5 (later change): a GET / HEAD is a read when that is proven; OPTIONS needs no proof
+    proven = {("GET", "/x")}
+    assert safety.is_mutation({"method": method, "path": "/x", "target_id": "t"}, proven_reads=proven) is False
 
 
 def test_the_declared_exceptions_of_is_mutation_still_hold():

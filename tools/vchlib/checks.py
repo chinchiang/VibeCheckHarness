@@ -1178,9 +1178,15 @@ def legal(R: Report, c: Ctx):
                 f"enabled tools {gated} are 法務閘門 in licenses.yaml: legal_review.scope.component_licenses must be true")
 
 
-def path_shape(path) -> str | None:
-    """A path template with every {variable} segment reduced to {} (placeholder names do not matter)."""
-    return re.sub(r"\{[^/}]*\}", "{}", path) if isinstance(path, str) else None
+path_shape = safety.path_shape      # a path template with every {variable} segment reduced to {}
+
+
+def proven_reads(c: Ctx) -> set:
+    """D5 (2026-11-22 review, user decision): the (method, path shape) of every W0 inventory GET / HEAD endpoint whose
+    `writes` is false. safety.read_is_proven accepts these; an endpoint the inventory does not know, or one whose writes is
+    true or null (the extractor could not tell), proves nothing and its GET is a write."""
+    return {(ep.get("method"), path_shape(ep.get("path"))) for d in c.docs("inventory") for ep in d.data.get("endpoints") or []
+            if isinstance(ep, dict) and ep.get("method") in safety.READ_PROOF_METHODS and ep.get("writes") is False}
 
 
 def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
@@ -2403,6 +2409,7 @@ def g_testcases(R: Report, c: Ctx):
     roe_roles = {x.get("role") for x in r.get("test_roles", [])}
     oracle_tables = set((r.get("db_access") or {}).get("oracle_tables", []))
     rl = r.get("rate_limits") or {}
+    proven = proven_reads(c)
     for d in c.docs("testcase"):
         with doc_guard(R, d.path):
             tc, w = d.data, d.path
@@ -2414,7 +2421,7 @@ def g_testcases(R: Report, c: Ctx):
             R.check(ref is not None and ref == (r.get("db_access") or {}).get("seed_manifest_ref"), "E-TC-SEEDS", w,
                     f"seed_manifest_ref {ref!r} must be the ROE's seed manifest (db_access.seed_manifest_ref); it is required")
             try:
-                level, trace = safety.compute_safety_class(tc, r, c.tools, mk)
+                level, trace = safety.compute_safety_class(tc, r, c.tools, mk, proven)
             except (KeyError, TypeError) as exc:
                 R.error("E-TC-SAFETY", w, f"cannot compute safety class: missing {exc}")
                 continue
@@ -2423,7 +2430,7 @@ def g_testcases(R: Report, c: Ctx):
             prop = tc.get("safety_class_proposed") or "S0"
             R.check(safety.ORDER.index(level) >= safety.ORDER.index(prop), "E-TC-SAFETY", w, "computed class below the LLM proposal")
             R.check(safety.admissible(level, r), "E-TC-ADMISSIBLE", w, f"class {level} cannot enter G4 ({'; '.join(trace)})")
-            scope = safety.mutation_scope_problems(tc, mk, r)
+            scope = safety.mutation_scope_problems(tc, mk, r, proven)
             R.check(not scope, "E-TC-MUTATION-SCOPE", w, "every mutation must be seed-bound or a create in the run namespace (B6): "
                     + "; ".join(scope))
             dn = tc.get("data_needed") or {}

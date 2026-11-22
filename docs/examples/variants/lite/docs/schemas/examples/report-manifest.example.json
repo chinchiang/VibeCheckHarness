@@ -112,7 +112,7 @@
     {
       "kind": "gate_record",
       "ref": "GR-G0b-0001",
-      "sha256": "sha256:9eff0a2893a6fc1bfc777001657b7eaa69b376d57ed8d9eae17f390ea9a724d3"
+      "sha256": "sha256:c8c42457aaf06cccc82b3eed5bd8cd78ea1092806bb1fe2121d00123749f368b"
     },
     {
       "kind": "gate_record",
@@ -127,7 +127,7 @@
     {
       "kind": "audit_log",
       "ref": "docs/schemas/examples/audit-event.run-2026-09-23-001.example.jsonl",
-      "sha256": "sha256:0a65cf85cee89b700ce2a806f1ca0f285d406c6fbdecb900a397ad67917e1b40"
+      "sha256": "sha256:b082bd5cc9fc94762bccff0dd5d392c27cce238de429a010e5b7862f526f1994"
     },
     {
       "kind": "followup_draft",

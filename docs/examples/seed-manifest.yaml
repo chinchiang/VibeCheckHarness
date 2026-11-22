@@ -48,7 +48,10 @@ create_only_endpoints:           # 在 run 命名空間中建立新物件；後�
       path_templates: ["/api/chat/sessions/{session}/messages/{created_id}"]
 
 state_changing_reads: []         # v0.4：會改變狀態的 GET／HEAD（W0 inventory writes 為 true 的 GET 都要列在這裡）
-read_only_endpoints: []          # v0.4：以 POST 送出但不改狀態的端點（例如 RPC 查詢函式）
+read_only_endpoints:             # 不改狀態的端點：以 POST 送出的查詢（例如 RPC 查詢函式），以及 W0 inventory 沒有證明唯讀的 GET／HEAD
+  # GET／HEAD 只有在這裡宣告、或 W0 inventory 的 writes 為 false 時才算讀取（docs/04 §5）；/api/invoices 兩個 GET 由 inventory 證明，不必列
+  - {target_id: tgt-staging-app, method: GET, path_template: "/api/chat/sessions/{session}/messages"}   # 取回對話訊息；W0 inventory 沒有這個端點
+  - {target_id: tgt-canary, method: GET, path_template: "/log/{job}"}                                    # 我方控制的 canary 紀錄（tester_controlled）
 
 seeds:
   tenant_a_invoice:

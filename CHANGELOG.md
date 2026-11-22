@@ -4,6 +4,23 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.16`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）。
 
+## 無法證明唯讀的 GET／HEAD 視為寫入（使用者決定 D5）
+
+CONTRIBUTING 第 3 類。安全等級規則的變更，`rule_version` 不變，沒有新增錯誤碼。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。
+
+- **原本**：GET／HEAD 預設是讀取（S0、不必綁種子、不必 G5），只有列在 seed manifest `state_changing_reads` 的才是寫入。AI 生成的應用最不遵守 HTTP 語意（`GET /api/x/delete?id=`、`GET /logout`），所以安全等級取決於這份宣告完不完整。
+- **現在**：GET／HEAD 只有在「W0 inventory 有這個端點而且 `writes` 為 false」（`checks.proven_reads`）或「seed manifest 的 `read_only_endpoints` 宣告了它」時才是讀取（`safety.read_is_proven`）；其餘視為寫入——要綁種子、至少 S1，綁不了種子就是 S3。HEAD 可由同一路徑的 GET 證明；OPTIONS 仍是讀取；宣告為 `state_changing_reads` 的仍是寫入。
+- `safety.is_mutation`、`mutation_scope_problems`、`compute_safety_class`、`allowlist_match` 多一個 `proven_reads` 參數；沒有傳就是「沒有任何證明」。`path_shape` 移到 `safety`，`checks.path_shape` 指向同一個函式。
+- `seed-manifest.schema.json`：`read_only_endpoints[].method` 開放 GET／HEAD。W0 判定會寫入的端點列在這裡仍是 `E-SEED-SIDE-EFFECT`。
+- 範例 `seed-manifest.yaml` 宣告兩個 inventory 不認得的 GET（對話訊息的取回、我方的 canary 紀錄）；ROE 的 `seed_manifest_sha256` 更新，重簽範例、重建變體。**範例測試案例的安全等級都沒變。**
+- 文件：04 §5 的程式清單；06 §3 新增 #48（共 48 條）：這條規則仍依賴抽取器與宣告的正確性，而且 LLM／agent 測試在伺服器端的副作用請求層看不到。
+- 新增 `tests/test_get_read_proof.py`（17 個測試；在 `cdcc9c5` 的程式上 15 個失敗，通過的 2 個是「OPTIONS 不需要證明」與「W0 說會寫入的宣告被拒絕」，原本就成立）與突變清單 `tests/mutations/get_read_proof.json`（`CAUGHT 16/16`）。
+- 受新語意影響而更新的既有測試（沒有放寬斷言）：
+  - 以範例計算安全等級或寫入範圍的 3 個測試輔助函式改為傳入 inventory 的證明（`conftest.proven_reads`），與 validator 的呼叫方式相同。
+  - `test_v04_write_scope.py`：未宣告、未證明的 GET 原本斷言是 S0，現在是 S3。
+  - `test_v05_round6_lowprio.py`、`test_safety_hardening.py`：GET 的讀取案例改為帶證明。
+  - 限制條數 47 → 48；`safety_hardening.json`、`doc_consistency.json`、`r14_docs.json` 各一個錨點。
+
 ## 投票分支標為未啟用、Lite 的確認標示、校準主要假設改為端到端對照（使用者決定 D1／D7／D9）
 
 CONTRIBUTING 第 3 類。`rule_version` 不變（沒有改裁決規則），沒有新增錯誤碼。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。

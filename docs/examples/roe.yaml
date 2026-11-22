@@ -166,7 +166,7 @@ db_access:                       # docs/03 §7.6；由 infrastructure_owner（da
   oracle_readonly_attested: true
   oracle_tables: [invoices, agent_tool_calls, orders]
   seed_manifest_ref: "docs/examples/seed-manifest.yaml"
-  seed_manifest_sha256: "sha256:50b805b9bf6a06811d823e12f5ef6547303546287bbc162335f16cb16ff90ed9"   # v0.4：seed manifest 內容 hash，由 dave（基礎設施擁有者）隨 ROE 簽署（E-ROE-SEED-MANIFEST）
+  seed_manifest_sha256: "sha256:c13dd8aebddf894322f6b6d971932ea467c568c89f1fecad4d66e1b90f8f49b3"   # v0.4：seed manifest 內容 hash，由 dave（基礎設施擁有者）隨 ROE 簽署（E-ROE-SEED-MANIFEST）
 
 legal_review:                    # docs/06 §2.1.1；grace 必須也簽這份 ROE（L-3），且不能是 test_lead（L-5）
   attested_by: grace
@@ -197,16 +197,16 @@ signatures:                      # 每位 signatory 與 legal_review.attested_by
   - signer: alice
     key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    value: "eI8ETm5afPyzlh7vhlUEeoFUe8BCFOd/dAv+B869i/bVVgpB5VFSDFR3ezVhQgfbP9R7XqpxzRoQhqOOGSFyCQ=="
+    value: "aC3kKHBZmxQ+3MxQ1fzMoILy8kd4pY2q+CAKfwTvYLGyGLv3rVFGKk3KqW7ThPti+5Pl00Ri7W3KL3rSROyFAg=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "VMCBhALYsOIIkoM9sCB6uMaISp475Sp8LRcubwhi384UpjGvl0J/CcW+1wf2kSizNL8mdBzq/SjGg9vXYP1EBQ=="
+    value: "U0AF14FMfiXQQu3nkVf21hiASvNQYFUHKARiaB/40SRGxWZdALs4pkGF5Mt2eVQM4VmczN0OYhCvvR/UOyd2Dg=="
   - signer: dave
     key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    value: "qAJpQ+gKrWhf4bhu8TXqWs7n8ZZumRTVXCboLkJLCjBJyGDSpibQX357rju1KSUgSehrBMRiwttRKgE8hJ+sDw=="
+    value: "xu2R66DARNz+yDS4m3d7k1tqfLveWUSfGqZS5APjjTLNf1ooWHdycWztrF88Vq+TOCIc7X5IzfYeSrVGveUHDg=="
   - signer: grace
     key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
     alg: ed25519
-    value: "YOFM6TtnjQKYlUBKVImbKTet+QYawFYyeZyIVZsBbYddPTPXSzzj8s72I75XwSkx4NR09E7MDuwYLlWmICuICw=="
+    value: "mU19I99870AL4XaEVhs0tZiturhYf9dxNnRcpGh3pXDNBnnlM+AImJ9vqYApoCG9lNIqFGKwJRrgByh+JPpgCA=="

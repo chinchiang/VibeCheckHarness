@@ -118,7 +118,9 @@ RES = {"{seed:b}": "inv-b-1"}
     ("GET", "/api/invoices/x", True), ("GET", "/api/invoices/%2e%2e", False), ("GET", "/api/invoices/../users", False),
     ("GET", "/api/invoices/", False), ("PUT", "/api/invoices/inv-b-1", False), ("DELETE", "/api/invoices/inv-b-1/x", False)])
 def test_allowlist_match(method, path, ok):
-    assert (safety.allowlist_match("t", method, path, AL, RES) is not None) is ok
+    # D5: the plain {id} placeholder of the GET entry matches only a read, and a GET is a read only when proven
+    proven = {("GET", "/api/invoices/{}")}
+    assert (safety.allowlist_match("t", method, path, AL, RES, proven_reads=proven) is not None) is ok
 
 
 def _resume(b, keys, who, from_status):

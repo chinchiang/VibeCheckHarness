@@ -14,7 +14,7 @@
     {"name": "04 example B: PASS threshold 30", "file": "docs/04-threat-to-testcase.md", "old": "k＝0 且 n′ ≥ 60（T-031 有 attack tree，屬高風險威脅，§4.4）→ 解讀屬事先登記", "new": "k＝0 且 n′ ≥ 30 → 解讀屬事先登記", "k": "docs04"},
     {"name": "04 example B: E_inc below 30", "file": "docs/04-threat-to-testcase.md", "old": "n' < 60（本例是高風險威脅；一般威脅為 30，§4.4）時結果為 `E_inc` [H]。", "new": "n' < 30 時結果為 `E_inc` [H]。", "k": "docs04"},
     {"name": "05 near_zero: three reasons", "file": "docs/05-bias-calibration.md", "old": "、`n_below_min`、`abstain_rate_gt_max`）", "new": "、`n_below_min`）", "k": "near_zero"},
-    {"name": "06 table: #44 unlisted", "file": "docs/06-security-legal-limitations.md", "old": "#33、#34、#38、#43、#44、#47 |", "new": "#33、#34、#38、#43、#47 |", "k": "docs06"},
+    {"name": "06 table: #44 unlisted", "file": "docs/06-security-legal-limitations.md", "old": "#33、#34、#38、#43、#44、#47、#48 |", "new": "#33、#34、#38、#43、#47、#48 |", "k": "docs06"},
     {"name": "06 table: #45 unlisted", "file": "docs/06-security-legal-limitations.md", "old": "| #5、#10、#15、#16、#19、#45、#46 |", "new": "| #5、#10、#15、#16、#19、#46 |", "k": "docs06"},
     {"name": "06 table: #46 unlisted", "file": "docs/06-security-legal-limitations.md", "old": "#19、#45、#46 |", "new": "#19、#45 |", "k": "docs06"},
     {"name": "02 FIXED replay via R0", "file": "docs/02-methodology.md", "old": "重播命中 → 依 R1 為 `CONFIRMED_EXECUTABLE`；", "new": "重播命中 → 依 R0 為 `CONFIRMED_EXECUTABLE`；", "k": "r1_yields"},
