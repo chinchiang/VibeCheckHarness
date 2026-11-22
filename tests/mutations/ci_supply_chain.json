@@ -1,0 +1,138 @@
+{
+ "tests": "tests/test_ci_supply_chain.py",
+ "mutations": [
+  {
+   "name": "a pin without a hash is fine",
+   "file": "tools/lock_hashes.py",
+   "old": "    out = [f\"{e['name']}=={e['version']}: no --hash line\" for e in pins if not e[\"hashes\"]]",
+   "new": "    out = []",
+   "k": "without_a_hash_is_reported"
+  },
+  {
+   "name": "an empty file is fine",
+   "file": "tools/lock_hashes.py",
+   "old": "    return out if pins else [\"no pinned requirement\"]",
+   "new": "    return out",
+   "k": "without_a_hash_is_reported"
+  },
+  {
+   "name": "a stray hash line is accepted",
+   "file": "tools/lock_hashes.py",
+   "old": "        elif (m := HASH_RE.match(line)) and out and \"hashes\" in out[-1]:",
+   "new": "        elif (m := HASH_RE.match(line)) and out:\n            out[-1].setdefault(\"hashes\", [])\n            out[-1][\"hashes\"].append(m.group(\"digest\"))\n        elif HASH_RE.match(line):\n            pass\n        elif False:",
+   "k": "without_a_hash_is_reported"
+  },
+  {
+   "name": "hashes are not sorted",
+   "file": "tools/lock_hashes.py",
+   "old": "        hashes = sorted(set(e[\"hashes\"]))",
+   "new": "        hashes = list(dict.fromkeys(e[\"hashes\"]))",
+   "k": "keeps_comments_and_sorts"
+  },
+  {
+   "name": "the lock loses a hash",
+   "file": "requirements.lock",
+   "old": "rfc8785==0.1.4 \\\n",
+   "new": "rfc8785==0.1.4\n",
+   "k": "carries_a_hash"
+  },
+  {
+   "name": "validate installs without hashes",
+   "file": ".github/workflows/validate.yml",
+   "old": "      - run: python -m pip install --require-hashes -r requirements.lock\n      - name: Development tools",
+   "new": "      - run: python -m pip install -r requirements.lock\n      - name: Development tools",
+   "k": "with_require_hashes"
+  },
+  {
+   "name": "the hash check step is gone",
+   "file": ".github/workflows/validate.yml",
+   "old": "      - name: Every pinned requirement carries a hash\n        run: python tools/lock_hashes.py --check requirements.lock requirements-dev.txt\n",
+   "new": "",
+   "k": "with_require_hashes"
+  },
+  {
+   "name": "the weekly run installs without hashes",
+   "file": ".github/workflows/mutations.yml",
+   "old": "      - run: python -m pip install --require-hashes -r requirements.lock",
+   "new": "      - run: python -m pip install -r requirements.lock",
+   "k": "with_require_hashes"
+  },
+  {
+   "name": "a changed list is not selected",
+   "file": "tools/changed_mutation_lists.py",
+   "old": "if p in changed or tests is None or tests in changed)",
+   "new": "if tests is None or tests in changed)",
+   "k": "selected_by_its_own_change or names_its_tests"
+  },
+  {
+   "name": "a changed test file selects nothing",
+   "file": "tools/changed_mutation_lists.py",
+   "old": "if p in changed or tests is None or tests in changed)",
+   "new": "if p in changed or tests is None)",
+   "k": "selected_by_its_own_change or names_its_tests"
+  },
+  {
+   "name": "an unreadable list is skipped",
+   "file": "tools/changed_mutation_lists.py",
+   "old": "if p in changed or tests is None or tests in changed)",
+   "new": "if p in changed or (tests is not None and tests in changed))",
+   "k": "selected_by_its_own_change"
+  },
+  {
+   "name": "every list is always selected",
+   "file": "tools/changed_mutation_lists.py",
+   "old": "if p in changed or tests is None or tests in changed)",
+   "new": "if True)",
+   "k": "selected_by_its_own_change or names_its_tests"
+  },
+  {
+   "name": "the PR job only checks anchors",
+   "file": ".github/workflows/validate.yml",
+   "old": "          xargs -r -P 4 -n 1 python tools/mutation_check.py < lists.txt",
+   "new": "          xargs -r -P 4 python tools/mutation_check.py --anchors-only < lists.txt",
+   "k": "pull_request_job"
+  },
+  {
+   "name": "the PR job runs on every push",
+   "file": ".github/workflows/validate.yml",
+   "old": "    if: github.event_name == 'pull_request'\n",
+   "new": "",
+   "k": "pull_request_job"
+  },
+  {
+   "name": "a shallow clone",
+   "file": ".github/workflows/validate.yml",
+   "old": "          persist-credentials: false\n          fetch-depth: 0\n",
+   "new": "          persist-credentials: false\n",
+   "k": "pull_request_job"
+  },
+  {
+   "name": "the branch name is interpolated into the shell",
+   "file": ".github/workflows/validate.yml",
+   "old": "python tools/changed_mutation_lists.py \"origin/$BASE_REF\"",
+   "new": "python tools/changed_mutation_lists.py \"origin/${{ github.base_ref }}\"",
+   "k": "pull_request_job"
+  },
+  {
+   "name": "the weekly run lists only changes",
+   "file": ".github/workflows/mutations.yml",
+   "old": "python tools/changed_mutation_lists.py --all",
+   "new": "python tools/changed_mutation_lists.py origin/main",
+   "k": "weekly_workflow"
+  },
+  {
+   "name": "the weekly run has no schedule",
+   "file": ".github/workflows/mutations.yml",
+   "old": "  schedule:\n    - cron: \"17 3 * * 1\"\n",
+   "new": "",
+   "k": "weekly_workflow"
+  },
+  {
+   "name": "BL-57 still open",
+   "file": "docs/09-backlog.md",
+   "old": "| MVP-0 | 已完成（驗證器這個 repo）。",
+   "new": "| MVP-0 | 版本已釘；hash 未產生。",
+   "k": "documents_say_so"
+  }
+ ]
+}

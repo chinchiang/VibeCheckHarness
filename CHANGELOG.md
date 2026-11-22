@@ -4,6 +4,16 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## 鎖檔 hash 與 CI 執行突變清單（2026-11-22 內部審查 E9、E10；09 BL-57）
+
+不是規格變更（CI 與開發工具）。
+
+- **E9**：`requirements.lock` 與 `requirements-dev.txt` 原本只釘版本。新增 `tools/lock_hashes.py`：向索引的 JSON API 取每個釘選版本所有檔案（各平台 wheel 與 sdist）的 sha256 寫入 `--hash` 行；`--check` 離線確認每個釘選都有 hash。CI 的每個 `pip install -r` 都加 `--require-hashes`。本機以 `pip install --require-hashes --dry-run` 驗證兩份檔案都能解析安裝。digest 取自產生當下的索引：能防「同版本被換檔」，不能證明檔案無害。
+- **E10**：CI 原本只做 `--anchors-only`，從不執行突變。新增 `tools/changed_mutation_lists.py` 與 `validate.yml` 的 `mutations` job：pull request 執行它新增或改動的清單，以及測試檔有改動的清單（4 個分片平行）。新增 `.github/workflows/mutations.yml`：每週一與手動觸發時執行全部清單。分支名稱經環境變數傳入 shell，不直接內插。
+- 新增 `tests/test_ci_supply_chain.py`（10 個測試；在 `9d3868c` 上 4 個失敗、6 個因工具不存在而錯誤）與突變清單 `tests/mutations/ci_supply_chain.json`（`CAUGHT 19/19`）。
+- 既有測試：`test_v07_r8_process.py::test_the_lock_pins_every_direct_dependency` 解析鎖檔時去掉行尾的續行符號（斷言不變）。
+- **尚未驗證**：新的 `mutations` job 與每週 workflow 沒有在 GitHub 上跑過；本 PR 會是第一次（31 份清單，4 個分片）。
+
 ## 保留切分只用一次、三條新限制與其他文件修正（2026-11-22 內部審查 B8、B9、C7、C8、C9、D2）
 
 CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼。06 §3 的限制由 48 條變為 51 條。
