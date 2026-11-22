@@ -4,6 +4,21 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.15`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）。
 
+## 文件一致性修正（2026-11-22 內部審查）
+
+CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實與它的唯一來源（程式、`tools.yaml`、schema、範例）不一致。只改文件文字與一段 docstring，錯誤碼、schema、範例與 `rule_version`（維持 `05-v0.15`）都不變。
+- **規則版本**：02 W3 與 08 §2.3、§4、§11 的「目前」版本仍寫 `05-v0.14`，改為 `05-v0.15`（`adjudicate.RULE_VERSION`）。
+- **抽取器登錄**：08 有三處說 `tools.yaml` 只登錄 `fastapi`、`express`、`sql_rls`，支援矩陣也把 `nextjs`、`baas_client` 列為規劃中；兩者在第十四輪已登錄，改為五個模式。
+- **W0 PII 偵測器的里程碑**：08 §11.17 仍寫 M2，與 08 §1 的 M1 不符，改為 M1。
+- **04 範例 B（機率型 LLM 測試）**：重播 k_r＝0 寫成 `E_inc`，與 §4.4 及 `derive.fail_reproduced`（不降級）不符；T-031 有 attack tree，PASS 門檻應為 n′ ≥ 60（`derive.pass_min_effective`），範例寫 30。
+- **02**：`FIXED` 種子被黑箱重播推翻時是 R1 而非 R0；Result Analyst 確認程式產生 oracle 的例子（「某個對照沒有 PASS」）實際上是 `INVALID`，改為需求未全部經 G1 核准或沒有宣告 `oracle_can_fail`；合格分析者不同意時，不論是否事先登記都是 `E_inc`（與 05 §4.2 及 `derive.classify_result` 一致）。
+- **05**：「G2 的 accept 不是規則輸入」補上 W4 事先登記這個例外；邊界情況表的 W4 事先登記條件改為 `05-v0.15` 的規則；`near_zero_reasons` 補列 `abstain_rate_gt_max`；κ 批量改引 `annotation.batch_size_apps`（範例 5）；M-11 刪除「權重公式本輪不改」（§4.3 已分邊加權）；樣本數計算的引用由 §5.5 改為 §5.6。
+- **03**：B1 爬行設定不再說 `toolkit.yaml` 沒有區塊（BL-16 已加 `b1_crawl`）。
+- **06 §3**：分類表補上 #44（A 類）與 #45（D 類），表格涵蓋全部 45 條。
+- `derive.classify_result` 的 docstring 改為現行規則（W4 事先登記、PASS 的 30／60 門檻）。
+- 新增 `tests/test_doc_consistency.py`，6 個測試從唯一來源讀值、核對重述；修正前 6 個都失敗，修正後都通過。
+- **未處理（需決定）**：`calibration.yaml` 的 authz 桶 `theta_confirm` 為 2.5、`feasible: true`，但以家族為單位時該桶 S 的上限只有 2.1607（nemotron 1.1055＋claude 1.0552），05 §5.7 的格點上限 S_max 沒有對應檢查。修正要改簽署過的範例與 validator，留待決定。
+
 ## 架構重構（非規格變更）
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。

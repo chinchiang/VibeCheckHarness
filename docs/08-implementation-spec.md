@@ -359,7 +359,7 @@ class AdjudicationInputs(BaseModel):   # 欄位與 tools/vchlib/adjudicate.py �
 # status_cap, advisory, annotations, sources)，與 vchlib 相同。裁決的 provisional 推導為：calibration_version
 # 為 null、theta_confirm 為 null，或叢集的每個合格驗證者模型（E 的模型，由登錄推得，不看出席的票）在該桶的
 # 權重都是 0（E-VERDICT-PROVISIONAL，§11.11）。裁決與 run 的 rule_version 都必須等於 vchlib 的
-# RULE_VERSION（目前 "05-v0.14"；E-VERDICT-RULE-VERSION、E-RUN-RULE-VERSION）
+# RULE_VERSION（目前 "05-v0.15"；E-VERDICT-RULE-VERSION、E-RUN-RULE-VERSION）
 
 class Aggregator(Protocol):
     def adjudicate(self, cluster: BaseModel, x: AdjudicationInputs,
@@ -426,7 +426,7 @@ class ToolAdapter(ABC):
 - `render()` 必須遵守：ROE 的速率下限，以及 [03 §7.3](03-system-architecture.md#73-限速與停止條件) 的工具設定規則（例如 ZAP 的 `maxScanDurationInMins` > 0）。
 
 **白箱 adapter 清單**（ID 取自 [docs/examples/tools.yaml](examples/tools.yaml)；兩者不同時以 `tools.yaml` 為準）[H]：
-- M1 W0：`betterleaks:scan`、`gitleaks:scan`、`syft:sbom`、`inventory:fastapi`、`inventory:express`、`inventory:sql_rls`；MVP-0 另需 `inventory:nextjs`、`inventory:baas_client`（§11.1 的支援矩陣）。這兩個是**規劃中的 adapter**，目前的 `tools.yaml` 還沒有登錄（`inventory` 只登錄了 `fastapi`、`express`、`sql_rls` 三個模式）；實作時先在 `tools.yaml` 登錄，才適用上面的註冊規則。
+- M1 W0：`betterleaks:scan`、`gitleaks:scan`、`syft:sbom`、`inventory:fastapi`、`inventory:express`、`inventory:sql_rls`；MVP-0 另需 `inventory:nextjs`、`inventory:baas_client`（§11.1 的支援矩陣）。這兩個已在 `tools.yaml` 登錄（第十四輪內部審查），`inventory` 目前共登錄 `fastapi`、`express`、`sql_rls`、`nextjs`、`baas_client` 五個模式；登錄只代表 ID 可用，抽取器本身尚未實作。
 - M2 W0（候選，同樣都還沒有登錄在 `tools.yaml`）：`inventory:llm_sdk`（MVP-0 需要）、`inventory:hono`、`inventory:flask`、`inventory:django`、`inventory:graphql`、`inventory:firebase_rules`、`inventory:prisma`
 - M1 W1：`opengrep:scan`、`bandit:scan`、`osv_scanner:scan`、`grype:scan`、`pkgcheck:exists`
 - **已登錄但受法務閘門控制**：`trufflehog:scan`（W0）、`semgrep:scan`、`codeql:analyze`（W1）。`licenses.yaml` 標為「法務閘門」且 [07 §3](07-roadmap.md#3-入口閘門法務與查證) 未確認之前，adapter 程式可以存在，但**啟動時不註冊**，engagement 或 ROE 也不能啟用；由 `tests/contract/test_adapters.py` 檢查。
@@ -629,7 +629,7 @@ class ToolAdapter(ABC):
 | 發現項（finding） | 證據的 `kind`（`code_snippet`、`inventory_fact`、`config_fact`）、`fact_ref`、`key_path`、`asserted`；`match` 新增 `MATCHED_SHIFTED`；`facet`（13 個面向） | 不是程式片段的證據；審查面向 | `E-FINDING-EVIDENCE`、`E-FINDING-MATCH`、`E-FINDING-STATUS`、`E-INVENTORY-REF`；所屬叢集的桶必須在 `FACET_BUCKETS[facet]` 中（`E-FINDING-FACET`） | §11.1、[05 §3](05-bias-calibration.md#3-設計規則) |
 | 切片（slice） | `redaction_map_sha256`、`prompt_template_sha256` | 新的 `slice_id` | `slice_id` 重算（`E-DERIVED`）；範本不是 run 的 `prompt_templates` 之一，或遮罩表不是 run 的 `redaction_map_ref` → `E-SLICE-IDENTITY` | §11.3 |
 | 叢集（cluster） | `origin`（`white_box`、`black_box`；v0.5 加 `tool_only` 與 `tool_report_refs`）、`threat_id`、`canonical_location.endpoint`、`fingerprint`、`baseline_state`、`reopened` | 黑箱起源的叢集；跨 run 的指紋 | `E-CLUSTER-ORIGIN`、`E-CLUSTER-FINGERPRINT`、`E-CLUSTER-BASELINE` | §11.16 |
-| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為目前的 `RULE_VERSION`（目前 `05-v0.14`；v0.5 起 `05-v0.5`） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
+| 裁決（verdict） | `tool_signal`、`independent_sources`、`provisional`、`no_eligible_verifier`、`votes[].cited_evidence`；`rule_version` 固定為目前的 `RULE_VERSION`（目前 `05-v0.15`；v0.5 起 `05-v0.5`） | 強弱工具訊號、校準前的標示 | `E-VERDICT-TOOLSIGNAL`、`E-VERDICT-SOURCES`、`E-VERDICT-PROVISIONAL`、`E-VERDICT-NOELIGIBLE`、`E-VERDICT-RULE-VERSION`；`cited_evidence` 由 schema 檢查 | §2.3、§11.2、§11.11 |
 | 測試案例（testcase） | `oracle.types[]`、`controls[]`、`script_turns`、`request_allowlist[].step_id`、`request_allowlist[].graphql_operation` | 對照組、多輪腳本、寫入範圍 | `E-TC-CONTROLS`、`E-TC-SCRIPT`、`E-TC-MUTATION-SCOPE`、`E-TC-REQ-UNAPPROVED` | §11.6、§11.15 |
 | 測試結果（testresult） | `controls[]`、`fail_oracles[]`、`outcome: INVALID`、`observed_build_id`、`request_log_sha256`、`interpretation` | 對照結果、build 識別、解讀 | `E-RESULT-CONTROLS`、`E-RESULT-INVALID`、`E-RESULT-ORACLE`、`E-RESULT-BUILD`、`E-RESULT-REQUEST-LOG`、`E-RESULT-ANALYST`、`E-RESULT-ANALYST-ROLE` | §11.7、[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) |
 | report-manifest | `metrics`（`results_total`、`results_invalid`、`control_pass_rate`）、`build_unverified_targets[]`、`absent_fingerprints[]` | 報告的確定性計數 | `E-REPORT-METRICS`、`E-RESULT-BUILD`、`E-CLUSTER-BASELINE` | §11.16、§11.17 |
@@ -1045,7 +1045,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 
 **目的**：W0 的 inventory 是下列項目唯一的確定性來源：指揮官的規劃、必要面向、切片錨點、DFD 骨幹、G1 問卷（[02 W0](02-methodology.md#w0-盤點與-secrets-遮罩確定性無-llm)）。v0.2 只有 FastAPI、Express、SQL RLS 三個抽取器，也沒說其他框架怎麼辦。本節定義抽取器外掛、支援矩陣，以及看不到的部分怎麼記錄。
 
-**輸入**：遮罩後的 repo 檔案（W0 第 1–3 步之後）、`tools.yaml` 中已註冊的 `inventory:*` 模式（目前只有 `fastapi`、`express`、`sql_rls`；見下方支援矩陣）。執行位置 Z2，`network: none`。
+**輸入**：遮罩後的 repo 檔案（W0 第 1–3 步之後）、`tools.yaml` 中已註冊的 `inventory:*` 模式（目前是 `fastapi`、`express`、`sql_rls`、`nextjs`、`baas_client`；見下方支援矩陣）。執行位置 Z2，`network: none`。
 **輸出**：`inventory.json`（`inventory.schema.json` v0.3）。
 
 **抽取器介面**（adapters；擴充）：抽取器是工具包自有的程式碼，在 W0 的 Z2 映像內執行；對外以 `inventory:<name>` 登錄為 adapter，§2.3 的註冊規則照樣適用。
@@ -1102,7 +1102,7 @@ class InventoryExtractor(ABC):
    - 單一檔案解析失敗 → 該檔記一筆 `blind_spots`（`other`），該框架降為 `partial`，W0 繼續。
    - 抽取器本身崩潰或逾時 → W0 `FAILED`，與 02 W0 的「任何子步驟失敗 → `FAILED`」一致。原因：inventory 不完整會讓必要面向與切片錨點少算，而且沒有任何訊號告訴人少了什麼。
 
-**支援矩陣**（各框架的慣例是設計假設 [H]，見表後說明）：目前 [`tools.yaml`](examples/tools.yaml) 的 `inventory` 登錄了 `fastapi`、`express`、`sql_rls`、`nextjs`、`baas_client` 五個模式（後兩個是 MVP-0 必要的 M1 抽取器，第十四輪內部審查補登錄）。下表標為「規劃中」的 adapter（`nextjs`、`baas_client`、`hono`、`flask`、`django`、`graphql`、`firebase_rules`、`prisma`、`llm_sdk`）**還沒有登錄**，是提案；在 `tools.yaml` 登錄之後才生效，inventory 的 `frameworks[].extractor` 也才能填這些 ID。
+**支援矩陣**（各框架的慣例是設計假設 [H]，見表後說明）：目前 [`tools.yaml`](examples/tools.yaml) 的 `inventory` 登錄了 `fastapi`、`express`、`sql_rls`、`nextjs`、`baas_client` 五個模式（後兩個是 MVP-0 必要的 M1 抽取器，第十四輪內部審查補登錄）。下表標為「規劃中」的 adapter（`hono`、`flask`、`django`、`graphql`、`firebase_rules`、`prisma`、`llm_sdk`）**還沒有登錄**，是提案；在 `tools.yaml` 登錄之後才生效，inventory 的 `frameworks[].extractor` 也才能填這些 ID。
 
 | 框架或元件 | adapter | 抽取內容（寫到 inventory 的哪裡） | 最高支援等級 | 已知盲點 | 里程碑／MVP |
 |---|---|---|---|---|---|
@@ -1115,7 +1115,7 @@ class InventoryExtractor(ABC):
 | Django | `inventory:django`（規劃中） | `urls.py` 的 `path()`、`re_path()`、`include()`；view；`MIDDLEWARE` 設定；view 上的權限裝飾器 | `partial` | `re_path` 只能近似成路徑樣板；DRF router 產生的路由 | M2（候選） |
 | GraphQL | `inventory:graphql`（規劃中） | SDL 檔中每個 Query 與 Mutation 欄位 → `kind: graphql`（方法 POST，路徑是 GraphQL 端點）；依命名慣例對到 resolver | `partial` | code-first 的 schema；resolver 只依慣例對應 | M2（候選） |
 | Supabase 型 migrations | `inventory:sql_rls`（已登錄；本表的擴充是規劃中） | `supabase/migrations/*.sql` 等 SQL 檔：資料表 → `db.tables`；`ENABLE ROW LEVEL SECURITY` → `rls_enabled`；`CREATE POLICY` → `policies[]`（command、roles、來源行）；`SECURITY DEFINER` 函式 → `db.functions[].security_definer`；SQL 中宣告的 storage bucket → `db.storage_buckets` | `full`（只限 SQL 中寫到的部分） | 在平台後台設定、沒進 migration 的 RLS 與 bucket 公開設定 → `dashboard_only_setting` | M1／MVP-0 |
-| 瀏覽器直連 BaaS | `inventory:baas_client`（規劃中） | 會送到瀏覽器的程式碼中，BaaS 用戶端對資料表、RPC、storage 的呼叫 → `kind: baas_direct`，路徑樣板寫成 `table:<名稱>`、`rpc:<函式>`、`storage:<bucket>`，並連到 `db` 中的同名項目 | `partial` | 名稱以變數傳入 → `dynamic_route`；SDK 的方法名稱以釘選的 SDK 版本為準（候選，未查證） | M1／MVP-0 |
+| 瀏覽器直連 BaaS | `inventory:baas_client`（已登錄，M1） | 會送到瀏覽器的程式碼中，BaaS 用戶端對資料表、RPC、storage 的呼叫 → `kind: baas_direct`，路徑樣板寫成 `table:<名稱>`、`rpc:<函式>`、`storage:<bucket>`，並連到 `db` 中的同名項目 | `partial` | 名稱以變數傳入 → `dynamic_route`；SDK 的方法名稱以釘選的 SDK 版本為準（候選，未查證） | M1／MVP-0 |
 | Firebase 規則 | `inventory:firebase_rules`（規劃中） | `firestore.rules`、`storage.rules` 等規則檔的 `match` 路徑 → `db.tables`（`schema` 記為規則檔種類）；`allow` 的動作 → `policies[].command`：read → `SELECT`、create → `INSERT`、update → `UPDATE`、delete → `DELETE`、write（＝create＋update＋delete）→ `INSERT`、`UPDATE`、`DELETE` 各一筆（不用 `ALL`：PostgreSQL policy 的 `ALL` 也包含 `SELECT`） | `partial` | 條件運算式只記位置，不求值；主控台上的設定 → `dashboard_only_setting` | M2（候選） |
 | Prisma | `inventory:prisma`（規劃中） | `schema.prisma` 的 model → `db.tables`（`rls_enabled: null`）；關聯欄位當作 G1 問卷「資料屬於誰」的候選答案（§11.4） | `full`（只限 schema） | Prisma 本身不表達 RLS | M2（候選） |
 | LLM SDK | `inventory:llm_sdk`（規劃中） | 已知 LLM SDK 的呼叫點、字面值的模型參數、工具定義（名稱與 handler 位置）、prompt 組裝位置 → `llm_integrations`；有工具時 `features` 加 `llm_tools` | `partial` | 使用者輸入是否流入 prompt，只在同一函式內近似判斷 | M2／MVP-0 |
@@ -1745,7 +1745,7 @@ class SessionProvider(Protocol):
 | `config_refs` | `models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest`；已產生的是 `{path, sha256}`，`invariants` 與 `seed_manifest` 另可以是 `{state: pending, expected_node}` 或 `{state: not_applicable, reason}` | `run_init`（`invariants` 在 G1 核准後、`seed_manifest` 在 G0b 之前才有內容） |
 | `prompt_templates[]` | `{template_id, version, sha256}` | `run_init`：列出本 run 的 agent 會用到的全部範本 |
 | `tool_versions[]` | `{adapter, version, image_digest}`；工具包自有程式碼的 adapter 填 Z2 映像的 digest | 每個工具第一次執行時 |
-| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.14`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
+| `rule_version` | 裁決規則的版本（05 §4.2）；必須等於工具包程式中的 `RULE_VERSION` 常數（目前 `05-v0.15`），也必須等於本 run 每個裁決的 `rule_version` | `run_init` |
 | `baseline_run_id` | 計算 `baseline_state` 用的基準 run（§11.16）；null＝沒有基準 | `run start` 的選項；`followup`、`regression` 預設為 `parent_run_id`（範例跟進 run 的基準是 `run-2026-09-23-001`） |
 
 **schema 與 validator**：`config_refs` 的六個鍵都必填，不能是沒有說明的 null（`E-RUN-CONFIG`）。
@@ -2027,7 +2027,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 - v0.5（[09 BL-20](09-backlog.md)）另有三個指標，也由 validator 重算：`access_matrix_coverage`（本 run 的 testcase 與 w4-testcase 以 `access_cells` 宣告涵蓋的 G1 矩陣格子 ÷ 總格數，每格必須在矩陣中，`E-TC-ACCESS-CELL`）、`endpoint_slice_coverage`（handler 檔案在本 run 切片中的端點 ÷ 總數）、`endpoint_test_coverage`（被黑箱 testcase 的 `request_allowlist` 打到的端點，方法與路徑樣板都相同 ÷ 總數）。範例是 0.5714、0.8571、0.8571：矩陣 7 格中，範例 B′ 的工作區文件 3 格（BL-47）沒有 testcase；新增的排程工作沒有切片也沒有測試。
 - 上面兩個測試覆蓋率只代表**計畫**，所以拿掉全部測試結果仍是 0.5714 與 0.8571。改名為 `planned_access_matrix_coverage`、`planned_endpoint_test_coverage`，並新增 `executed_access_matrix_coverage`、`executed_endpoint_test_coverage`：只算至少有一個有效執行結果的測試案例（outcome 為 PASS 或 FAIL，INVALID／ERROR／SKIPPED／STOPPED 不算；對照全部 PASS；本 run 稽核紀錄中恰好一筆已錨定的 `sandbox_job_end`，outcome 與三個 hash 相符，`checks.execution_backed`）。報告正文必須把 planned 與 executed 並列；只寫其中一個不符合報告契約。`endpoint_slice_coverage` 量的是 W3 實際審查的切片，名稱不變。
 
-**里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。
+**里程碑**：嚴重度 rubric、敘事 linter、W4 防護測試、本地 RLS 測試、Z2 建置政策、公開前綴 secret → M2（MVP-0）；B2 merger 鍵 → M3；W0 用的規則式 PII 偵測器 → M1（MVP-0；W0 是 M1 節點，見 §1 的 `pii` 列，第十四輪內部審查之前寫 M2）；具名 PII 偵測器的其餘用途與 fix brief 的掃描 → M4（MVP-2）。
 
 ### 11.18 受測系統的準備檢核表[H]
 

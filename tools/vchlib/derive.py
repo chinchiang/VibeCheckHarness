@@ -755,10 +755,13 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
 
     1. outcome not PASS / FAIL (ERROR, SKIPPED, STOPPED, INVALID) -> E_inc.
     2. FAIL: fail_k_min and the replay rules, else E_inc; a violation reported only by HUMAN /
-       LLM_GRADER oracles is E_inc; a pre-registered interpretation (G4 for B4; G1-signed
-       requirements and a PASSed oracle_can_pass control for W4) -> E_proof without any LLM;
-       else an eligible cross-family Result Analyst that agrees -> E_proof; else E_fail_u.
-    3. PASS: every reachability control PASSed, probabilistic k=0 and n' >= 30, a deterministic
+       LLM_GRADER oracles is E_inc; a pre-registered interpretation (`preregistered`: G4 for B4;
+       for W4, G1-approved requirements plus either a harness-generated oracle with both oracle
+       controls PASSed or a G2-accepted cluster) -> E_proof without any LLM; an LLM-written W4
+       oracle not yet accepted at G2 -> E_fail_u; else an eligible cross-family Result Analyst
+       that agrees -> E_proof; else E_fail_u. An eligible analyst that disagrees -> E_inc first.
+    3. PASS: every reachability control PASSed, probabilistic k=0 and n' >= pass_min_effective
+       (30, or 60 for a high-risk threat), a deterministic
        oracle, and a pre-registered interpretation (oracle_can_fail for W4) or an eligible analyst
        -> E_pass; else E_inc.
     """

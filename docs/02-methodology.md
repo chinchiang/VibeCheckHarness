@@ -374,7 +374,7 @@ flowchart TD
   3. **與工具結果相互佐證**（由程式碼）[H]：Aggregator 把對應同一位置與 CWE 桶的 SARIF 結果分成兩級：
      - **強佐證**（`tool_corroboration`）：該結果的 `(adapter, rule_id, tool_version)` 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90；設在校準檔，不在 `toolkit.yaml`）。`rule_id` 與 `tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.sarif_results[]` 與 `payload.tool_version`。校準之前這份清單是空的，所以沒有強佐證。
      - **弱訊號**（`tool_signal`）：其他所有 SARIF 結果，以及 W4／B5 的 `E_fail_u`。弱 SARIF 與 `E_fail_u` 各只算**一個**獨立來源（`independent_sources`），不能單獨確認。
-  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R16：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`（`regression` run 的帶入叢集另有 `FIXED`）。裁決的 `rule_version` 是 `05-v0.14`；各版改了什麼見 05 §4.2 的「規則版本」。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
+  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R16：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`（`regression` run 的帶入叢集另有 `FIXED`）。裁決的 `rule_version` 是 `05-v0.15`；各版改了什麼見 05 §4.2 的「規則版本」。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
   5. **CMD-2 加派** [H]：
      - 對 `DISPUTED` 與 `UNCORROBORATED` 叢集加派審查者或驗證者，**最多 2 輪**（`E-PLAN-ROUNDS`）。
      - Commander 收到的是程式碼建立的型別化視圖：叢集 ID、狀態、CWE 桶、嚴重度、家族、票數。視圖不含發現項的推理，也不含 repo 的文字。
@@ -432,7 +432,7 @@ flowchart TD
       - 解讀是**事先登記**的：測試的 `requirement_ids` 不是空的、全部經 G1 核准，而且 oracle 由 harness 從 G1 核准的結構產生（`kind` 為 `local_rls`——來自 `access_matrix`，或 `fake_model`——來自 `llm_tools`），且 `oracle_can_pass` 與 `oracle_can_fail` 對照都 PASS（第十四輪內部審查，`05-v0.15`，使用者決定）。
       - 理由：這個 FAIL 代表什麼，在結果出來之前已經由人簽核的結構決定；兩種對照證明 oracle 既不是永遠失敗、也不是永遠通過。
     - **LLM 撰寫的測試**（`unit`／`property`）：G1 簽的是需求、不是測試，Test Critic 也是 LLM，所以它的 FAIL 沒有人核准過。分類為 `E_fail_u`（弱工具訊號，最高 `LIKELY`），裁決加註 `oracle_unreviewed`；叢集經 G2 逐項 `accept` 後，之後的裁決版本才把它算事先登記。Result Analyst 不能代替這一步（也是 LLM）。
-    - **解讀未事先登記、且 oracle 由程式產生時**（例如 `local_rls` 的某個對照沒有 PASS）：由 **Result Analyst 池**中的一位確認 → `E_proof`。池中每個家族一位；選家族與血統都不在叢集中的那一位；有個資時只用自架模型。沒有合格的分析者 → `E_fail_u`（弱工具訊號）。
+    - **解讀未事先登記、且 oracle 由程式產生時**（例如 `requirement_ids` 中有未經 G1 核准的項目，或測試沒有宣告 `oracle_can_fail` 對照；任一個宣告的對照沒有 PASS 時結果是 `INVALID`／`E_inc`，不會走到這裡）：由 **Result Analyst 池**中的一位確認 → `E_proof`。池中每個家族一位；選家族與血統都不在叢集中的那一位；有個資時只用自架模型。沒有合格的分析者 → `E_fail_u`（弱工具訊號）。
     - 只有 `LLM_GRADER` 或 `HUMAN` 判定違反 → `E_inc`。
     - G2 已 `REJECTED` 的叢集：之後出現的 `E_fail_u` 只註記 `post_g2_conflict`，維持 `REJECTED`；之後出現的可執行證明（`E_proof`）→ `CONFIRMED_EXECUTABLE`，加註 `post_g2_conflict`（05 R10，v0.4）；v0.6 起只限 G4 核准、重播命中的 B4 證明，W4 證明不推翻人工駁回，只加註。兩者都列入 W5 報告與 B6 的人工複核清單。
     - 重新裁決後才轉為 `DISPUTED` 的叢集**不重開 G2**；它們照常成為種子威脅，並在種子清單中標為「W4 後轉為爭議」，由人在 G3 處理 [H]。
@@ -456,7 +456,7 @@ flowchart TD
   - 每個元素都記錄出處（`provenance`：`deterministic`／`g1_declared`／`llm_proposed`）；信任邊界有種類（`tenant`／`auth`／`network`／`process`／`third_party`／`browser`）；也允許瀏覽器直接到 BaaS 的資料流（[08 §11.5](08-implementation-spec.md#115-dfd-元素出處)）。
 
   LLM 只**提議**標籤與邊界，由人在 G3 確認。pytm 也是從明確的模型產生 DFD，不是推論出來的 [V：該條只有日期與數字被更正，此部分成立][E:threat_modeling-11]。
-- **種子威脅**：除了 `REJECTED` 以外的叢集（`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`，以及 W4 已升級的 `CONFIRMED_EXECUTABLE`；`regression` run 的 `FIXED` 叢集也是，審查 r12）都轉成 B2 的種子威脅，帶 `source_cluster_id` 與 `source_finding_ids`。`FIXED` 成為種子，是為了讓 B 階段的黑箱重播能推翻「已修正」：重播命中 → 依 R0 為 `CONFIRMED_EXECUTABLE`；`E-PIPELINE` 只放過 `REJECTED`，所以 `FIXED` 不轉種子時 validator 會報錯。
+- **種子威脅**：除了 `REJECTED` 以外的叢集（`CONFIRMED_CORROBORATED`、`LIKELY`、`UNCORROBORATED`、`DISPUTED`，以及 W4 已升級的 `CONFIRMED_EXECUTABLE`；`regression` run 的 `FIXED` 叢集也是，審查 r12）都轉成 B2 的種子威脅，帶 `source_cluster_id` 與 `source_finding_ids`。`FIXED` 成為種子，是為了讓 B 階段的黑箱重播能推翻「已修正」：重播命中 → 依 R1 為 `CONFIRMED_EXECUTABLE`；`E-PIPELINE` 只放過 `REJECTED`，所以 `FIXED` 不轉種子時 validator 會報錯。
   - **規則**：每個種子威脅**必須出現在 B2 威脅模型中**；之後要嘛有 ≥1 個 B3 測試案例，要嘛有 **G3 駁回紀錄（理由必填）**。被 G3 駁回的叢集保留其白箱狀態，B6 列為「未做黑箱驗證（G3 駁回：理由）」。
   - **只列報告的叢集**（v0.4 剪枝）[H]：v0.3 讓每個非 `REJECTED` 叢集都成為種子威脅，而每個種子威脅都要有測試或 G3 駁回理由，所以 LLM 的誤報會直接變成 G3 的人工負擔。v0.4 起，同時符合下列條件的叢集**不轉成種子威脅**，只列在白箱報告的「低優先、未驗證」清單（report-manifest `report_only_clusters`；validator 檢查每項是白箱叢集、最新裁決為 `UNCORROBORATED`、沒有對應的種子威脅，`E-REPORT-QUEUE`；下列的嚴重度與風險由工具包計算，validator 不檢查）：
     - 裁決是 `UNCORROBORATED`（獨立來源 ≤ 1）；
@@ -651,7 +651,7 @@ flowchart TD
   - 池中每個家族一位：`result_analyst_a`（`claude_sonnet`）、`result_analyst_b`（`gpt_flagship`）、`result_analyst`（`nemotron_self`）。
   - 從中選一位家族與血統都不在叢集中的。黑箱起源的叢集沒有回報家族，所以每一位都合格。
   - 回應中偵測到個資時，只用自架模型（`result_analyst`）。
-  - 它只在解讀未事先登記時決定分類（沒有合格者 → `E_fail_u`，弱工具訊號，05 R6）；其他情況只撰寫結果說明，不影響分類。
+  - 它只在解讀未事先登記時決定分類（沒有合格者 → `E_fail_u`，弱工具訊號，05 R6）；其他情況只撰寫結果說明。例外：結果記有合格分析者、且它的 `agrees` 為 false 時，不論解讀是否事先登記，結果都是 `E_inc`（05 §4.2；`derive.classify_result`）。
   - 分析者記在測試結果的 `interpreted_by`，結論記在 `interpretation`（`agrees`、`rationale`；兩者同時有或同時為 `null`，`E-RESULT-ANALYST`）。分析者必須是 `agents.yaml` 中角色為 `result_analyst` 的 agent（`E-RESULT-ANALYST-ROLE`）；合格分析者不同意解讀 → `E_inc`。
 - **黑箱起源的叢集** [H]：
   - B2 產生、沒有 `source_cluster_id` 的威脅（不是來自白箱），其測試案例的**每一筆**測試結果（FAIL、PASS、INVALID 都一樣）都寫到該威脅的 `origin: black_box` 叢集（`E-CLUSTER-ORIGIN`）。
