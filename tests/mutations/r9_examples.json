@@ -46,8 +46,8 @@
     {
       "name": "README lists every record",
       "file": "README.md",
-      "old": "、[第十三輪](docs/evidence/review-2026-10-29-r13.md)、[第十四輪](docs/evidence/review-2026-10-30-r14.md)、[2026-11-22 內部審查](docs/evidence/review-2026-11-22.md) |",
-      "new": " |",
+      "old": "、[第十三輪](docs/evidence/review-2026-10-29-r13.md)、[第十四輪](docs/evidence/review-2026-10-30-r14.md)、[2026-11-22 內部審查](docs/evidence/review-2026-11-22.md)（",
+      "new": "（",
       "k": "readme_lists_every_review_record"
     },
     {
