@@ -43,7 +43,7 @@ def test_r0_lane_a_still_rejects_without_other_evidence_and_not_with_sarif():
 
 def test_r0_pass_evidence_alone_does_not_save_the_cluster():
     # a PASS is not evidence that the defect exists: R0 still applies
-    out = adjudicate(Inputs(all_snippets_fail=True, evidence={"E_pass"}, pass_positive=True))
+    out = adjudicate(Inputs(all_snippets_fail=True, evidence={"E_pass"}))
     assert (out.status, out.rules) == ("REJECTED", ["R0"])
 
 
@@ -67,26 +67,27 @@ def test_executable_proof_overrides_g2_rejection_with_annotation():
     (dict(strong_tool=True, independent_families=1), "CONFIRMED_CORROBORATED"),
 ])
 def test_r11_downgrades_only_with_a_positive_control(kw, before):
-    with_pc = adjudicate(Inputs(evidence={"E_pass"}, pass_positive=True, **kw))
+    with_pc = adjudicate(Inputs(evidence={"E_pass"}, **kw))           # 05-v0.16 (D6): E_pass has the positive control
     assert (with_pc.status, with_pc.rules[-1]) == ("DISPUTED", "R11")
-    without = adjudicate(Inputs(evidence={"E_pass"}, pass_positive=False, **kw))
+    without = adjudicate(Inputs(evidence={"E_pass_weak"}, **kw))      # E_pass_weak has none (pass_positive=False before)
     assert without.status == before and without.rules[-1] == "R11"
     assert "test_not_reproduced" in without.annotations
 
 
-def test_r11_on_uncorroborated_unchanged():
-    out = adjudicate(Inputs(evidence={"E_pass"}, independent_families=1))
+@pytest.mark.parametrize("cls", ["E_pass", "E_pass_weak"])
+def test_r11_on_uncorroborated_unchanged(cls):
+    out = adjudicate(Inputs(evidence={cls}, independent_families=1))
     assert out.status == "UNCORROBORATED" and "test_not_reproduced" in out.annotations
 
 
 def test_verdict_inputs_reads_positive_control_per_result(b):
-    """K-011's B5 PASS (TC-031-01, no oracle_can_fail control) gives pass_positive False."""
+    """K-011's B5 PASS (TC-031-01, no oracle_can_fail control) is E_pass_weak (05-v0.16, D6: the class carries the
+    positive control; before, Inputs.pass_positive was False)."""
     c = Ctx(b)
     v = doc(b, V011B5).data
     cl = c.ix.first("cluster", cluster_id=v["cluster_id"]).data
-    assert verdict_inputs(c, v, cl).pass_positive is False
-    v["test_evidence"]["results"][0]["positive_control"] = True
-    assert verdict_inputs(c, v, cl).pass_positive is True
+    assert verdict_inputs(c, v, cl).evidence == {"E_pass_weak"}
+    assert derive.classify_result(c.ix, c.ix.first("testresult", result_id="R-TC-031-01-1").data, cl)[0] == "E_pass_weak"
 
 
 # ================================================================ NOT_CHECKED

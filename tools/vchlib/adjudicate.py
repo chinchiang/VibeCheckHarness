@@ -3,6 +3,22 @@
 R12/R13/R15 annotations). Pure function: the validator recomputes each example verdict and
 compares status, deciding rule and annotations.
 
+2026-11-22 review (rule_version 05-v0.16, user decisions D2 / D4 / D6):
+  - D2: a cluster whose rubric severity is critical / high is never rejected automatically. R0 (no grounded evidence) and
+    R4 row 8 (a lone weighted refutation past theta_reject on a single-family report) sent it to REJECTED without a
+    person; the repository under test is attacker-controlled input every verifier reads, so one planted guard or comment
+    can make them all refute, and an LLM that paraphrases its snippet trips R0 on a real defect. Such a cluster is
+    DISPUTED (G2 decides). Lane A (R9) reports it UNCORROBORATED instead of REJECTED. Severity is computed by code from
+    the inventory (derive.rubric_severity), not reported by a model. A G2 rejection (R10) is a person's decision and stays.
+  - D4: an eligible Result Analyst that disagrees no longer turns a pre-registered result into E_inc (derive.classify_result).
+    The analyst reads the target's own output, so it can be steered into vetoing a G4-approved, replayed deterministic
+    FAIL. The class stands and the verdict is annotated `analyst_disagrees` (R12, B6 human review). Review r10 made the
+    disagreement win only because the code then differed from the text of docs/05.
+  - D6: a qualified PASS without a PASSed oracle_can_fail control is its own class, E_pass_weak. R11 already treated it
+    differently (annotate, never demote); the class now says so, R14 (FIXED) needs E_pass, and a report may not state a
+    statistical upper bound for it: an oracle that reads the target's own log passes when the vulnerable path wrote none.
+    Inputs.pass_positive is gone: E_pass in `evidence` is the positive-control PASS.
+
 r14 (rule_version 05-v0.15, fourth-round internal review B1 / B7 / C3, user decisions):
   - Row 15 (a contradicted fix) is decided by tool signals alone: a carried-in cluster accepts no votes
     (checks E-VERDICT-VOTE), so its status is decided by regression evidence only (R14 / R15 / R16).
@@ -72,8 +88,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-RULE_VERSION = "05-v0.15"
-EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_inc"]
+RULE_VERSION = "05-v0.16"
+EVIDENCE_ORDER = ["E_proof", "E_fail_u", "E_pass", "E_pass_weak", "E_inc"]
+PASS_CLASSES = frozenset({"E_pass", "E_pass_weak"})   # D6 (05-v0.16): E_pass has a PASSed oracle_can_fail control, E_pass_weak has none
 
 
 @dataclass
@@ -82,7 +99,6 @@ class Inputs:
     g2_rejected: bool = False
     proof_overrides_g2: bool = False                      # an E_proof from a G4-approved B4 result with k_r >= 1 (R10, v0.6)
     all_snippets_fail: bool = False                       # no member evidence item grounded, one NOT_FOUND (v0.6; False without members)
-    pass_positive: bool = False                           # some E_pass result has a PASSed oracle_can_fail control (R11, v0.4)
     evidence: set[str] = field(default_factory=set)       # classes present among linked results
     fail_u_independent: bool = False                      # an E_fail_u whose test authors are outside the cluster (v0.7)
     weighted_support: bool = False
@@ -101,6 +117,8 @@ class Inputs:
     later_member_overlap: bool = False                    # r11: a weighted vote cast before a same-family / same-root member joined the cluster
     carried_status: str | None = None                     # r12 (05-v0.11): head status of the source cluster a carried-in cluster stands for
     oracle_unreviewed: bool = False                       # r14 (05-v0.15): an LLM-written W4 test's reproduced FAIL that G2 has not yet accepted (E_fail_u, annotated)
+    high_severity: bool = False                           # D2 (05-v0.16): rubric severity critical / high (derive.rubric_severity); never rejected automatically
+    analyst_disagrees: bool = False                       # D4 (05-v0.16): an eligible Result Analyst disagrees with a pre-registered result; annotated, class unchanged
 
 
 @dataclass
@@ -149,11 +167,13 @@ def _annotate(x: Inputs, out: Outcome) -> Outcome:
     """R12 / R13 annotations (any status) and the W4 phase annotation; appends fired rules in order."""
     if "E_inc" in x.evidence:
         out.annotations.add("test_inconclusive")                        # R12
-    if out.row == 5 and "E_pass" in x.evidence:
-        out.annotations.add("conflicting_test_results")                 # R12 (R1 with E_pass)
+    if out.row == 5 and PASS_CLASSES & x.evidence:
+        out.annotations.add("conflicting_test_results")                 # R12 (R1 with a qualified PASS of either class)
     if x.oracle_unreviewed:
         out.annotations.add("oracle_unreviewed")                        # R12 (r14, 05-v0.15): an LLM-written W4 oracle nobody reviewed
-    if {"test_inconclusive", "conflicting_test_results", "oracle_unreviewed"} & out.annotations:
+    if x.analyst_disagrees:
+        out.annotations.add("analyst_disagrees")                        # R12 (D4, 05-v0.16): shown and reviewed at B6, not a veto
+    if {"test_inconclusive", "conflicting_test_results", "oracle_unreviewed", "analyst_disagrees"} & out.annotations:
         out.rules.append("R12")
     if x.g3_rejected:
         out.annotations.add("g3_rejected")                              # R13
@@ -197,7 +217,7 @@ def _decide(x: Inputs) -> Outcome:
     notes: set[str] = set()
 
     if x.lane_a:
-        if r0_applies(x):
+        if r0_applies(x) and not x.high_severity:          # D2 (05-v0.16): a high-severity cluster is not rejected by rule
             return Outcome("REJECTED", 1, ["R9"], "UNCORROBORATED", True, notes)
         return Outcome("UNCORROBORATED", 2, ["R9"], "UNCORROBORATED", True, notes)
     if x.g2_rejected:
@@ -215,6 +235,8 @@ def _decide(x: Inputs) -> Outcome:
             return Outcome("DISPUTED", 15, ["R14"], None, False, notes)
         return Outcome("FIXED", 14, ["R14"], None, False, notes)
     if r0_applies(x):
+        if x.high_severity:                                # D2 (05-v0.16): ungrounded but high severity -> a person decides (G2)
+            return Outcome("DISPUTED", 17, ["R0"], None, False, notes)
         return Outcome("REJECTED", 4, ["R0"], None, False, notes)
     if ev == "E_proof":
         return Outcome("CONFIRMED_EXECUTABLE", 5, ["R1"], None, False, notes)
@@ -227,9 +249,10 @@ def _decide(x: Inputs) -> Outcome:
         status, row, rule = "DISPUTED", 6, "R3"
     elif ref and signal:
         status, row, rule = "DISPUTED", 7, "R4"
-    elif ref and x.score <= -t_rej and x.independent_families <= 1:
+    elif ref and x.score <= -t_rej and x.independent_families <= 1 and not x.high_severity:
         # v0.5 (review 2026-10-25 H-4): automatic rejection only for a single-family report; two or more
-        # independent families reported it, so a refutation alone is a dispute for G2 (row 9), not a rejection
+        # independent families reported it, so a refutation alone is a dispute for G2 (row 9), not a rejection.
+        # D2 (05-v0.16): nor is a high-severity cluster rejected by votes alone; it falls to row 9 as well
         status, row, rule = "REJECTED", 8, "R4"
     elif ref:
         status, row, rule = "DISPUTED", 9, "R4"
@@ -247,8 +270,10 @@ def _decide(x: Inputs) -> Outcome:
     if x.diversity_degraded and row == 11:                    # row 10 (strong tool) is never capped
         status, cap = "LIKELY", "LIKELY"
         rules.append("R8")
-    if "E_pass" in x.evidence:
-        if status in ("CONFIRMED_CORROBORATED", "LIKELY") and x.pass_positive:
+    if PASS_CLASSES & x.evidence:
+        # D6 (05-v0.16): the class carries the positive control. E_pass (a PASSed oracle_can_fail control) can dispute a
+        # confirmation; E_pass_weak only annotates. 05-v0.4-05-v0.15 read a separate pass_positive flag for the same split
+        if status in ("CONFIRMED_CORROBORATED", "LIKELY") and "E_pass" in x.evidence:
             status = "DISPUTED"
             rules.append("R11")
         elif status in ("CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED"):

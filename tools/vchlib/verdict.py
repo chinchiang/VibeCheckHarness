@@ -357,8 +357,9 @@ def derived_provisional(c: Ctx, v: dict, cluster: dict) -> bool:
     in the cluster's CWE bucket. v0.4: false for black-box clusters and for statuses decided by rows 1-5."""
     # v0.4: provisional marks only verdicts that votes could have decided. A status fixed by R9 / R10 / R0 / R1
     # (rows 1-5) does not depend on calibration, and a black-box cluster never has votes.
-    # v0.5: row 10 (strong tool corroboration, R5) is not decided by votes either
-    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row in (1, 2, 3, 4, 5, 10, 14, 15, 16):
+    # v0.5: row 10 (strong tool corroboration, R5) is not decided by votes either; nor is row 17 (D2: R0 on a
+    # high-severity cluster, DISPUTED)
+    if cluster.get("origin") == "black_box" or adj.adjudicate(verdict_inputs(c, v, cluster)).row in (1, 2, 3, 4, 5, 10, 14, 15, 16, 17):
         return False
     if v.get("calibration_version") is None or v.get("theta_confirm") is None:
         return True
@@ -577,10 +578,8 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         all_snippets_fail=all_fail,
         evidence={x.get("class") for x in (v.get("test_evidence") or {}).get("results", [])},
         fail_u_independent=fail_u_independent(c, v, cluster),     # v0.7 (review r8): R6 counts an independently authored FAIL
-        # R11 (v0.4): only a qualified PASS with a PASSed oracle_can_fail control may downgrade; the per-result
-        # positive_control is recomputed from the testresult (E-RESULT-CONTROLS), not taken from the verdict
-        pass_positive=any(x.get("class") == "E_pass" and x.get("positive_control") is True
-                          for x in (v.get("test_evidence") or {}).get("results", []) if isinstance(x, dict)),
+        # R11 (v0.4): only a qualified PASS with a PASSed oracle_can_fail control may downgrade. D6 (05-v0.16): the class
+        # says so (E_pass / E_pass_weak, derive.classify_result), so adjudicate reads `evidence` alone
         weighted_support=any(x.get("stance") == "SUPPORT" for x in votes),
         weighted_refute=any(x.get("stance") == "REFUTE" for x in votes),
         score=derived_score(c.ix, v, cluster),           # v0.5 (review r7 1.7)
@@ -598,7 +597,25 @@ def verdict_inputs(c: Ctx, v: dict, cluster: dict) -> adj.Inputs:
         carried_status=carried_status(c, cluster, run),
         later_member_overlap=any(later_member_overlap(c.ix, x, cluster) for x in votes),
         oracle_unreviewed=oracle_unreviewed(c, v, cluster),
+        high_severity=high_severity(c, cluster),
+        analyst_disagrees=analyst_disagrees(c, v, cluster),
     )
+
+
+HIGH_SEVERITIES = ("critical", "high")
+
+
+def high_severity(c: Ctx, cluster: dict) -> bool:
+    """D2 (05-v0.16, user decision): the rubric severity (derive.rubric_severity, computed from the inventory, never the
+    severity a model reported) is critical or high; such a cluster is not rejected by R0 / R4 row 8 / R9 without a person."""
+    return derive.rubric_severity(c.ix, cluster) in HIGH_SEVERITIES
+
+
+def analyst_disagrees(c: Ctx, v: dict, cluster: dict) -> bool:
+    """D4 (05-v0.16, user decision): an eligible Result Analyst disagrees with a linked result whose interpretation was
+    pre-registered; derive.classify_result keeps the class and marks the reason, the verdict is annotated."""
+    return any(derive.ANALYST_DISAGREES in derive.classify_result(c.ix, tr, cluster)[1]
+               for tr in linked_results(c.ix, cluster, v.get("readjudicated_by")))
 
 
 def oracle_unreviewed(c: Ctx, v: dict, cluster: dict) -> bool:
@@ -666,6 +683,8 @@ def regression_fixed(c: Ctx, v: dict, cluster: dict, run: dict) -> bool:
     classes = {x.get("class") for x in results}
 
     def qualified(x):
+        # D6 (05-v0.16): E_pass is the PASS with a positive control; the recorded flag is still required, so a result
+        # that only names the class does not count (both are derived values, E-DERIVED)
         return x.get("class") == "E_pass" and x.get("positive_control") is True
     by_case: dict = {}
     for x in results:

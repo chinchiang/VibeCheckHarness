@@ -1,6 +1,6 @@
 # VibeCheck Harness（暫定名）— Multi-Agent Vibe Coding 測試工具包：方法論與系統架構
 
-> **狀態**：設計文件，第十四輪審查（2026-10-30）後；裁決規則版本 `05-v0.15`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十四輪（內部三組審查）；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
+> **狀態**：設計文件，第十四輪審查（2026-10-30）與 2026-11-22 內部審查後；裁決規則版本 `05-v0.16`（版本規則見 [CHANGELOG](CHANGELOG.md) 開頭）。每輪審查的紀錄在 [docs/evidence/](docs/evidence/)，最新一份是第十四輪（內部三組審查）；逐版變更見 [CHANGELOG](CHANGELOG.md)，各文件過去的變更摘要見 [docs/evidence/doc-history.md](docs/evidence/doc-history.md)。工具包本身**尚未實作**；本 repo 附可執行的資料模型驗證器與參考演算法（`tools/`），以及三個完整的端到端範例（[04 §6](docs/04-threat-to-testcase.md#6-完整範例)）與一組簽署過的範例 bundle（`docs/schemas/examples/`）。v0.2（2026-09-24）起可據以實作：每個階段、關卡、元件都有輸入、輸出、失敗路徑、資料 schema、負責里程碑與驗收標準；實作規格見 [08](docs/08-implementation-spec.md)。
 > **定位**（第十二輪第二次外部審查）：**針對 AI 生成應用的安全測試控制框架**，兩個使用層級——`lite` 是單人開發者的白箱快速檢查（MVP-0 的預設入口；單機部署 profile 待訂，[07 §1.3](docs/07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)、[09 BL-70](docs/09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）；`team`／`full` 是企業與供應鏈評估（職責分離、多人關卡、黑箱 staging 測試）。關卡永遠是人的決定，不做自動核准。
 > **第一次讀**：先看 [docs/00 總覽](docs/00-overview.md)（端到端流程、自動與人工的分界、依角色的閱讀路徑）。
 > **目的**：替 vibe-coded（由 AI 生成、開發者未必逐行讀過）的 Web／API 應用與含 LLM／Agent 功能的應用，建立一套**防禦性**、**先白箱後黑箱**的多代理測試方法與系統架構。
@@ -42,7 +42,7 @@
 | 以 Python 實作 | LangGraph＋LiteLLM＋Pydantic；套件配置、介面、CLI、錯誤分類、測試與完成定義見 08；資料模型驗證器與參考演算法（裁決規則、安全等級、JCS、Ed25519 驗章）已用 Python 撰寫並有測試 | [03 §3](docs/03-system-architecture.md#3-框架選型)、[07](docs/07-roadmap.md)、[08](docs/08-implementation-spec.md)、[tools/](tools/) | 本次只交付文件、驗證工具與參考實作，工具包本體尚未實作 |
 | Nemotron 同時支援雲端（build.nvidia.com）與自架（NIM／vLLM） | 兩種模式都接在 LiteLLM；雲端只收公開或合成程式碼，機密碼只用自架 | [03 §8.2](docs/03-system-architecture.md#82-nemotron-雙模式)、[examples/serving](docs/examples/serving/README.md) | 雲端試用條款禁止機密資訊與正式用途；自架需要 GPU |
 | 文件放在 repo 根目錄 | `README.md`＋`docs/` | — | — |
-| 做不到的事就說做不到 | 46 條明列，分成四類（LLM 與方法的本質限制、環境與平台、組織與法務前提、本版範圍） | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
+| 做不到的事就說做不到 | 47 條明列，分成四類（LLM 與方法的本質限制、環境與平台、組織與法務前提、本版範圍） | [06 §3](docs/06-security-legal-limitations.md#3-做不到不承諾的事) | — |
 | 設計文件與驗證器互相驗證 | 每個事實陳述帶狀態標記與證據 ID；計畫與文件都經多輪獨立審查（最新一輪見狀態列），validator 與範例互相驗證，但**工具包本身尚未實作**，數字都是設計假設；2026-09-26 的深度審查逐項記錄在 [review-2026-09-26](docs/evidence/review-2026-09-26.md)，2026-10-24 的設計審查在 [review-2026-10-24](docs/evidence/review-2026-10-24.md) | [01 §1](docs/01-research-survey.md#1-查證方法)、全文 | 部分條目只有單一或廠商來源（已標示） |
 
 ## 文件導覽
@@ -63,7 +63,7 @@
 | [docs/schemas/](docs/schemas/) | 資料模型 JSON Schema＋範例實例（`python tools/validate_schemas.py` 驗證；說明見 [schemas/README](docs/schemas/README.md)） |
 | [docs/examples/](docs/examples/) | `models.yaml`、`agents.yaml`、`engagement.yaml`、`roe.yaml`、`key-registry.yaml`、`tools.yaml`、`toolkit.yaml`、`licenses.yaml`、`invariants.yaml`、`seed-manifest.yaml`、`calibration.yaml`、`crosswalk.yaml`、自架模型啟動範例（關卡紀錄等 JSON 範例在 [docs/schemas/examples/](docs/schemas/examples/)） |
 | [tools/](tools/)、[tests/](tests/) | 驗證器、參考演算法（`tools/vchlib`：裁決規則、安全等級、Scope Proxy 位址與內容綁定、面向、JCS、Ed25519）、範例簽章工具、證據帳本與參考文獻產生器、共享平台清單與 Public Suffix List 的比對工具（選用）；pytest 測試 |
-| [docs/evidence/](docs/evidence/) | 研究證據（JSON）、自動產生的證據帳本、連結檢查，以及每一輪的審查紀錄（逐項列出問題、證據與處理）：[2026-09-26](docs/evidence/review-2026-09-26.md)、[2026-10-24](docs/evidence/review-2026-10-24.md)、[2026-10-25（第六輪）](docs/evidence/review-2026-10-25.md)、[第七輪](docs/evidence/review-2026-10-25-r7.md)、[第八輪](docs/evidence/review-2026-10-26-r8.md)、[第九輪](docs/evidence/review-2026-10-27-r9.md)、[第十輪](docs/evidence/review-2026-10-27-r10.md)、[第十一輪](docs/evidence/review-2026-10-28-r11.md)、[第十二輪](docs/evidence/review-2026-10-28-r12.md)、[第十三輪](docs/evidence/review-2026-10-29-r13.md)、[第十四輪](docs/evidence/review-2026-10-30-r14.md) |
+| [docs/evidence/](docs/evidence/) | 研究證據（JSON）、自動產生的證據帳本、連結檢查，以及每一輪的審查紀錄（逐項列出問題、證據與處理）：[2026-09-26](docs/evidence/review-2026-09-26.md)、[2026-10-24](docs/evidence/review-2026-10-24.md)、[2026-10-25（第六輪）](docs/evidence/review-2026-10-25.md)、[第七輪](docs/evidence/review-2026-10-25-r7.md)、[第八輪](docs/evidence/review-2026-10-26-r8.md)、[第九輪](docs/evidence/review-2026-10-27-r9.md)、[第十輪](docs/evidence/review-2026-10-27-r10.md)、[第十一輪](docs/evidence/review-2026-10-28-r11.md)、[第十二輪](docs/evidence/review-2026-10-28-r12.md)、[第十三輪](docs/evidence/review-2026-10-29-r13.md)、[第十四輪](docs/evidence/review-2026-10-30-r14.md)、[2026-11-22 內部審查](docs/evidence/review-2026-11-22.md) |
 
 ## 標記說明
 
@@ -117,7 +117,7 @@
 | Scope Proxy | 範圍代理 | Z3 內所有黑箱請求必經的代理；在網路層強制目標、方法、路徑與預算 |
 | GateRecord | 關卡紀錄 | 簽章的人工關卡決定，綁定產物與逐項 hash |
 | `b1_diff` | — | W0 盤點與 B1 系統建模之間的差異清單，G3 前必須逐項處置 |
-| `E_proof`／`E_fail_u`／`E_pass`／`E_inc` | 測試證據分類 | 可執行證明／未確認的重現失敗／合格 PASS／不確定，見 [05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則) |
+| `E_proof`／`E_fail_u`／`E_pass`／`E_pass_weak`／`E_inc` | 測試證據分類 | 可執行證明／未確認的重現失敗／有正對照的合格 PASS／沒有正對照的合格 PASS（不陳述統計上界）／不確定，見 [05 §4.2](docs/05-bias-calibration.md#42-裁決狀態與有序規則) |
 | control | 對照 | 測試案例宣告的對照步驟（reachability、oracle_can_pass、oracle_can_fail）；任一個沒通過，結果就是 `INVALID`，不算 PASS |
 | provisional | 暫定裁決 | 受投票影響、但沒有經校準的投票支撐的裁決（v0.4 起 R0／R1／R9／R10 決定的裁決與黑箱叢集一律不標）；報告會標示 |
 | facet | 審查面向 | W2 審查的 13 個面向；必要面向由 W0 inventory 以程式碼決定，見 [02 W2](docs/02-methodology.md#w2-多家族獨立審查) |

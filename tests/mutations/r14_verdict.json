@@ -95,8 +95,8 @@
     {
       "name": "C3: the schema forgets the annotation",
       "file": "docs/schemas/verdict.schema.json",
-      "old": ",\n              \"oracle_unreviewed\"\n",
-      "new": "\n",
+      "old": "              \"oracle_unreviewed\",\n",
+      "new": "",
       "k": "verdict_schema_knows_oracle_unreviewed"
     },
     {
@@ -228,7 +228,7 @@
     {
       "name": "rule_version 05-v0.15",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.15\"",
+      "old": "RULE_VERSION = \"05-v0.16\"",
       "new": "RULE_VERSION = \"05-v0.14\"",
       "k": "rule_version_is_05_v0_15"
     },

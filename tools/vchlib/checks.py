@@ -3070,6 +3070,15 @@ def g_verdicts(R: Report, c: Ctx):
             R.check(v.get("advisory") is out.advisory, "E-VERDICT-STATUS", w, f"advisory {v.get('advisory')} != {out.advisory}")
             kinds = {a.get("kind") for a in v.get("annotations", [])}
             R.check(kinds == out.annotations, "E-VERDICT-ANNOTATIONS", w, f"annotations {sorted(kinds)} != {sorted(out.annotations)}")
+            # D6 (05-v0.16, user decision): a PASS without a positive control (E_pass_weak) supports no statistical bound.
+            # The oracle was never shown to fail, so "upper bound 4.9%" measures whether the target wrote its log, and a
+            # reader takes it for a security guarantee. A pattern check: it stops the stated bound, not a paraphrase
+            if "E_pass" not in dv.inputs.evidence:
+                for a in v.get("annotations", []):
+                    if isinstance(a, dict) and a.get("kind") == "test_not_reproduced" and BOUND_CLAIM_RE.search(str(a.get("reason") or "")):
+                        R.check(False, "E-VERDICT-ANNOTATIONS", w,
+                                f"test_not_reproduced reason {a.get('reason')!r} states a statistical bound, but no linked PASS has a "
+                                "positive control (E_pass_weak): say that no violation was observed and the oracle was not verified")
             rules = [str(x).split(":", 1)[0] for x in v.get("rule_trace", [])]
             if R.check(rules == out.rules, "E-VERDICT-TRACE", w, f"rule_trace rules {rules} != {out.rules}"):
                 x = dv.inputs
@@ -4970,6 +4979,10 @@ def split_n_apps(s: dict) -> int:
     """The number of applications a split statistic names (len of `apps`)."""
     apps = s.get("apps")
     return len(apps) if isinstance(apps, dict) else 0
+
+
+# D6 (05-v0.16): how a statistical bound is stated in an annotation reason (p_u, an upper bound, a confidence bound)
+BOUND_CLAIM_RE = re.compile(r"p_u|上界|upper\s+bound|信賴", re.IGNORECASE)
 
 
 def theta_problems(cal: dict, observation=None) -> list[tuple[str, str]]:

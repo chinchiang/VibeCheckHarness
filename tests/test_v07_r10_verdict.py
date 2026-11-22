@@ -35,7 +35,7 @@ def test_the_examples_are_clean(b):
 
 
 def test_the_rule_version_is_05_v0_9():
-    assert adjudicate.RULE_VERSION == "05-v0.15"
+    assert adjudicate.RULE_VERSION == "05-v0.16"
 
 
 # ================================================================ theta_reject guard
@@ -93,9 +93,11 @@ def test_a_root_whose_votes_disagree_contributes_their_mean():
     assert verdict.root_score([("claude", 1.2), ("claude", -0.8)]) == 0.2
 
 
-# ================================================================ analyst disagreement fails closed
-def test_a_disagreeing_eligible_analyst_makes_a_preregistered_fail_inconclusive(b):
-    """The W4 FAIL of K-015 (nvidia) with openai test authors: claude_sonnet's analyst is eligible."""
+# ================================================================ analyst disagreement (05-v0.16, D4: marked, not a veto)
+def test_a_disagreeing_eligible_analyst_marks_a_preregistered_fail(b):
+    """The W4 FAIL of K-015 (nvidia) with openai test authors: claude_sonnet's analyst is eligible. Review r10 made its
+    disagreement E_inc; 05-v0.16 (D4, user decision) keeps the pre-registered class and marks the reason, because the
+    analyst reads the target's own output and must not veto a deterministic, pre-registered proof."""
     ag = doc(b, "agents.yaml").data
     ag["test_gen"]["model"] = ag["test_critic"]["model"] = "gpt_flagship"
     ix = derive.Index(b)
@@ -106,16 +108,18 @@ def test_a_disagreeing_eligible_analyst_makes_a_preregistered_fail_inconclusive(
     assert derive.analyst_check(ix, tr, cl) == (True, None)
     assert derive.classify_result(ix, tr, cl)[0] == "E_proof"
     tr["interpretation"]["agrees"] = False
-    assert derive.classify_result(ix, tr, cl)[0] == "E_inc"
+    cls, why = derive.classify_result(ix, tr, cl)
+    assert cls == "E_proof" and derive.ANALYST_DISAGREES in why
 
 
-def test_a_disagreeing_eligible_analyst_makes_a_preregistered_pass_inconclusive(b):
+def test_a_disagreeing_eligible_analyst_marks_a_preregistered_pass(b):
     ix = derive.Index(b)
     tr = doc(b, "testresult.llm-pass.example.json").data
     cl = ix.first("cluster", cluster_id=tr["cluster_ids"][0]).data
-    assert derive.classify_result(ix, tr, cl)[0] == "E_pass"
+    assert derive.classify_result(ix, tr, cl)[0] == "E_pass_weak"      # 05-v0.16 (D6): no oracle_can_fail control
     tr["interpretation"]["agrees"] = False
-    assert derive.classify_result(ix, tr, cl)[0] == "E_inc"
+    cls, why = derive.classify_result(ix, tr, cl)
+    assert cls == "E_pass_weak" and derive.ANALYST_DISAGREES in why
 
 
 # ================================================================ authors fail closed

@@ -29,7 +29,7 @@ def errs(bundle, code):
 
 # ================================================================ A1 tool tiers (pure rules)
 def test_rule_version_is_bumped():
-    assert adj.RULE_VERSION == "05-v0.15"           # bumped again by review r10 PR2
+    assert adj.RULE_VERSION == "05-v0.16"           # bumped again by review r10 PR2
 
 
 def test_weak_sarif_alone_never_confirms():
@@ -166,7 +166,7 @@ def test_w4_preregistration_needs_g1_signed_requirements(b):
 def test_pass_needs_reachability_and_a_deterministic_oracle(b):
     ix, cl = _ix_cluster(b, "K-011")
     tr = doc(b, TR_LLM).data
-    assert classify_result(ix, tr, cl)[0] == "E_pass"
+    assert classify_result(ix, tr, cl)[0] == "E_pass_weak"          # 05-v0.16 (D6): no oracle_can_fail control
     doc(b, "testcase.llm.example.json").data["oracle"]["types"] = ["LLM_GRADER"]
     assert classify_result(ix, tr, cl) == ("E_inc", "no deterministic oracle")
 
@@ -269,7 +269,7 @@ def test_result_of_threat_without_source_cluster_is_recorded_on_a_black_box_clus
 
 def test_pass_on_black_box_cluster_is_recorded(b):
     v = doc(b, V202).data
-    assert v["test_evidence"]["class"] == "E_pass" and v["status"] == "UNCORROBORATED"
+    assert v["test_evidence"]["class"] == "E_pass_weak" and v["status"] == "UNCORROBORATED"   # 05-v0.16 (D6)
     assert [a["kind"] for a in v["annotations"]] == ["test_not_reproduced"]
 
 

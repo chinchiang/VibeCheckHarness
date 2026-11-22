@@ -114,11 +114,16 @@ def test_docs02_result_analyst_text_matches_derive():
     doc = text("02-methodology.md")
     # a declared control that is not PASS makes the result INVALID (E_inc) before any analyst is asked
     assert "例如 `local_rls` 的某個對照沒有 PASS" not in doc
-    # derive.classify_result: an eligible analyst that disagrees gives E_inc, pre-registered or not (as docs/05 says)
-    assert "`agrees` 為 false → `E_inc`" in text("05-bias-calibration.md")
+    # derive.classify_result (05-v0.16, D4): an eligible analyst that disagrees keeps a pre-registered result's class and
+    # marks it (analyst_disagrees); a result that is not pre-registered is E_inc. docs/02 and docs/05 say the same.
+    # (Until 05-v0.15 the disagreement gave E_inc in both cases, and docs/02 once said it did not affect the class.)
+    from vchlib import derive
+    assert derive.ANALYST_DISAGREES == "analyst_disagrees"
+    assert "解讀**已**事先登記 → 分類不變" in text("05-bias-calibration.md")
     assert "其他情況只撰寫結果說明，不影響分類。" not in doc
     line = next(ln for ln in doc.splitlines() if "它只在解讀未事先登記時決定分類" in ln)
-    assert "`agrees` 為 false" in line and "`E_inc`" in line, line
+    assert "`agrees` 為 false" in line and "`analyst_disagrees`" in line and "解讀未事先登記的結果是 `E_inc`" in line, line
+    assert "不論解讀是否事先登記，結果都是 `E_inc`" not in doc
 
 
 def test_docs05_g2_accept_exception_is_stated():

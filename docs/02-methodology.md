@@ -4,7 +4,7 @@
 
 ## 現況
 
-第十四輪審查（2026-10-30）後的設計，裁決規則版本 `05-v0.15`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
+第十四輪審查（2026-10-30）與 2026-11-22 內部審查後的設計，裁決規則版本 `05-v0.16`。本文件描述現在的規則；正文中「審查 rN」「v0.x」等字樣只出現在說明「為什麼這樣規定」的句子。各版的變更摘要移到 [evidence/doc-history.md](evidence/doc-history.md#02-方法論先白箱後黑箱威脅建模強制在前)，逐版的完整變更見 [CHANGELOG](../CHANGELOG.md)，審查紀錄見 [evidence/](evidence/)。
 
 ## 1. 總覽
 
@@ -374,7 +374,7 @@ flowchart TD
   3. **與工具結果相互佐證**（由程式碼）[H]：Aggregator 把對應同一位置與 CWE 桶的 SARIF 結果分成兩級：
      - **強佐證**（`tool_corroboration`）：該結果的 `(adapter, rule_id, tool_version)` 列在 `calibration.yaml` 的 `result.high_precision_rules`，桶等於叢集的桶，且 `precision_lower95` ≥ `result.thresholds.high_precision_min.value`（預設 0.90；設在校準檔，不在 `toolkit.yaml`）。`rule_id` 與 `tool_version` 取自該結果所屬稽核事件（`tool_invocation_end`）的 `payload.sarif_results[]` 與 `payload.tool_version`。校準之前這份清單是空的，所以沒有強佐證。
      - **弱訊號**（`tool_signal`）：其他所有 SARIF 結果，以及 W4／B5 的 `E_fail_u`。弱 SARIF 與 `E_fail_u` 各只算**一個**獨立來源（`independent_sources`），不能單獨確認。
-  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R16：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`（`regression` run 的帶入叢集另有 `FIXED`）。裁決的 `rule_version` 是 `05-v0.15`；各版改了什麼見 05 §4.2 的「規則版本」。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
+  4. **規則式裁決**（Aggregator 是程式碼，不是 LLM），依 [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) 的有序規則 R0–R16：`CONFIRMED_CORROBORATED`／`LIKELY`／`UNCORROBORATED`／`DISPUTED`／`REJECTED`（`regression` run 的帶入叢集另有 `FIXED`）。裁決的 `rule_version` 是 `05-v0.16`；各版改了什麼見 05 §4.2 的「規則版本」。沒有經校準的投票支撐的裁決標為 `provisional`（暫定）：沒有 `calibration_version`、`theta_confirm` 為 null，或所有合格驗證模型在該桶的權重都是 0（定義見 05 §4.2）；報告照樣標示（[08 §11.11](08-implementation-spec.md#1111-校準前的預設)）。
   5. **CMD-2 加派** [H]：
      - 對 `DISPUTED` 與 `UNCORROBORATED` 叢集加派審查者或驗證者，**最多 2 輪**（`E-PLAN-ROUNDS`）。
      - Commander 收到的是程式碼建立的型別化視圖：叢集 ID、狀態、CWE 桶、嚴重度、家族、票數。視圖不含發現項的推理，也不含 repo 的文字。
@@ -651,7 +651,7 @@ flowchart TD
   - 池中每個家族一位：`result_analyst_a`（`claude_sonnet`）、`result_analyst_b`（`gpt_flagship`）、`result_analyst`（`nemotron_self`）。
   - 從中選一位家族與血統都不在叢集中的。黑箱起源的叢集沒有回報家族，所以每一位都合格。
   - 回應中偵測到個資時，只用自架模型（`result_analyst`）。
-  - 它只在解讀未事先登記時決定分類（沒有合格者 → `E_fail_u`，弱工具訊號，05 R6）；其他情況只撰寫結果說明。例外：結果記有合格分析者、且它的 `agrees` 為 false 時，不論解讀是否事先登記，結果都是 `E_inc`（05 §4.2；`derive.classify_result`）。
+  - 它只在解讀未事先登記時決定分類（沒有合格者 → `E_fail_u`，弱工具訊號，05 R6）；其他情況只撰寫結果說明。合格分析者的 `agrees` 為 false 時：解讀已事先登記的結果分類不變，裁決加註 `analyst_disagrees` 並列入 B6 人工複核；解讀未事先登記的結果是 `E_inc`（05 §4.2；`derive.classify_result`）。分析者讀的是受測應用的輸出，不能讓它否決事先登記的確定性證明。
   - 分析者記在測試結果的 `interpreted_by`，結論記在 `interpretation`（`agrees`、`rationale`；兩者同時有或同時為 `null`，`E-RESULT-ANALYST`）。分析者必須是 `agents.yaml` 中角色為 `result_analyst` 的 agent（`E-RESULT-ANALYST-ROLE`）；合格分析者不同意解讀 → `E_inc`。
 - **黑箱起源的叢集** [H]：
   - B2 產生、沒有 `source_cluster_id` 的威脅（不是來自白箱），其測試案例的**每一筆**測試結果（FAIL、PASS、INVALID 都一樣）都寫到該威脅的 `origin: black_box` 叢集（`E-CLUSTER-ORIGIN`）。

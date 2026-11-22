@@ -2,7 +2,41 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.15`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.16`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）。
+
+## 裁決規則 `05-v0.16`：高嚴重度不自動駁回、分析者不否決、沒有正對照的 PASS 另立類別（使用者決定）
+
+CONTRIBUTING 第 3 類「審查核實成立、經使用者決定的設計變更」。問題、選項與理由記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §2。沒有新增錯誤碼。**沒有任何範例的裁決狀態改變**：範例中沒有 `REJECTED` 的裁決，也沒有分析者不同意的結果。
+
+### D2 高嚴重度的叢集不由規則駁回（使用者決定）
+- R0（成員的證據沒有任何一項接地）與 R4 第 8 列（單一家族回報、反駁分數過 θ_reject）原本直接判 `REJECTED`，不經人。受測 repo 是攻擊者可控的輸入，所有驗證者讀同一份程式碼；LLM 也常改寫片段而不是逐字引用。
+- 現在 rubric 嚴重度為 critical／high 的叢集（`derive.rubric_severity`，由程式依 inventory 計算）：R0 → `DISPUTED`（決策表新增第 17 列，不算暫定裁決）；R4 第 8 列落到第 9 列 `DISPUTED`；Lane A（R9）給 `UNCORROBORATED`。G2 的駁回（R10）是人的決定，不變。
+- `adjudicate.Inputs.high_severity`、`verdict.high_severity`。
+
+### D4 結果分析者不同意時，事先登記的結果分類不變（使用者決定；推翻第十輪）
+- 第十輪（`05-v0.9`）讓合格分析者的不同意一律把結果降為 `E_inc`，理由只是當時程式與 05 的文字不一致。分析者讀的是受測應用的輸出，可被誘導去否決 G4 核准、重播成立的確定性 FAIL。
+- 現在解讀已事先登記的結果保留類別，裁決加註 `analyst_disagrees`（R12，列入 B6 人工複核）；未事先登記的結果仍是 `E_inc`。
+- `derive.classify_result`、`derive.ANALYST_DISAGREES`、`adjudicate.Inputs.analyst_disagrees`、`verdict.analyst_disagrees`；`verdict.schema.json` 的註記列舉加 `analyst_disagrees`。
+
+### D6 沒有正對照的合格 PASS 是 `E_pass_weak`（使用者決定）
+- 沒有 PASS 的 `oracle_can_fail` 對照時，oracle 沒有被證明測得到違反；它若讀受測應用自己寫的紀錄，有漏洞的路徑沒寫紀錄也會 PASS。R11 原本就區分兩者，但類別名稱相同，範例還附「上界 4.9%」。
+- 新類別 `E_pass_weak`：R11 只加註 `test_not_reproduced`，不把確認改成 `DISPUTED`；R14（`FIXED`）不接受它。`Inputs.pass_positive` 移除，改由類別表達（行為與 `05-v0.15` 相同）。
+- 測試證據沒有 `E_pass` 時，`test_not_reproduced` 的理由不得陳述統計上界（`E-VERDICT-ANNOTATIONS`；樣式檢查，擋不住換句話說，列為 06 §3 #47）。
+- 範例：`verdict.k-011-b5`、`verdict.k-202-b5` 的類別改為 `E_pass_weak`；`k-011-b5` 的註記理由拿掉 `p_u≈0.049`。04 §4.4 與範例 B 改為「沒有正對照時不陳述上界」。
+
+### 連帶
+- `RULE_VERSION` 升為 `05-v0.16`；全部裁決與 run 範例的 `rule_version` 更新，`sign_examples.py` 重算到穩定、`build_variants.py` 重建變體。
+- 文件：05 §4.2 的規則表（R0、R4、R9、R11、R12）、測試證據分類表與規則版本歷程；04 §4.4、§6.2；02 B5；03、08 的規則版本與 `AdjudicationInputs` 欄位清單；06 §3 新增 #47（共 47 條）；README 術語表；新增審查紀錄 `docs/evidence/review-2026-11-22.md`。
+- 新增 `tests/test_rule_v016.py`（24 個測試）：在實作前的 `0a699a9` 上 22 個失敗，通過的 2 個是「沒有收緊過頭」類。
+- 新增突變清單 `tests/mutations/rule_v016.json`：26 個突變，`CAUGHT 26/26`。第一次執行有 2 個 MISSED（第 17 列的暫定性測試在範例上本來就恆為假；PASS 路徑的「未事先登記仍是 `E_inc`」沒有測到），測試已補強。
+- 受新語意影響而更新的既有測試（沒有放寬斷言）：
+  - 規則版本的斷言 18 處（`05-v0.15` → `05-v0.16`）。
+  - `pass_positive` 的用法 14 處（5 個檔）：有正對照的保留 `E_pass`，沒有的改為 `E_pass_weak`。
+  - 讀範例 PASS 類別的斷言 5 處（`E_pass` → `E_pass_weak`）。
+  - `test_v07_r10_verdict.py` 的兩個「分析者不同意即 `E_inc`」測試改為新語意（保留類別、理由帶標記）。
+  - `test_v03_datamodel.py` 的 R0 測試：範例的 K-015 是 critical，現在是 `DISPUTED`；另以一般嚴重度確認仍是 `REJECTED`。
+  - `test_v07_r11_docs.py`、`test_v07_r14_docs.py`：README 狀態列與限制條數。
+  - 突變錨點：7 份清單的 `RULE_VERSION` 行；`r10_verdict.json`（分析者不同意的突變改為拿掉標記）、`r12_verdict.json`（非暫定的列號清單加上 17）、`r14_verdict.json`（schema 列舉）、`r14_docs.json`（條數）。
 
 ## 校準門檻必須達得到（2026-11-22 內部審查）
 

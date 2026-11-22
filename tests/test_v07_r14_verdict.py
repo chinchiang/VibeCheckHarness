@@ -53,8 +53,8 @@ def text(rel):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_15(b):
-    assert adj.RULE_VERSION == "05-v0.15" and run_all(b).errors == []
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.15"}
+    assert adj.RULE_VERSION == "05-v0.16" and run_all(b).errors == []
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.16"}
 
 
 # ================================================================ B1. the required testcases follow the carried_from chain
@@ -138,9 +138,9 @@ def test_a_cluster_of_its_own_still_votes(b):
 
 
 def test_row_15_is_decided_by_tool_signals_alone():
-    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, pass_positive=True, weighted_refute=True))
+    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, weighted_refute=True))
     assert (out.status, out.row) == ("FIXED", 14)                        # a vote can no longer contradict a fix
-    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, pass_positive=True, weak_sarif=True))
+    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, weak_sarif=True))
     assert (out.status, out.row) == ("DISPUTED", 15) and "fix_contradicted" in out.annotations
 
 

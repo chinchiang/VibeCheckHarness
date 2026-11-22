@@ -39,7 +39,7 @@ def text(name):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_11(b):
-    assert adj.RULE_VERSION == "05-v0.15" and run_all(b).errors == []
+    assert adj.RULE_VERSION == "05-v0.16" and run_all(b).errors == []
 
 
 # ================================================================ R15: one membership rule
@@ -114,12 +114,12 @@ def test_a_disabled_high_precision_min_is_allowed(b, keys):
 @pytest.mark.parametrize("kw", [{"strong_tool": True}, {"weak_sarif": True},
                                 {"strong_tool": True, "weighted_support": True, "weighted_refute": True}])    # r14: tools only
 def test_a_contradicted_fix_is_disputed(kw):
-    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, pass_positive=True, **kw))
+    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, **kw))
     assert (out.status, out.row, out.rules) == ("DISPUTED", 15, ["R14"]) and "fix_contradicted" in out.annotations
 
 
 def test_an_uncontradicted_fix_is_fixed():
-    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, pass_positive=True, weighted_support=True))
+    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, weighted_support=True))
     assert (out.status, out.row) == ("FIXED", 14)
 
 

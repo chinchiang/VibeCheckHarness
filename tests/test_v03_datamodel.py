@@ -5,7 +5,7 @@ DFD provenance / boundary kinds (B4), threat evidence kinds (L-05), facets (E7).
 import pytest
 
 from conftest import codes, doc
-from vchlib import evidence, facets
+from vchlib import derive, evidence, facets
 from vchlib.adjudicate import adjudicate
 from vchlib.checks import run_all
 from vchlib.verdict import verdict_inputs
@@ -108,13 +108,18 @@ def test_finding_status_follows_matches(b):
     assert "E-FINDING-STATUS" not in codes(b)
 
 
-def test_r0_all_evidence_not_found(b):
+def test_r0_all_evidence_not_found(b, monkeypatch):
     f = doc(b, F061).data
     f["evidence"][0]["match"] = "NOT_FOUND"
     c = Ctx(b)
     v, cl = doc(b, "verdict.k-015-w3.example.json").data, c.ix.first("cluster", cluster_id="K-015").data
+    # 05-v0.16 (D2): K-015 is critical by the rubric, so R0 sends it to a person (DISPUTED) instead of rejecting it
+    out = adjudicate(verdict_inputs(c, v, cl))
+    assert (out.status, out.rules) == ("DISPUTED", ["R0"])
+    monkeypatch.setattr(derive, "rubric_severity", lambda ix, cluster: "medium")
     out = adjudicate(verdict_inputs(c, v, cl))
     assert (out.status, out.rules) == ("REJECTED", ["R0"])
+    monkeypatch.undo()
     f["evidence"][0]["match"] = "MATCHED_SHIFTED"
     assert adjudicate(verdict_inputs(Ctx(b), v, cl)).status == "UNCORROBORATED"
 

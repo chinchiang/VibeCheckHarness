@@ -165,7 +165,7 @@
     {
       "name": "rule_version 05-v0.14",
       "file": "tools/vchlib/adjudicate.py",
-      "old": "RULE_VERSION = \"05-v0.15\"",
+      "old": "RULE_VERSION = \"05-v0.16\"",
       "new": "RULE_VERSION = \"05-v0.13\"",
       "k": "rule_version_is_05_v0_14"
     },

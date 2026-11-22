@@ -102,7 +102,7 @@ def test_high_risk_pass_needs_sixty_effective_trials(b):
     tr = doc(b, "testresult.llm-pass.example.json").data
     ix = Ctx(b).ix
     cl = ix.first("cluster", cluster_id="K-011").data
-    assert derive.classify_result(ix, tr, cl)[0] == "E_pass"
+    assert derive.classify_result(ix, tr, cl)[0] == "E_pass_weak"          # 05-v0.16 (D6): no oracle_can_fail control
     tr["trials"]["n_effective"] = 45
     cls, why = derive.classify_result(Ctx(b).ix, tr, cl)
     assert cls == "E_inc" and "60" in why

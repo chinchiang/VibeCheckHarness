@@ -750,6 +750,9 @@ def analyst_check(ix: "Index", tr: dict, cluster: dict) -> tuple[bool, str | Non
     return False, "eligible analyst does not agree with the interpretation"
 
 
+ANALYST_DISAGREES = "analyst_disagrees"      # D4 (05-v0.16): marker in a classify_result reason; verdict.analyst_disagrees reads it
+
+
 def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     """Return (class, reason) for one testresult linked to `cluster` (docs/05 §4.2, v0.3).
 
@@ -759,11 +762,13 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
        for W4, G1-approved requirements plus either a harness-generated oracle with both oracle
        controls PASSed or a G2-accepted cluster) -> E_proof without any LLM; an LLM-written W4
        oracle not yet accepted at G2 -> E_fail_u; else an eligible cross-family Result Analyst
-       that agrees -> E_proof; else E_fail_u. An eligible analyst that disagrees -> E_inc first.
+       that agrees -> E_proof; else E_fail_u.
     3. PASS: every reachability control PASSed, probabilistic k=0 and n' >= pass_min_effective
        (30, or 60 for a high-risk threat), a deterministic
        oracle, and a pre-registered interpretation (oracle_can_fail for W4) or an eligible analyst
-       -> E_pass; else E_inc.
+       -> E_pass with a PASSed oracle_can_fail control, E_pass_weak without one (D6); else E_inc.
+    4. An eligible Result Analyst that disagrees (D4): a pre-registered result keeps its class and
+       the reason carries ANALYST_DISAGREES; a result that is not pre-registered is E_inc.
     """
     tc_doc = ix.testcase_for(tr)
     tc = tc_doc.data if tc_doc else {}
@@ -778,10 +783,13 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
     if tr.get("phase") == "W4" and tr.get("observations_source") != "harness":   # v0.7 (review r8, external review 6)
         return "E_inc", "observations read from the SUT's own process can be forged; only harness-sourced observations are evidence"
     eligible, disagreement = analyst_check(ix, tr, cluster)
-    if disagreement:
-        # v0.7 (review r10): an eligible Result Analyst that disagrees with the interpretation makes the result
-        # inconclusive, pre-registered or not (docs/05 §4.2); v0.7 r9 let the pre-registration win over it
-        return "E_inc", disagreement
+    # D4 (05-v0.16, user decision): an eligible Result Analyst that disagrees no longer vetoes a pre-registered result.
+    # The analyst reads the target's own output and can be steered into disagreeing with a G4-approved, replayed
+    # deterministic FAIL; a person fixed that interpretation before the test ran, so the class stands and the reason
+    # carries ANALYST_DISAGREES (the verdict is annotated `analyst_disagrees`, B6 human review). Without a
+    # pre-registration the disagreement still makes the result E_inc. Review r10 (05-v0.9) made it E_inc in both cases
+    # only because the code then differed from the text of docs/05
+    noted = f"; {ANALYST_DISAGREES}: {disagreement}" if disagreement else ""
     if outcome == "FAIL":
         ok, why = fail_reproduced(tc, tr, probabilistic)
         if not ok:
@@ -789,7 +797,7 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
         if not (set(tr.get("fail_oracles") or []) & DETERMINISTIC_ORACLES):
             return "E_inc", "violation judged only by a non-deterministic oracle"
         if preregistered(ix, tc, tr, "oracle_can_pass", cluster) and authors_independent(ix, tr, cluster):
-            return "E_proof", "reproduced FAIL, deterministic oracle, pre-registered interpretation"
+            return "E_proof", "reproduced FAIL, deterministic oracle, pre-registered interpretation" + noted
         # r14 (05-v0.15, C3): an LLM-written W4 oracle that G2 has not accepted is not proof, with or without an analyst
         # (an analyst LLM confirming an LLM's oracle is still no human review); it is a signal capped at LIKELY (R6)
         if result_oracle_unreviewed(ix, tc, tr, cluster):
@@ -809,10 +817,14 @@ def classify_result(ix: Index, tr: dict, cluster: dict) -> tuple[str, str]:
         return "E_inc", "no deterministic oracle"
     # r11: a pre-registered PASS needs independent authors, as a pre-registered FAIL does (E_proof); v0.7 let the
     # reporting family's own test, written and interpreted by itself, downgrade another family's confirmation (R11)
+    # D6 (05-v0.16, user decision): a qualified PASS whose oracle was never shown to fail (no PASSed oracle_can_fail
+    # control) is E_pass_weak: an oracle that reads the target's own log passes when the vulnerable path wrote none
+    cls = "E_pass" if positive_control_value(tc, tr) is True else "E_pass_weak"
+    weak = "" if cls == "E_pass" else " without a positive control"
     if preregistered(ix, tc, tr, "oracle_can_fail", cluster) and authors_independent(ix, tr, cluster):
-        return "E_pass", "qualified PASS, pre-registered interpretation"
+        return cls, f"qualified PASS{weak}, pre-registered interpretation" + noted
     if eligible:
-        return "E_pass", "qualified PASS, cross-family analyst"
+        return cls, f"qualified PASS{weak}, cross-family analyst"
     return "E_inc", disagreement or "no pre-registered interpretation, independent authors or eligible analyst"
 
 

@@ -68,7 +68,7 @@
       "image_digest": "sha256:1e258df8ecd74dbdd562b48004a062673323a48c986c945049e63c119a346867"
     }
   ],
-  "rule_version": "05-v0.15",
+  "rule_version": "05-v0.16",
   "roe_ref": "sha256:beb8a302a584bc1632d013c85ebd8e5b86c4352e4b2f305122707a407db57c47",
   "repo_commit": "7d3e1a0c4b2e9f6d1a8c3b5e7f9a2d4c6e8b0f1a",
   "owasp_llm_version": "2026",
@@ -293,15 +293,15 @@
     },
     {
       "seq": 26,
-      "line_sha256": "sha256:9c7452b19601d42321e427b27a8054fe58f1dd0f5caa822b7785e2c2191fcac7"
+      "line_sha256": "sha256:325c3527a64f8516af7cb96905778f14b023e79c9e9fd3d9009cd4a00f23d24a"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:6d7313d5da3e8297b7e9a58deb5ffafc16182fe2bbaf0e4dc37edbe6597bf950"
+      "line_sha256": "sha256:aa2448f342b3d215d59b840d0f2ac342928b5428db8be4ec7cf78e8acec3709c"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:6cbeb89e7223690b2b7ca4d0f3939f659b4cf804ed58b994698321184ce994c9"
+      "line_sha256": "sha256:c94d23901c016089b2c267db273b077fd23e44f355a82ee8bc6f4a6850193263"
     }
   ],
   "errors": [],

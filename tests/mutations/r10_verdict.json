@@ -32,8 +32,8 @@
     {
       "name": "analyst disagreement fails closed",
       "file": "tools/vchlib/derive.py",
-      "old": "    if disagreement:\n        # v0.7 (review r10)",
-      "new": "    if False:\n        # v0.7 (review r10)",
+      "old": "    noted = f\"; {ANALYST_DISAGREES}: {disagreement}\" if disagreement else \"\"",
+      "new": "    noted = \"\"",
       "k": "disagreeing_eligible_analyst"
     },
     {
