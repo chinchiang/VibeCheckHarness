@@ -367,7 +367,7 @@ def test_dropped_anchor_on_running_run_is_an_error(b):
 def test_unanchored_tail_on_running_run_is_a_warning(b):
     """Genuine tail: events appended after the log's last audit_anchor of an unfinished run (v0.7, review r9: the
     follow-up run, WAITING_GATE; a completed run marked RUNNING is E-RUN-STATUS)."""
-    d, run = doc(b, AUDIT_F), doc(b, RUN_F).data
+    d = doc(b, AUDIT_F)
     evs = copy.deepcopy(d.data)
     extra = copy.deepcopy(next(e for e in reversed(evs) if e["event_type"] != "audit_anchor"))
     # r11: artifact_stored now needs a pinned artefact and its hash, so the tail is made of plain policy decisions

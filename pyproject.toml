@@ -12,9 +12,26 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+# CI and local development only (requirements-dev.txt pins the same versions). Not validator dependencies: they are not in
+# requirements.txt, so docs/examples/licenses.yaml (pinned by the signed engagement) does not list them.
+dev = ["pytest-xdist==3.8.0", "pytest-cov==7.1.0", "ruff==0.17.6"]
 reference = ["rfc8785==0.1.4"]   # RFC 8785 cross-check only; the validator warns (W-JCS-REFERENCE-MISSING) without it (r12 PR6)
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tools", "tests"]
 addopts = "-q"
+
+[tool.ruff]
+line-length = 160          # not enforced (no E501): the code base uses long lines; no formatter is applied
+
+[tool.ruff.lint]
+# Syntax errors and pyflakes only: unused imports / variables, undefined names, shadowed imports. Style rules and a
+# formatter would rewrite most files at once and move the mutation anchors (tests/mutations/*.json).
+select = ["E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# g_verdicts uses `field` as a loop variable (shadows dataclasses.field inside that function only) and keeps an unused
+# `w_status`; both are harmless, and editing the lines would move mutation anchors in the validator.
+"tools/vchlib/checks.py" = ["F402", "F841"]
+

@@ -16,7 +16,7 @@ import pytest
 
 from conftest import doc, split_stats
 from vchlib import checks
-from vchlib.checks import run_all, wilson_lower, wilson_upper
+from vchlib.checks import run_all
 
 ROOT_DOCS = __import__("pathlib").Path(__file__).resolve().parents[1] / "docs"
 

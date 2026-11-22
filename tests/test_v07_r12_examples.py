@@ -12,7 +12,6 @@
   - Stale text: the 02-08 status lines still said round 10; the glossary lacked the r11 / r12 terms and said the suspend
     variant walks the resume path (it does not).
 Each test failed before the change and passes after it (tests/mutations/r12_examples.json); see CONTRIBUTING.md."""
-import copy
 import pathlib
 
 import pytest

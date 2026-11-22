@@ -7,7 +7,6 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import safety
-from vchlib.checks import run_all
 
 TC_IDOR, TC_LLM, TC_LIST = "testcase.idor.example.json", "testcase.llm.example.json", "testcase.bola-list.example.json"
 

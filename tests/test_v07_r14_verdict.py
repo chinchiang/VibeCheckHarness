@@ -27,7 +27,7 @@ import pathlib
 
 import pytest
 
-from conftest import CAL_APPS, EXAMPLE_ICC, apps_map, doc, hp_rule, rederive, split_stats
+from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive, split_stats
 from test_v03_adjudication import _ix_cluster, _w4
 from test_v07_r11_verdict import pin_calibration
 from vchlib import adjudicate as adj

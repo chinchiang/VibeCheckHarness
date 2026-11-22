@@ -31,3 +31,5 @@
 - `python tools/sign_examples.py`：改了範例或推導規則時，重算到穩定為止（TEST ONLY 簽章）；接著 `python tools/build_variants.py` 重建變體 bundle。
 - `python tools/validate_schemas.py`、`python -m pytest tests`、`python tools/check_doc_links.py`，以及四個 generator（證據帳本、參考文獻、錯誤碼表、變體 bundle）的 `--check`，全部通過才推送。相依套件以 `requirements.lock`（CI 用的精確版本）安裝；升級套件時重產 lock（檔頭有指令）。PR 說明依 `.github/pull_request_template.md` 的檢查表填寫。
 - 改變 validator 行為時，同步更新 `docs/schemas/README.md` 的錯誤碼表、相關設計文件與 `CHANGELOG.md`。
+- 測試可以平行執行：`python -m pip install -r requirements-dev.txt` 之後用 `python -m pytest -n auto tests`（CI 也這樣跑）。每個測試拿到的是範例 bundle 的副本，寫檔的測試都寫在暫存目錄，所以新測試也要守這兩點，不能改 repo 內的檔案或依賴執行順序。
+- `python -m ruff check tools tests` 要通過（CI 的 `lint` job）：只檢查語法錯誤與 pyflakes，不做排版。

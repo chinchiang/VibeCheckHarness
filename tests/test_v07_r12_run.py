@@ -9,7 +9,6 @@
   run_kind  run_created pins run_kind and trigger as it pins the commit (E-RUN-COMMIT);
   registry  a bundle whose key registry is older than one a run loaded is a rollback (E-KR-ROLLBACK, BL-43).
 Each defect test failed on the r11 head and passes with the fix (tests/mutations/r12_run.json); see CONTRIBUTING.md."""
-import copy
 import pathlib
 
 import pytest

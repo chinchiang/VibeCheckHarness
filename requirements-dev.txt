@@ -1,0 +1,11 @@
+# CI and local development tools: parallel test runs, coverage and lint. Install after requirements.lock:
+#     python -m pip install -r requirements.lock -r requirements-dev.txt
+# These are NOT validator dependencies. They are deliberately kept out of requirements.txt: the validator checks every
+# requirements.txt package against docs/examples/licenses.yaml (E-LIC-MISSING), and licenses.yaml is pinned by the signed
+# example engagement (config_pins), so listing a tool there means re-signing every example.
+# Licences: pytest-xdist MIT, execnet MIT, pytest-cov MIT, coverage Apache-2.0, ruff MIT.
+pytest-xdist==3.8.0
+execnet==2.1.2
+pytest-cov==7.1.0
+coverage==7.17.4
+ruff==0.17.6

@@ -9,12 +9,9 @@
   3. tools/mutation_check.py counted any exception in a test body as CAUGHT (pytest's junit `failures` includes them).
   4. docs/08's AdjudicationInputs claimed to match vchlib.adjudicate.Inputs field for field and missed six fields.
 Each test failed before the change and passes after it (tests/mutations/r12_external.json); see CONTRIBUTING.md."""
-import copy
 import dataclasses
 import pathlib
 import re
-import subprocess
-import sys
 
 import pytest
 

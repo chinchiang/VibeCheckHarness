@@ -8,7 +8,6 @@
 """
 import copy
 
-import pytest
 
 from conftest import doc
 from vchlib import safety

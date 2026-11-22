@@ -24,7 +24,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import sign_examples as S  # noqa: E402
-from vchlib import crypto, seal, timeutil, yamlstrict  # noqa: E402
+from vchlib import crypto, seal, yamlstrict  # noqa: E402
 from vchlib.bundle import VARIANTS as VARIANTS_DIR, Bundle, Doc, dump_json, dump_jsonl, load_bundle  # noqa: E402
 from vchlib.checks import run_all  # noqa: E402
 

@@ -24,3 +24,8 @@ storageState*.json
 
 # Local scratch output (architecture reports etc.; survives reboot, never committed)
 scratch/
+
+# coverage data (python -m pytest --cov; CI lint job)
+.coverage
+.coverage.*
+htmlcov/

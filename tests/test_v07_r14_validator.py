@@ -23,7 +23,6 @@ import pytest
 from conftest import doc, rederive
 from test_v07_r11_anchor import FRUN, anchor, append, g0a_reverify, renumber, signed_resume
 from test_v07_r13_external import first_index, insert
-from vchlib import checks
 from vchlib.bundle import Doc, load_variant
 from vchlib.checks import run_all
 
