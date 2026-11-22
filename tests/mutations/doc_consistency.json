@@ -1,0 +1,30 @@
+{
+  "tests": "tests/test_doc_consistency.py",
+  "mutations": [
+    {"name": "rule version: 08 code comment", "file": "docs/08-implementation-spec.md", "old": "# RULE_VERSION（目前 \"05-v0.15\"；", "new": "# RULE_VERSION（目前 \"05-v0.14\"；", "k": "rule_version"},
+    {"name": "rule version: 08 verdict row", "file": "docs/08-implementation-spec.md", "old": "（目前 `05-v0.15`；v0.5 起 `05-v0.5`）", "new": "（目前 `05-v0.14`；v0.5 起 `05-v0.5`）", "k": "rule_version"},
+    {"name": "rule version: 08 run field", "file": "docs/08-implementation-spec.md", "old": "`RULE_VERSION` 常數（目前 `05-v0.15`），", "new": "`RULE_VERSION` 常數（目前 `05-v0.14`），", "k": "rule_version"},
+    {"name": "rule version: 02 W3", "file": "docs/02-methodology.md", "old": "裁決的 `rule_version` 是 `05-v0.15`；", "new": "裁決的 `rule_version` 是 `05-v0.14`；", "k": "rule_version"},
+    {"name": "inventory: 08 M1 list", "file": "docs/08-implementation-spec.md", "old": "這兩個已在 `tools.yaml` 登錄（第十四輪內部審查），`inventory` 目前共登錄 `fastapi`、`express`、`sql_rls`、`nextjs`、`baas_client` 五個模式；登錄只代表 ID 可用，抽取器本身尚未實作。", "new": "這兩個是**規劃中的 adapter**，目前的 `tools.yaml` 還沒有登錄（`inventory` 只登錄了 `fastapi`、`express`、`sql_rls` 三個模式）；實作時先在 `tools.yaml` 登錄，才適用上面的註冊規則。", "k": "inventory"},
+    {"name": "inventory: 08 W0 input", "file": "docs/08-implementation-spec.md", "old": "模式（目前是 `fastapi`、`express`、`sql_rls`、`nextjs`、`baas_client`；見下方支援矩陣）", "new": "模式（目前只有 `fastapi`、`express`、`sql_rls`；見下方支援矩陣）", "k": "inventory"},
+    {"name": "inventory: 08 planned list", "file": "docs/08-implementation-spec.md", "old": "下表標為「規劃中」的 adapter（`hono`、", "new": "下表標為「規劃中」的 adapter（`nextjs`、`baas_client`、`hono`、", "k": "inventory"},
+    {"name": "inventory: 08 baas_client row", "file": "docs/08-implementation-spec.md", "old": "| `inventory:baas_client`（已登錄，M1） |", "new": "| `inventory:baas_client`（規劃中） |", "k": "inventory"},
+    {"name": "PII milestone: 08 §11.17", "file": "docs/08-implementation-spec.md", "old": "W0 用的規則式 PII 偵測器 → M1（MVP-0；W0 是 M1 節點，見 §1 的 `pii` 列，第十四輪內部審查之前寫 M2）；", "new": "W0 用的規則式 PII 偵測器 → M2（MVP-0，v0.5）；", "k": "pii"},
+    {"name": "04 example B: silent replay demotes", "file": "docs/04-threat-to-testcase.md", "old": "k_r＝0 時 FAIL 判定不變（機率型的重播只是可重現性紀錄，§4.4），報告寫出 k_r／n_r 並另標「重播未重現，請人工檢視第一批的工具呼叫紀錄」。", "new": "k_r＝0 → `E_inc`（見 §4.4 的說明），轉人工看紀錄。", "k": "docs04"},
+    {"name": "04 example B: PASS threshold 30", "file": "docs/04-threat-to-testcase.md", "old": "k＝0 且 n′ ≥ 60（T-031 有 attack tree，屬高風險威脅，§4.4）→ 解讀屬事先登記", "new": "k＝0 且 n′ ≥ 30 → 解讀屬事先登記", "k": "docs04"},
+    {"name": "04 example B: E_inc below 30", "file": "docs/04-threat-to-testcase.md", "old": "n' < 60（本例是高風險威脅；一般威脅為 30，§4.4）時結果為 `E_inc` [H]。", "new": "n' < 30 時結果為 `E_inc` [H]。", "k": "docs04"},
+    {"name": "05 near_zero: three reasons", "file": "docs/05-bias-calibration.md", "old": "、`n_below_min`、`abstain_rate_gt_max`）", "new": "、`n_below_min`）", "k": "near_zero"},
+    {"name": "06 table: #44 unlisted", "file": "docs/06-security-legal-limitations.md", "old": "#33、#34、#38、#43、#44 |", "new": "#33、#34、#38、#43 |", "k": "docs06"},
+    {"name": "06 table: #45 unlisted", "file": "docs/06-security-legal-limitations.md", "old": "| #5、#10、#15、#16、#19、#45 |", "new": "| #5、#10、#15、#16、#19 |", "k": "docs06"},
+    {"name": "02 FIXED replay via R0", "file": "docs/02-methodology.md", "old": "重播命中 → 依 R1 為 `CONFIRMED_EXECUTABLE`；", "new": "重播命中 → 依 R0 為 `CONFIRMED_EXECUTABLE`；", "k": "r1_yields"},
+    {"name": "02 unreachable analyst example", "file": "docs/02-methodology.md", "old": "（例如 `requirement_ids` 中有未經 G1 核准的項目，或測試沒有宣告 `oracle_can_fail` 對照；任一個宣告的對照沒有 PASS 時結果是 `INVALID`／`E_inc`，不會走到這裡）：", "new": "（例如 `local_rls` 的某個對照沒有 PASS）：", "k": "result_analyst"},
+    {"name": "02 analyst disagreement ignored", "file": "docs/02-methodology.md", "old": "其他情況只撰寫結果說明。例外：結果記有合格分析者、且它的 `agrees` 為 false 時，不論解讀是否事先登記，結果都是 `E_inc`（05 §4.2；`derive.classify_result`）。", "new": "其他情況只撰寫結果說明，不影響分類。", "k": "result_analyst"},
+    {"name": "05 G2 accept without exception", "file": "docs/05-bias-calibration.md", "old": "G2 紀錄只附在報告中。唯一例外是測試證據的分類：叢集經 G2 逐項 `accept` 之後，LLM 撰寫的 W4 測試在之後的裁決版本算事先登記（「測試證據分類」中「事先登記的解讀」的 (b)；`derive.g2_accepted`），它改變的是 `E_proof`／`E_fail_u` 的分類，不是直接改狀態。", "new": "G2 紀錄只附在報告中。", "k": "g2_accept"},
+    {"name": "05 edge table pre-v0.15 rule", "file": "docs/05-bias-calibration.md", "old": "簽核、oracle 由 harness 產生且 `oracle_can_pass` 與 `oracle_can_fail` 對照都 PASS 的 W4 測試；LLM 撰寫的 W4 測試要等叢集經 G2 `accept`，見「事先登記的解讀」的 (b)）", "new": "簽核、`oracle_can_pass` 對照為 PASS 的 W4 測試）", "k": "edge_table"},
+    {"name": "05 kappa batch of 10 apps", "file": "docs/05-bias-calibration.md", "old": "以每批（`annotation.batch_size_apps`，範例 5 個應用；不足 30 題時依上面「κ 的最小批量」併批）計算", "new": "以每批（約 10 個應用）計算", "k": "kappa"},
+    {"name": "05 M-11 weights unsplit", "file": "docs/05-bias-calibration.md", "old": "§4.3 已分邊加權（support 邊與 refute 邊各自估計，refute 邊就是本項的真陰性率），M-11 是兩邊可靠度差異的報告用量 [H]", "new": "§4.3 的權重公式本輪不改，若 M-11 顯示支持票與反駁票的可靠度差很大，下一版再考慮分開加權 [H]", "k": "m11"},
+    {"name": "05 sample size ref §5.5 (h1/h2)", "file": "docs/05-bias-calibration.md", "old": "依 §5.6「樣本數計算」重算的樣本數", "new": "依 §5.5 重算的樣本數", "k": "sample_size"},
+    {"name": "05 sample size ref §5.5 (rho)", "file": "docs/05-bias-calibration.md", "old": "（§5.6「樣本數計算」第 5 步的假設值）", "new": "（§5.5 第 5 步的假設值）", "k": "sample_size"},
+    {"name": "03 b1_crawl said missing", "file": "docs/03-system-architecture.md", "old": "設定在 `toolkit.yaml` 的 `b1_crawl` 區塊（[09 BL-16](09-backlog.md)；ROE 只能再調低）。", "new": "（`toolkit.yaml` 還沒有對應的設定區塊，預設值暫為程式常數，見 [09 BL-16](09-backlog.md)）。", "k": "b1_crawl"}
+  ]
+}

@@ -15,8 +15,9 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 - **05**：「G2 的 accept 不是規則輸入」補上 W4 事先登記這個例外；邊界情況表的 W4 事先登記條件改為 `05-v0.15` 的規則；`near_zero_reasons` 補列 `abstain_rate_gt_max`；κ 批量改引 `annotation.batch_size_apps`（範例 5）；M-11 刪除「權重公式本輪不改」（§4.3 已分邊加權）；樣本數計算的引用由 §5.5 改為 §5.6。
 - **03**：B1 爬行設定不再說 `toolkit.yaml` 沒有區塊（BL-16 已加 `b1_crawl`）。
 - **06 §3**：分類表補上 #44（A 類）與 #45（D 類），表格涵蓋全部 45 條。
-- `derive.classify_result` 的 docstring 改為現行規則（W4 事先登記、PASS 的 30／60 門檻）。
-- 新增 `tests/test_doc_consistency.py`，6 個測試從唯一來源讀值、核對重述；修正前 6 個都失敗，修正後都通過。
+- `derive.classify_result` 的 docstring 改為現行規則（W4 事先登記、PASS 的 30／60 門檻）；docstring 不是規格，沒有回歸測試。
+- 新增 `tests/test_doc_consistency.py`，14 個測試涵蓋上面每一項文件修正，能從唯一來源讀值的都讀（`RULE_VERSION`、`tools.yaml`、`toolkit.yaml`、`calibration.yaml` 與其 schema、`derive`、06 §3 的編號列、05 的章節標題）；在修正前的 `a79bc86` 上 14 個都失敗，修正後都通過。
+- 新增突變清單 `tests/mutations/doc_consistency.json`：25 個突變，逐一把每處修正換回 `a79bc86` 的原文，結果 `CAUGHT 25/25`。
 - **未處理（需決定）**：`calibration.yaml` 的 authz 桶 `theta_confirm` 為 2.5、`feasible: true`，但以家族為單位時該桶 S 的上限只有 2.1607（nemotron 1.1055＋claude 1.0552），05 §5.7 的格點上限 S_max 沒有對應檢查。修正要改簽署過的範例與 validator，留待決定。
 
 ## 架構重構（非規格變更）
