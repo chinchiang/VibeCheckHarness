@@ -4972,7 +4972,7 @@ def split_n_apps(s: dict) -> int:
     return len(apps) if isinstance(apps, dict) else 0
 
 
-def theta_problems(cal: dict) -> list[tuple[str, str]]:
+def theta_problems(cal: dict, observation=None) -> list[tuple[str, str]]:
     """v0.7 (review r9): the docs/05 §5.7 limits, recomputed from each feasible threshold's split statistics. v0.7 read
     `feasible` and `generalised` as declared, so two booleans on a threshold measured on 5 clusters at precision 0.5 switched
     on the confirm branch. Confirm: n >= min_clusters, precision >= confirm_precision_floor, Wilson lower >=
@@ -4982,7 +4982,13 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
     min_clusters, precision <= reject_true_defect_max, ci_high <= reject_wilson_upper_max, and generalised only when the
     holdout share is within 0.05. (r11 first read `1 - precision` here, which made the documented example of 60 rejected
     clusters with no true defect infeasible and `tp = n` feasible.) And a bucket's theta_confirm is above every single vote's support weight in
-    that bucket, or one vote confirms (docs/05 §4.3: "one vote is not enough")."""
+    that bucket, or one vote confirms (docs/05 §4.3: "one vote is not enough").
+
+    2026-11-22 internal review: and the threshold is not above S_max, the largest score the bucket's weights can reach
+    (docs/05 §5.7: the search grid ends at S_max). S takes one vote per independent observation (verdict.root_score), so
+    S_max is the sum over observations of the bucket's largest weight on that side. `observation` maps a model key to its
+    observation (Index.independence_key); without it every model is its own observation, which only raises S_max. The
+    example claimed theta_confirm 2.5 feasible with 46 confirmed clusters in a bucket whose weights add up to 2.1607."""
     cfg, res = cal.get("config") or {}, cal.get("result") or {}
     ts = cfg.get("threshold_search") or {}
     out = []
@@ -5052,7 +5058,26 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
                        if isinstance(r, dict) and r.get("cwe_bucket") == b), default=0)
             if num(top) and val <= top:
                 out.append((f"{name}/{b}", f"value {val} <= {top}, the largest single {side} weight of the bucket: a single vote {verb}"))
+            s_max = bucket_score_max(res.get("weights") or [], b, side, observation)
+            if val > s_max + 1e-9:
+                out.append((f"{name}/{b}", f"value {val} > {s_max}, the largest score the bucket's {side} weights can reach "
+                                           f"(one vote per independent observation): no set of votes meets the threshold"))
     return out
+
+
+def bucket_score_max(weights: list, bucket: str, side: str, observation=None) -> float:
+    """S_max of a bucket on one side (docs/05 §5.7): each independent observation contributes its largest weight."""
+    best: dict = {}
+    for r in weights:
+        if not (isinstance(r, dict) and r.get("cwe_bucket") == bucket):
+            continue
+        w = (r.get(side) or {}).get("w") if isinstance(r.get(side), dict) else None
+        if not (isinstance(w, (int, float)) and not isinstance(w, bool) and math.isfinite(w)):
+            continue
+        mk = r.get("model_key")
+        key = (observation(mk) if observation else None) or mk
+        best[key] = max(best.get(key, 0.0), w)
+    return round(sum(best.values()), 4)
 
 
 def g_calibration(R: Report, c: Ctx):
@@ -5142,7 +5167,7 @@ def g_calibration(R: Report, c: Ctx):
                     "E-CAL-THETA", w, f"{label}: value {val!r} must be a finite number >= {THETA_MIN}")
         for label, t in per:
             R.check(t.get("by_bucket") is None, "E-CAL-THETA", w, f"{label}: a bucket threshold has no by_bucket of its own")
-    for label, msg in theta_problems(cal):
+    for label, msg in theta_problems(cal, c.ix.independence_key):
         R.error("E-CAL-THETA", w, f"{label}: {msg}")
     for arm in cfg.get("arms", []):
         R.check(arm.get("exploratory") is (arm.get("arm") == "5"), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: only arm 5 is exploratory")

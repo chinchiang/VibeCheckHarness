@@ -335,7 +335,7 @@ R8 與 R11 都是「6 個狀態 → 6 個狀態」的全函數，依序套用後
 範例的 `rule_trace`：
 
 ```text
-R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.1055<theta_confirm=2.5,independent_sources=2
+R2:weak_sarif=opengrep:scan rule vc.authz.update-without-owner (audit seq 13; not a calibrated high-precision rule),weighted_support=1 (nvidia),score=1.1055<theta_confirm=2.1,independent_sources=2
 R6:independent_sources=2 (anthropic + weak SARIF signal)->LIKELY
 ```
 
@@ -553,7 +553,7 @@ n ＝ [ z₁₋α/₂ · √ψ ＋ z₁₋β · √(ψ − Δ²) ]² ／ Δ²
 
 - **依 CWE 桶分開**：每個桶各自搜尋 θ，結果寫在 `thresholds.theta_confirm.by_bucket`／`theta_reject.by_bucket`；規則只用叢集所屬桶的門檻（`Index.thresholds(bucket)`）。沒有列出的桶、`feasible: false`，或 `generalised: false`（保留切分未能類推）的門檻，一律視為 +∞。外層的值是合併統計，只供報告。理由：authz 上搜出來的門檻，不代表 llm_specific 叢集的分數分布；v0.5 用單一門檻，也沒有在保留切分失敗時真的停用它（`E-CAL-THETA`）。
 
-- **格點**：θ ∈ {0.1, 0.2, …, S_max}，S_max＝該設定下可能的最大 |S|。
+- **格點**：θ ∈ {0.1, 0.2, …, S_max}，S_max＝該設定下可能的最大 |S|：S 是每個獨立觀察取一票再相加（§4.3），所以 S_max 是該桶各獨立觀察在該邊（`theta_confirm` 看 support、`theta_reject` 看 refute）最大權重的加總。validator 以 `checks.bucket_score_max` 重算，桶門檻超過 S_max 就是 `E-CAL-THETA`：沒有任何一組票達得到的門檻不可能「可行」，更不可能有經它確認的叢集。範例的 `authz` 桶是 nvidia 1.1055＋anthropic 1.0552＋openai 0＝2.1607，門檻 2.1。
 - **θ_confirm**：目標＝**最大化** R5 投票分支的 recall，**限制**：經 R5 投票分支確認的叢集 precision ≥ 0.90，且其 Wilson 95% 下界 ≥ 0.80，且該分支至少有 40 個叢集。在可行的 θ 中取**最小者**（recall 最高）。
 - **θ_reject**：目標＝**最大化**被 R4 自動 `REJECTED` 的誤報數，**限制**：被自動駁回的叢集中真實缺陷的比例 ≤ 0.02，且其 Wilson 95% 上界 ≤ 0.08，且至少 40 個被駁回的叢集。在可行的 θ 中取**最小者**。駁回的限制比確認嚴，因為被駁回的叢集不會成為種子威脅，漏報無法在黑箱階段補回。
   - 例：60 個被駁回的叢集中 0 個是真缺陷（`tp: 0`）→ Wilson 上界約 0.060 ≤ 0.08，可行。

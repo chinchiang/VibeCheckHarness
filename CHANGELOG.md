@@ -4,6 +4,17 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.15`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）。
 
+## 校準門檻必須達得到（2026-11-22 內部審查）
+
+CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」。`rule_version` 不變（這是校準資料的檢查，不是裁決規則），沒有新增錯誤碼。
+- **缺陷**：`calibration.yaml` 的 `authz` 桶宣稱 `theta_confirm` 2.5 可行、有 46 個叢集經投票分支確認，但該桶的支持權重是 nvidia 1.1055、anthropic 1.0552、openai 0。S 是每個獨立觀察取一票再相加，上限只有 2.1607，沒有任何一組票達得到 2.5。05 §5.7 規定格點到 S_max 為止，validator 卻只檢查「高於任一單票」。
+- **validator**：`checks.theta_problems` 多一項檢查——桶門檻不得超過 S_max（新函式 `checks.bucket_score_max`：同一獨立觀察取該邊最大的權重，再跨觀察相加；`theta_confirm` 看 support、`theta_reject` 看 refute）。`g_calibration` 傳入 `Index.independence_key`，與裁決計分用同一套分組。錯誤碼沿用 `E-CAL-THETA`。
+- **範例**（使用者決定：降低門檻，不調高權重——K-014 等範例以「`gpt_oss_self` 在 `authz` 的權重為 0」示範多樣性不足）：`theta_confirm` 的彙總值與 `authz` 桶由 2.5 改為 2.1（高於任一單票 1.1055，不超過 2.1607）。3 個裁決範例的 `rule_trace` 文字 `theta_confirm=2.5` 改為 2.1；`engagement.yaml` 的 `config_pins.calibration` 更新；`sign_examples.py` 重算到穩定、`build_variants.py` 重建變體。沒有任何範例的分數落在 2.1 與 2.5 之間，所有裁決狀態不變。
+- **文件**：05 §5.7 的「格點」寫明 S_max 的算法與檢查；§4.2 的軌跡範例同步；`docs/schemas/README.md` 的 `E-CAL-THETA` 說明補上這一項。
+- 新增 `tests/test_calibration_theta_reach.py`（12 個測試）：在修正前的 `19750af` 上 11 個全部失敗（第 12 個是後來為突變檢查補的）。
+- 新增突變清單 `tests/mutations/calibration_theta_reach.json`：7 個突變，`CAUGHT 7/7`。第一次執行有 1 個 MISSED（沒有測試確認 validator 呼叫時有傳入獨立觀察的分組），已補測試。
+- 受影響的既有測試：`tests/test_v06_r7_calibration.py` 讀範例門檻的 3 個斷言 2.5 改 2.1；`tests/mutations/bl01_trace_text.json` 的一個錨點跟著軌跡文字更新。沒有放寬斷言。
+
 ## CI 與工程衛生（非規格變更）
 
 2026-11-22 內部程式碼審查：單一 CI job 要 16–36 分鐘，PR 分支每次推送跑兩輪，repo 沒有 linter 與覆蓋率量測。不改 validator 規則、錯誤碼、schema 與範例。
@@ -41,7 +52,7 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 - `derive.classify_result` 的 docstring 改為現行規則（W4 事先登記、PASS 的 30／60 門檻）；docstring 不是規格，沒有回歸測試。
 - 新增 `tests/test_doc_consistency.py`，14 個測試涵蓋上面每一項文件修正，能從唯一來源讀值的都讀（`RULE_VERSION`、`tools.yaml`、`toolkit.yaml`、`calibration.yaml` 與其 schema、`derive`、06 §3 的編號列、05 的章節標題）；在修正前的 `a79bc86` 上 14 個都失敗，修正後都通過。
 - 新增突變清單 `tests/mutations/doc_consistency.json`：25 個突變，逐一把每處修正換回 `a79bc86` 的原文，結果 `CAUGHT 25/25`。
-- **未處理（需決定）**：`calibration.yaml` 的 authz 桶 `theta_confirm` 為 2.5、`feasible: true`，但以家族為單位時該桶 S 的上限只有 2.1607（nemotron 1.1055＋claude 1.0552），05 §5.7 的格點上限 S_max 沒有對應檢查。修正要改簽署過的範例與 validator，留待決定。
+- `calibration.yaml` 的 authz 桶門檻矛盾在本輪另一節「校準門檻必須達得到」處理。
 
 ## 架構重構（非規格變更）
 

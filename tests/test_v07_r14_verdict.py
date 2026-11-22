@@ -407,7 +407,7 @@ def test_the_example_weights_count_abstentions_as_misses(b):
     row = next(r for r in cal["weights"] if r["model_key"] == "nemotron_self" and r["cwe_bucket"] == "authz")
     assert (row["support"]["a"], row["support"]["w"], row["refute"]["w"]) == (0.7603, 1.1055, 1.1384)
     assert not errors(b, "E-CAL-WEIGHT")
-    assert doc(b, "verdict.k-014-w3.example.json").data["score"] == 1.1055      # still below theta_confirm 2.5: LIKELY
+    assert doc(b, "verdict.k-014-w3.example.json").data["score"] == 1.1055      # still below theta_confirm 2.1: LIKELY
 
 
 # ================================================================ docs

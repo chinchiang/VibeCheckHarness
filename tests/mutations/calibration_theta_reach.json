@@ -1,0 +1,12 @@
+{
+  "tests": "tests/test_calibration_theta_reach.py",
+  "mutations": [
+    {"name": "no reachability check", "file": "tools/vchlib/checks.py", "old": "            if val > s_max + 1e-9:\n", "new": "            if False:\n", "k": "above_the_reachable"},
+    {"name": "threshold equal to S_max refused", "file": "tools/vchlib/checks.py", "old": "            if val > s_max + 1e-9:\n", "new": "            if val >= s_max:\n", "k": "bound_is_the_reachable"},
+    {"name": "confirm bound read from the refute side", "file": "tools/vchlib/checks.py", "old": "s_max = bucket_score_max(res.get(\"weights\") or [], b, side, observation)", "new": "s_max = bucket_score_max(res.get(\"weights\") or [], b, \"refute\", observation)", "k": "theta_confirm_above"},
+    {"name": "validator ignores the observations", "file": "tools/vchlib/checks.py", "old": "for label, msg in theta_problems(cal, c.ix.independence_key):", "new": "for label, msg in theta_problems(cal):", "k": "validator_groups_weights"},
+    {"name": "every model its own observation", "file": "tools/vchlib/checks.py", "old": "        key = (observation(mk) if observation else None) or mk\n", "new": "        key = mk\n", "k": "one_observation_count_once"},
+    {"name": "weights of one observation are added", "file": "tools/vchlib/checks.py", "old": "        best[key] = max(best.get(key, 0.0), w)", "new": "        best[key] = best.get(key, 0.0) + w", "k": "one_observation_count_once"},
+    {"name": "other buckets count", "file": "tools/vchlib/checks.py", "old": "        if not (isinstance(r, dict) and r.get(\"cwe_bucket\") == bucket):\n            continue\n        w = (r.get(side)", "new": "        if not isinstance(r, dict):\n            continue\n        w = (r.get(side)", "k": "other_buckets"}
+  ]
+}

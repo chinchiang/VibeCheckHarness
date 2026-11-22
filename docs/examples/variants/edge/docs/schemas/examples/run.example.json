@@ -19,7 +19,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:662ddb7e4279a3fd4408359f96b554dd35bf91f29442645ce9587963477c4c94",
-  "engagement_ref": "sha256:98c90cab1cfd903e9ff60a1ffc5763dd8b02faa12017efc0f3d7e16aff8d9583",
+  "engagement_ref": "sha256:7878855ba12d627cabd394d6c60dc074d80c65a78f6ba164cb96698111cc6807",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -35,7 +35,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:f005dc85cb352a9ba6407702f2d4a92ed7d90b49d693043190559b7846f8ed1c"
+      "sha256": "sha256:8509011c7d66c1e1b65e59978045289f5467dee94af56e382a9e0451dd326f2f"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -317,14 +317,14 @@
   "followup_drafts": [
     "FD-001"
   ],
-  "report_manifest_ref": "sha256:1bc14c4a9cf8027fe34ee6f5581473ffd617b38cfa386fe14d9709576c5715fd",
+  "report_manifest_ref": "sha256:b5fc7fe6bb3794a4042771d6ffe0cbd77838d7f37136a6479ca1320d6d66b9c0",
   "gate_records": [
     {
       "gate": "G0a",
       "gate_record_id": "GR-G0a-0001",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:98c90cab1cfd903e9ff60a1ffc5763dd8b02faa12017efc0f3d7e16aff8d9583",
+      "subject_hash": "sha256:7878855ba12d627cabd394d6c60dc074d80c65a78f6ba164cb96698111cc6807",
       "job_id": null,
       "opened_at": "2026-09-23T10:00:00+08:00",
       "decided_at": "2026-09-23T10:01:00+08:00"
@@ -445,47 +445,47 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:ece9560256dd930834d00c6d0b8b8ee6cd3434e0d695badecc333e20c2a02449"
+      "line_sha256": "sha256:f6152914b6e8e7f79a2b0ad72d4463935d02f9329956fe3b90ed9515af07fe11"
     },
     {
       "seq": 13,
-      "line_sha256": "sha256:d919f08c9a3f6aa03d75a20df2a8a5152dbe0b62188eb9538da2b511ebf6dde4"
+      "line_sha256": "sha256:38dd21a1ade42ae859357f5ab82ccfa4ee9359a9382ad53a8b62b7782bfd4493"
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:99420a5c3458e16068942c67381b89638e8d79bcd701c4f068c61eb0ca759396"
+      "line_sha256": "sha256:4f0000afeaf672bb60ec98656a737b75c669327502bf3efab4ac8c7039a1f41b"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:e1df1126ac4c2fdfa1a270d813b694d36bb41ce9015034d662041308a297d396"
+      "line_sha256": "sha256:4da7164c687514a051485bf6f773f89ebc99626a4d1da03de2d2ef3a84686730"
     },
     {
       "seq": 35,
-      "line_sha256": "sha256:0b0ea4431423b652ee7492dd532228b2660ca8af229b5998b3904ba0f1bfe9d5"
+      "line_sha256": "sha256:3c6311d92a2462bda23a2c6e1f021c137a2ec52881423195c813f312d260ef2b"
     },
     {
       "seq": 38,
-      "line_sha256": "sha256:9e50cc284bb6a8f0068eeb448d1a590e1e5efa1c57f6f6a7a6aec64abec92d33"
+      "line_sha256": "sha256:31409360ee7ecd01d42ee73c6b6b9b3a1f60dc86307f938c7649b3f990b848db"
     },
     {
       "seq": 44,
-      "line_sha256": "sha256:e13f702f044a23a0303e3aa83faedc1d61db0f9b5cd81b7fda66529d4da9920f"
+      "line_sha256": "sha256:222c0e0ff4923e09ce6c4273e34635d43597f88d73a4b69ff3d7a24cf6aa7421"
     },
     {
       "seq": 49,
-      "line_sha256": "sha256:529b3e837ba57ade8399ac13f9ef834307a61e1de06d40994257b6ec794a4d95"
+      "line_sha256": "sha256:d2b8d4ba8de0bb929e9cf18dfce7e011f8f0000bdd645be74e84802c1c878001"
     },
     {
       "seq": 58,
-      "line_sha256": "sha256:da853998d165553526f2c917dd8ed739091f2de4713cb41b0c339f62667a1156"
+      "line_sha256": "sha256:5fa349a2aa69fb6d4dd2a1ab5946b1990426fa08a9f35b88d4f3a0722c9ae04d"
     },
     {
       "seq": 63,
-      "line_sha256": "sha256:b164f76585c5880846854e6d25f60b453b4827dbb88089a3817fac77081caca1"
+      "line_sha256": "sha256:4ec43a47b12f1475fc48b5621718cbdc9df87059cabac9cd31f6c5bc24f0fcaa"
     },
     {
       "seq": 72,
-      "line_sha256": "sha256:833eb0e7483991ca8ef74669dd494cabe2f7c78f437919c3e2e88b5307f07ed7"
+      "line_sha256": "sha256:744e5eb85922cddafc61e73f3870b50e1ccc82b6729daf5ff3556f1ae4b91b19"
     }
   ],
   "errors": [],
