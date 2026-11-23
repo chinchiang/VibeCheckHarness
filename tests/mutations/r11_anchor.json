@@ -59,7 +59,7 @@
     },
     {
       "name": "the terminal status follows the gaps",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                R.check(status == want_status, \"E-RUN-STATUS\", w,",
       "new": "                R.check(True, \"E-RUN-STATUS\", w,",
       "k": "non_manual_gap or needs_a_non_manual"
@@ -101,7 +101,7 @@
     },
     {
       "name": "a drill counts only from a system actor in the anchored log",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                      and (x.get(\"actor\") or {}).get(\"kind\") == \"system\" and i + 1 <= a_last]",
       "new": "                      ]",
       "k": "restore_drill"

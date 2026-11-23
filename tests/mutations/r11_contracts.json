@@ -24,7 +24,7 @@
     },
     {
       "name": "Lite cannot record a false_positive",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "            R.check(not (profile(c) == \"lite\" and f.get(\"label\") == \"false_positive\"), \"E-FEEDBACK\", w,",
       "new": "            R.check(True, \"E-FEEDBACK\", w,",
       "k": "lite_cannot_record_a_false_positive"

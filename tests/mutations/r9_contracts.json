@@ -3,21 +3,21 @@
   "mutations": [
     {
       "name": "ownership: ROE method",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "        R.check(o.get(\"method\") == want, \"E-RUN-OWNERSHIP\", w,",
       "new": "        R.check(True, \"E-RUN-OWNERSHIP\", w,",
       "k": "another_method"
     },
     {
       "name": "ownership: target outside the ROE",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "        if not R.check(t is not None, \"E-RUN-OWNERSHIP\", w, f\"ownership result for {o.get('target_id')!r}, which is not a ROE target\"):",
       "new": "        if t is None:",
       "k": "outside_the_roe"
     },
     {
       "name": "ownership: every job target has an ok result",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "    for tid in sorted(used - ok):",
       "new": "    for tid in []:",
       "k": "job_ran_against or failed_result"
@@ -45,7 +45,7 @@
     },
     {
       "name": "G1: a run with G3 has an approved G1",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                R.check(any(x.data.get(\"outcome\") in (\"APPROVED\", \"PARTIALLY_APPROVED\") for x in c.ix.gate_records(rid, \"G1\")),",
       "new": "                R.check(True,",
       "k": "needs_a_g1"

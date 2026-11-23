@@ -11,7 +11,7 @@ import importlib.util
 import pathlib
 
 from vchlib import (checks, checks_config, checks_engagement, checks_gates, checks_integrity, checks_models, checks_roe,
-                    checks_signatures, report)
+                    checks_runs, checks_signatures, checks_testcases, report)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PKG = ROOT / "tools" / "vchlib"
@@ -51,7 +51,11 @@ def test_the_group_list_and_its_order_are_unchanged():
     assert checks.GROUPS[4][1].__module__ == "vchlib.checks_signatures"      # PR-D4: with the signature helpers
     assert checks.GROUPS[7][1].__module__ == "vchlib.checks_roe"             # PR-D4
     assert names[9] == "g_gates" and checks.GROUPS[9][1].__module__ == "vchlib.checks_gates"     # PR-D5
-    assert names[10] == "g_runs" and checks.GROUPS[10][1].__module__ == "vchlib.checks"       # not moved yet
+    assert names[10:12] == ["g_runs", "g_testcases"] and names[13:15] == ["g_feedback", "g_report_withdrawal"]
+    assert checks.GROUPS[10][1].__module__ == "vchlib.checks_runs"                             # PR-D6
+    for i in (11, 13, 14):
+        assert checks.GROUPS[i][1].__module__ == "vchlib.checks_testcases", names[i]           # PR-D6
+    assert names[12] == "g_w4_testcases" and checks.GROUPS[12][1].__module__ == "vchlib.checks"       # not moved yet
     assert names[6:9] == ["g_engagement", "g_roe", "g_models"]
     assert checks.GROUPS[6][1].__module__ == "vchlib.checks_engagement" and checks.GROUPS[8][1].__module__ == "vchlib.checks_models"   # PR-D3
 
@@ -69,18 +73,23 @@ def test_the_shared_base_imports_no_check_group():
     assert {m for m in imports_of("checks_roe") if m.startswith("checks")} == {"checks_engagement", "checks_signatures"}
     # PR-D5: the gates group reads the engagement accessors and the signature helpers
     assert {m for m in imports_of("checks_gates") if m.startswith("checks")} == {"checks_engagement", "checks_signatures"}
-    assert checks.run_start is checks_gates.run_start and "\ndef run_start(" not in (PKG / "checks.py").read_text(encoding="utf-8")
+    # PR-D6: runs and testcases read the groups before them and not each other
+    lower = {"checks_engagement", "checks_gates", "checks_roe", "checks_signatures"}
+    assert {m for m in imports_of("checks_runs") if m.startswith("checks")} == lower
+    assert {m for m in imports_of("checks_testcases") if m.startswith("checks")} == lower
     assert report.anchored_seqs([{"event_type": "x"}, {"event_type": "audit_anchor"}, {"event_type": "y"}]) == 2
-    # the facade uses these, it does not redefine them
+    # a moved name lives once: the facade may import it (when it still uses it) but never redefines it
+    facade = (PKG / "checks.py").read_text(encoding="utf-8")
     for home, names in ((checks_signatures, ("decision_time", "verify_signature", "MAX_CLOCK_SKEW")),
-                        (checks_roe, ("job_span", "expected_gaps", "path_shape")), (report, ("anchored_seqs",))):
+                        (checks_roe, ("job_span", "expected_gaps", "path_shape")), (report, ("anchored_seqs",)),
+                        (checks_gates, ("run_start", "g5_escalation")), (checks_engagement, ("profile", "deployment", "consolidation_person")),
+                        (checks_runs, ("result_controls", "baseline_checks", "JOB_RAN_STATES")),
+                        (checks_testcases, ("access_matrix_cells", "feedback_suppression"))):
         for name in names:
-            assert getattr(checks, name) is getattr(home, name), name
-            assert f"\ndef {name}(" not in (PKG / "checks.py").read_text(encoding="utf-8"), name
+            assert hasattr(home, name), name
+            assert getattr(checks, name, getattr(home, name)) is getattr(home, name), name
+            assert f"\ndef {name}(" not in facade and f"\n{name} = " not in facade, name
     assert report.ROE_GATES == ("G0b", "G3", "G4", "G5") and report.ENGAGEMENT_GATES == ("G0a", "G1", "G2")
-    # the engagement accessors live once, in the engagement module; the facade uses them, it does not redefine them
-    for name in ("profile", "deployment", "consolidation_person"):
-        assert getattr(checks, name) is getattr(checks_engagement, name), name
     for name in ("Issue", "Report", "doc_guard", "ts", "format_checker"):
         assert getattr(report, name).__module__ == "vchlib.report", name
     for name in ("GATE_ROLES", "FINAL_STATUSES", "TERMINAL_RUN_STATES", "LEGAL_GATE", "StrictValidator", "FORMATS"):
@@ -89,6 +98,7 @@ def test_the_shared_base_imports_no_check_group():
     assert checks_integrity.Report is report.Report and checks_engagement.Report is report.Report
     assert checks_models.Report is report.Report and checks_roe.Report is report.Report
     assert checks_signatures.Report is report.Report and checks_gates.Report is report.Report
+    assert checks_runs.Report is report.Report and checks_testcases.Report is report.Report
 
 
 def test_nothing_below_the_checker_imports_it():

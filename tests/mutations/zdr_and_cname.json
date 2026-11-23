@@ -87,8 +87,8 @@
   },
   {
    "name": "C4: the chain is not checked",
-   "file": "tools/vchlib/checks.py",
-   "old": "        for msg in cname_platform_problems(c, t, o):\n            R.check(False, \"E-ROE-PLATFORM\", w, msg)\n",
+   "file": "tools/vchlib/checks_runs.py",
+   "old": "        for msg in cname_platform_problems(c, t, o):  # type: ignore[arg-type]  # a value an earlier check or lookup ruled out as None; mypy cannot follow it\n            R.check(False, \"E-ROE-PLATFORM\", w, msg)\n",
    "new": "",
    "k": "resolves_to_a_shared_platform or another_platform"
   },
