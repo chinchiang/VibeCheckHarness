@@ -53,7 +53,7 @@
   "diversity_degraded": true,
   "no_eligible_verifier": false,
   "calibration_version": 3,
-  "theta_confirm": 2.5,
+  "theta_confirm": 2.1,
   "theta_reject": null,
   "provisional": false,
   "score": 0.0,
@@ -63,7 +63,7 @@
   "advisory": false,
   "annotations": [],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.15",
+  "rule_version": "05-v0.17",
   "rule_trace": [
     "R10:G2 GR-G2-0001 rejected K-016 and no G4-approved replayed black-box proof overrides it->REJECTED"
   ],

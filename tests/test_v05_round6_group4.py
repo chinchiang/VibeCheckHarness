@@ -14,7 +14,7 @@ import copy
 
 import pytest
 
-from conftest import codes, doc, rederive, resign_gate
+from conftest import codes, doc, resign_gate
 from vchlib import safety, verdict
 from vchlib.checks import run_all
 from vchlib.context import Ctx

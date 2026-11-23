@@ -324,6 +324,36 @@
               }
             ]
           },
+          "zdr_models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true,
+            "description": "2026-11-22 內部審查（C6）：這份 ZDR 確認明確涵蓋的模型（models.yaml 的 model key）。供應商可以讓特定模型不適用 ZDR，所以確認是逐模型的：能收 C 級資料的雲端模型必須列在這裡（E-ENG-PROVIDER）。zdr 不是 confirmed 時為空陣列"
+          },
+          "zdr_confirmed_at": {
+            "anyOf": [
+              {
+                "$ref": "common.schema.json#/$defs/datetime"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "2026-11-22 內部審查（C6）：取得確認的時間；zdr confirmed 時必填，而且不晚於委任設定的 issued_at（E-ENG-PROVIDER）"
+          },
+          "zdr_expires_at": {
+            "anyOf": [
+              {
+                "$ref": "common.schema.json#/$defs/datetime"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "2026-11-22 內部審查（C6）：確認的到期時間（合約到期或約定的重新確認日）；zdr confirmed 時必填，而且不早於委任設定的 validity.not_after：委任期間內 ZDR 必須一直有效（E-ENG-PROVIDER）"
+          },
           "dpa_signed": {
             "type": "boolean"
           },
@@ -353,6 +383,9 @@
           "family",
           "zdr",
           "zdr_evidence_ref",
+          "zdr_models",
+          "zdr_confirmed_at",
+          "zdr_expires_at",
           "dpa_signed",
           "retention_days",
           "region"
@@ -465,6 +498,13 @@
         "crosswalk",
         "toolkit"
       ]
+    },
+    "deployment_profile": {
+      "enum": [
+        "three_zone",
+        "single_host"
+      ],
+      "description": "2026-11-22 內部審查（BL-70、D10）：選用，省略＝three_zone。single_host＝Lite 的單機部署 profile（docs/08 §11.20）：三把金鑰由同一人持有、錨點副簽是同一個 OS 使用者下的本機子行程、SQLite checkpointer、只做白箱（沒有 G0b／G3／G4／G5）。只能與 assurance_profile lite 並用（E-ENG-DEPLOYMENT）；報告清單的 audit_anchor 必須是 local（E-REPORT-ANCHOR）"
     },
     "assurance_profile": {
       "enum": [

@@ -185,7 +185,7 @@
     },
     "read_only_endpoints": {
       "type": "array",
-      "description": "v0.4（BL-25）：以 POST 送出、但不改變狀態的端點（例如 Supabase RPC 的查詢函式、搜尋 API）。由基礎設施擁有者聲明（隨 seed_manifest_sha256 簽署）；請求這些端點不算寫入，但 POST 仍使等級 ≥ S1",
+      "description": "v0.4（BL-25）：以 POST 送出、但不改變狀態的端點（例如 Supabase RPC 的查詢函式、搜尋 API）。由基礎設施擁有者聲明（隨 seed_manifest_sha256 簽署）；請求這些端點不算寫入，但 POST 仍使等級 ≥ S1 2026-11-22 內部審查（使用者決定，docs/04 §5）：也用來宣告唯讀的 GET／HEAD。GET／HEAD 只有在這裡宣告、或 W0 inventory 中該端點的 writes 為 false 時才算讀取；兩者都沒有的 GET／HEAD 視為寫入（要綁種子、至少 S1）。W0 判定會寫入的端點不能列在這裡（E-SEED-SIDE-EFFECT）。",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -195,6 +195,8 @@
           },
           "method": {
             "enum": [
+              "GET",
+              "HEAD",
               "POST"
             ]
           },

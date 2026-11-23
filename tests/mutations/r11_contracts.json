@@ -11,8 +11,8 @@
     {
       "name": "evidential is a required report field",
       "file": "docs/schemas/report-manifest.schema.json",
-      "old": "    \"report_only_clusters\",\n    \"evidential\"\n  ]",
-      "new": "    \"report_only_clusters\"\n  ]",
+      "old": "    \"report_only_clusters\",\n    \"evidential\",\n    \"audit_anchor\"\n  ]",
+      "new": "    \"report_only_clusters\",\n    \"audit_anchor\"\n  ]",
       "k": "evidential_is_required"
     },
     {

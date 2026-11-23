@@ -64,6 +64,28 @@
             },
             "registered_at": {
               "$ref": "common.schema.json#/$defs/datetime"
+            },
+            "holdout_prior_unblindings": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "2026-11-22 內部審查（B9；docs/05 §5.6）：登記時，這份保留切分已經被先前的校準版本解盲過幾次（不含只報告、不調參的哨兵子集）。0＝第一次使用，結果是確認性的；＞ 0＝保留切分用過了，這一版的主要假設與保留切分指標只能當探索性結果（primary_hypothesis.confirmatory 必須是 false，E-CAL-HYPOTHESIS）"
+            },
+            "primary_comparison": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "treatment",
+                "comparator"
+              ],
+              "properties": {
+                "treatment": {
+                  "const": "4"
+                },
+                "comparator": {
+                  "const": "4s"
+                }
+              },
+              "description": "2026-11-22 內部審查（使用者決定 D9；docs/05 §5.6）：主要假設比較的兩組——完整管線（arm 4）對單一最佳模型取樣 3 次加上同樣的工具佐證與可執行驗證（arm 4s）。兩組都必須在 config.arms 中（E-CAL-ARMS）"
             }
           },
           "required": [
@@ -77,7 +99,9 @@
             "rho_assumed",
             "ni_margin",
             "bootstrap_resamples",
-            "registered_at"
+            "registered_at",
+            "primary_comparison",
+            "holdout_prior_unblindings"
           ]
         },
         "corpus": {
@@ -201,6 +225,7 @@
                   "2b",
                   "3",
                   "4",
+                  "4s",
                   "5"
                 ]
               },
@@ -708,9 +733,9 @@
               "properties": {
                 "comparator": {
                   "enum": [
-                    "2a",
-                    "2b"
-                  ]
+                    "4s"
+                  ],
+                  "description": "2026-11-22：主要假設的比較基準是 arm 4s，必須等於 preregistration.primary_comparison.comparator（E-CAL-HYPOTHESIS）"
                 },
                 "delta": {
                   "type": "number",
@@ -776,6 +801,10 @@
                   "minimum": 0,
                   "maximum": 1
                 },
+                "confirmatory": {
+                  "type": "boolean",
+                  "description": "2026-11-22 內部審查（B9）：推導值＝preregistration.holdout_prior_unblindings 為 0。false 時這個結果不能用來切換預設策略或宣稱主要假設成立（E-CAL-HYPOTHESIS）"
+                },
                 "holdout_n_final": {
                   "type": "integer",
                   "minimum": 0,
@@ -794,7 +823,8 @@
                 "fallback_applied",
                 "psi_observed",
                 "rho_observed",
-                "holdout_n_final"
+                "holdout_n_final",
+                "confirmatory"
               ]
             },
             "metrics": {

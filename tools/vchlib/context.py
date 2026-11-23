@@ -39,11 +39,11 @@ class Ctx:
         self.persons = {e.get("person_id") for e in self.entries} - self.services
         self.automation = set(self.toolkit.get("automation_accounts", [])) | REQUIRED_AUTOMATION
         # v0.5 (review 2026-10-25 V-5): the first document wins, like Index.first; duplicates are E-ID-DUP
-        self.runs = {}
+        self.runs: dict = {}
         for d in self.ix.docs("run"):
             self.runs.setdefault(d.data.get("run_id"), d.data)
         # run_id -> audit Doc whose text the strict loader rejected (data None)
-        self.broken_audit = {}
+        self.broken_audit: dict = {}
         for d in b.docs:
             if d.kind == "audit-event" and d.load_error:
                 m = re.search(r'"run_id"\s*:\s*"([^"]+)"', d.text or "") or re.match(r"audit-event\.(.+?)\.example\.jsonl$", d.name)

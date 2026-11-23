@@ -9,12 +9,9 @@
   3. tools/mutation_check.py counted any exception in a test body as CAUGHT (pytest's junit `failures` includes them).
   4. docs/08's AdjudicationInputs claimed to match vchlib.adjudicate.Inputs field for field and missed six fields.
 Each test failed before the change and passes after it (tests/mutations/r12_external.json); see CONTRIBUTING.md."""
-import copy
 import dataclasses
 import pathlib
 import re
-import subprocess
-import sys
 
 import pytest
 
@@ -90,8 +87,8 @@ def test_the_bundle_cannot_declare_fixed_while_the_proof_case_errors(reg):
 
 
 def test_the_rule_version_is_05_v0_12(b):
-    assert adj.RULE_VERSION == "05-v0.15"                     # bumped again by the second external review (05-v0.13)
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.15"}
+    assert adj.RULE_VERSION == "05-v0.17"                     # bumped again by the second external review (05-v0.13)
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.17"}
 
 
 # ================================================================ 2. S2 jobs are judged by their status

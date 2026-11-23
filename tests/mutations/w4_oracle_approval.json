@@ -1,0 +1,187 @@
+{
+ "tests": "tests/test_w4_oracle_approval.py",
+ "mutations": [
+  {
+   "name": "the G2 accept is the entry again",
+   "file": "tools/vchlib/derive.py",
+   "old": "        return w4_oracle_approved(ix, tc, tr, phase) and controls_of_kind_pass(tc, tr, control_kind) is True",
+   "new": "        return cluster is not None and controls_of_kind_pass(tc, tr, control_kind) is True",
+   "k": "g2_acceptance_alone or rejected_oracle or another_gate or before_g3"
+  },
+  {
+   "name": "unreviewed ignores the approval",
+   "file": "tools/vchlib/derive.py",
+   "old": "not oracle_preregistered_by_code(tc) and not w4_oracle_approved(ix, tc, tr, phase)",
+   "new": "not oracle_preregistered_by_code(tc)",
+   "k": "control_must_still_pass or stays_unreviewed"
+  },
+  {
+   "name": "a pre-G3 version uses the approval",
+   "file": "tools/vchlib/derive.py",
+   "old": "    if phase in PRE_ORACLE_REVIEW_PHASES:\n        return False\n    dec = None",
+   "new": "    dec = None",
+   "k": "before_g3 or stays_unreviewed"
+  },
+  {
+   "name": "the W4 phase is not pre-G3",
+   "file": "tools/vchlib/derive.py",
+   "old": "PRE_ORACLE_REVIEW_PHASES = (\"W3_adjudicate\", \"G2_apply\", \"W4_readjudicate\")",
+   "new": "PRE_ORACLE_REVIEW_PHASES = (\"W3_adjudicate\", \"G2_apply\")",
+   "k": "before_g3"
+  },
+  {
+   "name": "any decision approves",
+   "file": "tools/vchlib/derive.py",
+   "old": "return dec is not None and dec.get(\"decision\") == \"accept\" and dec.get(\"testcase_sha256\") == approval_hash(tc)",
+   "new": "return dec is not None and dec.get(\"testcase_sha256\") == approval_hash(tc)",
+   "k": "rejected_oracle or latest_g3"
+  },
+  {
+   "name": "the approval does not pin the testcase",
+   "file": "tools/vchlib/derive.py",
+   "old": "return dec is not None and dec.get(\"decision\") == \"accept\" and dec.get(\"testcase_sha256\") == approval_hash(tc)",
+   "new": "return dec is not None and dec.get(\"decision\") == \"accept\"",
+   "k": "earlier_text"
+  },
+  {
+   "name": "any gate's approvals count",
+   "file": "tools/vchlib/derive.py",
+   "old": "    for x in ix.gate_records(tr.get(\"run_id\"), \"G3\"):\n        if x.data.get(\"outcome\") == \"EXPIRED\":",
+   "new": "    for x in ix.gate_records(tr.get(\"run_id\")):\n        if x.data.get(\"outcome\") == \"EXPIRED\":",
+   "k": "another_gate"
+  },
+  {
+   "name": "an EXPIRED record decides",
+   "file": "tools/vchlib/derive.py",
+   "old": "        if x.data.get(\"outcome\") == \"EXPIRED\":\n            continue\n        for d in x.data.get(\"oracle_approvals\") or []:",
+   "new": "        for d in x.data.get(\"oracle_approvals\") or []:",
+   "k": "latest_g3"
+  },
+  {
+   "name": "the first record wins",
+   "file": "tools/vchlib/derive.py",
+   "old": "            if isinstance(d, dict) and d.get(\"testcase_id\") == tc.get(\"testcase_id\"):\n                dec = d",
+   "new": "            if isinstance(d, dict) and d.get(\"testcase_id\") == tc.get(\"testcase_id\"):\n                dec = dec or d",
+   "k": "latest_g3"
+  },
+  {
+   "name": "an approval of any testcase counts",
+   "file": "tools/vchlib/derive.py",
+   "old": "            if isinstance(d, dict) and d.get(\"testcase_id\") == tc.get(\"testcase_id\"):\n                dec = d",
+   "new": "            if isinstance(d, dict):\n                dec = d",
+   "k": "another_gate or latest_g3"
+  },
+  {
+   "name": "the verdict does not pass its phase (unreviewed)",
+   "file": "tools/vchlib/verdict.py",
+   "old": "        cls, why = derive.classify_result(c.ix, tr, cluster, v.get(\"readjudicated_by\"))\n        if cls == \"E_fail_u\" and \"oracle_unreviewed\" in why:",
+   "new": "        cls, why = derive.classify_result(c.ix, tr, cluster)\n        if cls == \"E_fail_u\" and \"oracle_unreviewed\" in why:",
+   "k": "stays_unreviewed"
+  },
+  {
+   "name": "validator: the list is not checked",
+   "file": "tools/vchlib/checks.py",
+   "old": "            oracle_approval_problems(R, c, rec, w)\n",
+   "new": "",
+   "k": "only_a_g3_record or must_name or not_an_approval_item or must_pin or named_once"
+  },
+  {
+   "name": "validator: any gate carries it",
+   "file": "tools/vchlib/checks.py",
+   "old": "    R.check(rec.get(\"gate\") == \"G3\", \"E-GATE-ORACLE\", w,",
+   "new": "    R.check(True, \"E-GATE-ORACLE\", w,",
+   "k": "only_a_g3_record"
+  },
+  {
+   "name": "validator: duplicates pass",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(tid not in seen, \"E-GATE-ORACLE\", w, f\"oracle_approvals names {tid} twice\")",
+   "new": "        pass",
+   "k": "named_once"
+  },
+  {
+   "name": "validator: any run's testcase",
+   "file": "tools/vchlib/checks.py",
+   "old": "if t.data.get(\"testcase_id\") == tid and t.data.get(\"run_id\") == rec.get(\"run_id\")), None)",
+   "new": "if t.data.get(\"testcase_id\") == tid), None)",
+   "k": "must_name"
+  },
+  {
+   "name": "validator: an unknown testcase passes",
+   "file": "tools/vchlib/checks.py",
+   "old": "        if not R.check(tc is not None, \"E-GATE-ORACLE\", w, f\"oracle_approvals names {tid}, which is not a W4 testcase of run {rec.get('run_id')}\"):\n            continue",
+   "new": "        if tc is None:\n            continue",
+   "k": "must_name"
+  },
+  {
+   "name": "validator: a code oracle may be listed",
+   "file": "tools/vchlib/checks.py",
+   "old": "        R.check(not derive.oracle_preregistered_by_code(tc), \"E-GATE-ORACLE\", w,",
+   "new": "        R.check(True, \"E-GATE-ORACLE\", w,",
+   "k": "not_an_approval_item"
+  },
+  {
+   "name": "validator: the hash is not checked",
+   "file": "tools/vchlib/checks.py",
+   "old": "            R.check(d.get(\"testcase_sha256\") == derive.approval_hash(tc), \"E-GATE-ORACLE\", w,",
+   "new": "            R.check(True, \"E-GATE-ORACLE\", w,",
+   "k": "must_pin"
+  },
+  {
+   "name": "validator: a rejection must pin too",
+   "file": "tools/vchlib/checks.py",
+   "old": "        if d.get(\"decision\") == \"accept\":\n            R.check(d.get(\"testcase_sha256\") == derive.approval_hash(tc)",
+   "new": "        if True:\n            R.check(d.get(\"testcase_sha256\") == derive.approval_hash(tc)",
+   "k": "must_pin"
+  },
+  {
+   "name": "schema: needs_info is a decision",
+   "file": "docs/schemas/gate-record.schema.json",
+   "old": "  \"decision\":{\"enum\":[\"accept\",\"reject\"]}},\n  \"required\":[\"testcase_id\",\"testcase_sha256\",\"decision\"]",
+   "new": "  \"decision\":{\"enum\":[\"accept\",\"reject\",\"needs_info\"]}},\n  \"required\":[\"testcase_id\",\"testcase_sha256\",\"decision\"]",
+   "k": "schema_knows"
+  },
+  {
+   "name": "the rule version is 05-v0.16 again",
+   "file": "tools/vchlib/adjudicate.py",
+   "old": "RULE_VERSION = \"05-v0.17\"",
+   "new": "RULE_VERSION = \"05-v0.16\"",
+   "k": "rule_version_is_05_v0_17"
+  },
+  {
+   "name": "05 (b) names G2 again",
+   "file": "docs/05-bias-calibration.md",
+   "old": "核准記在 G3 紀錄的 `oracle_approvals`（`decision` 為 `accept`",
+   "new": "叢集經 G2 逐項 `accept`（`decision` 為 `accept`",
+   "k": "documents_name_g3"
+  },
+  {
+   "name": "05 G2 sentence keeps the exception",
+   "file": "docs/05-bias-calibration.md",
+   "old": "G2 紀錄只附在報告中，沒有例外。",
+   "new": "G2 紀錄只附在報告中。",
+   "k": "documents_name_g3"
+  },
+  {
+   "name": "02 drops the G3 approval",
+   "file": "docs/02-methodology.md",
+   "old": "核准記在 G3 紀錄的 `oracle_approvals`（`testcase_id`",
+   "new": "核准記在關卡紀錄（`testcase_id`",
+   "k": "documents_name_g3"
+  },
+  {
+   "name": "06 #45 names G2 again",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "（G3 紀錄的 `oracle_approvals`，綁定測試案例雜湊；",
+   "new": "（G2；",
+   "k": "documents_name_g3"
+  },
+  {
+   "name": "00 names G2 again",
+   "file": "docs/00-overview.md",
+   "old": "LLM 自己寫的測試要先由人在 G3 逐項核准它的 oracle）",
+   "new": "LLM 自己寫的測試要先經 G2 確認）",
+   "k": "documents_name_g3"
+  }
+ ]
+}

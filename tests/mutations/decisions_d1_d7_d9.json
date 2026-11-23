@@ -1,0 +1,24 @@
+{
+  "tests": "tests/test_decisions_d1_d7_d9.py",
+  "mutations": [
+    {"name": "D1: a bucket is called feasible", "file": "docs/05-bias-calibration.md", "old": "| 授權（含 IDOR、RLS） | 90 | 37 | 40 | 否 |", "new": "| 授權（含 IDOR、RLS） | 90 | 37 | 40 | 是 |", "k": "feasibility_table"},
+    {"name": "D1: the expected count is not the formula", "file": "docs/05-bias-calibration.md", "old": "| 注入 | 80 | 33 | 40 | 否 |", "new": "| 注入 | 80 | 45 | 40 | 是 |", "k": "feasibility_table"},
+    {"name": "D1: a bucket is missing from the table", "file": "docs/05-bias-calibration.md", "old": "| 反序列化 | 30 | 12 | 40 | 否 |\n", "new": "", "k": "feasibility_table"},
+    {"name": "D1: the branch is not marked as not enabled", "file": "docs/05-bias-calibration.md", "old": "投票分支視為**未啟用**", "new": "投票分支照常啟用", "k": "marked_not_enabled"},
+    {"name": "D1: section 4.3 does not say so", "file": "docs/05-bias-calibration.md", "old": "### 4.3 投票加權\n\n**啟用狀態** [H]：", "new": "### 4.3 投票加權\n\n**說明** [H]：", "k": "marked_not_enabled"},
+    {"name": "D7: the Lite label is gone from docs/02", "file": "docs/02-methodology.md", "old": "Lite 的 `CONFIRMED_EXECUTABLE` 在報告中一律寫成「自我核准的可執行證明」", "new": "Lite 的 `CONFIRMED_EXECUTABLE` 在報告中照常標示", "k": "self_approved"},
+    {"name": "D7: the Lite label is gone from docs/08", "file": "docs/08-implementation-spec.md", "old": "而且每個 `CONFIRMED_EXECUTABLE` 都寫成「自我核准的可執行證明」並在首頁說明", "new": "並在首頁說明", "k": "self_approved"},
+    {"name": "D9: any comparator is accepted", "file": "tools/vchlib/checks.py", "old": "    if ph.get(\"comparator\") != want:\n", "new": "    if False:\n", "k": "another_comparator"},
+    {"name": "D9: the registration is optional", "file": "tools/vchlib/checks.py", "old": "    if not isinstance(pc, dict):\n        return [\"preregistration.primary_comparison is required (treatment and comparator arms)\"]", "new": "    if not isinstance(pc, dict):\n        return []", "k": "missing_registration"},
+    {"name": "D9: the registration is never checked", "file": "tools/vchlib/checks.py", "old": "    for msg in primary_comparison_problems(cfg):\n        R.error(\"E-CAL-ARMS\", w, msg)", "new": "    for msg in []:\n        R.error(\"E-CAL-ARMS\", w, msg)", "k": "missing_registration"},
+    {"name": "D9: unknown arms are accepted", "file": "tools/vchlib/checks.py", "old": "for k in (\"treatment\", \"comparator\") if pc.get(k) not in arms]", "new": "for k in () if pc.get(k) not in arms]\n    if not all(pc.get(k) in arms for k in (\"treatment\", \"comparator\")):\n        return []", "k": "registered_arms_must_exist"},
+    {"name": "D9: the comparator may be any model", "file": "tools/vchlib/checks.py", "old": "    if comp.get(\"model_keys\") != best.get(\"model_keys\"):", "new": "    if False:", "k": "comparator_arm_is_the_single_best"},
+    {"name": "D9: the comparator may sample once", "file": "tools/vchlib/checks.py", "old": "    if comp.get(\"n_samples\") != RESAMPLED_ARM_SAMPLES:", "new": "    if False:", "k": "comparator_arm_is_the_single_best"},
+    {"name": "D9: the back ends may differ", "file": "tools/vchlib/checks.py", "old": "    if comp.get(\"acceptance_rule\") != treat.get(\"acceptance_rule\"):", "new": "    if False:", "k": "comparator_arm_is_the_single_best"},
+    {"name": "D9: an exploratory arm is accepted", "file": "tools/vchlib/checks.py", "old": "    if comp.get(\"exploratory\") is not False or treat.get(\"exploratory\") is not False:", "new": "    if False:", "k": "comparator_arm_is_the_single_best"},
+    {"name": "D9: the example compares with arm 2a again", "file": "docs/examples/calibration.yaml", "old": "    comparator: \"4s\"", "new": "    comparator: \"2a\"", "k": "example_registers"},
+    {"name": "D9: docs/05 names the old primary metric", "file": "docs/05-bias-calibration.md", "old": "- **主要指標**：保留切分正例上「可處理的輸出」的 recall 差 Δ＝recall(④) − recall(④′)。", "new": "- **主要指標**：保留切分正例上的 recall 差 Δ＝recall(③) − recall(②)。", "k": "docs05_states"},
+    {"name": "D9: the section title is the old one", "file": "docs/05-bias-calibration.md", "old": "### 5.6 預先登記的主要假設：④ 是否勝過 ④′", "new": "### 5.6 預先登記的主要假設：③ 是否勝過 ②", "k": "docs05_states"},
+    {"name": "D9: arm 4' is missing from the arms table", "file": "docs/05-bias-calibration.md", "old": "| ④′ 單一最佳模型取樣 N 次＋與 ④ 相同的工具佐證與可執行驗證 |", "new": "| ④b 其他 |", "k": "docs05_states"}
+  ]
+}

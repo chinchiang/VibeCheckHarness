@@ -102,7 +102,7 @@ def test_high_risk_pass_needs_sixty_effective_trials(b):
     tr = doc(b, "testresult.llm-pass.example.json").data
     ix = Ctx(b).ix
     cl = ix.first("cluster", cluster_id="K-011").data
-    assert derive.classify_result(ix, tr, cl)[0] == "E_pass"
+    assert derive.classify_result(ix, tr, cl)[0] == "E_pass_weak"          # 05-v0.16 (D6): no oracle_can_fail control
     tr["trials"]["n_effective"] = 45
     cls, why = derive.classify_result(Ctx(b).ix, tr, cl)
     assert cls == "E_inc" and "60" in why
@@ -118,7 +118,9 @@ RES = {"{seed:b}": "inv-b-1"}
     ("GET", "/api/invoices/x", True), ("GET", "/api/invoices/%2e%2e", False), ("GET", "/api/invoices/../users", False),
     ("GET", "/api/invoices/", False), ("PUT", "/api/invoices/inv-b-1", False), ("DELETE", "/api/invoices/inv-b-1/x", False)])
 def test_allowlist_match(method, path, ok):
-    assert (safety.allowlist_match("t", method, path, AL, RES) is not None) is ok
+    # D5: the plain {id} placeholder of the GET entry matches only a read, and a GET is a read only when proven
+    proven = {("GET", "/api/invoices/{}")}
+    assert (safety.allowlist_match("t", method, path, AL, RES, proven_reads=proven) is not None) is ok
 
 
 def _resume(b, keys, who, from_status):

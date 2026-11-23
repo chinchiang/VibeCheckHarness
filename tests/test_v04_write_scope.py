@@ -79,7 +79,10 @@ def test_created_ref_must_be_an_earlier_create(b):
 def test_state_changing_get_is_a_write(b):
     man = manifest(b)
     man["state_changing_reads"] = [{"target_id": API, "method": "GET", "path_template": "/api/cron/run"}]
-    assert level(b, [req("GET", "/api/cron/run")])[0] == "S0"           # undeclared: classified as a read
+    # D5 (2026-11-22 review): an undeclared GET the W0 inventory does not prove read-only is a write as well. Before,
+    # it was classified as a read (S0) until somebody declared it in state_changing_reads
+    lv, trace = level(b, [req("GET", "/api/cron/run")])
+    assert lv == "S3" and "non-seed object" in trace[0]
     lv, trace = level(b, [req("GET", "/api/cron/run")], man)
     assert lv == "S3" and "non-seed object" in trace[0]
 

@@ -53,6 +53,10 @@ from urllib.parse import unquote, urlsplit
 
 ORDER = ("S0", "S1", "S2", "S3")
 STATE_CHANGING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+# 2026-11-22 internal review: the only methods is_mutation treats as reads. Anything else (a lower-case or missing
+# method, PURGE, MOVE, COPY, MKCOL ...) is a write: the testcase schema allows seven methods, but a Scope Proxy that
+# ports this function sees whatever the client sent.
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 READ_ONLY_GRAPHQL = frozenset({"query", "introspection"})
 
 # Modes the toolkit never runs. ROE denied_modes can only add to this set.
@@ -84,7 +88,18 @@ def is_normalized(path: str) -> bool:
         return False
     if any(c in path for c in "%\\?#"):
         return False
+    if not path_chars_ok(path):
+        return False
     return all(s not in (".", "..") for s in segments(path))
+
+
+def path_chars_ok(path: str) -> bool:
+    """2026-11-22 internal review: no control character (U+0000-001F, U+007F) and already in NFKC form. A router or
+    file system that drops a NUL / tab or folds a full-width letter would otherwise serve `/admin\t/x` or `/ａdmin/x`
+    as `/admin/x`, which an exclusion of `/admin/*` does not match. Non-ASCII segments in NFKC form stay allowed."""
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in path):
+        return False
+    return unicodedata.is_normalized("NFKC", path)
 
 
 def is_placeholder(seg: str) -> bool:
@@ -107,7 +122,7 @@ def sensitive_digits(text: str) -> str:
     return "".join(ch for ch in unicodedata.normalize("NFKC", text) if ch.isdigit())
 
 
-def sensitive_leaks(output: str, fields: list[dict]) -> list[str]:
+def sensitive_leaks(output: str, fields: list[dict]) -> list:
     """The `field` names of registered sensitive fields that appear in a model output. Paraphrases ("the customer in
     Taipei") are not matched: they need LLM_GRADER / a human and are not a deterministic oracle."""
     out, digits = normalize_sensitive(output), sensitive_digits(output)
@@ -246,7 +261,7 @@ def graphql_paths(roe: dict | None) -> dict[str, set[str]]:
 
 def graphql_declared(r: dict, gql: dict[str, set[str]] | None) -> bool:
     """The request goes to a ROE-declared GraphQL path of its target over GET / POST."""
-    return r.get("method") in GRAPHQL_METHODS and r.get("path") in (gql or {}).get(r.get("target_id"), set())
+    return r.get("method") in GRAPHQL_METHODS and r.get("path") in (gql or {}).get(r.get("target_id"), set())  # type: ignore[arg-type]  # a missing target_id finds nothing
 
 
 def _endpoint_in(manifest, key: str, r: dict) -> dict | None:
@@ -259,11 +274,34 @@ def _endpoint_in(manifest, key: str, r: dict) -> dict | None:
     return None
 
 
-def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None) -> bool:
+READ_PROOF_METHODS = frozenset({"GET", "HEAD"})
+
+
+def path_shape(path) -> str | None:
+    """A path template with every {variable} segment reduced to {} (placeholder names do not matter)."""
+    return re.sub(r"\{[^/}]*\}", "{}", path) if isinstance(path, str) else None
+
+
+def read_is_proven(r: dict, manifest=None, proven_reads=None) -> bool:
+    """D5 (2026-11-22 review, user decision): a GET / HEAD request is known not to change state. Either the signed seed
+    manifest declares it in read_only_endpoints (same target, method and path shape), or the W0 inventory has the endpoint
+    with writes false: `proven_reads` is the set of (method, path shape) of those endpoints (checks.proven_reads); a HEAD
+    is also proven by its GET. No inventory knowledge (None) proves nothing."""
+    if _endpoint_in(manifest, "read_only_endpoints", r) is not None:
+        return True
+    shape, proven = path_shape(r.get("path")), proven_reads or ()
+    return (r.get("method"), shape) in proven or (r.get("method") == "HEAD" and ("GET", shape) in proven)
+
+
+def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None, proven_reads=None) -> bool:
     """POST / PUT / PATCH / DELETE and GraphQL mutations. A GraphQL query / introspection is a read only on
     a ROE-declared GraphQL path (v0.4); elsewhere the label is ignored and the HTTP method decides.
     v0.4: a GET / HEAD in the manifest's state_changing_reads is a mutation; a POST in read_only_endpoints
-    is not."""
+    is not.
+    D5 (2026-11-22 review, user decision): a GET / HEAD is a read only when that is proven (read_is_proven). AI-generated
+    applications are the ones that least respect HTTP semantics (GET /api/x/delete?id=, GET /logout); until then a GET
+    was a read unless somebody had declared it a state-changing read, so the safety class depended on how complete that
+    declaration was. An unproven GET is a write: it needs a seed binding and is at least S1. OPTIONS stays a read."""
     op = r.get("graphql_operation")
     if op == "mutation":
         return True
@@ -273,7 +311,9 @@ def is_mutation(r: dict, gql: dict[str, set[str]] | None = None, manifest=None) 
         return True
     if r.get("method") == "POST" and _endpoint_in(manifest, "read_only_endpoints", r) is not None:
         return False
-    return r.get("method") in STATE_CHANGING
+    if r.get("method") not in SAFE_METHODS:
+        return True
+    return r.get("method") in READ_PROOF_METHODS and not read_is_proven(r, manifest, proven_reads)
 
 
 SEED_REF_RE = re.compile(r"^\{seed:([a-z0-9_]+)\}$")
@@ -310,6 +350,30 @@ def object_ref_problems(r: dict, manifest, creates: dict[str, dict]) -> list[str
 ID_KEY_RE = re.compile(r"^(id|.*_id|.*Id|.*ID)$")
 # v0.5 (review 2026-10-25 H-6): plural id keys address several objects at once; never bound
 IDS_KEY_RE = re.compile(r"^(ids|.*_ids|.*Ids|.*IDs)$")
+# 2026-11-22 internal review: the two patterns above let `userid`, `uid`, `guid`, `uuid`, `pk`, `user-id` and `USER_ID`
+# carry any value. The extra patterns are case-insensitive: the bare identifier words, the same words after a
+# separator (`_`, `-`, `.`), camel-case Uuid / Guid, and a common noun directly followed by `id` (`userid`). "Any key
+# ending in id" is not used: it would bind `paid`, `valid`, `void`, `grid` and `android`. Still a heuristic: a field
+# that names an object by meaning (`owner`, `email`, `slug`) is not recognised (docs/06 section 3, docs/09 BL-74).
+ID_WORDS = "id|uid|uuid|guid|pk"
+ID_NOUNS = ("user|owner|account|acct|order|customer|tenant|org|organization|organisation|project|item|product|invoice|"
+            "session|member|team|group|author|creator|parent|doc|document|file|post|comment|message|record|object|"
+            "entity|client|profile|workspace|company|payment|subscription")
+ID_KEY_EXTRA_RE = re.compile(rf"^(({ID_WORDS}|key)|.*[_\-.]({ID_WORDS})|({ID_NOUNS})id)$", re.IGNORECASE)
+ID_KEY_CAMEL_RE = re.compile(r"^.*[a-z0-9](Uuid|UUID|Guid|GUID|Pk|PK)$")
+IDS_KEY_EXTRA_RE = re.compile(rf"^((ids|uids|uuids|guids|pks|keys)|.*[_\-.](ids|uids|uuids|guids|pks)|({ID_NOUNS})ids)$",
+                              re.IGNORECASE)
+IDS_KEY_CAMEL_RE = re.compile(r"^.*[a-z0-9](Uuids|UUIDs|Guids|GUIDs)$")
+
+
+def is_id_key(key: str) -> bool:
+    """The key names one object (docs/08 section 11.7); a plural key is not an id key (is_ids_key)."""
+    return bool(ID_KEY_RE.match(key) or ID_KEY_EXTRA_RE.match(key) or ID_KEY_CAMEL_RE.match(key))
+
+
+def is_ids_key(key: str) -> bool:
+    """The key addresses several objects at once."""
+    return bool(IDS_KEY_RE.match(key) or IDS_KEY_EXTRA_RE.match(key) or IDS_KEY_CAMEL_RE.match(key))
 # PostgREST logical operators in the query string (or=(...), and=(...), not.or=...)
 POSTGREST_LOGICAL = re.compile(r"^(not\.)?(or|and)$")
 POSTGREST_EQ = re.compile(r"^eq\.(.+)$")
@@ -349,9 +413,9 @@ def request_binding_problem(query, body, allowed: set[str], require_binding: boo
             return f"query parameter {k!r} is not a string"
         if POSTGREST_LOGICAL.match(k):
             return f"query parameter {k}= (PostgREST logical operator) can select other objects"
-        if IDS_KEY_RE.match(k):
+        if is_ids_key(k):
             return f"query parameter {k} addresses several objects"
-        if ID_KEY_RE.match(k):
+        if is_id_key(k):
             values = v if isinstance(v, list) else [v]
             for x in values:
                 x = str(x)
@@ -369,9 +433,9 @@ def request_binding_problem(query, body, allowed: set[str], require_binding: boo
         cur = stack.pop()
         if isinstance(cur, dict):
             for k, v in cur.items():
-                if isinstance(k, str) and IDS_KEY_RE.match(k):
+                if isinstance(k, str) and is_ids_key(k):
                     return f"{k} addresses several objects"
-                if isinstance(k, str) and ID_KEY_RE.match(k):
+                if isinstance(k, str) and is_id_key(k):
                     if isinstance(v, (dict, list)):
                         return f"{k} holds a {type(v).__name__}: an id-like key must hold one bound value"
                     if v is not None:
@@ -439,7 +503,7 @@ def json_equal(a, b) -> bool:
 
 
 def allowlist_match(target_id: str, method: str, path: str, allowlist: list, resolve: dict[str, str],
-                    gql: dict[str, set[str]] | None = None, manifest=None) -> dict | None:
+                    gql: dict[str, set[str]] | None = None, manifest=None, proven_reads=None) -> dict | None:
     """v0.5 (review 2026-10-25 §4.3) reference rule for the Scope Proxy (docs/08 §11.7): the allow-list entry a concrete
     request matches, or None (blocked).
 
@@ -448,7 +512,7 @@ def allowlist_match(target_id: str, method: str, path: str, allowlist: list, res
     same target and method: a literal must be equal; {seed:k} / {created:s} must equal its resolved value
     (`resolve`, from the seed manifest and the run's create responses); a plain {name} matches one non-empty
     segment only on a read (is_mutation false), never on a write."""
-    if not isinstance(path, str) or normalize_for_match(path) != path.lower() or "%" in path:
+    if not isinstance(path, str) or normalize_for_match(path) != path.lower() or "%" in path or not path_chars_ok(path):
         return None
     segs = segments(path)
     for r in allowlist or []:
@@ -457,7 +521,7 @@ def allowlist_match(target_id: str, method: str, path: str, allowlist: list, res
         tsegs = segments(r.get("path", ""))
         if len(tsegs) != len(segs):
             continue
-        write = is_mutation(r, gql, manifest)
+        write = is_mutation(r, gql, manifest, proven_reads)
         ok = True
         for t, s in zip(tsegs, segs):
             if SEED_SEG_RE.match(t) or CREATED_SEG_RE.match(t):
@@ -532,7 +596,7 @@ def created_path_allowed(path: str, step: str, source: dict, endpoint: dict) -> 
                for t in endpoint["created_resource"]["path_templates"])
 
 
-def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list[str]:
+def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None, proven_reads=None) -> list[str]:
     """B6 (H-B3, L-11): why requests of the allow-list are outside the seed-bound mutation scope ([] = in scope).
     `roe` supplies the declared GraphQL paths (v0.4); without it no request is a GraphQL read."""
     out = []
@@ -587,7 +651,7 @@ def mutation_scope_problems(tc: dict, manifest, roe: dict | None = None) -> list
                        f"for {r.get('target_id')} (targets[].graphql_paths), or not over GET/POST")
         elif r.get("graphql_operation") == "mutation" and r.get("method") != "POST":
             out.append(f"{where}: a GraphQL mutation is sent only over POST (v0.5)")
-        if is_mutation(r, gql, manifest):
+        if is_mutation(r, gql, manifest, proven_reads):
             var = [s for s in segments(path) if is_placeholder(s)]
             unbound = [s for s in var if not (SEED_SEG_RE.match(s) or CREATED_SEG_RE.match(s))]
             create = _create_endpoint(manifest, r)
@@ -620,6 +684,10 @@ DENIED_NETWORKS = tuple(ipaddress.ip_network(n) for n in (
     "fec0::/10",           # deprecated site-local
     "fc00::/7",            # unique local
     "224.0.0.0/4", "ff00::/8",   # multicast
+    # 2026-11-22 internal review: is_global is True for both. ::7f00:1 is ::127.0.0.1 and ::a9fe:a9fe is
+    # ::169.254.169.254; a stack or translator that still honours the embedded address reaches loopback / metadata.
+    "::/96",               # IPv4-compatible IPv6 (deprecated, RFC 4291 section 2.5.5.1)
+    "192.88.99.0/24",      # 6to4 relay anycast (deprecated, RFC 7526)
 ))
 LOCAL_TEST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
@@ -801,7 +869,7 @@ def registry_entry(tools: dict, adapter: str) -> dict | None:
     return None if spec is None else {"tool": tool, "mode": mode, **spec}
 
 
-def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None) -> tuple[str, list[str]]:
+def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None, proven_reads=None) -> tuple[str, list[str]]:
     """Return (class, trace). `manifest` = the seed manifest named by tc.seed_manifest_ref (dict), or None."""
     tb = tc["tool_binding"]
     acts = roe["activities"]
@@ -865,7 +933,7 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
         if r.get("graphql_operation") is not None and not r.get("graphql_document_sha256"):
             return "S3", [f"{r['method']} {r['path']}: a GraphQL request pins its document (graphql_document_sha256)"]
     # every mutation is seed-bound or a create in the run namespace; seeds only on their own resources
-    scope = mutation_scope_problems(tc, manifest, roe)
+    scope = mutation_scope_problems(tc, manifest, roe, proven_reads)
     if scope:
         return "S3", [f"{MUTATION_SCOPE}: {p}" for p in scope]
 
@@ -883,9 +951,10 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
     if any(r["method"] in STATE_CHANGING for r in reqs):
         level = hi(level, "S1")
         trace.append("state-changing method -> >=S1")
-    elif any(is_mutation(r, gql, manifest) for r in reqs):
+    elif any(is_mutation(r, gql, manifest, proven_reads) for r in reqs):
         level = hi(level, "S1")
-        trace.append("mutation on a read method -> >=S1")
+        trace.append("mutation on a read method (a GraphQL mutation, a declared state-changing read, or a GET / HEAD not "
+                     "proven read-only) -> >=S1")
     if any(_endpoint_in(manifest, "state_changing_reads", r) is not None for r in reqs):
         level = hi(level, "S1")
         trace.append("state-changing GET/HEAD (seed manifest state_changing_reads) -> >=S1")
@@ -896,7 +965,7 @@ def compute_safety_class(tc: dict, roe: dict, tools: dict, manifest: dict | None
             trace.append(f"{r['method']} {r['path']}: create-only endpoint with uncontained {ce.get('side_effects')} side effects -> >=S2")
             break
     for r in reqs:
-        effects = seed_side_effects(manifest, roe, r) if is_mutation(r, gql, manifest) else None
+        effects = seed_side_effects(manifest, roe, r) if is_mutation(r, gql, manifest, proven_reads) else None
         if effects is not None:
             level = hi(level, "S2")
             trace.append(f"{r['method']} {r['path']}: writes a seed with uncontained {effects} side effects -> >=S2")
@@ -936,7 +1005,8 @@ def seed_side_effects(manifest, roe, r: dict) -> str | None:
     refs = [m.group(1) for s in segments(r.get("path", "")) for m in [SEED_SEG_RE.match(s)] if m]
     refs += [m.group(1) for x in r.get("object_refs") or [] for m in [SEED_REF_RE.match(str(x))] if m]
     for key in refs:
-        sd = seeds.get(key) if isinstance(seeds.get(key), dict) else {}
+        raw = seeds.get(key)
+        sd: dict = raw if isinstance(raw, dict) else {}
         effects = sd.get("side_effects")
         if effects is None:
             effects = "external" if live else "none"

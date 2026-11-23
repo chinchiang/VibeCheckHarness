@@ -737,6 +737,8 @@ def g_engagement(R: Report, c: Ctx):
     elif isinstance(rc, dict) and rc.get("acknowledged") is True:
         R.check(rc.get("person_id") in c.persons and bool(rc.get("statement")), "E-ENG-PROFILE", w,
                 "an acknowledged role_consolidation needs a registry person_id and a statement")
+    for m in deployment_problems(c):
+        R.check(False, "E-ENG-DEPLOYMENT", w, m)
     provider_rules(R, c)
     transfer_rules(R, c)
     config_pin_rules(R, c)
@@ -772,9 +774,32 @@ def provider_rules(R: Report, c: Ctx):
         if not m or "C" not in (m.get("data_classes") or []) or self_hosted(m, c):
             continue
         p = prov.get(m.get("family")) or {}
-        R.check(p.get("zdr") == "confirmed" and p.get("dpa_signed") is True, "E-ENG-PROVIDER", w,
-                f"{k} ({m.get('family')}) can receive C data (agents {sorted(users)}) but providers.{m.get('family')} is not "
-                f"zdr confirmed with a signed DPA (and the model is not self-hosted in Z4)")
+        if not R.check(p.get("zdr") == "confirmed" and p.get("dpa_signed") is True, "E-ENG-PROVIDER", w,
+                       f"{k} ({m.get('family')}) can receive C data (agents {sorted(users)}) but providers.{m.get('family')} is not "
+                       f"zdr confirmed with a signed DPA (and the model is not self-hosted in Z4)"):
+            continue
+        for msg in zdr_problems(R, e, p, k):
+            R.check(False, "E-ENG-PROVIDER", w, f"{k} ({m.get('family')}) can receive C data but {msg}")
+
+
+def zdr_problems(R: Report, e: dict, p: dict, model_key: str) -> list[str]:
+    """C6 (2026-11-22 review): what a `zdr: confirmed` line must also say before a cloud model receives C data. One word
+    in a signed file was the whole control; a provider may exclude single models from ZDR and a confirmation ends with
+    its contract. So the confirmation names its evidence, the models it covers and the period it holds for, and that
+    period covers the engagement: confirmed no later than issued_at, expiring no earlier than validity.not_after."""
+    fam, out, w = p.get("family"), [], "engagement.yaml"
+    if not p.get("zdr_evidence_ref"):
+        out.append(f"providers.{fam}.zdr_evidence_ref is empty (a confirmation without a reference cannot be reviewed)")
+    if model_key not in (p.get("zdr_models") or []):
+        out.append(f"providers.{fam}.zdr_models does not list it (the confirmation is per model)")
+    got, exp = ts(R, p.get("zdr_confirmed_at"), w, "zdr_confirmed_at"), ts(R, p.get("zdr_expires_at"), w, "zdr_expires_at")
+    issued, until = ts(R, e.get("issued_at"), w, "issued_at"), ts(R, (e.get("validity") or {}).get("not_after"), w, "validity.not_after")
+    if got is None or (issued is not None and got > issued):
+        out.append(f"providers.{fam}.zdr_confirmed_at {p.get('zdr_confirmed_at')!r} must be set and not later than issued_at {e.get('issued_at')!r}")
+    if exp is None or (until is not None and exp < until):
+        out.append(f"providers.{fam}.zdr_expires_at {p.get('zdr_expires_at')!r} must be set and not earlier than validity.not_after "
+                   f"{(e.get('validity') or {}).get('not_after')!r} (the confirmation must hold for the whole engagement)")
+    return out
 
 
 def c_cloud_families(c: Ctx) -> dict[str, list[str]]:
@@ -820,6 +845,15 @@ def transfer_rules(R: Report, c: Ctx):
         else:
             R.check(t.get("mechanism") != "same_jurisdiction" and bool(t.get("reference")), "E-ENG-TRANSFER", w,
                     f"{fam}: {src} -> {region} is a cross-border transfer; it needs a mechanism other than same_jurisdiction and a reference")
+
+
+def missing_jurisdictions(c: Ctx) -> list[str]:
+    """The jurisdictions of the engagement's data_transfer (source and every transfer region) that the ROE's
+    legal_review.jurisdictions does not list."""
+    dt = (c.engagement or {}).get("data_transfer") or {}
+    named = [dt.get("source_jurisdiction")] + [t.get("region") for t in dt.get("transfers") or [] if isinstance(t, dict)]
+    covered = set(((c.roe or {}).get("legal_review") or {}).get("jurisdictions") or [])
+    return sorted({j for j in named if isinstance(j, str) and j and j not in covered})
 
 
 def cross_border_declared(c: Ctx) -> bool:
@@ -1140,6 +1174,12 @@ def legal(R: Report, c: Ctx):
     if cross_border_declared(c):
         R.check(cb is True or (isinstance(cb, dict) and cb.get("value") is True), "E-ROE-TRANSFER", w,
                 "engagement data_transfer leaves the source jurisdiction, so legal_review.scope.cross_border must be true")
+    # C3 (2026-11-22 review): the review names the jurisdictions it covers; the signed engagement names where the data
+    # starts and where it goes. A review of "TW" for an engagement that sends code to US providers had not looked at
+    # the destination, and nothing compared the two (the shipped example was exactly that)
+    for j in missing_jurisdictions(c):
+        R.check(False, "E-ROE-TRANSFER", w, f"legal_review.jurisdictions {lr.get('jurisdictions')!r} does not cover {j} "
+                "(the engagement's data_transfer names it as the source jurisdiction or a transfer region)")
     # L-2
     att = lr.get("attested_by")
     live = [x for x in c.entries if x.get("person_id") == att and not x.get("revoked_at")]
@@ -1178,9 +1218,15 @@ def legal(R: Report, c: Ctx):
                 f"enabled tools {gated} are 法務閘門 in licenses.yaml: legal_review.scope.component_licenses must be true")
 
 
-def path_shape(path) -> str | None:
-    """A path template with every {variable} segment reduced to {} (placeholder names do not matter)."""
-    return re.sub(r"\{[^/}]*\}", "{}", path) if isinstance(path, str) else None
+path_shape = safety.path_shape      # a path template with every {variable} segment reduced to {}
+
+
+def proven_reads(c: Ctx) -> set:
+    """D5 (2026-11-22 review, user decision): the (method, path shape) of every W0 inventory GET / HEAD endpoint whose
+    `writes` is false. safety.read_is_proven accepts these; an endpoint the inventory does not know, or one whose writes is
+    true or null (the extractor could not tell), proves nothing and its GET is a write."""
+    return {(ep.get("method"), path_shape(ep.get("path"))) for d in c.docs("inventory") for ep in d.data.get("endpoints") or []
+            if isinstance(ep, dict) and ep.get("method") in safety.READ_PROOF_METHODS and ep.get("writes") is False}
 
 
 def seed_manifest_rules(R: Report, c: Ctx, targets: dict):
@@ -1237,6 +1283,37 @@ def platform_of(host: str | None) -> str | None:
         if h == suffix or h.endswith("." + suffix):
             return plat
     return None
+
+
+def chain_platforms(chain) -> dict[str, str]:
+    """C4 (2026-11-22 review): {name: platform} for the names of a resolved CNAME chain that lie under a shared-platform
+    suffix (safety.SHARED_PLATFORM_SUFFIXES)."""
+    out = {}
+    for name in chain if isinstance(chain, list) else []:
+        plat = platform_of(name) if isinstance(name, str) else None
+        if plat is not None:
+            out[name] = plat
+    return out
+
+
+def cname_platform_problems(c: Ctx, t: dict, o: dict) -> list[str]:
+    """C4: a custom domain that is a CNAME to a shared platform (app.example.com -> cname.vercel-dns.com is not caught;
+    app.example.com -> acme.vercel.app is) belongs to the platform's infrastructure just like acme.vercel.app. The ROE
+    check reads the host name only, so such a target passed with dns_txt and without the platform's testing policy.
+    The executor records the names it resolved (ownership_results[].cname_chain); an ok result whose chain reaches a
+    shared platform needs what a host on that platform needs: platform_project of that platform and its accepted
+    platform_policies entry."""
+    if o.get("ok") is not True:
+        return []
+    op, out = t.get("ownership_proof") or {}, []
+    policies = {p.get("platform") for p in c.roe.get("platform_policies") or [] if isinstance(p, dict)}
+    for name, plat in sorted(chain_platforms(o.get("cname_chain")).items()):
+        if not (op.get("method") == "platform_project" and op.get("platform") == plat):
+            out.append(f"{t.get('id')}: its host resolves through {name} (a shared {plat} domain), so ownership cannot be ok with "
+                       f"{op.get('method')!r}: the ROE must declare platform_project with platform {plat}")
+        elif plat not in policies:
+            out.append(f"{t.get('id')}: its host resolves through {name} (a shared {plat} domain) but the ROE has no platform_policies entry for {plat}")
+    return out
 
 
 def platform_rules(R: Report, c: Ctx):
@@ -1498,12 +1575,69 @@ def profile(c: Ctx) -> str:
     return c.engagement.get("assurance_profile") or "team"
 
 
+SINGLE_HOST = "single_host"
+ANCHOR_LABEL = {SINGLE_HOST: "local"}          # report-manifest.audit_anchor by deployment profile; otherwise "countersigned"
+
+
+def deployment(c: Ctx) -> str:
+    """BL-70 / D10 (2026-11-22 review): the engagement's deployment profile; an engagement that names none is three_zone."""
+    return c.engagement.get("deployment_profile") or "three_zone"
+
+
+def deployment_problems(c: Ctx) -> list[str]:
+    """The single-host profile (docs/08 section 11.20) is the one-person, white-box deployment: one OS user holds every key
+    and runs the anchor countersigner. It is only for assurance_profile lite with an acknowledged role_consolidation, and
+    it has no black-box phase (the Scope Proxy and the executor zone are safety controls, not evidence; it has neither)."""
+    if deployment(c) != SINGLE_HOST:
+        return []
+    out = []
+    if profile(c) != "lite":
+        out.append(f"deployment_profile single_host is only allowed with assurance_profile lite (got {profile(c)})")
+    elif consolidation_person(c) is None:
+        out.append("deployment_profile single_host needs an acknowledged role_consolidation (one person holds every key)")
+    gates = sorted({d.data.get("gate") for d in c.docs("gate-record") if d.data.get("gate") in ROE_GATES})
+    if gates:
+        out.append(f"deployment_profile single_host is white-box only, but the bundle has {', '.join(gates)} records "
+                   "(the black-box phase needs the three_zone deployment)")
+    return out
+
+
 def consolidation_person(c: Ctx) -> str | None:
     """The one person allowed to hold several ROE / gate roles: only in lite, only when acknowledged."""
     rc = c.engagement.get("role_consolidation") or {}
     if profile(c) == "lite" and rc.get("acknowledged") is True:
         return rc.get("person_id")
     return None
+
+
+def oracle_approval_problems(R, c, rec: dict, w) -> None:
+    """D3 (2026-11-22 review, 05-v0.17, user decision): `oracle_approvals` of a gate record. After W4 a person reads the
+    oracle of each LLM-written W4 test and approves it item by item; the approval is what makes its interpretation
+    pre-registered (derive.w4_oracle_approved). It is recorded in the G3 record, signed with it, and pins the testcase:
+      - only a G3 record carries it;
+      - each item names a w4-testcase of the record's run, once;
+      - not one whose oracle the harness generated (derive.CODE_ORACLE_KINDS): nothing to approve there;
+      - an `accept` pins the testcase as it is in the bundle (testcase_sha256 = its approval hash)."""
+    oa = rec.get("oracle_approvals")
+    if oa is None:
+        return
+    R.check(rec.get("gate") == "G3", "E-GATE-ORACLE", w,
+            f"oracle_approvals belongs to a G3 record, not {rec.get('gate')} (the W4 oracles are reviewed with the seed threats)")
+    seen = set()
+    for d in oa if isinstance(oa, list) else []:
+        if not isinstance(d, dict):
+            continue
+        tid = d.get("testcase_id")
+        R.check(tid not in seen, "E-GATE-ORACLE", w, f"oracle_approvals names {tid} twice")
+        seen.add(tid)
+        tc = next((t.data for t in c.docs("w4-testcase") if t.data.get("testcase_id") == tid and t.data.get("run_id") == rec.get("run_id")), None)
+        if not R.check(tc is not None, "E-GATE-ORACLE", w, f"oracle_approvals names {tid}, which is not a W4 testcase of run {rec.get('run_id')}"):
+            continue
+        R.check(not derive.oracle_preregistered_by_code(tc), "E-GATE-ORACLE", w,
+                f"{tid} is a {tc.get('kind')} test: the harness generated its oracle, there is nothing for a person to approve")
+        if d.get("decision") == "accept":
+            R.check(d.get("testcase_sha256") == derive.approval_hash(tc), "E-GATE-ORACLE", w,
+                    f"the approval of {tid} pins {d.get('testcase_sha256')}, the testcase is {derive.approval_hash(tc)} (it changed: review it again)")
 
 
 def gate_sod(R: Report, c: Ctx, rec: dict, w: str):
@@ -1741,6 +1875,7 @@ def g_gates(R: Report, c: Ctx):
             lim_r = GATE_MAX_ROUNDS.get(gate, 1)
             R.check(isinstance(rec.get("round"), int) and 1 <= rec.get("round") <= lim_r, "E-GATE-ROUND", w,
                     f"{gate} round {rec.get('round')!r} exceeds the {lim_r}-round limit of docs/02 §1.4 (the run is ABORTED / the item rejected after it)")
+            oracle_approval_problems(R, c, rec, w)
             if gate == "G4":
                 for a in rec.get("approvers", []):
                     R.check(a.get("person_id") in run.get("initiators", []), "E-G4-INITIATOR", w,
@@ -1809,6 +1944,8 @@ def run_ownership(R: Report, c: Ctx, w: str, run: dict):
         want = (t.get("ownership_proof") or {}).get("method")
         R.check(o.get("method") == want, "E-RUN-OWNERSHIP", w,
                 f"{o.get('target_id')} was verified with {o.get('method')!r}, but the ROE declares {want!r} for it")
+        for msg in cname_platform_problems(c, t, o):
+            R.check(False, "E-ROE-PLATFORM", w, msg)
     ok = {o.get("target_id") for o in results if o.get("ok") is True}
     used = set()
     for jid, job in (run.get("jobs") or {}).items():
@@ -2403,6 +2540,7 @@ def g_testcases(R: Report, c: Ctx):
     roe_roles = {x.get("role") for x in r.get("test_roles", [])}
     oracle_tables = set((r.get("db_access") or {}).get("oracle_tables", []))
     rl = r.get("rate_limits") or {}
+    proven = proven_reads(c)
     for d in c.docs("testcase"):
         with doc_guard(R, d.path):
             tc, w = d.data, d.path
@@ -2414,7 +2552,7 @@ def g_testcases(R: Report, c: Ctx):
             R.check(ref is not None and ref == (r.get("db_access") or {}).get("seed_manifest_ref"), "E-TC-SEEDS", w,
                     f"seed_manifest_ref {ref!r} must be the ROE's seed manifest (db_access.seed_manifest_ref); it is required")
             try:
-                level, trace = safety.compute_safety_class(tc, r, c.tools, mk)
+                level, trace = safety.compute_safety_class(tc, r, c.tools, mk, proven)
             except (KeyError, TypeError) as exc:
                 R.error("E-TC-SAFETY", w, f"cannot compute safety class: missing {exc}")
                 continue
@@ -2423,7 +2561,7 @@ def g_testcases(R: Report, c: Ctx):
             prop = tc.get("safety_class_proposed") or "S0"
             R.check(safety.ORDER.index(level) >= safety.ORDER.index(prop), "E-TC-SAFETY", w, "computed class below the LLM proposal")
             R.check(safety.admissible(level, r), "E-TC-ADMISSIBLE", w, f"class {level} cannot enter G4 ({'; '.join(trace)})")
-            scope = safety.mutation_scope_problems(tc, mk, r)
+            scope = safety.mutation_scope_problems(tc, mk, r, proven)
             R.check(not scope, "E-TC-MUTATION-SCOPE", w, "every mutation must be seed-bound or a create in the run namespace (B6): "
                     + "; ".join(scope))
             dn = tc.get("data_needed") or {}
@@ -3070,6 +3208,15 @@ def g_verdicts(R: Report, c: Ctx):
             R.check(v.get("advisory") is out.advisory, "E-VERDICT-STATUS", w, f"advisory {v.get('advisory')} != {out.advisory}")
             kinds = {a.get("kind") for a in v.get("annotations", [])}
             R.check(kinds == out.annotations, "E-VERDICT-ANNOTATIONS", w, f"annotations {sorted(kinds)} != {sorted(out.annotations)}")
+            # D6 (05-v0.16, user decision): a PASS without a positive control (E_pass_weak) supports no statistical bound.
+            # The oracle was never shown to fail, so "upper bound 4.9%" measures whether the target wrote its log, and a
+            # reader takes it for a security guarantee. A pattern check: it stops the stated bound, not a paraphrase
+            if "E_pass" not in dv.inputs.evidence:
+                for a in v.get("annotations", []):
+                    if isinstance(a, dict) and a.get("kind") == "test_not_reproduced" and BOUND_CLAIM_RE.search(str(a.get("reason") or "")):
+                        R.check(False, "E-VERDICT-ANNOTATIONS", w,
+                                f"test_not_reproduced reason {a.get('reason')!r} states a statistical bound, but no linked PASS has a "
+                                "positive control (E_pass_weak): say that no violation was observed and the oracle was not verified")
             rules = [str(x).split(":", 1)[0] for x in v.get("rule_trace", [])]
             if R.check(rules == out.rules, "E-VERDICT-TRACE", w, f"rule_trace rules {rules} != {out.rules}"):
                 x = dv.inputs
@@ -4828,6 +4975,21 @@ def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
         return ["primary_hypothesis: delta, ci_low and ci_high are required numbers"]
     if not lo <= d <= hi:
         out.append(f"primary_hypothesis: delta {d} is outside its interval [{lo}, {hi}]")
+    # 2026-11-22 review (D9, user decision; docs/05 §5.6): the result is about the comparison that was registered. The
+    # primary comparison is the full pipeline against the single best model resampled with the same back end (4 vs 4s);
+    # a result that names another comparator answers a question nobody pre-registered
+    want = (pre.get("primary_comparison") or {}).get("comparator") if isinstance(pre.get("primary_comparison"), dict) else None
+    if ph.get("comparator") != want:
+        out.append(f"primary_hypothesis: comparator {ph.get('comparator')!r} is not the registered "
+                   f"preregistration.primary_comparison.comparator {want!r}")
+    # 2026-11-22 review (B9; docs/05 §5.6 "the holdout is used once"): thresholds retuned after a holdout was unblinded are
+    # no longer tested on unseen data. A later calibration version on the same holdout registers how often it was
+    # unblinded before; its result is then exploratory, and an exploratory result cannot claim that a strategy won
+    prior = pre.get("holdout_prior_unblindings")
+    confirmatory = type(prior) is int and prior == 0
+    if ph.get("confirmatory") is not confirmatory:
+        out.append(f"primary_hypothesis: confirmatory {ph.get('confirmatory')!r} but preregistration.holdout_prior_unblindings "
+                   f"{prior!r} gives {confirmatory} (a holdout unblinded before supports only an exploratory result)")
     h1 = lo > 0
     if ph.get("h1") is not h1:
         out.append(f"primary_hypothesis: h1 {ph.get('h1')!r} but ci_low {lo} {'>' if h1 else '<='} 0 gives {h1}")
@@ -4837,8 +4999,11 @@ def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
     if not h1 and h2 is not None:
         out.append(f"primary_hypothesis: h2 {h2!r} but H2 is not evaluated when H1 fails (fixed-sequence procedure): null")
     want = ("multi_family_wins" if h2 else "recall_only") if h1 else ("single_best_wins" if hi < 0 else "not_shown")
+    if not confirmatory:
+        want = "not_shown"                              # B9: nothing is shown on a holdout that was seen before
     if ph.get("outcome") != want:
-        out.append(f"primary_hypothesis: outcome {ph.get('outcome')!r} but h1 {h1} / h2 {h2!r} / ci_high {hi} give {want!r}")
+        out.append(f"primary_hypothesis: outcome {ph.get('outcome')!r} but h1 {h1} / h2 {h2!r} / ci_high {hi} / confirmatory "
+                   f"{confirmatory} give {want!r}")
     psi = max(x for x in (pre.get("psi_assumed"), ph.get("psi_observed")) if num(x)) if any(num(x) for x in (pre.get("psi_assumed"), ph.get("psi_observed"))) else None
     rho = max(x for x in (pre.get("rho_assumed"), ph.get("rho_observed")) if num(x)) if any(num(x) for x in (pre.get("rho_assumed"), ph.get("rho_observed"))) else None
     need = required_holdout_n(pre.get("min_effect"), psi, rho, pre.get("alpha", 0.05))
@@ -4850,6 +5015,37 @@ def hypothesis_problems(cfg: dict, res: dict) -> list[str]:
     elo, ehi, ed = ex.get("ci_low"), ex.get("ci_high"), ex.get("recall_diff_vs_arm3")
     if all(num(x) for x in (elo, ehi, ed)) and not elo <= ed <= ehi:
         out.append(f"exploratory: recall_diff_vs_arm3 {ed} is outside its interval [{elo}, {ehi}] (ci_low <= estimate <= ci_high)")
+    return out
+
+
+RESAMPLED_ARM_SAMPLES = 3      # docs/05 §5.6: the comparator resamples the single best model three times
+
+
+def primary_comparison_problems(cfg: dict) -> list[str]:
+    """2026-11-22 review (D9, user decision; docs/05 §5.6): the registered primary comparison names two arms of the
+    configuration, and its comparator is the single best model (the model of arm 1) resampled RESAMPLED_ARM_SAMPLES times
+    with the pipeline's back end. The pipeline keeps a cluster one family reported (UNCORROBORATED, a seed threat), so
+    comparing the ">= 2 agree" rule of arms 3 and 2 measured a rule the pipeline does not use, and its result switched
+    the default strategy; comparing arm 4 with arm 2 mixed the effect of several families with that of the tools."""
+    pc = (cfg.get("preregistration") or {}).get("primary_comparison")
+    if not isinstance(pc, dict):
+        return ["preregistration.primary_comparison is required (treatment and comparator arms)"]
+    arms = {a.get("arm"): a for a in cfg.get("arms") or [] if isinstance(a, dict)}
+    out = [f"preregistration.primary_comparison.{k} {pc.get(k)!r} is not an arm of config.arms"
+           for k in ("treatment", "comparator") if pc.get(k) not in arms]
+    if out:
+        return out
+    comp, best, treat = arms[pc["comparator"]], arms.get("1") or {}, arms[pc["treatment"]]
+    if comp.get("model_keys") != best.get("model_keys"):
+        out.append(f"arm {pc['comparator']}: model_keys {comp.get('model_keys')} must be those of arm 1 {best.get('model_keys')} "
+                   "(the single best model)")
+    if comp.get("n_samples") != RESAMPLED_ARM_SAMPLES:
+        out.append(f"arm {pc['comparator']}: n_samples {comp.get('n_samples')!r} must be {RESAMPLED_ARM_SAMPLES}")
+    if comp.get("acceptance_rule") != treat.get("acceptance_rule"):
+        out.append(f"arm {pc['comparator']}: acceptance_rule {comp.get('acceptance_rule')!r} must equal that of arm "
+                   f"{pc['treatment']} {treat.get('acceptance_rule')!r} (the same back end, so only the families differ)")
+    if comp.get("exploratory") is not False or treat.get("exploratory") is not False:
+        out.append("the arms of the primary comparison are not exploratory")
     return out
 
 
@@ -4972,7 +5168,11 @@ def split_n_apps(s: dict) -> int:
     return len(apps) if isinstance(apps, dict) else 0
 
 
-def theta_problems(cal: dict) -> list[tuple[str, str]]:
+# D6 (05-v0.16): how a statistical bound is stated in an annotation reason (p_u, an upper bound, a confidence bound)
+BOUND_CLAIM_RE = re.compile(r"p_u|上界|upper\s+bound|信賴", re.IGNORECASE)
+
+
+def theta_problems(cal: dict, observation=None) -> list[tuple[str, str]]:
     """v0.7 (review r9): the docs/05 §5.7 limits, recomputed from each feasible threshold's split statistics. v0.7 read
     `feasible` and `generalised` as declared, so two booleans on a threshold measured on 5 clusters at precision 0.5 switched
     on the confirm branch. Confirm: n >= min_clusters, precision >= confirm_precision_floor, Wilson lower >=
@@ -4982,7 +5182,13 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
     min_clusters, precision <= reject_true_defect_max, ci_high <= reject_wilson_upper_max, and generalised only when the
     holdout share is within 0.05. (r11 first read `1 - precision` here, which made the documented example of 60 rejected
     clusters with no true defect infeasible and `tp = n` feasible.) And a bucket's theta_confirm is above every single vote's support weight in
-    that bucket, or one vote confirms (docs/05 §4.3: "one vote is not enough")."""
+    that bucket, or one vote confirms (docs/05 §4.3: "one vote is not enough").
+
+    2026-11-22 internal review: and the threshold is not above S_max, the largest score the bucket's weights can reach
+    (docs/05 §5.7: the search grid ends at S_max). S takes one vote per independent observation (verdict.root_score), so
+    S_max is the sum over observations of the bucket's largest weight on that side. `observation` maps a model key to its
+    observation (Index.independence_key); without it every model is its own observation, which only raises S_max. The
+    example claimed theta_confirm 2.5 feasible with 46 confirmed clusters in a bucket whose weights add up to 2.1607."""
     cfg, res = cal.get("config") or {}, cal.get("result") or {}
     ts = cfg.get("threshold_search") or {}
     out = []
@@ -5052,7 +5258,26 @@ def theta_problems(cal: dict) -> list[tuple[str, str]]:
                        if isinstance(r, dict) and r.get("cwe_bucket") == b), default=0)
             if num(top) and val <= top:
                 out.append((f"{name}/{b}", f"value {val} <= {top}, the largest single {side} weight of the bucket: a single vote {verb}"))
+            s_max = bucket_score_max(res.get("weights") or [], b, side, observation)
+            if val > s_max + 1e-9:
+                out.append((f"{name}/{b}", f"value {val} > {s_max}, the largest score the bucket's {side} weights can reach "
+                                           f"(one vote per independent observation): no set of votes meets the threshold"))
     return out
+
+
+def bucket_score_max(weights: list, bucket: str, side: str, observation=None) -> float:
+    """S_max of a bucket on one side (docs/05 §5.7): each independent observation contributes its largest weight."""
+    best: dict = {}
+    for r in weights:
+        if not (isinstance(r, dict) and r.get("cwe_bucket") == bucket):
+            continue
+        w = (r.get(side) or {}).get("w") if isinstance(r.get(side), dict) else None
+        if not (isinstance(w, (int, float)) and not isinstance(w, bool) and math.isfinite(w)):
+            continue
+        mk = r.get("model_key")
+        key = (observation(mk) if observation else None) or mk
+        best[key] = max(best.get(key, 0.0), w)
+    return round(sum(best.values()), 4)
 
 
 def g_calibration(R: Report, c: Ctx):
@@ -5142,12 +5367,14 @@ def g_calibration(R: Report, c: Ctx):
                     "E-CAL-THETA", w, f"{label}: value {val!r} must be a finite number >= {THETA_MIN}")
         for label, t in per:
             R.check(t.get("by_bucket") is None, "E-CAL-THETA", w, f"{label}: a bucket threshold has no by_bucket of its own")
-    for label, msg in theta_problems(cal):
+    for label, msg in theta_problems(cal, c.ix.independence_key):
         R.error("E-CAL-THETA", w, f"{label}: {msg}")
     for arm in cfg.get("arms", []):
         R.check(arm.get("exploratory") is (arm.get("arm") == "5"), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: only arm 5 is exploratory")
         R.check(set(arm.get("model_keys", [])) <= set(keys), "E-CAL-ARMS", w, f"arm {arm.get('arm')}: unknown model keys")
     R.check((res.get("exploratory") or {}).get("arm") == "5", "E-CAL-ARMS", w, "result.exploratory.arm must be 5")
+    for msg in primary_comparison_problems(cfg):
+        R.error("E-CAL-ARMS", w, msg)
     for row in ((res.get("metrics") or {}).get("M-11") or {}).get("by_model", []):
         want = "support_leaning" if row.get("value") is not None and row["value"] < 0.5 else None
         R.check(row.get("flag") == want, "E-CAL-M11", w, f"M-11 {row.get('model_key')}: flag must be {want}")
@@ -5435,6 +5662,10 @@ def g_misc(R: Report, c: Ctx):
             want_ev = "self_attested" if profile(c) == "lite" else "separated"
             R.check(rm.get("evidential") == want_ev, "E-REPORT", w,
                     f"evidential must be {want_ev!r} for assurance_profile {profile(c)} (Lite evidence is self-attested), not {rm.get('evidential')!r}")
+            # BL-70 / D10: a single-host engagement's anchors are countersigned by the operator's own process; the report says so
+            want_anchor = ANCHOR_LABEL.get(deployment(c), "countersigned")
+            R.check(rm.get("audit_anchor") == want_anchor, "E-REPORT-ANCHOR", w,
+                    f"audit_anchor must be {want_anchor!r} for deployment_profile {deployment(c)}, not {rm.get('audit_anchor')!r}")
             final = verdict_heads(c, run.get("verdicts", []))       # v0.5 (V-4): a broken chain is E-VERDICT-CHAIN
             counts = {s: sum(1 for v in final if v.get("status") == s) for s in FINAL_STATUSES}
             R.check(rm.get("verdict_counts") == counts, "E-REPORT", w, f"verdict_counts must be {counts} (latest verdict per cluster)")

@@ -63,7 +63,7 @@ def test_an_unreliable_side_zeroes_both(b):
 # ================================================================ 3.5 thresholds per bucket
 def test_thresholds_are_per_bucket(b):
     ix = derive.Index(b)
-    assert ix.thresholds("authz") == (2.5, None)
+    assert ix.thresholds("authz") == (2.1, None)
     assert ix.thresholds("llm_specific") == (None, None)           # not feasible there
     assert ix.thresholds("injection") == (None, None)              # no threshold searched for the bucket
 
@@ -76,7 +76,7 @@ def test_a_threshold_that_did_not_generalise_is_disabled(b):
 def test_the_pooled_threshold_is_not_used(b):
     th = doc(b, CAL).data["result"]["thresholds"]["theta_confirm"]
     del th["by_bucket"]["authz"]
-    assert th["value"] == 2.5 and derive.Index(b).thresholds("authz")[0] is None
+    assert th["value"] == 2.1 and derive.Index(b).thresholds("authz")[0] is None
 
 
 def test_by_bucket_is_required(b):
@@ -214,10 +214,10 @@ def test_the_analyst_compares_base_lineages(b):
 
 
 def test_a_verdict_takes_its_bucket_threshold(b):
-    """V-011-1 is in llm_specific, where no threshold was feasible: its theta_confirm is null, not authz's 2.5."""
+    """V-011-1 is in llm_specific, where no threshold was feasible: its theta_confirm is null, not authz's 2.1."""
     v = doc(b, "verdict.k-011-w3.example.json").data
-    assert v["theta_confirm"] is None and doc(b, "verdict.k-014-w3.example.json").data["theta_confirm"] == 2.5
-    v["theta_confirm"] = 2.5
+    assert v["theta_confirm"] is None and doc(b, "verdict.k-014-w3.example.json").data["theta_confirm"] == 2.1
+    v["theta_confirm"] = 2.1
     assert any("verdict.k-011-w3" in i.where and "theta_confirm" in i.msg for i in errors(b, "E-DERIVED"))
 
 

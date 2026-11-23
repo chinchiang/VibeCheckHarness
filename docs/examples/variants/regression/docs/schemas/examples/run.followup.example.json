@@ -22,7 +22,7 @@
   "data_class": "C",
   "toolkit_config_ref": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66",
   "key_registry_ref": "sha256:20262e09507d28e6defd3022b4dc6f7e2352972271bfb322654115c66ca3c485",
-  "engagement_ref": "sha256:dcc71b402a19a1cbd467bb50825fda41bcd1eb7c240cbda0fe0da4ab8912eccf",
+  "engagement_ref": "sha256:eee4799b181f7bb9795f2d6a8542ea3352d269abf82b263de42da3d67d344b20",
   "config_refs": {
     "models": {
       "path": "docs/examples/models.yaml",
@@ -38,7 +38,7 @@
     },
     "calibration": {
       "path": "docs/examples/calibration.yaml",
-      "sha256": "sha256:f005dc85cb352a9ba6407702f2d4a92ed7d90b49d693043190559b7846f8ed1c"
+      "sha256": "sha256:61102d96c43291295f5de84e4c8b4bf218c5970399150e51516fcd82667de8fe"
     },
     "invariants": {
       "path": "docs/examples/invariants.yaml",
@@ -46,7 +46,7 @@
     },
     "seed_manifest": {
       "path": "docs/examples/seed-manifest.yaml",
-      "sha256": "sha256:50b805b9bf6a06811d823e12f5ef6547303546287bbc162335f16cb16ff90ed9"
+      "sha256": "sha256:c13dd8aebddf894322f6b6d971932ea467c568c89f1fecad4d66e1b90f8f49b3"
     }
   },
   "prompt_templates": [
@@ -68,8 +68,8 @@
       "image_digest": "sha256:1e258df8ecd74dbdd562b48004a062673323a48c986c945049e63c119a346867"
     }
   ],
-  "rule_version": "05-v0.15",
-  "roe_ref": "sha256:beb8a302a584bc1632d013c85ebd8e5b86c4352e4b2f305122707a407db57c47",
+  "rule_version": "05-v0.17",
+  "roe_ref": "sha256:f5c5bf4e931362fa29f6dc7329fe8250ba427cab60fa85bd5123b88031dcf1c1",
   "repo_commit": "7d3e1a0c4b2e9f6d1a8c3b5e7f9a2d4c6e8b0f1a",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
@@ -115,7 +115,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:22e6399178522507134530b6da13fcff195f6a65cfb4973c1c88968bae841521"
+      "signed_result_ref": "sha256:22e6399178522507134530b6da13fcff195f6a65cfb4973c1c88968bae841521",
+      "cname_chain": []
     },
     {
       "target_id": "tgt-staging-app",
@@ -123,7 +124,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:09f71321ae9f341a484d4ae241f002d48babd0dae265ea44f1b610b30e64c130"
+      "signed_result_ref": "sha256:09f71321ae9f341a484d4ae241f002d48babd0dae265ea44f1b610b30e64c130",
+      "cname_chain": []
     },
     {
       "target_id": "tgt-canary",
@@ -131,7 +133,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:65fc31e7792457fff205fe0987cd0634e6ed854c666a4911fd4b8e175652aa02"
+      "signed_result_ref": "sha256:65fc31e7792457fff205fe0987cd0634e6ed854c666a4911fd4b8e175652aa02",
+      "cname_chain": []
     },
     {
       "target_id": "tgt-staging-db",
@@ -139,7 +142,8 @@
       "ok": true,
       "checked_at": "2026-10-07T20:30:00+08:00",
       "batch_id": "own-2026-10-07-1",
-      "signed_result_ref": "sha256:dd6b69e37959711407e107c89b7ec007b8dd986f13371014397125af6bb88dc4"
+      "signed_result_ref": "sha256:dd6b69e37959711407e107c89b7ec007b8dd986f13371014397125af6bb88dc4",
+      "cname_chain": []
     }
   ],
   "b1_external_ref": null,
@@ -192,7 +196,7 @@
       "gate_record_id": "GR-G0a-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:dcc71b402a19a1cbd467bb50825fda41bcd1eb7c240cbda0fe0da4ab8912eccf",
+      "subject_hash": "sha256:eee4799b181f7bb9795f2d6a8542ea3352d269abf82b263de42da3d67d344b20",
       "job_id": null,
       "opened_at": "2026-10-07T10:00:00+08:00",
       "decided_at": "2026-10-07T10:01:00+08:00"
@@ -202,7 +206,7 @@
       "gate_record_id": "GR-G0b-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:beb8a302a584bc1632d013c85ebd8e5b86c4352e4b2f305122707a407db57c47",
+      "subject_hash": "sha256:f5c5bf4e931362fa29f6dc7329fe8250ba427cab60fa85bd5123b88031dcf1c1",
       "job_id": null,
       "opened_at": "2026-10-07T10:01:00+08:00",
       "decided_at": "2026-10-07T10:02:00+08:00"
@@ -277,31 +281,31 @@
   "audit_anchors": [
     {
       "seq": 7,
-      "line_sha256": "sha256:9b41a11cecad1d404e0b11cf9d9df1ce69cde823bf19e30d61c97e9e47fb49ae"
+      "line_sha256": "sha256:6fa584bf3db09a00246405ecaddce49ca1b4bdb8d312ccc0602f091db235deac"
     },
     {
       "seq": 11,
-      "line_sha256": "sha256:0fe35e9f7fc9fc5f15a51c0390ade491b5b85aa4c750a17c099d861884d1c382"
+      "line_sha256": "sha256:a4ee2a91df5a81b0b87fb5c064481bd67f494b841cdae3443a3cb9c2e3d2139b"
     },
     {
       "seq": 16,
-      "line_sha256": "sha256:084f86b258d84a1434b0450a5fc3b27f2d7a3c2e592a0af2810479f022069434"
+      "line_sha256": "sha256:9bcf7bfc498740817b76f7dc2a38697bd10fd285478c7c8f56e387136603ddc1"
     },
     {
       "seq": 21,
-      "line_sha256": "sha256:6052a418b425c19185838b223fdef1f05903b711429b5f54542e29436c51ebc3"
+      "line_sha256": "sha256:dfb1066176939cb1b1e65b4b60575b27b6844930c0249108ad7c7fb24b8e8429"
     },
     {
       "seq": 26,
-      "line_sha256": "sha256:021606f7e1db09b24a7b1dcb9818b32831a4f39f830097ab2cf06aea9b13b3d1"
+      "line_sha256": "sha256:b12b05acba3eb5363a98a9889988fcdb29ea49c61628f8fcbfa10832f24dc2ac"
     },
     {
       "seq": 29,
-      "line_sha256": "sha256:e787d41e56542654197f1040b227f93a45a0adee1b063cd9632e87a0a48a4445"
+      "line_sha256": "sha256:b91cb9df0d50c84c3b51545c6ae5c13ba1c9dcfdc1236636c9f2670ed4a63396"
     },
     {
       "seq": 34,
-      "line_sha256": "sha256:f9ba7aa3460951e78763d24dd9c7a9bbf230225fbe28f309435d6c15b60fdf6e"
+      "line_sha256": "sha256:f391027b31ac131d5d8c6d8d9ff748c7d9f8e0ded1e0c978718fb84475e1cfe1"
     }
   ],
   "errors": [],

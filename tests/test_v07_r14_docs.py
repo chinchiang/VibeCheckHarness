@@ -38,22 +38,25 @@ def doc(name):
 
 # ================================================================ C1. the Lite single-host profile is deferred
 def test_07_defers_the_lite_single_host_profile():
+    """r14 deferred the profile (user decision then); the 2026-11-22 review specified it (docs/08 section 11.20,
+    tests/test_lite_single_host.py). 07 still says why the three-zone rules cannot start on one machine."""
     s = doc("07-roadmap.md")
-    assert "**Lite 的單機部署 profile 待訂**" in s and "BL-70" in s and "`vibecheck init` 還沒有規格" in s
-    assert "KMS" in s and "U-07" in s and "gVisor 實作，只有 Linux" in s
+    assert "**Lite 的單機部署 profile**（第十四輪內部審查 C1 列為待訂；2026-11-22 內部審查訂定" in s and "BL-70" in s
+    assert "KMS" in s and "U-07" in s and "只有 Linux 才有的 gVisor" in s
+    assert "**Lite 的單機部署 profile 待訂**" not in s and "`vibecheck init` 還沒有規格" not in s
 
 
 def test_bl70_exists_and_08_lists_init_as_unspecified():
     assert "| BL-70 | r14 C1 | **Lite 的單機部署 profile 與 `vibecheck init` 規格**" in doc("09-backlog.md")
     s = doc("08-implementation-spec.md")
-    assert "| `vibecheck init` | `[--dir DIR]` | **規格待訂**" in s
-    assert "除了 [§10](#10-尚未決定需使用者決定) 列出的使用者決定與 [09 BL-70]" in s
+    assert "| `vibecheck init` | `[--dir DIR]` | 只用於 Lite 的單機 profile（[§11.20]" in s and "**規格待訂**" not in s
+    assert "除了 [§10](#10-尚未決定需使用者決定) 列出的使用者決定之外" in s and "之前是待訂的 [09 BL-70]" in s
 
 
 def test_readme_and_00_no_longer_promise_one_key_confirm_once():
     for s in (text("README.md"), doc("00-overview.md")):
         assert "確認一次就能跑" not in s and "本機一把金鑰、確認一次" not in s
-        assert "單機部署 profile 待訂" in s
+        assert "單機部署 profile 的規格在" in s and "尚未實作" in s and "單機部署 profile 待訂" not in s
 
 
 # ================================================================ C2. non-LLM output paths for the MVP-0 detections
@@ -156,7 +159,7 @@ def test_no_document_still_says_r0_to_r13(rel):
 
 
 def test_the_limitation_count_and_the_feature_flag_rules():
-    assert "45 條明列" in text("README.md") and "完整的 45 條見" in doc("00-overview.md")
+    assert "51 條明列" in text("README.md") and "完整的 51 條見" in doc("00-overview.md")
     s8 = doc("08-implementation-spec.md")
     assert "`ci_workflows`＝repo 有 CI／CD 設定檔（`.github/workflows/*.yml`" in s8 and "`iac`＝repo 有 IaC 或平台設定檔" in s8
     assert "R14／R16 決定的裁決（第 14–16 列，審查 r12）與黑箱叢集是 false" in s8

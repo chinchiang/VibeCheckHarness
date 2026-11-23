@@ -12,7 +12,6 @@
   - Stale text: the 02-08 status lines still said round 10; the glossary lacked the r11 / r12 terms and said the suspend
     variant walks the resume path (it does not).
 Each test failed before the change and passes after it (tests/mutations/r12_examples.json); see CONTRIBUTING.md."""
-import copy
 import pathlib
 
 import pytest
@@ -128,7 +127,7 @@ def test_a_white_box_only_run_without_roe_ends_completed():
                                   "06-security-legal-limitations", "07-roadmap", "08-implementation-spec"])
 def test_status_lines_name_round_twelve(name):
     status = text(f"docs/{name}.md").split("## 現況", 1)[1].split("\n## ", 1)[0]
-    assert "第十四輪審查（2026-10-30）後的設計" in status             # r13 moved the status lines on
+    assert "第十四輪審查（2026-10-30）與 2026-11-22 內部審查後的設計" in status   # r13, r14, then the 2026-11-22 review, moved the status lines on
 
 
 def test_the_glossary_has_the_r11_and_r12_terms():

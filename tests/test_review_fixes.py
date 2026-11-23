@@ -2,8 +2,6 @@
 """Review fixes (v0.2.1): audit-backed SARIF refs, strict JSON numbers, audit anchor completeness,
 host normalisation, unparseable endpoints, placeholder models / --real-run, JSONL line splitting,
 verifier-only votes. Each rule has a positive and a negative case."""
-import copy
-import json
 
 import pytest
 

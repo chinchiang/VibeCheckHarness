@@ -70,7 +70,8 @@ def test_mutation_lists_match_the_source():
 def test_the_lock_pins_every_direct_dependency():
     req = {re.split(r"[<>=!]", ln)[0].strip().lower() for ln in (ROOT / "requirements.txt").read_text().splitlines()
            if ln.strip() and not ln.startswith("#")}
-    lock = {ln.split("==")[0].lower(): ln.split("==")[1] for ln in (ROOT / "requirements.lock").read_text().splitlines()
+    # the lock carries --hash lines since the 2026-11-22 review (tools/lock_hashes.py); a pin line ends in " \\"
+    lock = {ln.split("==")[0].lower(): ln.split("==")[1].rstrip(" \\") for ln in (ROOT / "requirements.lock").read_text().splitlines()
             if "==" in ln and not ln.startswith("#")}
     assert req <= set(lock), req - set(lock)
     assert all(re.fullmatch(r"[0-9][0-9A-Za-z.]*", v) for v in lock.values())

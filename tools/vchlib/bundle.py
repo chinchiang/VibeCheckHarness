@@ -138,14 +138,14 @@ def load_bundle(root: pathlib.Path) -> Bundle:
     cdir = root / "docs" / "examples"
     for p in sorted(cdir.glob("*.yaml")):
         text = p.read_text(encoding="utf-8")
-        kind = YAML_KINDS.get(p.name)
-        if kind is None:
+        ykind = YAML_KINDS.get(p.name)
+        if ykind is None:
             b.docs.append(Doc(_rel(root, p), "unknown", None, text, "no schema mapping for this YAML file"))
             continue
         try:
-            b.docs.append(Doc(_rel(root, p), kind, yamlstrict.load(text), text))
+            b.docs.append(Doc(_rel(root, p), ykind, yamlstrict.load(text), text))
         except yamlstrict.StrictYAMLError as exc:
-            b.docs.append(Doc(_rel(root, p), kind, None, text, f"strict YAML: {exc}"))
+            b.docs.append(Doc(_rel(root, p), ykind, None, text, f"strict YAML: {exc}"))
     req = root / "requirements.txt"
     if req.exists():
         b.requirements_txt = req.read_text(encoding="utf-8")

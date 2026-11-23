@@ -36,7 +36,7 @@ def pin_calibration(b, keys):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_10(b):
-    assert adj.RULE_VERSION == "05-v0.15" and run_all(b).errors == []
+    assert adj.RULE_VERSION == "05-v0.17" and run_all(b).errors == []
 
 
 # ================================================================ calibration policy
@@ -174,7 +174,7 @@ def test_a_preregistered_pass_by_the_reporting_family_is_inconclusive(b, monkeyp
     independent, as a W4 test written and critiqued by the reporting family is: E_inc, as the FAIL side already was."""
     ix = derive.Index(b)
     tr, cl = doc(b, "testresult.llm-pass.example.json").data, doc(b, "cluster.k-011.example.json").data
-    assert derive.classify_result(ix, tr, cl)[0] == "E_pass"
+    assert derive.classify_result(ix, tr, cl)[0] == "E_pass_weak"          # 05-v0.16 (D6): no oracle_can_fail control
     monkeypatch.setattr(derive, "authors_independent", lambda ix_, tr_, cl_: False)
     monkeypatch.setattr(derive, "analyst_check", lambda ix_, tr_, cl_: (False, None))     # no eligible analyst either
     cls, why = derive.classify_result(ix, tr, cl)
@@ -219,5 +219,5 @@ def test_fixed_is_a_final_status_and_never_provisional():
 def test_r14_never_fires_without_regression_fixed():
     import itertools
     for ev, sup, ref, g2 in itertools.product([set(), {"E_pass"}, {"E_proof"}], [False, True], [False, True], [False, True]):
-        out = adj.adjudicate(adj.Inputs(evidence=ev, weighted_support=sup, weighted_refute=ref, g2_rejected=g2, pass_positive=True))
+        out = adj.adjudicate(adj.Inputs(evidence=ev, weighted_support=sup, weighted_refute=ref, g2_rejected=g2))
         assert out.status != "FIXED" and "R14" not in out.rules

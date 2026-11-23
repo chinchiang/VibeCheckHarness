@@ -109,8 +109,8 @@
     {
       "name": "rows 15 and 16 are never provisional",
       "file": "tools/vchlib/verdict.py",
-      "old": "(1, 2, 3, 4, 5, 10, 14, 15, 16)",
-      "new": "(1, 2, 3, 4, 5, 10, 14)",
+      "old": "(1, 2, 3, 4, 5, 10, 14, 15, 16, 17)",
+      "new": "(1, 2, 3, 4, 5, 10, 14, 17)",
       "k": "never_provisional"
     },
     {

@@ -2,11 +2,11 @@
 
 > 這份總覽給第一次讀的人：這套工具包要做什麼、流程怎麼走、哪些步驟是程式、哪些是 LLM、哪些一定要人，以及依角色該先讀哪幾份文件。細節都在後面的文件裡，這裡只放連結，不重複規則。標記說明見 [README](../README.md#標記說明)。
 >
-> **狀態**：設計文件 v0.5（第十四輪審查後，裁決規則版本 `05-v0.15`）。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
+> **狀態**：設計文件 v0.5（第十四輪審查與 2026-11-22 內部審查後，裁決規則版本 `05-v0.17`）。工具包本身尚未實作；repo 內只有資料模型、驗證程式與參考演算法。
 
 ## 1. 它是什麼、不是什麼
 
-**定位**（第十二輪第二次外部審查）：**針對 AI 生成應用的安全測試控制框架**。`lite` 給單人開發者做白箱快速檢查（MVP-0 的預設入口；單機部署 profile 待訂，訂定前只能以 Team 的部署方式跑，[07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)、[09 BL-70](09-backlog.md#41-第七輪2026-10-25-r7-審查起留下的實作項目)）；`team`／`full` 給企業與供應鏈評估，治理要求（職責分離、多人關卡、簽章與錨定）都在這兩個等級。Supabase、Firebase 等託管 DB 通常無法快照還原，這類目標的黑箱測試預期只有 S0／S1（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #36）。
+**定位**（第十二輪第二次外部審查）：**針對 AI 生成應用的安全測試控制框架**。`lite` 給單人開發者做白箱快速檢查（MVP-0 的預設入口；單機部署 profile 的規格在 [08 §11.20](08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)，尚未實作，[07 §1.3](07-roadmap.md#13-lite-的使用者-pilot-與降階路徑-h)）；`team`／`full` 給企業與供應鏈評估，治理要求（職責分離、多人關卡、簽章與錨定）都在這兩個等級。Supabase、Firebase 等託管 DB 通常無法快照還原，這類目標的黑箱測試預期只有 S0／S1（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #36）。
 
 **VibeCheck Harness 是**一套防禦性的測試方法與系統架構，對象是 AI 生成（vibe-coded）的 Web／API 應用與含 LLM 功能的應用：
 - **先白箱**：多個來自不同廠商的 LLM 各自獨立審查程式碼，再由不同家族的模型交叉驗證。
@@ -53,7 +53,7 @@ flowchart LR
 三個重要的設計選擇：
 - **LLM 永遠看不到未遮罩的程式碼**：secrets 掃描與遮罩是 G0a 之後的第一步，也是程式碼進入任何 LLM 的唯一路徑（[02 W0](02-methodology.md#w0-盤點與-secrets-遮罩確定性無-llm)）。
 - **掃描器的結果不交給審查者**：避免審查者只是重述掃描結果。掃描結果只由確定性的規則使用；校準前只算「弱訊號」（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
-- **確定性的測試失敗不需要 LLM 就能確認**：前提是 oracle 是確定性的，而且解讀事先登記過（黑箱在 G4 核准；白箱的 oracle 由程式從 G1 已簽核的結構產生、兩種對照都通過——LLM 自己寫的測試要先經 G2 確認），可重播的 FAIL 就是可執行證明（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
+- **確定性的測試失敗不需要 LLM 就能確認**：前提是 oracle 是確定性的，而且解讀事先登記過（黑箱在 G4 核准；白箱的 oracle 由程式從 G1 已簽核的結構產生、兩種對照都通過——LLM 自己寫的測試要先由人在 G3 逐項核准它的 oracle），可重播的 FAIL 就是可執行證明（[05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則)）。
 
 ## 4. 會拿到什麼
 
@@ -89,7 +89,7 @@ flowchart LR
 
 ## 6. 最重要的幾個限制
 
-完整的 45 條見 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事)；最常被誤解的是：
+完整的 51 條見 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事)；最常被誤解的是：
 
 1. **多家族只能降低偏誤，不能消除**；是否勝過「單一最佳模型多次取樣」必須自己量（#1）。
 2. **PASS 不代表沒有漏洞**（#28）；LLM 功能的 0/n 只給違反率上界，n＝20 時約 13.9%（#32）。
@@ -106,6 +106,6 @@ flowchart LR
 | 資安審查者（關卡核准者） | [02 §1.3](02-methodology.md#13-人工關卡一覽) → [05 §4.2](05-bias-calibration.md#42-裁決狀態與有序規則) | [04](04-threat-to-testcase.md) 的 binding 表與安全等級、[06 §1](06-security-legal-limitations.md#1-工具包自身的安全) |
 | 實作者 | [03](03-system-architecture.md) → [08](08-implementation-spec.md)（含 §11 元件規格） | [schemas/README](schemas/README.md)、[07](07-roadmap.md) 的出口準則、[09 待辦](09-backlog.md) |
 | 法務或管理層 | [06 §2](06-security-legal-limitations.md#2-法遵與授權) → [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) | [07 §3](07-roadmap.md#3-入口閘門法務與查證) 的入口閘門、[08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 待決事項 |
-| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（第十四輪）](evidence/review-2026-10-30-r14.md)、[第十三輪](evidence/review-2026-10-29-r13.md)、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |
+| 想知道根據什麼 | [01](01-research-survey.md) | [證據帳本](evidence/ledger.md)、[深度審查紀錄](evidence/review-2026-09-26.md)、[最新的審查紀錄（2026-11-22 內部審查）](evidence/review-2026-11-22.md)、[第十四輪](evidence/review-2026-10-30-r14.md)、[第十三輪](evidence/review-2026-10-29-r13.md)、[第十二輪](evidence/review-2026-10-28-r12.md)、[第十一輪](evidence/review-2026-10-28-r11.md) |
 
 術語見 [README 術語表](../README.md#術語表)。

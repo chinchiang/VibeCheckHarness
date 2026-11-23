@@ -27,7 +27,7 @@ import pathlib
 
 import pytest
 
-from conftest import CAL_APPS, EXAMPLE_ICC, apps_map, doc, hp_rule, rederive, split_stats
+from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive, split_stats
 from test_v03_adjudication import _ix_cluster, _w4
 from test_v07_r11_verdict import pin_calibration
 from vchlib import adjudicate as adj
@@ -53,8 +53,8 @@ def text(rel):
 
 
 def test_the_examples_are_clean_and_the_rule_version_is_05_v0_15(b):
-    assert adj.RULE_VERSION == "05-v0.15" and run_all(b).errors == []
-    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.15"}
+    assert adj.RULE_VERSION == "05-v0.17" and run_all(b).errors == []
+    assert {d.data.get("rule_version") for d in b.docs if d.kind in ("verdict", "run")} == {"05-v0.17"}
 
 
 # ================================================================ B1. the required testcases follow the carried_from chain
@@ -138,9 +138,9 @@ def test_a_cluster_of_its_own_still_votes(b):
 
 
 def test_row_15_is_decided_by_tool_signals_alone():
-    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, pass_positive=True, weighted_refute=True))
+    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, weighted_refute=True))
     assert (out.status, out.row) == ("FIXED", 14)                        # a vote can no longer contradict a fix
-    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, pass_positive=True, weak_sarif=True))
+    out = adj.adjudicate(adj.Inputs(regression_fixed=True, evidence={"E_pass"}, weak_sarif=True))
     assert (out.status, out.row) == ("DISPUTED", 15) and "fix_contradicted" in out.annotations
 
 
@@ -201,9 +201,16 @@ def test_an_llm_written_w4_fail_is_not_proof_before_g2(b):
     assert cls == "E_fail_u" and "oracle_unreviewed" in why
 
 
-def test_g2_acceptance_promotes_an_llm_written_w4_fail(b):
-    llm_written(b)                                                        # the example's G2 accepts K-015
+def test_a_g3_oracle_approval_promotes_an_llm_written_w4_fail(b):
+    """05-v0.17 (D3, user decision): the entry is the G3 approval of the oracle, not the G2 acceptance of the cluster (the
+    example's G2 accepts K-015; that alone gave E_proof in 05-v0.15 / 05-v0.16). tests/test_w4_oracle_approval.py."""
+    from vchlib import derive
+    tc = doc(b, W4_TC).data
+    llm_written(b)
     ix, cl = _ix_cluster(b, "K-015")
+    assert classify_result(ix, _w4(b, "FAIL", OK, ["STATE_DIFF"]), cl)[0] == "E_fail_u"
+    doc(b, "gate-record.g3.example.json").data["oracle_approvals"] = [
+        {"testcase_id": tc["testcase_id"], "testcase_sha256": derive.approval_hash(tc), "decision": "accept"}]
     assert classify_result(ix, _w4(b, "FAIL", OK, ["STATE_DIFF"]), cl)[0] == "E_proof"
 
 
@@ -407,7 +414,7 @@ def test_the_example_weights_count_abstentions_as_misses(b):
     row = next(r for r in cal["weights"] if r["model_key"] == "nemotron_self" and r["cwe_bucket"] == "authz")
     assert (row["support"]["a"], row["support"]["w"], row["refute"]["w"]) == (0.7603, 1.1055, 1.1384)
     assert not errors(b, "E-CAL-WEIGHT")
-    assert doc(b, "verdict.k-014-w3.example.json").data["score"] == 1.1055      # still below theta_confirm 2.5: LIKELY
+    assert doc(b, "verdict.k-014-w3.example.json").data["score"] == 1.1055      # still below theta_confirm 2.1: LIKELY
 
 
 # ================================================================ docs

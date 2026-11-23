@@ -2,7 +2,265 @@
 
 格式參考 [Keep a Changelog](https://keepachangelog.com/)；版本是設計文件的版本，不是軟體發行版本。
 
-**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.15`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）。
+**版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
+
+## Binding 表補列五類攻擊面，並更正一句錯話（2026-11-22 內部審查 C7；09 BL-75）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼，`tools.yaml` 不變（沒有新增 adapter）。**只有規格文字；adapter 未實作，無法執行驗證。**
+
+- **更正**：`9d3868c` 在 04 §4.3 加的「這張表沒有涵蓋的類別」寫「下列攻擊面沒有任何一列」。這句話是錯的——A 表原本就有「OAuth／OIDC 流程」與「JWT 處理」兩列，只是各測一件事。那段文字出自審查代理的回報，我當時沒有對原表核對。段落已改為列出「仍然沒有涵蓋什麼」與已有的列名，並在頁面上留下更正說明。
+- **擴充兩列**：
+  - OAuth／OIDC：除了未登錄的 `redirect_uri`，加上 `state` 被改動、token 交換缺少或帶錯 `code_verifier`、授權碼重放；只用測試帳號。
+  - JWT：單一欄位變化加上錯誤簽發者、`alg` 改為 `none`、非對稱改對稱、`kid` 指向不存在的金鑰；需求來源補上 ASVS 5.0 V9（`E:threat_modeling-40`）。
+- **新增三列**：
+  - A 表「WebSocket／SSE 的連線與訂閱授權」：升級請求的認證與只接收的訂閱；送訊息只能是 G4 核准的 `script_turns`（守 08 §11.7）。adapter 的 websocket 能力仍是候選，Scope Proxy 的支援在 M4。
+  - B 表「輸出的渲染外洩」：canary 伺服器沒有收到瀏覽器的請求（`CANARY`）加上 DOM 斷言，兩個都是確定性 oracle。
+  - A 表「注入類定點檢查」：固定、少量、不含語句的語法標記，S1，Lite 可執行。綁 `playwright:api` 而不是 `schemathesis:hook`（後者只跑 GET／HEAD）。它只找得到有錯誤訊息或回顯的注入；「Lite 沒有黑箱注入測試」改為「Lite 只有注入類的定點檢查」，並規定 PASS 不得寫成「沒有注入漏洞」。
+- **沒有引用未查證的 WSTG ID**：`WSTG-v42-SESS-10`（JWT）不是 v4.2 的項目（`E:threat_modeling-56`），`CLNT-10`、`ATHZ-05` 在 repo 中沒有證據；新列的該欄寫「未對到官方 ID」。
+- 新增 `tests/test_binding_table.py`（12 個測試；在 `59f3580` 上 9 個失敗，通過的 3 個是原有列也成立的性質）與突變清單 `tests/mutations/binding_table.json`（`CAUGHT 24/24`）。測試解析六張子表，所以對原有的 79 列也成立：欄數、adapter 已登錄或標為候選、等級不低於 adapter 的 `base_class`、每個 WSTG ID 帶證據標籤。原有的列沒有違反任何一條。
+- 受影響的既有測試：`test_docs_review_2026_11_22.py::test_docs04_lists_the_uncovered_attack_surfaces` 改為斷言新的列名與 BL-75 的新狀態；`docs_review_2026_11_22.json` 兩個錨點。
+
+## 四個機制的介面簽名與失敗契約（2026-11-22 內部審查 D1；09 BL-78）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增 validator 錯誤碼（這些是執行期契約，bundle 驗證器看不到）。**只有規格文字與一個 schema 列舉；產品程式不存在，無法執行驗證。**
+
+- **重驗結果**（原本是審查代理回報、未逐條重驗）：fencing token 與 CAS 生命週期「只有敘述」成立；job 帳本與副簽 RPC 部分成立（位置、欄位、重試與冪等原本就有）。待辦列把帳本寫成 Z2，實際在 Z3，已更正。
+- **重驗時找到的矛盾**：
+  - 08 §11.7 說 `JobAllowlist` 有 `fencing_token` 欄位，§2.3 的類別定義沒有 → 補上欄位。
+  - job 帳本的欄位，03 §5.8 寫 `outcome`、08 §7.2 寫「結果 ref」→ 統一為 `result_ref`，兩處列出相同的九個欄位。
+  - 08 §7.5 要求「每次撤銷與刪除都寫稽核事件」，事件列舉卻只有 `artifact_stored` → 新增 `artifact_revoked`、`artifact_deleted`（03 §13.2 與 `audit-event.schema.json`）。
+  - 新測試另外抓到兩個既有缺口：`NotFound` 被 08 §2.2 引用卻不在 §6.1 例外表；`feedback_recorded` 在 schema 列舉中卻不在 03 §13.2 的表。都已補上。
+- **08 §2.3 新增**：`JobLease`、`JobLedgerEntry`、`JobLedger`（`claim`／`renew`／`complete`／`lookup`）；生命週期版的 `ContentStore`（`put` 帶 `run_id`、`producer_node`、`legal_hold`；`get` 帶 `run_id`；`revoke`、`set_legal_hold`；`gc` 回傳 `GcReport`）與 `KekProvider`；`CountersignRequest`、`CountersignResponse`、`AnchorCountersigner`。`ContentStore` 不再「原樣沿用」03 §15 的最小簽名。
+- **08 §6.1 新增例外**：`StaleLease`、`JobAlreadyExecuted`、`AnchorRejected`（理由 `chain_mismatch`／`counter_regression`／`unknown_run`／`malformed_request`，不重試）、`ReferenceExpired`、`NotFound`。§6.2 新增副簽單次呼叫逾時。§11.19 寫明傳輸方式（三區走 Z1→Z3 mTLS HTTP JSON API；單機以子行程的 stdin／stdout）。
+- **我提議、待確認的值**：副簽逾時 10 秒 [H]；端點路徑 `POST /v1/anchors/countersign`。租約長度與續租間隔刻意不寫數字（由 `toolkit.yaml` 設定，待 M1 實測）。
+- 新增 `tests/test_interface_contracts.py`（12 個測試，以 `ast` 解析 08 §2.3 的程式區塊；在 `69ee269` 上全部失敗）與突變清單 `tests/mutations/interface_contracts.json`。
+- 受影響的既有測試：`test_docs_review_2026_11_22.py` 中 BL-78 的狀態斷言由「待辦」改為「介面已訂；未實作，數值待實測」，並斷言不得寫成已完成；`docs_review_2026_11_22.json` 一個錨點。
+
+## 其餘發現的處置：對抗子集、單機 profile 的資料等級、三個待辦（2026-11-22 內部審查 A2、A4、A5、B3、D1、D3、D4、D5、E8）
+
+只有文件與待辦，沒有規則或程式變更。
+
+- **B3**：05 §5.1 的語料組成新增「A：對抗子集」（在植入缺陷旁加誘導審查者的內容，量測共模誘導下的自動駁回率），標明**尚未建立**、樣本數未定（09 BL-77）。
+- **A4**：08 §11.20 新增「資料等級與可用模型」：未標記仍是 C 級、預設沒有雲端模型可用；`vibecheck init` 不替使用者降級，列出三條路由本人選擇，都不選就不產生委任設定。
+- **D1、D3**：記為 09 BL-78（四個機制的介面簽名與失敗契約）、BL-79（LangGraph checkpoint 的 spike）。
+- [完整發現清單](docs/evidence/findings-2026-11-22.md)的狀態欄全部更新：41 項中仍標「未處理／不處理」的是 A6（時程）、D1、D3、D4（雙軌是刻意的設計取捨）、D5、E8（`checks.py` 拆分，我判斷現在不做）；其餘為已修或部分處理，各列寫明還缺什麼。A5 經查證部分不成立（`over_cap` 是獨立的決定值）。
+- `tests/test_docs_review_2026_11_22.py` 增加 3 個測試、`docs_review_2026_11_22.json` 增加 4 個突變。
+
+## 法務聲明的管轄地涵蓋；證據帳本的查核日期（2026-11-22 內部審查 C3、C5）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼。
+
+- **C3**：`legal_review.jurisdictions` 原本沒有與任何欄位比對；範例寫 `["TW"]`，委任設定卻宣告程式碼送往 US 的供應商。現在必須涵蓋委任設定 `data_transfer` 的 `source_jurisdiction` 與每個 `transfers[].region`（`checks.missing_jurisdictions`，沿用 `E-ROE-TRANSFER`）。範例改為 `["TW", "US"]`，重簽。06 §2.1.1 新增「法務審查至少要看什麼」：每個 `scope` 項目的提問與常見的相關法規——**這是提問清單，不是法律意見，沒有經過律師審閱** [A]。
+- **C5**：證據帳本沒有任何日期。`research-findings.json` 新增 `checked_at_default`（2026-09-23，取最早一波研究的日期）；個別條目可帶 `checked_at`；帳本開頭與條目顯示日期。`tools/build_evidence_ledger.py --age-report [--as-of] [--max-age-days]` 列出超過期限（預設 180 天）或沒有日期的條目，只報告、不讓 CI 因日期失敗。07 §3 寫明：閘門以某條證據為依據結案時，該條的查核日期不得超過 180 天。**456 條本身沒有重查**，2026-09-23 當時未確認的 136 個連結也沒有補查。
+- **CI**：第一次在 GitHub 上執行的 `mutations` job 有一個分片失敗——`typing_ratchet.json` 的測試需要 mypy，job 只裝了 `requirements.lock`，測試被跳過，突變判為 VERIFY。兩個突變 job 改為也安裝 `requirements-dev.txt`，並加測試鎖住。其餘三個分片與 `lint`（含 mypy）在那一輪通過。
+- 新增 `tests/test_jurisdictions_and_evidence_age.py`（12 個測試；在 `307c50c` 上全部失敗）與突變清單 `tests/mutations/jurisdictions_and_evidence_age.json`（`CAUGHT 17/17`）；`test_ci_supply_chain.py` 再加 1 個測試、`ci_supply_chain.json` 再加 1 個突變。
+
+## 修正上一筆造成的 CI 失敗；型別檢查棘輪；簽章文件互斥性的測試（2026-11-22 內部審查 E7、E11）
+
+不是規格變更。
+
+- **我造成的 CI 失敗與修正**：上一筆（`1fa4529`）把 CI 改為 `--require-hashes` 後，`validate` 的 ubuntu／py3.11 與兩個 Windows 組合、以及 `lint` 都在安裝步驟失敗。原因：這個模式下 pip 拒絕任何沒有釘住的相依，而 `referencing` 在 Python 3.13 以下需要 `typing_extensions`、`pytest` 在 Windows 需要 `colorama`、`pytest-xdist` 需要 `pytest`；鎖檔是在 Linux／py3.13 上以 `pip freeze` 產生的，沒有這些。我當時的本機驗證是在已經裝好套件的環境做 `--dry-run`，所以沒有發現——那不是有效的驗證。
+  - 修正：`requirements.lock` 補上 `typing_extensions`、`colorama`；`lint` job 先裝 `requirements.lock` 再裝開發工具；`requirements-dev.txt` 註明它依賴前者。
+  - 防止再犯：`tools/lock_hashes.py --closure` 從索引讀每個釘選版本的 `Requires-Dist`，對 CI 的四個環境（py3.11／3.13 × linux／win32）求值，回報沒有被釘住或版本不在範圍內的相依。對上一筆的鎖檔執行，回報的正是 CI 上失敗的那四項；對修正後的檔案回報 0 項。另在全新的虛擬環境實際安裝成功（Linux／py3.13）。Windows 與 py3.11 的實際安裝只能由 CI 驗證。
+- **E7 型別檢查**：`mypy tools/vchlib` 原本有 226 個錯誤、沒有任何地方執行它。修掉 `bundle`、`cli`、`context`、`evidence`、`safety` 的 10 個（只改型別標註，不改行為）；`pyproject.toml` 加 `[tool.mypy]`，其餘 216 個錯誤所在的 5 個模組列為 `ignore_errors`。`python -m mypy` 必須通過（CI `lint` job）；豁免清單只能縮小（`tests/test_typing_ratchet.py`）。mypy 與其相依套件加入 `requirements-dev.txt`（含 hash）。
+- **E11 簽章領域標籤**：沒有改簽章格式（記為 09 BL-76）。新增 `tests/test_signature_domains.py`，檢查原本只是論述的緩解條件：六種簽章文件都是封閉物件且必填 `signatures`；任兩種之間至少有一個必填欄位對方不允許（30 組逐對檢查）；範例互不通過對方的 schema；稽核事件不是任何一種簽章文件。這些性質在修改前就成立（41 個測試中只有檢查待辦列的 1 個原本失敗）——這是替既有的假設補上測試，不是修正缺陷。
+- 測試與突變：`test_ci_supply_chain.py` 增加 2 個測試（共 12 個）、`ci_supply_chain.json` 增加 7 個突變（共 26 個）；新增 `typing_ratchet.json`（6 個）與 `signature_domains.json`（4 個）。
+
+## 鎖檔 hash 與 CI 執行突變清單（2026-11-22 內部審查 E9、E10；09 BL-57）
+
+不是規格變更（CI 與開發工具）。
+
+- **E9**：`requirements.lock` 與 `requirements-dev.txt` 原本只釘版本。新增 `tools/lock_hashes.py`：向索引的 JSON API 取每個釘選版本所有檔案（各平台 wheel 與 sdist）的 sha256 寫入 `--hash` 行；`--check` 離線確認每個釘選都有 hash。CI 的每個 `pip install -r` 都加 `--require-hashes`。（當時的本機驗證無效，CI 失敗，見上一節。）digest 取自產生當下的索引：能防「同版本被換檔」，不能證明檔案無害。
+- **E10**：CI 原本只做 `--anchors-only`，從不執行突變。新增 `tools/changed_mutation_lists.py` 與 `validate.yml` 的 `mutations` job：pull request 執行它新增或改動的清單，以及測試檔有改動的清單（4 個分片平行）。新增 `.github/workflows/mutations.yml`：每週一與手動觸發時執行全部清單。分支名稱經環境變數傳入 shell，不直接內插。
+- 新增 `tests/test_ci_supply_chain.py`（10 個測試；在 `9d3868c` 上 4 個失敗、6 個因工具不存在而錯誤）與突變清單 `tests/mutations/ci_supply_chain.json`（`CAUGHT 19/19`）。
+- 既有測試：`test_v07_r8_process.py::test_the_lock_pins_every_direct_dependency` 解析鎖檔時去掉行尾的續行符號（斷言不變）。
+- **尚未驗證**：新的 `mutations` job 與每週 workflow 沒有在 GitHub 上跑過；本 PR 會是第一次（31 份清單，4 個分片）。
+
+## 保留切分只用一次、三條新限制與其他文件修正（2026-11-22 內部審查 B8、B9、C7、C8、C9、D2）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼。06 §3 的限制由 48 條變為 51 條。
+
+- **B9 保留切分只用一次**：05 的 M-6 原本要求「超出範圍時要有記錄在案的門檻調整，才算通過」，等於在保留切分上調參，與 §5.7 矛盾。現在超出範圍就是不通過；調整只能在校準切分上以新版本進行。`calibration.yaml` 新增必填的 `preregistration.holdout_prior_unblindings` 與推導欄位 `primary_hypothesis.confirmatory`；重複使用的保留切分上，`confirmatory` 為 false、`outcome` 一律 `not_shown`（`checks.hypothesis_problems`，沿用 `E-CAL-HYPOTHESIS`）。範例重算 `doc_sha256` 與 `config_pins.calibration`，重簽。validator 無法查證登記的次數是否屬實。
+- **B8**：05 §5.3 寫明 precision 型指標只對語料的缺陷密度成立，要同時報告每個缺陷的 recall 與每個應用的誤報數。
+- **C8**：06 §1.2.1 寫明注入自測的檢定力——每個向量 3 個樣本時「0 次失敗」的 95% 上界是 63%，24 個合計是 11.7%，對單一向量宣稱 ≤ 5% 需要 59 個樣本；ST-5 偵測不到 10 個百分點的差距；沒有適應性攻擊者。自測定位為回歸用的煙霧測試，不得引用為抗注入的證據。
+- **C9**：06 §3 新增 #49（報告不是滲透測試報告或合規證明）、#50（不偵測蓄意植入的後門）、#51（無法驗證 staging 等同正式環境）；分類表、README、00 的條數同步。
+- **C7**：04 §4.3 新增「這張表沒有涵蓋的類別」（WebSocket／SSE、OAuth／OIDC、JWT 驗證細節、LLM 輸出的渲染外洩、Lite 的黑箱注入）與處理方式；補列的工作記為 09 BL-75。
+- **D2**：03 §8 原本寫「token 預算由 LiteLLM proxy 追蹤」，與 08「只有 `gateway` 模組 import `litellm`」不一致；改為函式庫方式並寫明理由。另寫明 LiteLLM 的版本尚未選定，選定前不能宣稱已鎖版本。
+- 新增 `tests/test_docs_review_2026_11_22.py`（12 個測試；在 `67463cf` 上全部失敗）與突變清單 `tests/mutations/docs_review_2026_11_22.json`（`CAUGHT 21/21`）。
+- 受影響的既有測試：限制條數的斷言 48 → 51（`test_v07_r14_docs.py`）；`r14_docs.json` 一個錨點、`doc_consistency.json` 兩個錨點。沒有放寬斷言。
+
+## ZDR 宣告逐模型且有期限；CNAME 指向共享平台的自訂網域（2026-11-22 內部審查 C6、C4）
+
+CONTRIBUTING 第 2 類（審查核實成立的缺陷：兩處都是 validator 只憑一個宣告值放行）。`rule_version` 不變，沒有新增錯誤碼。
+
+- **C6 ZDR**
+  - 原本：`providers[].zdr: confirmed` 加 `dpa_signed: true` 就能讓雲端模型收 C 級資料；沒有日期、涵蓋範圍與到期日。06 §4 寫「取得逐模型書面確認前 GPT-6 不收 C 級資料」，但資料模型表達不了「逐模型」。
+  - 現在：`providers[]` 新增必填欄位 `zdr_models`、`zdr_confirmed_at`、`zdr_expires_at`。能收 C 級資料的雲端模型另需 `zdr_evidence_ref` 不為空、自己列在 `zdr_models`、確認時間 ≤ `issued_at`、到期時間 ≥ `validity.not_after`（`checks.zdr_problems`，沿用 `E-ENG-PROVIDER`）。
+  - 範例委任設定補上三個欄位（虛構的委任，假設已取得確認），重簽、重建變體。
+- **C4 共享平台**
+  - 原本：共享平台只比對目標主機名稱；自訂網域以 CNAME 指向 `acme.vercel.app` 時被當成一般網域，以 DNS TXT 通過、也不要求平台政策。
+  - 現在：`run.ownership_results[]` 新增必填欄位 `cname_chain`（B0 解析到的 CNAME 名稱）。`ok: true` 的結果若鏈上有名稱在共享平台清單中，ROE 必須以該平台的 `platform_project` 證明並有 `platform_policies`（`checks.cname_platform_problems`，沿用 `E-ROE-PLATFORM`）。
+  - 仍認不出：A／ALIAS 記錄直接指向平台 IP、CNAME 指向不在清單中的平台別名網域（例如 `cname.vercel-dns.com`）。寫入 08 §11.9 與 06 §3 第 37 條。
+- 文件：08 §11.9、§11.14；06 §3 #37、§4；錯誤碼表。
+- 新增 `tests/test_zdr_and_cname.py`（24 個測試；在 `00478dc` 上 22 個失敗，通過的 2 個是「未確認仍先被原規則擋下」與「nvidia 不需要確認」，原本就成立）與突變清單 `tests/mutations/zdr_and_cname.json`（`CAUGHT 22/22`）。
+- 沒有放寬任何檢查；邊界值（確認於簽發當下、到期於委任結束當下）與一般的 CNAME 鏈有「仍然通過」的測試。
+
+## Lite 的單機部署 profile 與 `vibecheck init` 規格（09 BL-70；使用者決定 D10）
+
+CONTRIBUTING 第 3 類。`rule_version` 不變。新增錯誤碼 `E-ENG-DEPLOYMENT`、`E-REPORT-ANCHOR`。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。六項部署決定是使用者授權下由實作者決定的，列在審查紀錄供確認。
+
+- **原本**：第十四輪審查指出 MVP-0 的預設入口（Lite）照三區部署的規格無法在一台開發機上啟動，當時決定「MVP-0 實作計畫時再訂」；`vibecheck init` 只有一列「規格待訂」。
+- **現在**：
+  - 委任設定新增選用欄位 `deployment_profile`（`three_zone` 預設／`single_host`）。`single_host` 只能與 `assurance_profile: lite`、已確認的 `role_consolidation` 並用，而且只做白箱（bundle 不得有 G0b／G3／G4／G5 紀錄）：`checks.deployment_problems`（`E-ENG-DEPLOYMENT`）。
+  - D10：單機 profile 的錨點是本機錨點（副簽程式與 Run Controller 同一個 OS 使用者；格式不變）。報告清單新增必填欄位 `audit_anchor`（`countersigned`／`local`），依 `deployment_profile` 推導（`E-REPORT-ANCHOR`）。Team／Full 的 Z3 副簽規則沒有變。
+  - 08 新增 §11.20：八項部署規定（金鑰、存放、錨點、報告標示、Z2、checkpointer、套件存在性、模型呼叫）、`vibecheck init` 的六個步驟、確定性最小切片（MVP-0a：W0＋W1＋SARIF，沒有 LLM 呼叫）、信任界線。08 §4.2 的 `init` 列、§10 U-05／U-07、§11.19、報告首頁同步。
+  - 07 §1.3：「待訂」改為六項決定的表；註明尚未實作、各平台相容性未實測。README、00、02 §1.7、03 schema 表、09 BL-70（狀態改為「規格已訂…未實作」）同步。
+- 範例：`report-manifest.example.json` 加 `audit_anchor: countersigned`；重簽、重建變體。範例委任設定沒有動（省略即 `three_zone`）。
+- 新增 `tests/test_lite_single_host.py`（16 個測試；在 `e2ee36f` 上 14 個失敗，通過的 2 個是「三區部署的錨點仍需 Z3 副簽」與其對照，原本就成立）與突變清單 `tests/mutations/lite_single_host.json`（`CAUGHT 24/24`）。
+- 受影響的既有測試（沒有放寬斷言）：`test_v07_r14_docs.py` 中鎖住「待訂」字樣的三個測試改為斷言「已訂定」並且舊字樣不再出現；`r14_docs.json` 三個錨點、`r11_contracts.json` 一個錨點。
+- **限制**：這是規格與兩條 validator 規則；CLI、單機部署與一份完整簽章的單機範例都還沒有。
+
+## 裁決規則 `05-v0.17`：LLM 撰寫的 W4 oracle 由人在 G3 逐項核准（使用者決定 D3）
+
+CONTRIBUTING 第 3 類。問題、選項與理由記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。新增錯誤碼 `E-GATE-ORACLE`。
+
+- **原本**（`05-v0.15`／`05-v0.16`）：叢集經 G2 `accept` 之後，LLM 撰寫的 W4 測試算事先登記，它的重現 FAIL 是 `E_proof`（`CONFIRMED_EXECUTABLE`）。G2 在 W4 之前：接受叢集的人沒有讀過當時還不存在的 oracle。
+- **現在**：事先登記的入口是 G3 紀錄的 `oracle_approvals[]`（`testcase_id`、`testcase_sha256`、`decision`），隨紀錄簽章。
+  - `derive.w4_oracle_approved`：該 run 最新一筆非 EXPIRED 的 G3 紀錄中提到這個測試的項目是 `accept`，而且 `testcase_sha256` 等於測試案例現在的 approval hash（核准後改過就不成立）。
+  - 只對 G3 之後的裁決版本生效：`W3_adjudicate`／`G2_apply`／`W4_readjudicate` 的版本不能使用（`derive.PRE_ORACLE_REVIEW_PHASES`，與 R13 的 `verdict.PRE_G3_PHASES` 是同一份清單）；`classify_result`、`preregistered`、`result_oracle_unreviewed` 多一個 `phase` 參數，`verdict.py` 的四個呼叫點傳入裁決版本的階段。
+  - `derive.g2_accepted` 移除：G2 的決定不再影響任何測試證據的分類（05 §4.2「G2 的 accept…不是規則輸入」不再有例外）。
+  - 程式產生 oracle 的測試（`local_rls`／`fake_model`）不受影響：不需要核准，仍需要兩種對照都 PASS。
+- validator：`checks.oracle_approval_problems`（`E-GATE-ORACLE`）——只有 G3 紀錄能帶；每項指向同一 run 的 W4 測試案例、不重複、不是程式產生 oracle 的測試；`accept` 的雜湊必須相符。
+- `gate-record.schema.json`：選用欄位 `oracle_approvals`。
+- `RULE_VERSION` 升為 `05-v0.17`；全部裁決與 run 範例的 `rule_version` 更新，重簽範例、重建變體。**範例的裁決狀態都沒變**（範例的 W4 測試是 `local_rls`）。
+- 沒有 G3 的 run（只做白箱）：LLM 撰寫的 W4 FAIL 維持 `E_fail_u`（最高 `LIKELY`，加註 `oracle_unreviewed`）。
+- 文件：00、02 W4、03 §6（GateRecord）與 schema 表、05 §4.2（事先登記 (b)、R12、G2 那一句、邊界情況表、規則版本）、06 §3 #45、08、schemas README。
+- 新增 `tests/test_w4_oracle_approval.py`（24 個測試；在 `ec6409c` 的程式上 21 個失敗，通過的 3 個是「程式產生的 oracle 不需核准」「仍需兩種對照」「對照沒過仍不是證明」，原本就成立）與突變清單 `tests/mutations/w4_oracle_approval.json`（`CAUGHT 26/26`）。
+- 受新語意影響而更新的既有測試（沒有放寬斷言）：
+  - `test_v07_r14_verdict.py::test_g2_acceptance_promotes_an_llm_written_w4_fail` 改為 `test_a_g3_oracle_approval_promotes_an_llm_written_w4_fail`：先斷言只有 G2 接受時是 `E_fail_u`，再斷言 G3 核准後是 `E_proof`。
+  - `test_doc_consistency.py::test_docs05_g2_accept_exception_is_stated` 改為 `test_docs05_g2_accept_is_not_a_rule_input`；邊界情況表的斷言由「G2 `accept`」改為「G3 `oracle_approvals`」。
+  - 規則版本的斷言 18 處（`05-v0.16` → `05-v0.17`）。
+  - 突變清單的錨點：7 份清單的 `RULE_VERSION`、`r9_verdict.json`／`r11_verdict.json`／`r14_verdict.json` 中 `preregistered(...)` 的呼叫、`doc_consistency.json` 的 2 項、`r9_examples.json` 與 `r10_docs.json` 的版本字樣。
+
+## 無法證明唯讀的 GET／HEAD 視為寫入（使用者決定 D5）
+
+CONTRIBUTING 第 3 類。安全等級規則的變更，`rule_version` 不變，沒有新增錯誤碼。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。
+
+- **原本**：GET／HEAD 預設是讀取（S0、不必綁種子、不必 G5），只有列在 seed manifest `state_changing_reads` 的才是寫入。AI 生成的應用最不遵守 HTTP 語意（`GET /api/x/delete?id=`、`GET /logout`），所以安全等級取決於這份宣告完不完整。
+- **現在**：GET／HEAD 只有在「W0 inventory 有這個端點而且 `writes` 為 false」（`checks.proven_reads`）或「seed manifest 的 `read_only_endpoints` 宣告了它」時才是讀取（`safety.read_is_proven`）；其餘視為寫入——要綁種子、至少 S1，綁不了種子就是 S3。HEAD 可由同一路徑的 GET 證明；OPTIONS 仍是讀取；宣告為 `state_changing_reads` 的仍是寫入。
+- `safety.is_mutation`、`mutation_scope_problems`、`compute_safety_class`、`allowlist_match` 多一個 `proven_reads` 參數；沒有傳就是「沒有任何證明」。`path_shape` 移到 `safety`，`checks.path_shape` 指向同一個函式。
+- `seed-manifest.schema.json`：`read_only_endpoints[].method` 開放 GET／HEAD。W0 判定會寫入的端點列在這裡仍是 `E-SEED-SIDE-EFFECT`。
+- 範例 `seed-manifest.yaml` 宣告兩個 inventory 不認得的 GET（對話訊息的取回、我方的 canary 紀錄）；ROE 的 `seed_manifest_sha256` 更新，重簽範例、重建變體。**範例測試案例的安全等級都沒變。**
+- 文件：04 §5 的程式清單；06 §3 新增 #48（共 48 條）：這條規則仍依賴抽取器與宣告的正確性，而且 LLM／agent 測試在伺服器端的副作用請求層看不到。
+- 新增 `tests/test_get_read_proof.py`（17 個測試；在 `cdcc9c5` 的程式上 15 個失敗，通過的 2 個是「OPTIONS 不需要證明」與「W0 說會寫入的宣告被拒絕」，原本就成立）與突變清單 `tests/mutations/get_read_proof.json`（`CAUGHT 16/16`）。
+- 受新語意影響而更新的既有測試（沒有放寬斷言）：
+  - 以範例計算安全等級或寫入範圍的 3 個測試輔助函式改為傳入 inventory 的證明（`conftest.proven_reads`），與 validator 的呼叫方式相同。
+  - `test_v04_write_scope.py`：未宣告、未證明的 GET 原本斷言是 S0，現在是 S3。
+  - `test_v05_round6_lowprio.py`、`test_safety_hardening.py`：GET 的讀取案例改為帶證明。
+  - 限制條數 47 → 48；`safety_hardening.json`、`doc_consistency.json`、`r14_docs.json` 各一個錨點。
+
+## 投票分支標為未啟用、Lite 的確認標示、校準主要假設改為端到端對照（使用者決定 D1／D7／D9）
+
+CONTRIBUTING 第 3 類。`rule_version` 不變（沒有改裁決規則），沒有新增錯誤碼。記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §3。
+
+- **D1 投票分支標為「校準證明可行前未啟用」**：05 §5.1 新增可行性表，由該節自己的語料目標數換算（目標正例 × 250／610）。以最低目標數，最大的桶在校準切分約 37 個正例，可行門檻要 40 個經投票確認的叢集，沒有任何一個桶可行。規則與程式保留；05 §4.3 開頭標示啟用狀態。回報者與驗證者的不對稱（D8）只在投票分支啟用時有影響，隨同暫緩。
+- **D7 Lite 報告的確認標示**：`CONFIRMED_EXECUTABLE` 寫成「自我核准的可執行證明」，首頁說明存取矩陣（G1）與 oracle（G4）由同一人核准（02 §1.7、08 報告首頁）。文件規定；報告產生器尚未實作。
+- **D9 主要假設改為 ④ 對 ④′**：原本比的是「≥ 2 個家族都回報」對「同一模型 3 次取樣中 ≥ 2 次回報」，但管線不用這條接受規則（單一家族回報的叢集仍是 `UNCORROBORATED`、成為種子威脅），結果卻會切換預設策略。現在比完整管線（arm 4）與「單一最佳模型取樣 3 次＋同樣的工具佐證與可執行驗證」（新 arm 4s），差異只來自多家族；③ 對 ② 降為次要分析。
+  - `calibration.schema.json`：`preregistration.primary_comparison`（必填）、arm `4s`、`primary_hypothesis.comparator` 只允許 `4s`。
+  - validator：`checks.primary_comparison_problems`（`E-CAL-ARMS`：兩組都在 `arms` 中，比較基準用 arm 1 的模型、取樣 3 次、與實驗組同一個 `acceptance_rule`、都不是 exploratory）；`hypothesis_problems` 檢查結果的 `comparator` 等於登記的（`E-CAL-HYPOTHESIS`）。
+  - 範例 `calibration.yaml`：新增 arm 4s 與 `primary_comparison`，`comparator` 由 `2a` 改為 `4s`；`doc_sha256`、委任的 `config_pins.calibration` 重算，重簽範例、重建變體。範例的數字（Δ、CI）沒有重新模擬，是示意資料。
+- 新增 `tests/test_decisions_d1_d7_d9.py`（14 個測試，在 `4da5735` 上全部失敗）與突變清單 `tests/mutations/decisions_d1_d7_d9.json`（`CAUGHT 19/19`）。
+
+## 審查的完整發現與設計決策提案進版控
+
+2026-11-22 內部審查的兩份工作文件原本只在不進版控的 `scratch/`，使用者決定保存：
+- `docs/evidence/findings-2026-11-22.md`：全部 41 項發現、證據等級（實測／已讀／代理／推測）與處理狀態，含尚未處理的項目。
+- `docs/evidence/design-decisions-2026-11-22.md`：10 項設計取捨的問題、選項、代價與建議；D2、D4、D6 已實作，其餘尚未。
+- 兩份都不是規格；審查紀錄與 README 的審查紀錄清單加上連結。內容更新到 `05-v0.16` 的狀態。
+
+## 裁決規則 `05-v0.16`：高嚴重度不自動駁回、分析者不否決、沒有正對照的 PASS 另立類別（使用者決定）
+
+CONTRIBUTING 第 3 類「審查核實成立、經使用者決定的設計變更」。問題、選項與理由記在 [2026-11-22 審查紀錄](docs/evidence/review-2026-11-22.md) §2。沒有新增錯誤碼。**沒有任何範例的裁決狀態改變**：範例中沒有 `REJECTED` 的裁決，也沒有分析者不同意的結果。
+
+### D2 高嚴重度的叢集不由規則駁回（使用者決定）
+- R0（成員的證據沒有任何一項接地）與 R4 第 8 列（單一家族回報、反駁分數過 θ_reject）原本直接判 `REJECTED`，不經人。受測 repo 是攻擊者可控的輸入，所有驗證者讀同一份程式碼；LLM 也常改寫片段而不是逐字引用。
+- 現在 rubric 嚴重度為 critical／high 的叢集（`derive.rubric_severity`，由程式依 inventory 計算）：R0 → `DISPUTED`（決策表新增第 17 列，不算暫定裁決）；R4 第 8 列落到第 9 列 `DISPUTED`；Lane A（R9）給 `UNCORROBORATED`。G2 的駁回（R10）是人的決定，不變。
+- `adjudicate.Inputs.high_severity`、`verdict.high_severity`。
+
+### D4 結果分析者不同意時，事先登記的結果分類不變（使用者決定；推翻第十輪）
+- 第十輪（`05-v0.9`）讓合格分析者的不同意一律把結果降為 `E_inc`，理由只是當時程式與 05 的文字不一致。分析者讀的是受測應用的輸出，可被誘導去否決 G4 核准、重播成立的確定性 FAIL。
+- 現在解讀已事先登記的結果保留類別，裁決加註 `analyst_disagrees`（R12，列入 B6 人工複核）；未事先登記的結果仍是 `E_inc`。
+- `derive.classify_result`、`derive.ANALYST_DISAGREES`、`adjudicate.Inputs.analyst_disagrees`、`verdict.analyst_disagrees`；`verdict.schema.json` 的註記列舉加 `analyst_disagrees`。
+
+### D6 沒有正對照的合格 PASS 是 `E_pass_weak`（使用者決定）
+- 沒有 PASS 的 `oracle_can_fail` 對照時，oracle 沒有被證明測得到違反；它若讀受測應用自己寫的紀錄，有漏洞的路徑沒寫紀錄也會 PASS。R11 原本就區分兩者，但類別名稱相同，範例還附「上界 4.9%」。
+- 新類別 `E_pass_weak`：R11 只加註 `test_not_reproduced`，不把確認改成 `DISPUTED`；R14（`FIXED`）不接受它。`Inputs.pass_positive` 移除，改由類別表達（行為與 `05-v0.15` 相同）。
+- 測試證據沒有 `E_pass` 時，`test_not_reproduced` 的理由不得陳述統計上界（`E-VERDICT-ANNOTATIONS`；樣式檢查，擋不住換句話說，列為 06 §3 #47）。
+- 範例：`verdict.k-011-b5`、`verdict.k-202-b5` 的類別改為 `E_pass_weak`；`k-011-b5` 的註記理由拿掉 `p_u≈0.049`。04 §4.4 與範例 B 改為「沒有正對照時不陳述上界」。
+
+### 連帶
+- `RULE_VERSION` 升為 `05-v0.16`；全部裁決與 run 範例的 `rule_version` 更新，`sign_examples.py` 重算到穩定、`build_variants.py` 重建變體。
+- 文件：05 §4.2 的規則表（R0、R4、R9、R11、R12）、測試證據分類表與規則版本歷程；04 §4.4、§6.2；02 B5；03、08 的規則版本與 `AdjudicationInputs` 欄位清單；06 §3 新增 #47（共 47 條）；README 術語表；新增審查紀錄 `docs/evidence/review-2026-11-22.md`。
+- 新增 `tests/test_rule_v016.py`（24 個測試）：在實作前的 `0a699a9` 上 22 個失敗，通過的 2 個是「沒有收緊過頭」類。
+- 新增突變清單 `tests/mutations/rule_v016.json`：26 個突變，`CAUGHT 26/26`。第一次執行有 2 個 MISSED（第 17 列的暫定性測試在範例上本來就恆為假；PASS 路徑的「未事先登記仍是 `E_inc`」沒有測到），測試已補強。
+- 受新語意影響而更新的既有測試（沒有放寬斷言）：
+  - 規則版本的斷言 18 處（`05-v0.15` → `05-v0.16`）。
+  - `pass_positive` 的用法 14 處（5 個檔）：有正對照的保留 `E_pass`，沒有的改為 `E_pass_weak`。
+  - 讀範例 PASS 類別的斷言 5 處（`E_pass` → `E_pass_weak`）。
+  - `test_v07_r10_verdict.py` 的兩個「分析者不同意即 `E_inc`」測試改為新語意（保留類別、理由帶標記）。
+  - `test_v03_datamodel.py` 的 R0 測試：範例的 K-015 是 critical，現在是 `DISPUTED`；另以一般嚴重度確認仍是 `REJECTED`。
+  - `test_v07_r11_docs.py`、`test_v07_r14_docs.py`：README 狀態列與限制條數。
+  - 突變錨點：7 份清單的 `RULE_VERSION` 行；`r10_verdict.json`（分析者不同意的突變改為拿掉標記）、`r12_verdict.json`（非暫定的列號清單加上 17）、`r14_verdict.json`（schema 列舉）、`r14_docs.json`（條數）。
+
+## 校準門檻必須達得到（2026-11-22 內部審查）
+
+CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」。`rule_version` 不變（這是校準資料的檢查，不是裁決規則），沒有新增錯誤碼。
+- **缺陷**：`calibration.yaml` 的 `authz` 桶宣稱 `theta_confirm` 2.5 可行、有 46 個叢集經投票分支確認，但該桶的支持權重是 nvidia 1.1055、anthropic 1.0552、openai 0。S 是每個獨立觀察取一票再相加，上限只有 2.1607，沒有任何一組票達得到 2.5。05 §5.7 規定格點到 S_max 為止，validator 卻只檢查「高於任一單票」。
+- **validator**：`checks.theta_problems` 多一項檢查——桶門檻不得超過 S_max（新函式 `checks.bucket_score_max`：同一獨立觀察取該邊最大的權重，再跨觀察相加；`theta_confirm` 看 support、`theta_reject` 看 refute）。`g_calibration` 傳入 `Index.independence_key`，與裁決計分用同一套分組。錯誤碼沿用 `E-CAL-THETA`。
+- **範例**（使用者決定：降低門檻，不調高權重——K-014 等範例以「`gpt_oss_self` 在 `authz` 的權重為 0」示範多樣性不足）：`theta_confirm` 的彙總值與 `authz` 桶由 2.5 改為 2.1（高於任一單票 1.1055，不超過 2.1607）。3 個裁決範例的 `rule_trace` 文字 `theta_confirm=2.5` 改為 2.1；`engagement.yaml` 的 `config_pins.calibration` 更新；`sign_examples.py` 重算到穩定、`build_variants.py` 重建變體。沒有任何範例的分數落在 2.1 與 2.5 之間，所有裁決狀態不變。
+- **文件**：05 §5.7 的「格點」寫明 S_max 的算法與檢查；§4.2 的軌跡範例同步；`docs/schemas/README.md` 的 `E-CAL-THETA` 說明補上這一項。
+- 新增 `tests/test_calibration_theta_reach.py`（12 個測試）：在修正前的 `19750af` 上 11 個全部失敗（第 12 個是後來為突變檢查補的）。
+- 新增突變清單 `tests/mutations/calibration_theta_reach.json`：7 個突變，`CAUGHT 7/7`。第一次執行有 1 個 MISSED（沒有測試確認 validator 呼叫時有傳入獨立觀察的分組），已補測試。
+- 受影響的既有測試：`tests/test_v06_r7_calibration.py` 讀範例門檻的 3 個斷言 2.5 改 2.1；`tests/mutations/bl01_trace_text.json` 的一個錨點跟著軌跡文字更新。沒有放寬斷言。
+
+## CI 與工程衛生（非規格變更）
+
+2026-11-22 內部程式碼審查：單一 CI job 要 16–36 分鐘，PR 分支每次推送跑兩輪，repo 沒有 linter 與覆蓋率量測。不改 validator 規則、錯誤碼、schema 與範例。
+- **測試平行化**：CI 以 `python -m pytest -q -n auto tests` 執行。本機 4 核實測 2059 個測試由 22 分 06 秒降到 5 分 33 秒。測試原本就互相獨立（每個測試拿 `base_bundle.clone()`，寫檔都在 `tmp_path`），不需要改測試。
+- **CI 觸發**：`push` 只限 `main`，PR 分支由 `pull_request` 觸發（原本兩者同時觸發，同一個 commit 跑兩輪）；加上 `concurrency`，新的推送取消進行中的舊一輪。
+- **`lint` 與 `coverage` 兩個 job**（Ubuntu × Python 3.13）：`lint` 只跑 `ruff check tools tests`，一分鐘內有結果；`coverage` 輸出 `tools/vchlib` 的覆蓋率報告（只輸出，不設門檻）。兩者原本合在一個 job，以預設的追蹤方式量覆蓋率，在 CI 上要 34 分鐘，成為最慢的一環；`coverage` 改設 `COVERAGE_CORE=sysmon`（coverage.py 在 Python 3.12 以上的 `sys.monitoring` 核心），本機 5 分 36 秒，與不量覆蓋率的 5 分 33 秒相當，報告的數字相同。本機實測整體 97%（7022 行中 209 行未執行；最低的是 `cli.py` 83%、`yamlstrict.py` 85%、`llm_schema.py` 89%）。
+- **ruff 設定**（`pyproject.toml`）：只啟用語法錯誤與 pyflakes（`E9`、`F`），不做排版也不用 formatter，避免大量格式變動移動突變錨點。第一次執行有 25 個發現：22 個未使用的 import 與 1 個未使用的變數已移除（都在測試與 `build_variants.py`）；`checks.py` 的 2 個（迴圈變數 `field` 遮蔽 import、未使用的 `w_status`）是良性寫法，以 `per-file-ignores` 標註，不動 validator 的程式行。
+- **新檔 `requirements-dev.txt`**（`pytest-xdist`、`execnet`、`pytest-cov`、`coverage`、`ruff`，釘住版本）與 `pyproject.toml` 的 `dev` 選用相依。刻意不放進 `requirements.txt`：validator 會以 `licenses.yaml` 核對其中每個套件（`E-LIC-MISSING`），而 `licenses.yaml` 被簽章的委任設定釘住，放進去就要重簽所有範例。
+- README 的測試數量與時間（原寫 1925 個、8–15 分鐘）更新；CONTRIBUTING 補上平行執行與 lint。
+- 沒做：mypy（`tools/vchlib` 目前 219 個錯誤）、CI 中的完整突變檢查、`requirements.lock` 的 hash（BL-57）。
+
+## Scope Proxy 參考實作補強（2026-11-22 內部程式碼審查）
+
+CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：以繞過輸入實測 `vchlib/safety.py`（產品的 Scope Proxy 要移植的參考實作）。沒有新增錯誤碼，schema、範例與 `rule_version` 都不變；`validate_schemas.py` 與 `build_variants.py --check` 的結果相同。
+- **位址**：`ip_problem("::7f00:1")`（即 `::127.0.0.1`）、`("::a9fe:a9fe")`（即 `::169.254.169.254`）與 `("192.88.99.1")` 回傳「允許」，因為 Python 的 `is_global` 對它們是 True。`DENIED_NETWORKS` 加上 IPv4-compatible（`::/96`）與已廢止的 6to4 中繼任播（`192.88.99.0/24`）。`::1` 作為本機目標仍然允許。
+- **物件 ID 綁定**（使用者決定：擴充鍵名規則，根本解記入待辦）：`request_binding_problem` 只認 `id`、`*_id`、`*Id`、`*ID`，`userid`、`uid`、`guid`、`uuid`、`pk`、`user-id`、`USER_ID` 帶任意值都通過。新增 `is_id_key`／`is_ids_key`：原有樣式不變，另加不分大小寫的識別字（`uid`、`uuid`、`guid`、`pk`、`key`）、接在 `_`／`-`／`.` 之後的寫法、駝峰的 `*Uuid`／`*Guid`／`*Pk`、常見名詞直接接 `id`，以及對應的複數。不採用「任何以 id 結尾的鍵」（`paid`、`valid`、`grid` 會被擋）。這仍是啟發式：`owner`、`email`、`slug` 認不出來，列為 06 §3 的第 46 條限制；根本解（比對整個 body 樣板）記為 09 BL-74。
+- **`is_mutation` 改為 fail-closed**：原本 POST／PUT／PATCH／DELETE 以外的方法都當讀取，`delete`、`PURGE`、`MOVE`、缺少方法都是「讀取」。現在只有 `SAFE_METHODS`（GET、HEAD、OPTIONS）算讀取。testcase schema 只允許七個方法，執行期的 `allowlist_match` 也要求方法完全相等，所以這是縱深防禦。
+- **路徑字元**：`is_normalized` 與 `allowlist_match` 另外拒絕控制字元（U+0000–001F、U+007F）與非 NFKC 形式的路徑（`path_chars_ok`）；`/admin\t/x`、`/ａdmin/x` 原本可以寫進樣板而不符合 `/admin/*` 的排除。NFKC 形式的非 ASCII 路徑段仍可使用。執行期原本就拒絕含 `%` 的路徑，所以這也是縱深防禦。
+- 文件：08 §11.7、03 §2、04 §5 的程式清單同步；06 §3 新增 #46（共 46 條，README 與 00 的條數同步）；09 新增 BL-74。
+- 新增 `tests/test_safety_hardening.py`（110 個案例）：修正類的測試在修正前都失敗；另有測試確認沒有擋掉正常輸入（公開位址、`paid`／`valid` 等一般鍵、GET／HEAD／OPTIONS、中文路徑），原有的 ID 鍵與 `is_mutation` 的宣告式例外也都不變。
+- 新增突變清單 `tests/mutations/safety_hardening.json`：20 個突變，`CAUGHT 20/20`。第一次執行有 1 個 MISSED（query 的 ID 鍵測試在舊規則下也會因為沒有任何綁定而被擋），測試已改為先綁定 `id` 再加入新鍵。
+- 受影響的既有測試：`tests/test_v07_r14_docs.py` 的條數由 45 改為 46；兩個既有突變的錨點跟著條數更新（`r14_docs.json` 的「C11: 43 again」、`doc_consistency.json` 的 06 分類表，後者另加 #46 一個突變，共 26 個，`CAUGHT 26/26`）。直接呼叫這些函式的 7 個測試檔（224 個測試）不需修改。
+
+## 文件一致性修正（2026-11-22 內部審查）
+
+CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實與它的唯一來源（程式、`tools.yaml`、schema、範例）不一致。只改文件文字與一段 docstring，錯誤碼、schema、範例與 `rule_version`（維持 `05-v0.15`）都不變。
+- **規則版本**：02 W3 與 08 §2.3、§4、§11 的「目前」版本仍寫 `05-v0.14`，改為 `05-v0.15`（`adjudicate.RULE_VERSION`）。
+- **抽取器登錄**：08 有三處說 `tools.yaml` 只登錄 `fastapi`、`express`、`sql_rls`，支援矩陣也把 `nextjs`、`baas_client` 列為規劃中；兩者在第十四輪已登錄，改為五個模式。
+- **W0 PII 偵測器的里程碑**：08 §11.17 仍寫 M2，與 08 §1 的 M1 不符，改為 M1。
+- **04 範例 B（機率型 LLM 測試）**：重播 k_r＝0 寫成 `E_inc`，與 §4.4 及 `derive.fail_reproduced`（不降級）不符；T-031 有 attack tree，PASS 門檻應為 n′ ≥ 60（`derive.pass_min_effective`），範例寫 30。
+- **02**：`FIXED` 種子被黑箱重播推翻時是 R1 而非 R0；Result Analyst 確認程式產生 oracle 的例子（「某個對照沒有 PASS」）實際上是 `INVALID`，改為需求未全部經 G1 核准或沒有宣告 `oracle_can_fail`；合格分析者不同意時，不論是否事先登記都是 `E_inc`（與 05 §4.2 及 `derive.classify_result` 一致）。
+- **05**：「G2 的 accept 不是規則輸入」補上 W4 事先登記這個例外；邊界情況表的 W4 事先登記條件改為 `05-v0.15` 的規則；`near_zero_reasons` 補列 `abstain_rate_gt_max`；κ 批量改引 `annotation.batch_size_apps`（範例 5）；M-11 刪除「權重公式本輪不改」（§4.3 已分邊加權）；樣本數計算的引用由 §5.5 改為 §5.6。
+- **03**：B1 爬行設定不再說 `toolkit.yaml` 沒有區塊（BL-16 已加 `b1_crawl`）。
+- **06 §3**：分類表補上 #44（A 類）與 #45（D 類），表格涵蓋全部 45 條。
+- `derive.classify_result` 的 docstring 改為現行規則（W4 事先登記、PASS 的 30／60 門檻）；docstring 不是規格，沒有回歸測試。
+- 新增 `tests/test_doc_consistency.py`，14 個測試涵蓋上面每一項文件修正，能從唯一來源讀值的都讀（`RULE_VERSION`、`tools.yaml`、`toolkit.yaml`、`calibration.yaml` 與其 schema、`derive`、06 §3 的編號列、05 的章節標題）；在修正前的 `a79bc86` 上 14 個都失敗，修正後都通過。
+- 新增突變清單 `tests/mutations/doc_consistency.json`：25 個突變，逐一把每處修正換回 `a79bc86` 的原文，結果 `CAUGHT 25/25`。
+- `calibration.yaml` 的 authz 桶門檻矛盾在本輪另一節「校準門檻必須達得到」處理。
 
 ## 架構重構（非規格變更）
 

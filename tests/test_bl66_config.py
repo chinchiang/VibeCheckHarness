@@ -7,7 +7,7 @@ import pytest
 
 from conftest import ROOT, codes, doc
 from vchlib import checks
-from vchlib.bundle import Doc, load_bundle, reload_json
+from vchlib.bundle import load_bundle, reload_json
 from vchlib.checks import run_all
 
 

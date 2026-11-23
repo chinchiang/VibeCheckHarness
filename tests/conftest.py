@@ -41,6 +41,14 @@ def codes(bundle):
     return run_all(bundle).codes()
 
 
+def proven_reads(bundle):
+    """D5: the GET / HEAD endpoints the bundle's W0 inventory proves read-only (checks.proven_reads); tests that compute a
+    safety class or a mutation scope the way the validator does pass this."""
+    from vchlib import checks
+    from vchlib.context import Ctx
+    return checks.proven_reads(Ctx(bundle))
+
+
 # r14 (05-v0.15): the example corpus names 16 calibration and 13 holdout P applications; split statistics and high-precision
 # rows name their applications (`apps`), so tests spread their counts over these ids
 EXAMPLE_ICC = 0.06                      # the example's clustering.icc (rho_observed 0.06 above the 0.05 floor)

@@ -24,7 +24,6 @@ import copy
 import hashlib
 import json
 
-import pytest
 
 from conftest import doc, rederive
 from vchlib import checks, context, derive, expectations, verdict

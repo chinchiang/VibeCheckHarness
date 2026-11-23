@@ -102,18 +102,30 @@
 - "family": "anthropic"
   "zdr": "confirmed"
   "zdr_evidence_ref": "doc:zdr-anthropic-2026-09"
+  "zdr_models":
+  - "claude_sonnet"
+  - "claude_opus_48"
+  "zdr_confirmed_at": "2026-09-10T00:00:00+08:00"
+  "zdr_expires_at": "2027-09-09T23:59:59+08:00"
   "dpa_signed": true
   "retention_days": null
   "region": "US"
 - "family": "openai"
   "zdr": "confirmed"
   "zdr_evidence_ref": "doc:zdr-openai-2026-09"
+  "zdr_models":
+  - "gpt_flagship"
+  "zdr_confirmed_at": "2026-09-12T00:00:00+08:00"
+  "zdr_expires_at": "2027-09-11T23:59:59+08:00"
   "dpa_signed": true
   "retention_days": null
   "region": "US"
 - "family": "nvidia"
   "zdr": "not_available"
   "zdr_evidence_ref": null
+  "zdr_models": []
+  "zdr_confirmed_at": null
+  "zdr_expires_at": null
   "dpa_signed": false
   "retention_days": null
   "region": null
@@ -133,7 +145,7 @@
   "models": "sha256:dda12dc5f12ec65008fb87bad5c5d04f5195db742db95a6e6dc2742a008acf43"
   "agents": "sha256:9cc620a479bab648981166b6244be329afbd337dd7cfb8269eff482cbeef19dd"
   "tools": "sha256:7232c12696bc144a7a88452c7ffcc90f998401c9b105966f70d677a40a6a13a6"
-  "calibration": "sha256:f005dc85cb352a9ba6407702f2d4a92ed7d90b49d693043190559b7846f8ed1c"
+  "calibration": "sha256:61102d96c43291295f5de84e4c8b4bf218c5970399150e51516fcd82667de8fe"
   "crosswalk": "sha256:865d77a32541ebe394671103092781f2d672d8b1d74fd6bbe4d662fc91fc7b13"
   "licenses": "sha256:dc6f7c0fb8f1e7e895610d28778e8e3d2da7d2abfbf9e238443f127fdb4f48dc"
   "toolkit": "sha256:143294486e4cf2129db888a3f04c565b4f2bedcbc281fd82a1aa034c4ead0a66"
@@ -143,8 +155,8 @@
 - "signer": "frank"
   "key_fingerprint": "ed25519:SHA256:jxVczmwwV1UVWwc1NkHUt22Xr+cvAoyjbxumX4TLJE0"
   "alg": "ed25519"
-  "value": "HykqBeaI9fqwclaWnzkBwF25eZQ2OYN65WBxTZMw/qOaoNW0KEWbls344AAVAvQqUzbpsa92r2BkitB5EY6tAQ=="
+  "value": "ciKaaOdbw6jjK9zpyS9vRRb6z8Mv7in97pqD4M5XMmRHKwC/k5M6ZeuM4DhuIbOMWFIul831/SC3yyBVV/ElCQ=="
 - "signer": "carol"
   "key_fingerprint": "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
   "alg": "ed25519"
-  "value": "YaVkCPIGsRsF1QGbDe2RS2PMk7N7QfHi7Tb8lI7TLHjcaZ2wa0Q0IRDMcXA9+fuhNRV/HY+Whdl3LFD3++5xCQ=="
+  "value": "AEukFJR6G5AYMHe38mA+UUgg5R/P9kgNE0Seo7WrM2ylNpywotDyGR1/MSCRGprETo2obx944c47LKMh7s+uAw=="

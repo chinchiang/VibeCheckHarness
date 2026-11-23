@@ -260,6 +260,7 @@
                 "E_proof",
                 "E_fail_u",
                 "E_pass",
+                "E_pass_weak",
                 "E_inc"
               ]
             },
@@ -267,7 +268,7 @@
               "type": "null"
             }
           ],
-          "description": "最強的證據類別；null＝沒有測試結果"
+          "description": "最強的證據類別；null＝沒有測試結果。E_pass＝有 oracle_can_fail 正對照的合格 PASS；E_pass_weak＝沒有正對照的合格 PASS（05-v0.16，docs/05 §4.2）"
         },
         "results": {
           "type": "array",
@@ -285,6 +286,7 @@
                   "E_proof",
                   "E_fail_u",
                   "E_pass",
+                  "E_pass_weak",
                   "E_inc"
                 ]
               },
@@ -429,7 +431,8 @@
               "fix_contradicted",
               "regression_failed",
               "fix_unverified",
-              "oracle_unreviewed"
+              "oracle_unreviewed",
+              "analyst_disagrees"
             ]
           },
           "reason": {

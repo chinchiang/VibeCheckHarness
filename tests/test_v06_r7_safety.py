@@ -8,9 +8,8 @@
 """
 import copy
 
-import pytest
 
-from conftest import doc
+from conftest import doc, proven_reads
 from vchlib import safety
 
 IDOR, LIST, LLM = "testcase.idor.example.json", "testcase.bola-list.example.json", "testcase.llm.example.json"
@@ -18,7 +17,8 @@ DOC = "sha256:" + "d" * 64
 
 
 def level(b, tc):
-    return safety.compute_safety_class(tc, doc(b, "roe.yaml").data, doc(b, "tools.yaml").data, doc(b, "seed-manifest.yaml").data)
+    return safety.compute_safety_class(tc, doc(b, "roe.yaml").data, doc(b, "tools.yaml").data, doc(b, "seed-manifest.yaml").data,
+                                       proven_reads(b))     # D5: as the validator calls it
 
 
 def test_the_examples_keep_their_class(b):

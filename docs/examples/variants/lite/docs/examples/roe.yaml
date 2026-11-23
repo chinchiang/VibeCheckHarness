@@ -211,12 +211,13 @@
   - "agent_tool_calls"
   - "orders"
   "seed_manifest_ref": "docs/examples/seed-manifest.yaml"
-  "seed_manifest_sha256": "sha256:50b805b9bf6a06811d823e12f5ef6547303546287bbc162335f16cb16ff90ed9"
+  "seed_manifest_sha256": "sha256:c13dd8aebddf894322f6b6d971932ea467c568c89f1fecad4d66e1b90f8f49b3"
 "legal_review":
   "attested_by": "alice"
   "attested_at": "2026-09-29T16:00:00+08:00"
   "jurisdictions":
   - "TW"
+  - "US"
   "scope":
     "computer_misuse": true
     "privacy": true
@@ -245,16 +246,16 @@
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "hxd+ORC1hkruiHznKliF+bj2Z2RtsR/b5yfYhvoTzXn6GJCskgdmETKWSWzSo7XCfYWqKx3tQNkpU5U/7NzuBQ=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="

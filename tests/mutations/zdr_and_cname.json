@@ -1,0 +1,159 @@
+{
+ "tests": "tests/test_zdr_and_cname.py",
+ "mutations": [
+  {
+   "name": "C6: the new conditions are not applied",
+   "file": "tools/vchlib/checks.py",
+   "old": "        for msg in zdr_problems(R, e, p, k):\n            R.check(False, \"E-ENG-PROVIDER\", w, f\"{k} ({m.get('family')}) can receive C data but {msg}\")\n",
+   "new": "",
+   "k": "does_not_name_the_model or another_model or without_evidence or dated_after or ends_before"
+  },
+  {
+   "name": "C6: any model of the family is covered",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if model_key not in (p.get(\"zdr_models\") or []):",
+   "new": "    if not (p.get(\"zdr_models\") or []):",
+   "k": "another_model"
+  },
+  {
+   "name": "C6: the model list is not read",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if model_key not in (p.get(\"zdr_models\") or []):",
+   "new": "    if False:",
+   "k": "does_not_name_the_model"
+  },
+  {
+   "name": "C6: evidence is optional",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if not p.get(\"zdr_evidence_ref\"):",
+   "new": "    if False:",
+   "k": "without_evidence"
+  },
+  {
+   "name": "C6: an undated confirmation passes",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if got is None or (issued is not None and got > issued):",
+   "new": "    if got is not None and (issued is not None and got > issued):",
+   "k": "dated_after"
+  },
+  {
+   "name": "C6: a later confirmation passes",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if got is None or (issued is not None and got > issued):",
+   "new": "    if got is None:",
+   "k": "dated_after"
+  },
+  {
+   "name": "C6: confirmed on the issue day is refused",
+   "file": "tools/vchlib/checks.py",
+   "old": "(issued is not None and got > issued)",
+   "new": "(issued is not None and got >= issued)",
+   "k": "boundary_dates"
+  },
+  {
+   "name": "C6: no expiry needed",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if exp is None or (until is not None and exp < until):",
+   "new": "    if exp is not None and (until is not None and exp < until):",
+   "k": "ends_before"
+  },
+  {
+   "name": "C6: an early expiry passes",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if exp is None or (until is not None and exp < until):",
+   "new": "    if exp is None:",
+   "k": "ends_before"
+  },
+  {
+   "name": "C6: expiring with the engagement is refused",
+   "file": "tools/vchlib/checks.py",
+   "old": "(until is not None and exp < until)",
+   "new": "(until is not None and exp <= until)",
+   "k": "boundary_dates"
+  },
+  {
+   "name": "C6: the earlier rule is skipped",
+   "file": "tools/vchlib/checks.py",
+   "old": "        if not R.check(p.get(\"zdr\") == \"confirmed\" and p.get(\"dpa_signed\") is True, \"E-ENG-PROVIDER\", w,",
+   "new": "        if not R.check(True, \"E-ENG-PROVIDER\", w,",
+   "k": "unconfirmed_is_still"
+  },
+  {
+   "name": "C6 schema: fields optional",
+   "file": "docs/schemas/engagement.schema.json",
+   "old": "          \"zdr_models\",\n          \"zdr_confirmed_at\",\n          \"zdr_expires_at\",\n          \"dpa_signed\",",
+   "new": "          \"dpa_signed\",",
+   "k": "provider_schema_requires"
+  },
+  {
+   "name": "C4: the chain is not checked",
+   "file": "tools/vchlib/checks.py",
+   "old": "        for msg in cname_platform_problems(c, t, o):\n            R.check(False, \"E-ROE-PLATFORM\", w, msg)\n",
+   "new": "",
+   "k": "resolves_to_a_shared_platform or another_platform"
+  },
+  {
+   "name": "C4: only the first name is read",
+   "file": "tools/vchlib/checks.py",
+   "old": "    for name in chain if isinstance(chain, list) else []:",
+   "new": "    for name in chain[:1] if isinstance(chain, list) else []:",
+   "k": "resolves_to_a_shared_platform"
+  },
+  {
+   "name": "C4: any platform_project will do",
+   "file": "tools/vchlib/checks.py",
+   "old": "        if not (op.get(\"method\") == \"platform_project\" and op.get(\"platform\") == plat):\n            out.append(f\"{t.get('id')}: its host resolves through",
+   "new": "        if not (op.get(\"method\") == \"platform_project\"):\n            out.append(f\"{t.get('id')}: its host resolves through",
+   "k": "another_platform"
+  },
+  {
+   "name": "C4: no policy needed",
+   "file": "tools/vchlib/checks.py",
+   "old": "        elif plat not in policies:\n            out.append(f\"{t.get('id')}: its host resolves through",
+   "new": "        elif False:\n            out.append(f\"{t.get('id')}: its host resolves through",
+   "k": "policy_is_needed"
+  },
+  {
+   "name": "C4: a failed check is an error too",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if o.get(\"ok\") is not True:\n        return []\n    op, out = t.get(\"ownership_proof\") or {}, []",
+   "new": "    op, out = t.get(\"ownership_proof\") or {}, []",
+   "k": "failed_check_is_not"
+  },
+  {
+   "name": "C4: an ok result is skipped",
+   "file": "tools/vchlib/checks.py",
+   "old": "    if o.get(\"ok\") is not True:\n        return []\n    op, out = t.get(\"ownership_proof\") or {}, []",
+   "new": "    if o.get(\"ok\") is True:\n        return []\n    op, out = t.get(\"ownership_proof\") or {}, []",
+   "k": "resolves_to_a_shared_platform or failed_check_is_not"
+  },
+  {
+   "name": "C4 schema: the chain is optional",
+   "file": "docs/schemas/run.schema.json",
+   "old": "          \"signed_result_ref\",\n          \"cname_chain\"\n        ]",
+   "new": "          \"signed_result_ref\"\n        ]",
+   "k": "run_schema_requires"
+  },
+  {
+   "name": "08 hides what the CNAME rule misses",
+   "file": "docs/08-implementation-spec.md",
+   "old": "**擋不到**：以 A／ALIAS 記錄直接指向平台 IP 的頂層網域（沒有 CNAME 可看），",
+   "new": "**擋不到**：",
+   "k": "documents_state_both"
+  },
+  {
+   "name": "08 drops the per-model row",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `zdr_models` | model key 的陣列 |",
+   "new": "| zdr_models | model key 的陣列 |",
+   "k": "documents_state_both"
+  },
+  {
+   "name": "06 #37 claims CNAMEs are solved",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "以 A／ALIAS 記錄指向平台 IP、或 CNAME 指向不在清單中的平台別名網域時認不出來，只能靠 ROE 簽署人如實宣告 |",
+   "new": " |",
+   "k": "documents_state_both"
+  }
+ ]
+}

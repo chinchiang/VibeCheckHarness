@@ -21,7 +21,6 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib import crypto, derive, safety, verdict
-from vchlib.bundle import Doc
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 

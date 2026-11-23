@@ -10,11 +10,11 @@
   "independent_sources": 0,
   "executable_proof": null,
   "test_evidence": {
-    "class": "E_pass",
+    "class": "E_pass_weak",
     "results": [
       {
         "result_ref": "sha256:48980b0f50de005482630907cde316e8caee37193b3accb04bf1c4bcf5a7562d",
-        "class": "E_pass",
+        "class": "E_pass_weak",
         "positive_control": null,
         "reason": "PASS；reachability 對照 PASS；確定性 oracle（TOOL_CHECK、STATE_DIFF），G4 預先登記解讀"
       }
@@ -38,7 +38,7 @@
     }
   ],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.15",
+  "rule_version": "05-v0.17",
   "rule_trace": [
     "R2:black_box cluster,no votes,no tool signal,independent_sources=0",
     "R7:no independent source->UNCORROBORATED",

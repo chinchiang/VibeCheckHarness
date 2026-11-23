@@ -1,9 +1,9 @@
 {
   "tests": "tests/test_v07_r14_docs.py",
   "mutations": [
-    {"name": "C1: 07 without the deferred profile", "file": "docs/07-roadmap.md", "old": "**Lite 的單機部署 profile 待訂**", "new": "**Lite 的單機部署 profile**", "k": "defers_the_lite"},
-    {"name": "C1: no init row", "file": "docs/08-implementation-spec.md", "old": "| `vibecheck init` | `[--dir DIR]` | **規格待訂**", "new": "| `vibecheck init` | `[--dir DIR]` | 規格待訂", "k": "init_as_unspecified"},
-    {"name": "C1: README promises again", "file": "README.md", "old": "單機部署 profile 待訂，[07 §1.3]", "new": "本機一把金鑰、確認一次就能跑，[07 §1.3]", "k": "no_longer_promise"},
+    {"name": "C1: 07 without the deferred profile", "file": "docs/07-roadmap.md", "old": "**Lite 的單機部署 profile**（第十四輪內部審查 C1 列為待訂；2026-11-22 內部審查訂定", "new": "**Lite 的單機部署 profile 待訂**（", "k": "defers_the_lite"},
+    {"name": "C1: no init row", "file": "docs/08-implementation-spec.md", "old": "| `vibecheck init` | `[--dir DIR]` | 只用於 Lite 的單機 profile（[§11.20]", "new": "| `vibecheck init` | `[--dir DIR]` | **規格待訂**（[§11.20]", "k": "init_as_unspecified"},
+    {"name": "C1: README promises again", "file": "README.md", "old": "單機部署 profile 的規格在 [08 §11.20](docs/08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)，尚未實作，[07 §1.3]", "new": "本機一把金鑰、確認一次就能跑，[07 §1.3]", "k": "no_longer_promise"},
     {"name": "C2: no rule kinds", "file": "docs/08-implementation-spec.md", "old": "\"package_existence\", \"rule_rls\", \"rule_public_env\"]", "new": "\"package_existence\"]", "k": "rule_kinds"},
     {"name": "C2: rules tool not registered", "file": "docs/examples/tools.yaml", "old": "  rules:\n    zone: Z2", "new": "  rules_disabled:\n    zone: Z2", "k": "rule_kinds"},
     {"name": "C2: MVP0-X1 without the non-LLM path", "file": "docs/07-roadmap.md", "old": "**每一個都要有不靠 LLM 的輸出路徑**", "new": "每一個都能由確定性規則找到", "k": "mvp0_x1"},
@@ -17,7 +17,7 @@
     {"name": "C9: W0 extractors back in M2", "file": "docs/07-roadmap.md", "old": "| M1 基礎與安全控制 | 12 | 7 |", "new": "| M1 基礎與安全控制 | 10 | 6 |", "k": "belong_to_m1"},
     {"name": "C10: six person-weeks again", "file": "docs/05-bias-calibration.md", "old": "≈ **30 人週**", "new": "≈ **6 人週**", "k": "thirty_person_weeks"},
     {"name": "C11: R0-R13 again", "file": "docs/00-overview.md", "old": "Aggregator（規則 R0–R16）", "new": "Aggregator（規則 R0–R13）", "k": "r0_to_r13"},
-    {"name": "C11: 43 again", "file": "README.md", "old": "45 條明列", "new": "43 條明列", "k": "limitation_count"},
+    {"name": "C11: 43 again", "file": "README.md", "old": "51 條明列", "new": "43 條明列", "k": "limitation_count"},
     {"name": "C12: CI without the anchor check", "file": ".github/workflows/validate.yml", "old": "      - name: Mutation anchors still match the source\n        run: python tools/mutation_check.py --anchors-only tests/mutations/*.json\n        shell: bash\n", "new": "", "k": "ci_runs_the_anchor_check"},
     {"name": "C12: two freeze exceptions", "file": "CONTRIBUTING.md", "old": "三種都照下一節的規則附回歸測試", "new": "兩種都照下一節的規則附回歸測試", "k": "third_freeze_exception"},
     {"name": "D: rfc8785 required again", "file": "pyproject.toml", "old": "reference = [\"rfc8785==0.1.4\"]", "new": "reference = []", "k": "optional_extra"},

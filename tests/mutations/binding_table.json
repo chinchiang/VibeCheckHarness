@@ -1,0 +1,173 @@
+{
+ "tests": "tests/test_binding_table.py",
+ "mutations": [
+  {
+   "name": "a row loses a cell",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "| GENERATED_SCRIPT `playwright:ui` | S1 | AITG-APP-05 [V][E:threat_modeling-61]（curated 候選） |",
+   "new": "| GENERATED_SCRIPT `playwright:ui` | S1 |",
+   "k": "matches_its_header"
+  },
+  {
+   "name": "an unregistered adapter",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "| GENERATED_SCRIPT `playwright:ui` | S1 | AITG-APP-05 [V][E:threat_modeling-61]（curated 候選） |",
+   "new": "| GENERATED_SCRIPT `http_check:probe` | S1 | AITG-APP-05 [V][E:threat_modeling-61]（curated 候選） |",
+   "k": "registered_or_marked"
+  },
+  {
+   "name": "the websocket binding is not a candidate",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "| GENERATED_SCRIPT `playwright:api`（websocket）候選 [H]；Scope Proxy 的 ws／sse 支援排在 M4 |",
+   "new": "| GENERATED_SCRIPT `playwright:ws`；Scope Proxy 的 ws／sse 支援排在 M4 |",
+   "k": "registered_or_marked or scope_proxy_allows"
+  },
+  {
+   "name": "the active scan is called S1",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "| BUILTIN_CHECK `zap:active` | **S2** |",
+   "new": "| BUILTIN_CHECK `zap:active` | **S1** |",
+   "k": "never_safer or injection_probe"
+  },
+  {
+   "name": "an unverified WSTG id",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "—（WSTG v4.2 無專屬 ID [V][E:threat_modeling-56]；一般 session 項目見上列）",
+   "new": "WSTG-v42-SESS-10",
+   "k": "evidence_tag or jwt_row"
+  },
+  {
+   "name": "a WSTG id loses its tag",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "WSTG-v42-SESS-05 [V][E:threat_modeling-55]",
+   "new": "WSTG-v42-SESS-05",
+   "k": "evidence_tag"
+  },
+  {
+   "name": "OAuth: no state check",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "(2) 回呼時 `state` 被改動；",
+   "new": "",
+   "k": "oauth_row"
+  },
+  {
+   "name": "OAuth: no PKCE check",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "(3) token 交換缺少或帶錯 `code_verifier`；",
+   "new": "",
+   "k": "oauth_row"
+  },
+  {
+   "name": "OAuth: real accounts",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "以測試帳號走完一次授權流程，",
+   "new": "走完一次授權流程，",
+   "k": "oauth_row"
+  },
+  {
+   "name": "JWT: alg none dropped",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "`alg` 改為 `none`、",
+   "new": "",
+   "k": "jwt_row"
+  },
+  {
+   "name": "JWT: kid dropped",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "、`kid` 指向不存在的金鑰。",
+   "new": "。",
+   "k": "jwt_row"
+  },
+  {
+   "name": "JWT: no requirement source",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "（ASVS 5.0 V9 Self-contained Tokens [V][E:threat_modeling-40]）",
+   "new": "",
+   "k": "jwt_row"
+  },
+  {
+   "name": "WebSocket: sends arbitrary messages",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "要送出訊息的測試只能逐字送 G4 核准的 `script_turns`，否則是 MANUAL",
+   "new": "也可以送出任意訊息",
+   "k": "scope_proxy_allows"
+  },
+  {
+   "name": "WebSocket: subscription not receive-only",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "以租戶 A 身分建立**只接收**的訂閱",
+   "new": "以租戶 A 身分建立訂閱",
+   "k": "scope_proxy_allows"
+  },
+  {
+   "name": "rendering: an LLM judges",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "canary 伺服器的紀錄沒有來自瀏覽器的請求（`CANARY`）",
+   "new": "由 LLM 判斷是否外洩（`LLM_GRADER`）",
+   "k": "rendering_row"
+  },
+  {
+   "name": "rendering: no requirement source",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "（`policies.csp`、`policies.outbound_hosts`） | LLM process → UI | 合成文件",
+   "new": " | LLM process → UI | 合成文件",
+   "k": "rendering_row"
+  },
+  {
+   "name": "probe: the limits are hidden",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "只找得到有錯誤訊息或回顯的注入，盲注與二階注入測不到；",
+   "new": "",
+   "k": "injection_probe"
+  },
+  {
+   "name": "probe: bound to schemathesis",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "| GENERATED_SCRIPT `playwright:api`（固定的請求清單；不用 `schemathesis:*`，它只跑 GET／HEAD 且會產生大量輸入） |",
+   "new": "| GENERATED_SCRIPT `schemathesis:hook` |",
+   "k": "injection_probe"
+  },
+  {
+   "name": "probe: payloads allowed",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "（引號、樣板定界符這類字元，不含任何語句）",
+   "new": "",
+   "k": "injection_probe"
+  },
+  {
+   "name": "Lite claims an injection test",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "定點檢查的 PASS 不得寫成「沒有注入漏洞」。",
+   "new": "",
+   "k": "lite_reports_a_probe"
+  },
+  {
+   "name": "the wrong sentence is back",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "下列攻擊面只涵蓋一部分，或完全沒有對應的列。",
+   "new": "下列攻擊面沒有任何一列，也沒有樣板 adapter。",
+   "k": "no_longer_says_none"
+  },
+  {
+   "name": "the correction is removed",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "2026-11-22 的版本寫「下列攻擊面沒有任何一列」，那是錯的：OAuth／OIDC 與 JWT 當時已各有一列，只是範圍較窄。",
+   "new": "",
+   "k": "no_longer_says_none"
+  },
+  {
+   "name": "the list cites a row that does not exist",
+   "file": "docs/04-threat-to-testcase.md",
+   "old": "| 「JWT 處理」測簽章、到期、受眾、簽發者、`alg`、`kid` |",
+   "new": "| 「JWT 驗證」測簽章、到期、受眾、簽發者、`alg`、`kid` |",
+   "k": "no_longer_says_none"
+  },
+  {
+   "name": "BL-75 called implemented",
+   "file": "docs/09-backlog.md",
+   "old": "| 已補列；全部未實作，websocket 能力仍是候選 |",
+   "new": "| 已完成 |",
+   "k": "listed_not_implemented"
+  }
+ ]
+}

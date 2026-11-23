@@ -1,0 +1,173 @@
+{
+ "tests": "tests/test_interface_contracts.py",
+ "mutations": [
+  {
+   "name": "JobAllowlist loses fencing_token",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    fencing_token: int                 # JobLedger.claim 發的 token（下面「介面補齊」）；Proxy 拒絕過期的 token（StaleLease）\n",
+   "new": "",
+   "k": "job_allowlist_field"
+  },
+  {
+   "name": "the ledger cannot renew",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    def renew(self, lease: JobLease) -> JobLease: ...            # token 不是帳本目前值或租約已過期 → StaleLease\n",
+   "new": "",
+   "k": "claim_renew_complete"
+  },
+  {
+   "name": "claim does not record the holder",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    def claim(self, run_id: str, job_id: str, holder: str, g5_gate_record_id: str | None) -> JobLease: ...",
+   "new": "    def claim(self, run_id: str, job_id: str, g5_gate_record_id: str | None) -> JobLease: ...",
+   "k": "claim_renew_complete"
+  },
+  {
+   "name": "the lease has no token",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    fencing_token: int                 # 每次領取由帳本遞增；出口元件只接受不小於帳本目前值的 token\n",
+   "new": "",
+   "k": "claim_renew_complete"
+  },
+  {
+   "name": "03 lists outcome again",
+   "file": "docs/03-system-architecture.md",
+   "old": "finished_at, result_ref, holder, fencing_token, lease_expires_at}`",
+   "new": "finished_at, outcome}`",
+   "k": "same_ledger_fields"
+  },
+  {
+   "name": "08 table drops the lease columns",
+   "file": "docs/08-implementation-spec.md",
+   "old": "`finished_at`、`result_ref`、`holder`、`fencing_token`、`lease_expires_at`（§2.3 的 `JobLedgerEntry`）",
+   "new": "`finished_at`、`result_ref`（§2.3 的 `JobLedgerEntry`）",
+   "k": "same_ledger_fields"
+  },
+  {
+   "name": "an executed job is rerun",
+   "file": "docs/08-implementation-spec.md",
+   "old": "已完成 → JobAlreadyExecuted（帶原本的 result_ref，不重跑）",
+   "new": "已完成 → 重新執行",
+   "k": "stale_lease_stops"
+  },
+  {
+   "name": "a stale lease is retried",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `StaleLease` | `JobLedger`、Scope Proxy、Sandbox 派送、Model Gateway 的出口檢查 | 否 |",
+   "new": "| `StaleLease` | `JobLedger`、Scope Proxy、Sandbox 派送、Model Gateway 的出口檢查 | 是 |",
+   "k": "stale_lease_stops"
+  },
+  {
+   "name": "a lease length is invented",
+   "file": "docs/08-implementation-spec.md",
+   "old": "# 租約長度與續租間隔由 toolkit.yaml 設定，本文件不寫死數字（待 M1 實測）[H]",
+   "new": "# 租約長度 30 秒、續租間隔 10 秒",
+   "k": "stale_lease_stops"
+  },
+  {
+   "name": "put cannot name the run",
+   "file": "docs/08-implementation-spec.md",
+   "old": "            run_id: str, producer_node: str, legal_hold: bool = False) -> ArtifactRef: ...",
+   "new": "            legal_hold: bool = False) -> ArtifactRef: ...",
+   "k": "reference_record"
+  },
+  {
+   "name": "get needs no reference",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    def get(self, ref: ArtifactRef, run_id: str) -> bytes: ...",
+   "new": "    def get(self, ref: ArtifactRef) -> bytes: ...",
+   "k": "reference_record"
+  },
+  {
+   "name": "nothing revokes a reference",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    def revoke(self, ref: ArtifactRef, run_id: str) -> None: ...                 # 撤銷這個 run 的參照；寫 artifact_revoked\n",
+   "new": "",
+   "k": "reference_record"
+  },
+  {
+   "name": "gc returns a bare int",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    def gc(self, now: str) -> GcReport: ...",
+   "new": "    def gc(self, now: str) -> int: ...",
+   "k": "reference_record"
+  },
+  {
+   "name": "08 adopts the minimal ContentStore again",
+   "file": "docs/08-implementation-spec.md",
+   "old": "- `Provenance`、`Blackboard`、`SignatureVerifier`、`AuditWriter`、`ModelGateway`（`ContentStore` 不在此列：",
+   "new": "- `Provenance`、`ContentStore`、`Blackboard`、`SignatureVerifier`、`AuditWriter`、`ModelGateway`（",
+   "k": "minimal_content_store"
+  },
+  {
+   "name": "deletion has no event type",
+   "file": "docs/schemas/audit-event.schema.json",
+   "old": "\"artifact_stored\",\"artifact_revoked\",\"artifact_deleted\",",
+   "new": "\"artifact_stored\",",
+   "k": "audit_event_types or schema_and_back"
+  },
+  {
+   "name": "03 table drops feedback_recorded",
+   "file": "docs/03-system-architecture.md",
+   "old": "| 報告 | `feedback_recorded`（",
+   "new": "| 報告 | （",
+   "k": "schema_and_back"
+  },
+  {
+   "name": "the countersigner takes no timeout",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    def countersign(self, request: CountersignRequest, timeout_s: float) -> CountersignResponse: ...",
+   "new": "    def countersign(self, request: CountersignRequest) -> CountersignResponse: ...",
+   "k": "typed_request_response"
+  },
+  {
+   "name": "the request type drifts from 11.19",
+   "file": "docs/08-implementation-spec.md",
+   "old": "    lines_since_last_anchor: list[str]  # 上一個錨點之後的每一行（JSONL 原文，UTF-8）\n",
+   "new": "",
+   "k": "typed_request_response"
+  },
+  {
+   "name": "a reason is dropped from 11.19",
+   "file": "docs/08-implementation-spec.md",
+   "old": "`chain_mismatch`／`counter_regression`／`unknown_run`／`malformed_request`",
+   "new": "`chain_mismatch`／`counter_regression`／`unknown_run`",
+   "k": "typed_request_response"
+  },
+  {
+   "name": "a rejection is retried",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `AnchorRejected` | `AnchorCountersigner`（Z3 拒簽錨點） | 否（重試也不會成功） |",
+   "new": "| `AnchorRejected` | `AnchorCountersigner`（Z3 拒簽錨點） | 是（§6.2） |",
+   "k": "rejection_is_not_retried"
+  },
+  {
+   "name": "no per-call timeout",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 錨點副簽（`countersign`）單次呼叫逾時 | 10 秒 [H]，逾時算 Z3 無法連線，沿用上一列的退避 | 同上 | `SUSPENDED` |\n",
+   "new": "",
+   "k": "rejection_is_not_retried"
+  },
+  {
+   "name": "NotFound has no row",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `NotFound` | `ContentStore.get`、`KekProvider.unwrap`",
+   "new": "| `NotFoundX` | `ContentStore.get`、`KekProvider.unwrap`",
+   "k": "error_table"
+  },
+  {
+   "name": "a row loses a column",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `ReferenceExpired` | `ContentStore.get` | 否 | 該節點失敗 → `FAILED` | `policy_violation` | 8 |",
+   "new": "| `ReferenceExpired` | `ContentStore.get` | 否 | 該節點失敗 → `FAILED` | `policy_violation` |",
+   "k": "error_table"
+  },
+  {
+   "name": "BL-78 says Z2 again",
+   "file": "docs/09-backlog.md",
+   "old": "Z3 的 job 帳本（這一列原本誤寫成 Z2）",
+   "new": "Z2 job 帳本",
+   "k": "specified_not_implemented"
+  }
+ ]
+}

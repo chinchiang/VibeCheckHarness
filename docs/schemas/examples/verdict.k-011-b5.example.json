@@ -29,11 +29,11 @@
   "independent_sources": 1,
   "executable_proof": null,
   "test_evidence": {
-    "class": "E_pass",
+    "class": "E_pass_weak",
     "results": [
       {
         "result_ref": "sha256:dc7b079e86b798589d4973a2a6a7a5cc32acb82bbc738a45f8b3021c3af6646f",
-        "class": "E_pass",
+        "class": "E_pass_weak",
         "positive_control": null,
         "reason": "PASS，n′＝60、k＝0；reachability 對照 PASS；G4 預先登記解讀（沒有 oracle_can_fail 對照）"
       }
@@ -53,11 +53,11 @@
   "annotations": [
     {
       "kind": "test_not_reproduced",
-      "reason": "TC-031-01：60 次都沒有重現（p_u≈0.049）"
+      "reason": "TC-031-01：60 次有效 trial 都沒有觀察到違反；oracle 沒有正對照（oracle_can_fail），未驗證它測得到違反，所以不給違反率的統計數字"
     }
   ],
   "decided_by": "aggregator",
-  "rule_version": "05-v0.15",
+  "rule_version": "05-v0.17",
   "rule_trace": [
     "R2:weighted_support=0 (ver_1 has weight 0 in llm_specific),score=0,theta_confirm null (provisional)",
     "R7:independent_families=1->UNCORROBORATED",

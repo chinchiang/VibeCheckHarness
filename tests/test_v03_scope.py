@@ -5,9 +5,8 @@ import copy
 
 import pytest
 
-from conftest import codes, doc
+from conftest import codes, doc, proven_reads
 from vchlib import safety
-from vchlib.checks import run_all
 
 TC_IDOR, TC_LLM, TC_LIST = "testcase.idor.example.json", "testcase.llm.example.json", "testcase.bola-list.example.json"
 
@@ -30,7 +29,7 @@ def req(target, method, path, step=None, op=None):
 # ================================================================ B6 mutation scope
 def test_examples_are_in_scope(b):
     for s in (TC_IDOR, TC_LLM, TC_LIST, "testcase.zap-active.example.json"):
-        assert safety.mutation_scope_problems(doc(b, s).data, doc(b, "seed-manifest.yaml").data) == [], s
+        assert safety.mutation_scope_problems(doc(b, s).data, doc(b, "seed-manifest.yaml").data, None, proven_reads(b)) == [], s
     assert "E-TC-MUTATION-SCOPE" not in codes(b)
 
 

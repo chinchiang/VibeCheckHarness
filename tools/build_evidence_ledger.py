@@ -110,8 +110,14 @@ def render(data: dict) -> str:
         "> 主張（claim）保留研究代理的英文原文；「查核」欄是獨立查核代理的結論與更正。",
         "> 中文文件中的 `[E:<id>]` 指向本檔的條目。若查核欄有更正，**以更正為準**。",
         "> 每個條目的錨點只由證據 ID 決定，例如 `ledger.md#providers-10`。",
-        "",
     ]
+    default = data.get("checked_at_default")
+    if default:
+        # 2026-11-22 review (C5): a claim about a moving target (a licence, a price, a provider's terms) is only as good
+        # as the day it was read. Entries carry that day; `--age-report` lists the ones past the recheck age
+        lines.append(f"> **查核日期**：未另標示的條目最後一次查核不早於 {esc(default)}；之後重查過的條目另標「查核日期」。"
+                     f"超過 {RECHECK_AFTER_DAYS} 天的條目在作為里程碑或法務閘門的依據前要重查（`python tools/build_evidence_ledger.py --age-report`）。")
+    lines.append("")
     counts: dict[str, int] = {}
     for topic in data["topics"]:
         for f in topic["findings"]:
@@ -140,6 +146,8 @@ def render(data: dict) -> str:
             lines.append(f"- **主張**：{esc(f['claim'])}")
             if f["correction"]:
                 lines.append(f"- **查核**：{esc(f['correction'])}")
+            if f.get("checked_at"):
+                lines.append(f"- **查核日期**：{esc(f['checked_at'])}")
             srcs = f["sources"] + [s for s in f["independent_sources"] if s not in f["sources"]]
             if srcs:
                 lines.append("- **來源**：" + " ｜ ".join(f"<{s}>" if s.startswith("http") else esc(s) for s in srcs))
@@ -150,6 +158,28 @@ def render(data: dict) -> str:
             lines.append(f"- {esc(lim)}")
         lines.append("")
     return "\n".join(lines) + "\n"
+
+
+RECHECK_AFTER_DAYS = 180
+
+
+def checked_at(data: dict, finding: dict) -> str | None:
+    """The day a finding was last checked: its own `checked_at`, else the file's `checked_at_default`."""
+    return finding.get("checked_at") or data.get("checked_at_default")
+
+
+def stale(data: dict, as_of: str, max_age_days: int = RECHECK_AFTER_DAYS) -> list[tuple[str, str | None, int | None]]:
+    """(id, checked_at, age in days) of every finding older than max_age_days on `as_of` (YYYY-MM-DD), or with no date
+    at all (age None: nobody recorded when it was read, so it counts as stale)."""
+    import datetime as dt
+    today, out = dt.date.fromisoformat(as_of), []
+    for topic in data["topics"]:
+        for f in topic["findings"]:
+            day = checked_at(data, f)
+            age = (today - dt.date.fromisoformat(day)).days if day else None
+            if age is None or age > max_age_days:
+                out.append((f["id"], day, age))
+    return out
 
 
 def check_file(dst: pathlib.Path, expected: str, label: str, regenerate: str) -> int:
@@ -181,9 +211,25 @@ def main(argv: list[str] | None = None) -> int:
                     help="do not write; exit 1 if docs/evidence/ledger.md differs from the generated text")
     ap.add_argument("--root", type=pathlib.Path, default=ROOT,
                     help="repository root to read from and write to (default: this checkout)")
+    ap.add_argument("--age-report", action="store_true",
+                    help="list the findings older than --max-age-days (report only, exit 0)")
+    ap.add_argument("--as-of", help="YYYY-MM-DD the age is computed on (default: today)")
+    ap.add_argument("--max-age-days", type=int, default=RECHECK_AFTER_DAYS)
     args = ap.parse_args(argv)
     src, dst = args.root / SRC_REL, args.root / DST_REL
     data = json.loads(src.read_text(encoding="utf-8"))
+    if args.age_report:
+        import datetime as dt
+        as_of = args.as_of or dt.date.today().isoformat()
+        old = stale(data, as_of, args.max_age_days)
+        total = sum(len(t["findings"]) for t in data["topics"])
+        by_topic: dict[str, int] = {}
+        for fid, _, _ in old:
+            by_topic[fid.rsplit("-", 1)[0]] = by_topic.get(fid.rsplit("-", 1)[0], 0) + 1
+        print(f"as of {as_of}: {len(old)} of {total} findings were last checked more than {args.max_age_days} days ago (or have no date)")
+        for topic, n in sorted(by_topic.items()):
+            print(f"  {topic}: {n}")
+        return 0
     text = render(data)
     if args.check:
         return check_file(dst, text, DST_REL.as_posix(), "python tools/build_evidence_ledger.py")
