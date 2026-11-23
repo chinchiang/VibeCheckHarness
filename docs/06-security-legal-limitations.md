@@ -385,7 +385,7 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | datamodel-code-generator 0.82.0 | MIT [P][E:orchestration-55] | 只用於開發（從 JSON Schema 產生 Pydantic v2 模型），不隨工具包散布 | 模型產生（[08](08-implementation-spec.md)） | OK |
 | httpx 0.28.1 | BSD-3-Clause [V][E:orchestration-57] | 保留版權聲明 | Z3 Scope Proxy 的 HTTP 用戶端 | OK |
 | dnspython 2.8.0 | ISC [V][E:orchestration-58] | 保留版權聲明 | DNS TXT 所有權驗證與 DNS 固定 | OK |
-| langgraph-checkpoint-sqlite 3.1.1 | MIT [V][E:orchestration-59] | 只用於測試 | 測試用 checkpointer | OK |
+| langgraph-checkpoint-sqlite 3.1.1 | MIT [V][E:orchestration-59] | 測試，以及 Lite 的單機 profile（[08 §11.20](08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)）；單機 profile 會隨工具包散布 | 測試用與單機 profile 的 checkpointer | OK |
 | sigstore cosign | Apache-2.0 [V][E:blackbox-64] | keyless 模式需要線上的 Fulcio／Rekor [V][E:orchestration-49] | binary 驗證 | OK |
 | Claude Agent SDK | 套件為 MIT，但使用受 Anthropic Commercial Terms 規範 [V][E:orchestration-19] | — | 不作核心 | 不採用 |
 | CrewAI | MIT [V][E:orchestration-11] | 預設開 telemetry [V][E:orchestration-15] | — | 不採用 |

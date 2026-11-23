@@ -492,7 +492,7 @@ python tools/validate_schemas.py --real-run    # 正式執行前：代理可達�
 
 | 錯誤碼 | 規則 | 守住的測試 |
 |---|---|---|
-| `E-CHECKPOINT` | checkpoint 的 run 必須存在，`run_status`／`thread_id` 與 run 相符；C 級資料的 checkpoint 必須加密 | `test_bl66_config` |
+| `E-CHECKPOINT` | checkpoint 的 run 必須存在，`run_status`／`thread_id` 與 run 相符；C 級資料的 checkpoint 必須加密 | `test_bl66_config`、`test_langgraph_spike` |
 | `E-REPORT` | report-manifest 的 run 必須存在；`advisory` 只在 Lane A 為 true；審查 r11：`evidential` 在 `assurance_profile: lite` 必須是 `self_attested`，其他為 `separated`；`verdict_counts` 等於每叢集最新裁決的計數；`manual_review_clusters` 與 run 相同；audit_log artifact 必須存在；gate_record artifact 必須恰好是該 run 的所有關卡紀錄 | `test_bl66_config`、`test_v07_r11_contracts` |
 | `E-REPORT-ANCHOR` | 2026-11-22 內部審查（BL-70、D10）：報告清單的 `audit_anchor` 依委任設定的 `deployment_profile` 推導：`single_host` 為 `local`（本機錨點，不能作為對外證據），其餘為 `countersigned` | `test_lite_single_host` |
 | `E-REPORT-METRICS` | report-manifest `metrics`（results_total、results_invalid、control_pass_rate；v0.5 BL-20：access_matrix_coverage、endpoint_slice_coverage、endpoint_test_coverage）由 run 的測試結果、testcase 的 access_cells、切片與 request_allowlist 重算；審查 r7（外部審查 5）：覆蓋率分成 `planned_*`（測試案例宣告的計畫）與 `executed_*`（只算有有效執行結果的測試案例：outcome PASS／FAIL、對照全部 PASS、有已錨定且 hash 相符的 `sandbox_job_end`），兩者都重算 | `test_v05_schema_backlog`、`test_v03_adjudication`、`test_v05_r7_pipeline` |
