@@ -45,7 +45,7 @@
     },
     {
       "name": "W4 results need the author roles",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_models.py",
       "old": "            R.check(role in roles, \"E-AGENT-ROLES\", \"agents.yaml\",",
       "new": "            R.check(True, \"E-AGENT-ROLES\", \"agents.yaml\",",
       "k": "need_the_test_author_roles"

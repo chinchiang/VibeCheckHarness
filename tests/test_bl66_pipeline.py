@@ -9,7 +9,8 @@ directly on a context built from the unquarantined bundle (defence in depth behi
 from conftest import codes, doc
 
 from vchlib import crypto
-from vchlib.checks import g_models, run_all
+from vchlib.checks import run_all
+from vchlib.checks_models import g_models
 from vchlib.report import Report
 from vchlib.context import Ctx
 

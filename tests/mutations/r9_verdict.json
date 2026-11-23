@@ -17,7 +17,7 @@
     },
     {
       "name": "lineage: one derived_from per lineage",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_models.py",
       "old": "        R.check(len(decl) == 1, \"E-MODEL-LINEAGE\", \"models.yaml\",",
       "new": "        R.check(True, \"E-MODEL-LINEAGE\", \"models.yaml\",",
       "k": "contradictory_derived_from"

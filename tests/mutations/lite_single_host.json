@@ -3,56 +3,56 @@
  "mutations": [
   {
    "name": "single_host in any profile",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if profile(c) != \"lite\":\n        out.append(f\"deployment_profile single_host is only allowed",
    "new": "    if False:\n        out.append(f\"deployment_profile single_host is only allowed",
    "k": "refused_outside_lite"
   },
   {
    "name": "no role_consolidation needed",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    elif consolidation_person(c) is None:\n        out.append(\"deployment_profile single_host needs",
    "new": "    elif False:\n        out.append(\"deployment_profile single_host needs",
    "k": "needs_the_acknowledged"
   },
   {
    "name": "black-box gates allowed",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if gates:\n        out.append(f\"deployment_profile single_host is white-box only",
    "new": "    if False:\n        out.append(f\"deployment_profile single_host is white-box only",
    "k": "white_box_only"
   },
   {
    "name": "white-box gates counted too",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "if d.data.get(\"gate\") in ROE_GATES})\n    if gates:",
    "new": "if d.data.get(\"gate\")})\n    if gates:",
    "k": "white_box_only or may_be_single_host"
   },
   {
    "name": "the problems are never reported",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    for m in deployment_problems(c):\n        R.check(False, \"E-ENG-DEPLOYMENT\", w, m)\n",
    "new": "",
    "k": "refused_outside_lite or needs_the_acknowledged or white_box_only"
   },
   {
    "name": "every engagement is checked as single_host",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if deployment(c) != SINGLE_HOST:\n        return []\n    out = []",
    "new": "    out = []",
    "k": "examples_are_three_zone"
   },
   {
    "name": "the default is single_host",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "return c.engagement.get(\"deployment_profile\") or \"three_zone\"",
    "new": "return c.engagement.get(\"deployment_profile\") or \"single_host\"",
    "k": "examples_are_three_zone or three_zone_report"
   },
   {
    "name": "single_host reports countersigned",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "ANCHOR_LABEL = {SINGLE_HOST: \"local\"}",
    "new": "ANCHOR_LABEL = {}",
    "k": "says_local_anchor or may_be_single_host"

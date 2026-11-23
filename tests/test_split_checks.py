@@ -10,7 +10,7 @@ import ast
 import importlib.util
 import pathlib
 
-from vchlib import checks, checks_config, checks_integrity, report
+from vchlib import checks, checks_config, checks_engagement, checks_integrity, checks_models, report
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PKG = ROOT / "tools" / "vchlib"
@@ -48,6 +48,8 @@ def test_the_group_list_and_its_order_are_unchanged():
     for i in (0, 1, 2, 3, 5):
         assert checks.GROUPS[i][1].__module__ == "vchlib.checks_integrity", names[i]      # the five groups PR-D2 moved
     assert checks.GROUPS[4][1].__module__ == "vchlib.checks"       # g_signatures stays with the signature helpers
+    assert names[6:9] == ["g_engagement", "g_roe", "g_models"]
+    assert checks.GROUPS[6][1].__module__ == "vchlib.checks_engagement" and checks.GROUPS[8][1].__module__ == "vchlib.checks_models"   # PR-D3
 
 
 def test_the_shared_base_imports_no_check_group():
@@ -55,12 +57,20 @@ def test_the_shared_base_imports_no_check_group():
     assert not {m for m in imports_of("checks_config") if m.startswith("checks")}
     assert not {m for m in imports_of("checks_calibration") if m.startswith("checks")}
     assert not {m for m in imports_of("checks_integrity") if m.startswith("checks")}
+    # PR-D3: the engagement group reads reachable_models from the models module; neither imports the facade
+    assert not {m for m in imports_of("checks_models") if m.startswith("checks")}
+    assert {m for m in imports_of("checks_engagement") if m.startswith("checks")} == {"checks_models"}
+    assert report.ROE_GATES == ("G0b", "G3", "G4", "G5") and report.ENGAGEMENT_GATES == ("G0a", "G1", "G2")
+    # the engagement accessors live once, in the engagement module; the facade uses them, it does not redefine them
+    for name in ("profile", "deployment", "consolidation_person"):
+        assert getattr(checks, name) is getattr(checks_engagement, name), name
     for name in ("Issue", "Report", "doc_guard", "ts", "format_checker"):
         assert getattr(report, name).__module__ == "vchlib.report", name
     for name in ("GATE_ROLES", "FINAL_STATUSES", "TERMINAL_RUN_STATES", "LEGAL_GATE", "StrictValidator", "FORMATS"):
         assert hasattr(report, name), name
     assert checks_config.Report is report.Report and checks.Report is report.Report      # one Report class, not copies
-    assert checks_integrity.Report is report.Report
+    assert checks_integrity.Report is report.Report and checks_engagement.Report is report.Report
+    assert checks_models.Report is report.Report
 
 
 def test_nothing_below_the_checker_imports_it():

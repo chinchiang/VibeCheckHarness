@@ -14,7 +14,7 @@ import pytest
 
 from conftest import codes, doc
 from vchlib import evidence, safety
-from vchlib.checks import self_hosted
+from vchlib.checks_engagement import self_hosted
 from vchlib.verdict import resolved_sarif_refs
 from vchlib.context import Ctx
 

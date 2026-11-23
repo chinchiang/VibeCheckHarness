@@ -32,8 +32,8 @@
   {
    "name": "a caller goes back to checks.Report",
    "file": "tests/test_zdr_and_cname.py",
-   "old": "            assert checks.zdr_problems(report.Report(), e, p, k) == []",
-   "new": "            assert checks.zdr_problems(checks.Report(), e, p, k) == []",
+   "old": "            assert checks_engagement.zdr_problems(report.Report(), e, p, k) == []",
+   "new": "            assert checks_engagement.zdr_problems(checks.Report(), e, p, k) == []",
    "k": "no_re_exports"
   },
   {
@@ -55,6 +55,27 @@
    "file": "tools/vchlib/checks_integrity.py",
    "old": "def g_persons(R: Report, c: Ctx):\n",
    "new": "def g_persons(R: Report, c: Ctx):\n    from . import checks_config  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the engagement and models groups change place",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"engagement\", g_engagement),\n    (\"ROE and legal review L-1..L-6\", g_roe),\n    (\"models, agents, family diversity\", g_models),",
+   "new": "    (\"models, agents, family diversity\", g_models),\n    (\"ROE and legal review L-1..L-6\", g_roe),\n    (\"engagement\", g_engagement),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "the models module imports the engagement module",
+   "file": "tools/vchlib/checks_models.py",
+   "old": "def g_models(R: Report, c: Ctx):\n",
+   "new": "def g_models(R: Report, c: Ctx):\n    from . import checks_engagement  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the facade redefines an engagement accessor",
+   "file": "tools/vchlib/checks.py",
+   "old": "# ============================================================== 10 gates\n",
+   "new": "# ============================================================== 10 gates\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
    "k": "imports_no_check_group"
   }
  ]

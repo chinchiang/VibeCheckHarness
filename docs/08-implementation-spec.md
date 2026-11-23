@@ -1893,7 +1893,7 @@ class SessionProvider(Protocol):
 
 **C 級路由規則**（`E-ENG-PROVIDER`）[H]：可能收到 C 級資料的 agent，它的模型必須符合下列其一：
 - 自架：`api_base` 的主機**完全等於** `toolkit.yaml` 的 `z4_model_hosts` 中的一項（v0.4；v0.3 只看主機名稱是否以 `z4-` 開頭，`https://z4-evil.attacker.example` 也會被當成自架）；或
-- 該家族在 `providers[]` 中是 `zdr: confirmed`，**而且** `dpa_signed: true`，**而且**（2026-11-22 內部審查）`zdr_evidence_ref` 不為空、`zdr_models` 列出這個模型、`zdr_confirmed_at` ≤ `issued_at`、`zdr_expires_at` ≥ `validity.not_after`（`checks.zdr_problems`）。之前只看 `confirmed` 這一個字：沒有日期、沒有涵蓋範圍，供應商對個別模型的排除與合約到期都反映不出來。
+- 該家族在 `providers[]` 中是 `zdr: confirmed`，**而且** `dpa_signed: true`，**而且**（2026-11-22 內部審查）`zdr_evidence_ref` 不為空、`zdr_models` 列出這個模型、`zdr_confirmed_at` ≤ `issued_at`、`zdr_expires_at` ≥ `validity.not_after`（`checks_engagement.zdr_problems`）。之前只看 `confirmed` 這一個字：沒有日期、沒有涵蓋範圍，供應商對個別模型的排除與合約到期都反映不出來。
 
 同一規則也套用到 fallback 鏈上的每個模型（`E-MODEL-FALLBACK-CLASS`）。Gateway 在執行時再檢查一次；不符 → `DataClassDenied`（§6.1），請求不送出。端點限制照舊：C 級不使用 Batch、Files 等不在 ZDR 範圍內的端點 [V][E:providers-28][E:providers-35]；OpenAI 一律 `store=false`（[03 §8.4](03-system-architecture.md#84-資料治理)）。
 

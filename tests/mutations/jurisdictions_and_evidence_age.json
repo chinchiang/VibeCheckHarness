@@ -10,28 +10,28 @@
   },
   {
    "name": "C3: only the source counts",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    named = [dt.get(\"source_jurisdiction\")] + [t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]",
    "new": "    named = [dt.get(\"source_jurisdiction\")]",
    "k": "leaves_out_the_destination or every_transfer_region"
   },
   {
    "name": "C3: only the destinations count",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    named = [dt.get(\"source_jurisdiction\")] + [t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]",
    "new": "    named = [t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]",
    "k": "leaves_out_the_source"
   },
   {
    "name": "C3: only the first transfer counts",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "[t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]\n    covered",
    "new": "[t.get(\"region\") for t in (dt.get(\"transfers\") or [])[:1] if isinstance(t, dict)]\n    covered",
    "k": "every_transfer_region"
   },
   {
    "name": "C3: an extra jurisdiction is an error",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    return sorted({j for j in named if isinstance(j, str) and j and j not in covered})",
    "new": "    return sorted({j for j in named if isinstance(j, str) and j and j not in covered} | (covered - set(named)))",
    "k": "extra_jurisdictions"
