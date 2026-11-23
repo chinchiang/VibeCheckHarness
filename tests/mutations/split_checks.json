@@ -74,8 +74,8 @@
   {
    "name": "the facade redefines an engagement accessor",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 11 runs\n",
-   "new": "# ============================================================== 11 runs\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
+   "old": "# ============================================================== 12b W4 testcases\n",
+   "new": "# ============================================================== 12b W4 testcases\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
    "k": "imports_no_check_group"
   },
   {
@@ -95,8 +95,8 @@
   {
    "name": "the facade redefines the receive clock",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 11 runs\n",
-   "new": "# ============================================================== 11 runs\ndef decision_time(c: Ctx, rec: dict):\n    return c.ix.decision_time(rec)\n\n\n",
+   "old": "# ============================================================== 12b W4 testcases\n",
+   "new": "# ============================================================== 12b W4 testcases\ndef decision_time(c: Ctx, rec: dict):\n    return c.ix.decision_time(rec)\n\n\n",
    "k": "imports_no_check_group"
   },
   {
@@ -116,8 +116,29 @@
   {
    "name": "the facade redefines run_start",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 11 runs\n",
-   "new": "# ============================================================== 11 runs\ndef run_start(c: Ctx, run_id):\n    return None\n\n\n",
+   "old": "# ============================================================== 12b W4 testcases\n",
+   "new": "# ============================================================== 12b W4 testcases\ndef run_start(c: Ctx, run_id):\n    return None\n\n\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the runs and testcases groups change place",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"run state, jobs, test results\", g_runs),\n    (\"testcases vs ROE (docs/04 §5)\", g_testcases),",
+   "new": "    (\"testcases vs ROE (docs/04 §5)\", g_testcases),\n    (\"run state, jobs, test results\", g_runs),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "the testcases module imports the runs module",
+   "file": "tools/vchlib/checks_testcases.py",
+   "old": "def g_testcases(R: Report, c: Ctx):\n",
+   "new": "def g_testcases(R: Report, c: Ctx):\n    from . import checks_runs  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the facade redefines a run constant",
+   "file": "tools/vchlib/checks.py",
+   "old": "# ============================================================== 12b W4 testcases\n",
+   "new": "# ============================================================== 12b W4 testcases\nJOB_RAN_STATES = (\"EXECUTED\",)\n",
    "k": "imports_no_check_group"
   }
  ]

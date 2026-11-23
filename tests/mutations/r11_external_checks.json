@@ -66,21 +66,21 @@
     },
     {
       "name": "E-RESULT-G4 measures from the approval in force",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                        st = derive.g4_state(c.ix, rid, tr.get(\"testcase_id\"), at=start or ex)",
       "new": "                        st = derive.g4_state(c.ix, rid, tr.get(\"testcase_id\"))",
       "k": "legitimate_execution or withdrawn_approval or reject_after"
     },
     {
       "name": "the withdrawn warning",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "R.warn(\"W-RESULT-G4-WITHDRAWN\"",
       "new": "R.warn(\"W-RESULT-G4-WITHDRAWN-X\"",
       "k": "withdrawn_approval"
     },
     {
       "name": "a job started after the withdrawal is rejected",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                        and derive.g4_state(c.ix, rid, job.get(\"testcase_id\"), at=jstart).decision == \"accept\" \\\n",
       "new": "                        and True \\\n",
       "k": "started_after_the_withdrawal"

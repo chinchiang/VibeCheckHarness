@@ -31,14 +31,14 @@
     },
     {
       "name": "M4 cosigner role",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "                R.check(cs.get(\"role\") == \"security_reviewer\" and cs.get(\"person_id\") != sb.get(\"person_id\"), \"E-FEEDBACK\", w,",
       "new": "                R.check(True, \"E-FEEDBACK\", w,",
       "k": "cosigner_is_a_reviewer"
     },
     {
       "name": "M4 lapse on updated",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "            if k.data.get(\"run_id\") == adopting and k.data.get(\"fingerprint\") == f.get(\"fingerprint\") and k.data.get(\"baseline_state\") == \"updated\":",
       "new": "            if False:",
       "k": "lapses_when_the_cluster"

@@ -275,7 +275,7 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
     for field, kind in (("toolkit_config_ref", "toolkit-config"), ("key_registry_ref", "key-registry"), ("engagement_ref", "engagement")):
         if b.data(kind) is not None:
             exp(d, [field], content_hash(b.data(kind)), f"content hash of {kind}")
-    # B11: configuration files named by the run manifest (the kind is checked in checks.g_runs, E-RUN-CONFIG)
+    # B11: configuration files named by the run manifest (the kind is checked in checks_runs.g_runs, E-RUN-CONFIG)
     for key in CONFIG_KINDS:
         ref = (r.get("config_refs") or {}).get(key)
         if isinstance(ref, dict) and isinstance(ref.get("path"), str):

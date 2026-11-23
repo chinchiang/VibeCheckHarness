@@ -80,91 +80,91 @@
     },
     {
       "name": "the withdrawn report exists",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "if R.check(old is not None, \"E-REPORT-WITHDRAWAL\", w, f\"withdrawn_report_id {rid!r} names no report of the bundle\"):",
       "new": "if old is not None:",
       "k": "withdrawn_report_must_exist"
     },
     {
       "name": "the withdrawn run is the report's",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(old.data.get(\"run_id\") == x.get(\"withdrawn_run_id\"), \"E-REPORT-WITHDRAWAL\", w,",
       "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
       "k": "withdrawn_run_is"
     },
     {
       "name": "a report is withdrawn once",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(rid not in seen, \"E-REPORT-WITHDRAWAL\", w, f\"report {rid} is already withdrawn by {seen.get(rid)}\")",
       "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w, f\"report {rid} is already withdrawn by {seen.get(rid)}\")",
       "k": "withdrawn_once"
     },
     {
       "name": "a withdrawal comes after the report",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(at is not None and gen is not None and at >= gen, \"E-REPORT-WITHDRAWAL\", w,",
       "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
       "k": "comes_after_the_report"
     },
     {
       "name": "the customer is told after the withdrawal",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(t is not None and at is not None and t >= at, \"E-REPORT-WITHDRAWAL\", w,",
       "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
       "k": "customer_is_told"
     },
     {
       "name": "the engagement is this one",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(x.get(\"engagement_id\") == c.engagement.get(\"engagement_id\"), \"E-REPORT-WITHDRAWAL\", w,",
       "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
       "k": "engagement_is_this_one"
     },
     {
       "name": "signer roles in order",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(roles == list(WITHDRAWAL_ROLES), \"E-REPORT-WITHDRAWAL\", w,",
       "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
       "k": "test_lead_then"
     },
     {
       "name": "two people sign",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(len(set(people)) == len(people) or people[0] == consolidation_person(c), \"E-REPORT-WITHDRAWAL\", w,",
       "new": "R.check(True, \"E-REPORT-WITHDRAWAL\", w,",
       "k": "two_people_sign"
     },
     {
       "name": "lite lets one person sign both",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "R.check(len(set(people)) == len(people) or people[0] == consolidation_person(c), \"E-REPORT-WITHDRAWAL\", w,",
       "new": "R.check(len(set(people)) == len(people), \"E-REPORT-WITHDRAWAL\", w,",
       "k": "lite_lets"
     },
     {
       "name": "one signature per signer",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "ok = len(sigs) == len(signers) and all(isinstance(g, dict)",
       "new": "ok = all(isinstance(g, dict)",
       "k": "each_signer_signs"
     },
     {
       "name": "signatures verify",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "                    verify_signature(R, c, w, crypto.signing_payload(x), g, at, s.get(\"role\"))",
       "new": "                    pass",
       "k": "no_longer_verifies"
     },
     {
       "name": "a superseding report is another run's",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "ok = new is not None and new_id != rid and new.data.get(\"run_id\") != old.data.get(\"run_id\")",
       "new": "ok = new is not None",
       "k": "cannot_supersede_itself"
     },
     {
       "name": "a superseding report is newer",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "                                and g_new > g_old, \"E-REPORT-WITHDRAWAL\", w,",
       "new": "                                or True, \"E-REPORT-WITHDRAWAL\", w,",
       "k": "superseding_report_is_newer"

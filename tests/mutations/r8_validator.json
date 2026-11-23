@@ -66,14 +66,14 @@
     },
     {
       "name": "ext1 cap required",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "            R.check(not signals or per is not None, \"E-TC-RATE\", w,",
       "new": "            R.check(True, \"E-TC-RATE\", w,",
       "k": "declares_its_per_trial_cap"
     },
     {
       "name": "ext1 cap within job",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "            R.check(per is None or (type(per) is int and 1 <= per <= trl.get(\"max_requests\", 0)), \"E-TC-RATE\", w,",
       "new": "            R.check(True, \"E-TC-RATE\", w,",
       "k": "within_the_job_cap"
@@ -87,7 +87,7 @@
     },
     {
       "name": "ext2 deterministic contradiction",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "                R.check(tr.get(\"sampling\") == \"sampled\", \"E-TC-TRIALS\", w,",
       "new": "                R.check(True, \"E-TC-TRIALS\", w,",
       "k": "deterministic_cannot_be_declared"
@@ -178,7 +178,7 @@
     },
     {
       "name": "H3 same-run G3",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                    R.check(th in accepted, \"E-RUN-G3\", w,",
       "new": "                    R.check(True, \"E-RUN-G3\", w,",
       "k": "needs_this_runs_g3"
@@ -192,7 +192,7 @@
     },
     {
       "name": "H2 regression",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "            if kind in (\"followup\", \"regression\"):",
       "new": "            if kind == \"followup\":",
       "k": "regression_run_carries"
@@ -220,21 +220,21 @@
     },
     {
       "name": "M6 fork",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                    R.check(not run.get(\"verdicts\") and not run.get(\"cluster_ids\") and not run.get(\"lane_a_advisories\"), \"E-RUN-LANE-A\", w,",
       "new": "                    R.check(True, \"E-RUN-LANE-A\", w,",
       "k": "fork_pr_gets_no_llm_review"
     },
     {
       "name": "M6 origin required",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                R.check(run.get(\"pr_origin\") in (\"same_repo\", \"fork\"), \"E-RUN-LANE-A\", w,",
       "new": "                R.check(True, \"E-RUN-LANE-A\", w,",
       "k": "declares_its_origin"
     },
     {
       "name": "M6 advisories source",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "                R.check(not bad, \"E-RUN-LANE-A\", w, f\"lane_a_advisories {bad} are not clusters of a same-repo Lane A run\")",
       "new": "                R.check(True, \"E-RUN-LANE-A\", w, f\"lane_a_advisories {bad} are not clusters of a same-repo Lane A run\")",
       "k": "advisories_come_from"

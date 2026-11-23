@@ -6,7 +6,7 @@ import shutil
 import pytest
 
 from conftest import ROOT, codes, doc, rederive
-from vchlib import checks, cli, timeutil
+from vchlib import checks, checks_runs, cli, timeutil
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
 
@@ -95,14 +95,14 @@ def test_gate_record_without_artifact(b):
 
 def test_one_bad_document_does_not_skip_the_group(b, monkeypatch):
     """Guard per document: an unexpected exception for one testresult is one E-INTERNAL; the other results are still checked."""
-    real = checks.result_controls
+    real = checks_runs.result_controls
 
     def boom(R, c, x, tc):
         if x.data.get("result_id") == "R-TC-012-01-1":
             raise RuntimeError("synthetic failure")
         return real(R, c, x, tc)
 
-    monkeypatch.setattr(checks, "result_controls", boom)
+    monkeypatch.setattr(checks_runs, "result_controls", boom)
     doc(b, "testresult.zap-active.example.json").data["request_count"] = 99999
     R = run_all(b)
     internal = group_errors(R, "E-INTERNAL")

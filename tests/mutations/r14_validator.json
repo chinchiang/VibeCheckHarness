@@ -38,21 +38,21 @@
     },
     {
       "name": "A2: the G4 approval in force at the job start",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "    R.check(st.decision == \"accept\" and st.approved_since is not None and start > st.approved_since, \"E-JOB-G4\", jw,",
       "new": "    R.check(True, \"E-JOB-G4\", jw,",
       "k": "needs_its_g4_approval_first"
     },
     {
       "name": "A2 / A4: target activity outside the window",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "        R.check(at is not None and rnb is not None and rna is not None and rnb <= at <= rna and timeutil.in_any_window(at, windows),\n                \"E-RUN-WINDOW\",",
       "new": "        R.check(True,\n                \"E-RUN-WINDOW\",",
       "k": "still_keeps_the_window or ownership_check_runs_inside or restore_drill_runs_inside or before_the_roe_is_valid"
     },
     {
       "name": "A2: only Z3 jobs with a result touched the target",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "        if isinstance(job, dict) and (job.get(\"status\") in JOB_RAN_STATES or job_span(c, run.get(\"run_id\"), jid)[0] is not None):",
       "new": "        if isinstance(job, dict) and job.get(\"status\") in JOB_RAN_STATES:",
       "k": "started_job_needs_an_ownership_result"
@@ -73,7 +73,7 @@
     },
     {
       "name": "A4: the ownership check is not target activity",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "TARGET_EVENTS = (\"ownership_check\", \"snapshot_created\", \"snapshot_restored\", \"restore_failed\", \"restore_drill\")",
       "new": "TARGET_EVENTS = (\"snapshot_created\", \"snapshot_restored\", \"restore_failed\")",
       "k": "ownership_check_runs_inside_the_window or restore_drill_runs_inside"
@@ -136,14 +136,14 @@
     },
     {
       "name": "A9: an initial run with a baseline",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "        R.check(base is None, \"E-RUN-BASELINE\", w, f\"an initial run has no baseline, got {base!r}\")",
       "new": "        R.check(True, \"E-RUN-BASELINE\", w, f\"an initial run has no baseline, got {base!r}\")",
       "k": "initial_run_has_no_baseline"
     },
     {
       "name": "A9: a baseline that is no ancestor",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_runs.py",
       "old": "        R.check(base in ancestors, \"E-RUN-BASELINE\", w,",
       "new": "        R.check(True, \"E-RUN-BASELINE\", w,",
       "k": "baseline_is_an_ancestor"

@@ -10,7 +10,7 @@
     },
     {
       "name": "sampled without a target signal",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "            R.check(tr.get(\"sampling\") != \"sampled\" or bool(signals), \"E-TC-TRIALS\", w,",
       "new": "            R.check(True, \"E-TC-TRIALS\", w,",
       "k": "declaring_sampled_without"

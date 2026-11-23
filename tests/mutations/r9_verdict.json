@@ -38,7 +38,7 @@
     },
     {
       "name": "probabilistic: signals declare sampled",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "                R.check(tr.get(\"sampling\") == \"sampled\", \"E-TC-TRIALS\", w,",
       "new": "                R.check(tr.get(\"sampling\") != \"deterministic\", \"E-TC-TRIALS\", w,",
       "k": "declares_sampled"
@@ -101,14 +101,14 @@
     },
     {
       "name": "FP: two people",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "    if len({x.get(\"person_id\") for x in people}) < 2:",
       "new": "    if False:",
       "k": "single_security_reviewer"
     },
     {
       "name": "FP: reviewer did not decide at G2",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_testcases.py",
       "old": "    if not any(x.get(\"role\") == \"security_reviewer\" and x.get(\"person_id\") not in deciders for x in people):",
       "new": "    if not any(x.get(\"role\") == \"security_reviewer\" for x in people):",
       "k": "g2_approver_of_the_cluster"
