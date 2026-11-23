@@ -246,7 +246,7 @@ def v_suspend(b: Bundle, keys) -> None:
     - nobody decides G4 within its 72 h timeout: the Gate Service writes an unsigned EXPIRED record and the run is
       SUSPENDED (docs/02 §1.4), resumable from its checkpoint; there is no run_end anchor, because the run has not ended;
     - the ASI09 spot check recorded in this run overturns the initial run's G5 decision (item_kind g5), so every run of
-      the engagement that starts after it needs two security reviewers at G5 (checks.g5_escalation)."""
+      the engagement that starts after it needs two security reviewers at G5 (checks_gates.g5_escalation)."""
     log = doc(b, "audit-event.run-2026-10-07-001.example.jsonl")
     sc = next(e for e in log.data if e["event_type"] == "spot_check_result")
     # heidi approved GR-G5-0001 and erin initiated its run, so neither may check it: grace becomes a security reviewer

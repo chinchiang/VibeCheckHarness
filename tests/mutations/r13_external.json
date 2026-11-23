@@ -66,14 +66,14 @@
     },
     {
       "name": "EXPIRED bound by the human deadline again",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "                R.check(rec.get(\"outcome\") == \"EXPIRED\" or at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
       "new": "                R.check(at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
       "k": "expired_record_written_after"
     },
     {
       "name": "every outcome exempt from the deadline",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "                R.check(rec.get(\"outcome\") == \"EXPIRED\" or at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
       "new": "                R.check(True or at - opened <= dt.timedelta(hours=limit), \"E-GATE-TIMEOUT\", w,",
       "k": "human_decision_after_the_deadline"

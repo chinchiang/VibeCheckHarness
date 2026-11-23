@@ -45,7 +45,7 @@
     },
     {
       "name": "M3 lite reject",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "                    R.check(\"reject\" not in decs, \"E-GATE-OUTCOME\", w,",
       "new": "                    R.check(True, \"E-GATE-OUTCOME\", w,",
       "k": "lite_g2_cannot_reject"

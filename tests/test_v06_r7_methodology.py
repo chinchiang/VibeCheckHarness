@@ -13,7 +13,7 @@ import copy
 import pytest
 
 from conftest import doc
-from vchlib import checks, safety
+from vchlib import checks_gates, safety
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -118,13 +118,13 @@ def test_an_overturned_g5_spot_check_requires_two_reviewers_later(b):
     makes that run's G5 a two-reviewer gate (the example G5 has one security reviewer)."""
     _overturned_g5(b, "2026-09-20T09:00:00+08:00")
     c = Ctx(b)
-    assert checks.g5_escalation(c, "run-2026-09-23-001")
+    assert checks_gates.g5_escalation(c, "run-2026-09-23-001")
     assert any("overturned" in i.msg for i in errors(b, "E-G5-TWO-PERSON"))
 
 
 def test_a_later_spot_check_does_not_reach_back(b):
     _overturned_g5(b, "2026-12-01T09:00:00+08:00")
-    assert checks.g5_escalation(Ctx(b), "run-2026-09-23-001") is None
+    assert checks_gates.g5_escalation(Ctx(b), "run-2026-09-23-001") is None
 
 
 def test_g3_over_cap_seeds_are_listed(b):
@@ -140,9 +140,9 @@ def test_only_an_overturned_g5_escalates(b):
     _overturned_g5(b, "2026-09-20T09:00:00+08:00")
     ev = next(e for e in doc(b, LANE_A_AUDIT).data if e["event_type"] == "spot_check_result")
     ev["payload"]["item_kind"] = "g2"
-    assert checks.g5_escalation(Ctx(b), "run-2026-09-23-001") is None
+    assert checks_gates.g5_escalation(Ctx(b), "run-2026-09-23-001") is None
     ev["payload"].update(item_kind="g5", outcome="upheld")
-    assert checks.g5_escalation(Ctx(b), "run-2026-09-23-001") is None
+    assert checks_gates.g5_escalation(Ctx(b), "run-2026-09-23-001") is None
 
 
 def test_an_unanchored_spot_check_does_not_escalate(b):
@@ -153,4 +153,4 @@ def test_an_unanchored_spot_check_does_not_escalate(b):
     evs.append(ev)
     for n, e in enumerate(evs, 1):
         e["seq"] = n
-    assert checks.g5_escalation(Ctx(b), "run-2026-09-23-001") is None
+    assert checks_gates.g5_escalation(Ctx(b), "run-2026-09-23-001") is None

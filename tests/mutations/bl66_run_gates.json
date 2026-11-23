@@ -122,28 +122,28 @@
   },
   {
    "name": "E-G5-JOB: G5 references an S2 job",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "                R.check(job is not None and job.get(\"safety_class\") == \"S2\", \"E-G5-JOB\", w, \"G5 must reference an S2 job of the run\")",
    "new": "                R.check(True, \"E-G5-JOB\", w, \"G5 must reference an S2 job of the run\")",
    "k": "e_g5_job"
   },
   {
    "name": "E-GATE-ENGAGEMENT: gate decided inside the engagement validity",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "            R.check(enb and ena and enb <= at <= ena, \"E-GATE-ENGAGEMENT\", w, \"decided outside the engagement validity\")",
    "new": "            R.check(True, \"E-GATE-ENGAGEMENT\", w, \"decided outside the engagement validity\")",
    "k": "e_gate_engagement"
   },
   {
    "name": "E-GATE-G0-APPROVERS: G0a approvers are the engagement signatories",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "                R.check(want == got, \"E-GATE-G0-APPROVERS\", w, \"G0a approvers must be the engagement signatories\")",
    "new": "                R.check(True, \"E-GATE-G0-APPROVERS\", w, \"G0a approvers must be the engagement signatories\")",
    "k": "e_gate_g0_approvers_g0a"
   },
   {
    "name": "E-GATE-G0-APPROVERS: G0b approvers are the ROE signatories",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "                R.check(want == got, \"E-GATE-G0-APPROVERS\", w, \"G0b approvers must be the ROE signatories\")",
    "new": "                R.check(True, \"E-GATE-G0-APPROVERS\", w, \"G0b approvers must be the ROE signatories\")",
    "k": "e_gate_g0_approvers_g0b"
@@ -157,28 +157,28 @@
   },
   {
    "name": "E-GATE-JOB: job_id only on G5",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "                R.check(rec.get(\"job_id\") is None, \"E-GATE-JOB\", w, \"job_id is only used by G5\")",
    "new": "                R.check(True, \"E-GATE-JOB\", w, \"job_id is only used by G5\")",
    "k": "e_gate_job"
   },
   {
    "name": "E-GATE-ROLES: gate approvers cover the required roles",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "                R.check(GATE_ROLES[gate] <= roles, \"E-GATE-ROLES\", w, f\"missing roles {sorted(GATE_ROLES[gate] - roles)}\")",
    "new": "                R.check(True, \"E-GATE-ROLES\", w, f\"missing roles {sorted(GATE_ROLES[gate] - roles)}\")",
    "k": "e_gate_roles"
   },
   {
    "name": "E-GATE-TIME: opened_at not after the decision",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "            R.check(opened <= at, \"E-GATE-TIME\", w, \"opened_at after timestamp\")",
    "new": "            R.check(True, \"E-GATE-TIME\", w, \"opened_at after timestamp\")",
    "k": "e_gate_time"
   },
   {
    "name": "E-GB-APPROVER: GB approver is run_owner or budget_approver",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "                    R.check(a.get(\"person_id\") in allowed, \"E-GB-APPROVER\", w, f\"GB approver {a.get('person_id')} is neither run_owner nor budget_approver\")",
    "new": "                    R.check(True, \"E-GB-APPROVER\", w, f\"GB approver {a.get('person_id')} is neither run_owner nor budget_approver\")",
    "k": "e_gb_approver"

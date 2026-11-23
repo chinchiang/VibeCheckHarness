@@ -87,7 +87,7 @@
     },
     {
       "name": "g5 link uses the shared state",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "    st = derive.g4_state(c.ix, rec.get(\"run_id\"), tcid, at=opened)",
       "new": "    st = derive.g4_state(c.ix, rec.get(\"run_id\"), tcid)",
       "k": "expired_g4_round or does_not_undo_a_g5"

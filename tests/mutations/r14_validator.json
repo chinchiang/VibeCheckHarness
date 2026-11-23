@@ -164,14 +164,14 @@
     },
     {
       "name": "A10: an EXPIRED GB still mapped through its choice",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "                if rec.get(\"outcome\") == \"EXPIRED\":\n                    # r14 (internal review A10",
       "new": "                if False:\n                    # r14 (internal review A10",
       "k": "expired_gb_record_can_be_written"
     },
     {
       "name": "A10: an EXPIRED GB with a choice",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "                    R.check(gb.get(\"choice\") is None and gb.get(\"new_caps\") is None, \"E-GATE-OUTCOME\", w,",
       "new": "                    R.check(True, \"E-GATE-OUTCOME\", w,",
       "k": "expired_gb_record_carries_no_choice"

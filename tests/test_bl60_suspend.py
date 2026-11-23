@@ -10,9 +10,10 @@ import pathlib
 import pytest
 
 from conftest import doc
-from vchlib import checks, timeutil
+from vchlib import checks_gates, timeutil
 from vchlib.bundle import load_variant
-from vchlib.checks import g5_escalation, run_all
+from vchlib.checks import run_all
+from vchlib.checks_gates import g5_escalation
 from vchlib.context import Ctx
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -98,7 +99,7 @@ def test_the_overturn_escalates_later_runs_only(s, monkeypatch):
     later = copy.deepcopy(c.runs[FOLLOWUP])
     later["run_id"] = "run-2026-11-01-001"
     c.runs["run-2026-11-01-001"] = later
-    real = checks.run_start
-    monkeypatch.setattr(checks, "run_start", lambda c_, rid: timeutil.parse_dt("2026-11-01T09:00:00+08:00")
+    real = checks_gates.run_start
+    monkeypatch.setattr(checks_gates, "run_start", lambda c_, rid: timeutil.parse_dt("2026-11-01T09:00:00+08:00")
                         if rid == "run-2026-11-01-001" else real(c_, rid))
     assert g5_escalation(c, "run-2026-11-01-001")
