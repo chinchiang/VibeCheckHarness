@@ -16,7 +16,7 @@ import re
 import pytest
 
 from conftest import codes, doc
-from vchlib import checks
+from vchlib import checks_calibration
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -90,14 +90,14 @@ def test_the_example_registers_pipeline_against_resampled_single_best(b):
     assert arms["4s"]["model_keys"] == arms["1"]["model_keys"] and arms["4s"]["n_samples"] == 3
     assert arms["4s"]["acceptance_rule"] == arms["4"]["acceptance_rule"]
     assert cal["result"]["primary_hypothesis"]["comparator"] == "4s"
-    assert checks.primary_comparison_problems(cal["config"]) == []
+    assert checks_calibration.primary_comparison_problems(cal["config"]) == []
     assert not issues(b, "E-CAL-ARMS") and not issues(b, "E-CAL-HYPOTHESIS")
 
 
 def test_a_result_for_another_comparator_is_refused(b):
     cal = cal_of(b)
     cal["result"]["primary_hypothesis"]["comparator"] = "2a"
-    got = checks.hypothesis_problems(cal["config"], cal["result"])
+    got = checks_calibration.hypothesis_problems(cal["config"], cal["result"])
     assert any("comparator '2a' is not the registered" in m for m in got), got
     assert {"E-CAL-HYPOTHESIS", "E-SCHEMA"} <= set(codes(b))           # the schema no longer lists 2a either
 
@@ -105,7 +105,7 @@ def test_a_result_for_another_comparator_is_refused(b):
 def test_a_missing_registration_is_refused(b):
     cal = cal_of(b)
     del cal["config"]["preregistration"]["primary_comparison"]
-    assert checks.primary_comparison_problems(cal["config"]) == ["preregistration.primary_comparison is required (treatment and comparator arms)"]
+    assert checks_calibration.primary_comparison_problems(cal["config"]) == ["preregistration.primary_comparison is required (treatment and comparator arms)"]
     assert any("primary_comparison is required" in m for m in issues(b, "E-CAL-ARMS"))
 
 
@@ -119,7 +119,7 @@ def test_a_missing_registration_is_refused(b):
 def test_the_comparator_arm_is_the_single_best_model_behind_the_same_back_end(b, field, value, needle):
     cfg = copy.deepcopy(cal_of(b)["config"])
     next(a for a in cfg["arms"] if a["arm"] == "4s")[field] = value
-    got = checks.primary_comparison_problems(cfg)
+    got = checks_calibration.primary_comparison_problems(cfg)
     assert any(needle in m for m in got), got
 
 
@@ -128,7 +128,7 @@ def test_the_registered_arms_must_exist(b, key):
     cfg = copy.deepcopy(cal_of(b)["config"])
     drop = cfg["preregistration"]["primary_comparison"][key]
     cfg["arms"] = [a for a in cfg["arms"] if a["arm"] != drop]
-    got = checks.primary_comparison_problems(cfg)
+    got = checks_calibration.primary_comparison_problems(cfg)
     assert got == [f"preregistration.primary_comparison.{key} {drop!r} is not an arm of config.arms"], got
 
 

@@ -30,5 +30,6 @@ status: accepted
 ## Consequences
 
 - **PR-D0**（2026-11-23）：`report.py`（共用基礎）與 `checks_config.py`（licenses、crosswalk、LLM-facing schemas、toolkit 四個群組，約 100 行、14 個突變）。`checks.py` 由 5,841 行減為約 5,560 行。簽章 helpers 這次沒搬：它們依賴定義在 ROE 段的 `MAX_CLOCK_SKEW` 與 `decision_time`。
-- 之後的順序（由易到難，每個另開 PR）：校準 → 開頭的小群組（schemas、JCS、derived、key registry、persons）→ 模型與委任 → ROE 與簽章 helpers、gates、runs 與 testcases、W4／verdicts、trace、audit。越後面耦合越深、型別錯誤越多（audit 有 38 個）。
+- **PR-D1**（2026-11-23）：`checks_calibration.py`（`g_calibration` 與它的 21 個函式、常數，544 行、75 個突變）。`checks.py` 減為約 5,020 行。為通過 mypy：`calibration.CAL_POLICY` 標註為 `dict[str, Any]`，另在 14 行加 `type: ignore`（都是上方已用 `num(...)` 或 schema 驗過、mypy 追不到的比較與呼叫）；其中 3 行原本是多行突變錨點的結尾，錨點改為不含行尾。`g_verdicts` 用到的 `BOUND_CLAIM_RE` 由 `checks` 匯入。
+- 之後的順序（由易到難，每個另開 PR）：開頭的小群組（schemas、JCS、derived、key registry、persons）→ 模型與委任 → ROE 與簽章 helpers、gates、runs 與 testcases、W4／verdicts、trace、audit。越後面耦合越深、型別錯誤越多（audit 有 38 個）。
 - 沒有排定完成時間；每一步都可以停在那裡，`checks.py` 仍然完整可用。

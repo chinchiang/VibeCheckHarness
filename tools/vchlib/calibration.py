@@ -6,6 +6,8 @@ refactor PR-B0, no behaviour change).
 """
 from __future__ import annotations
 
+from typing import Any
+
 import math
 
 from .context import Ctx
@@ -129,7 +131,7 @@ def high_precision_problems(h: dict, lim: float, icc=None, corpus_split: dict | 
 # r11: the policy constants of docs/05 §4.3 (near-zero rules, smoothing prior) and §5.7 (threshold search limits) live
 # here; calibration.yaml must state the same numbers (E-CAL-POLICY). v0.7 read them from the file and checked only
 # that the file agreed with itself, so wilson_lower_max: 0 and a lower theta turned LIKELY clusters CONFIRMED.
-CAL_POLICY = {
+CAL_POLICY: dict[str, Any] = {
     "smoothing_k": 10,
     "near_zero_rules": {"w_min": 0.2, "wilson_lower_max": 0.5, "n_min": 10, "abstain_rate_max": 0.3},
     "threshold_search": {"confirm_precision_floor": 0.9, "confirm_wilson_lower_floor": 0.8,

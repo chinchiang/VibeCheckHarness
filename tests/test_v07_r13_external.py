@@ -27,7 +27,7 @@ import pytest
 from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive
 from test_v07_r11_anchor import renumber
 from vchlib import adjudicate as adj
-from vchlib import calibration, checks, report
+from vchlib import calibration, checks, checks_calibration, report
 from vchlib.bundle import load_variant
 from vchlib.canonical import jcs
 from vchlib.checks import run_all
@@ -274,37 +274,37 @@ def test_hosting_is_required_by_the_schema(b):
 
 # ================================================================ 8. calibration intervals and the applications behind them
 def test_effective_n_is_the_design_effect_adjusted_count():
-    assert abs(checks.effective_n(64, 16) - 64 / 1.15) < 1e-9 and checks.effective_n(40, 40) == 40 and checks.effective_n(0, 0) == 0
+    assert abs(checks_calibration.effective_n(64, 16) - 64 / 1.15) < 1e-9 and checks_calibration.effective_n(40, 40) == 40 and checks_calibration.effective_n(0, 0) == 0
 
 
 def test_a_feasible_threshold_needs_ten_applications(b):
     cal = doc(b, "calibration.yaml").data
     cal["result"]["thresholds"]["theta_confirm"]["calibration"]["apps"] = apps_map(64, k=9)      # r14: apps are named
-    assert any("theta_confirm" in label and "clustering.min_apps 10" in m for label, m in checks.theta_problems(cal))
+    assert any("theta_confirm" in label and "clustering.min_apps 10" in m for label, m in checks_calibration.theta_problems(cal))
 
 
 def test_the_bounds_shrink_with_fewer_applications(b):
     cal = doc(b, "calibration.yaml").data
     cs = cal["result"]["thresholds"]["theta_confirm"]["calibration"]
     cs["apps"] = apps_map(64, k=12)                                       # 64 clusters from 12 apps (5-6 each): n_eff shrinks
-    problems = [m for _, m in checks.split_problems("theta_confirm", "calibration", cs, EXAMPLE_ICC)]
+    problems = [m for _, m in checks_calibration.split_problems("theta_confirm", "calibration", cs, EXAMPLE_ICC)]
     assert any("calibration.ci_low" in m and f"n_eff {calibration.effective_n_of(cs['apps'], EXAMPLE_ICC):.2f}" in m for m in problems)
 
 
 def test_the_example_bounds_are_recomputed_on_n_eff(b):
-    assert checks.theta_problems(doc(b, "calibration.yaml").data) == []
+    assert checks_calibration.theta_problems(doc(b, "calibration.yaml").data) == []
     cal = doc(b, "calibration.yaml").data
     cs = cal["result"]["thresholds"]["theta_confirm"]["calibration"]
     ne = calibration.effective_n_of(cs["apps"], EXAMPLE_ICC)                  # r14: the apps' own counts, icc 0.06
-    assert len(cs["apps"]) == 16 and cs["ci_low"] == round(checks.wilson_lower(59 / 64 * ne, ne), 4)
+    assert len(cs["apps"]) == 16 and cs["ci_low"] == round(checks_calibration.wilson_lower(59 / 64 * ne, ne), 4)
 
 
 def test_the_clustering_policy_is_pinned(b):
     cal = doc(b, "calibration.yaml").data
     cal["config"]["clustering"]["icc"] = 0.0
-    assert any("clustering.icc" in p for p in checks.policy_problems(cal["config"]))
+    assert any("clustering.icc" in p for p in checks_calibration.policy_problems(cal["config"]))
     cal["config"]["clustering"] = {"min_apps": 3, "icc": 0.05}
-    assert any("clustering.min_apps" in p for p in checks.policy_problems(cal["config"]))
+    assert any("clustering.min_apps" in p for p in checks_calibration.policy_problems(cal["config"]))
     assert calibration.CAL_POLICY["clustering"] == {"min_apps": 10, "icc": 0.05}
 
 

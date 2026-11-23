@@ -3,7 +3,7 @@
   "mutations": [
     {
       "name": "theta_reject above every refute weight",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    for name, side, verb in ((\"theta_confirm\", \"support\", \"confirms\"), (\"theta_reject\", \"refute\", \"rejects\")):",
       "new": "    for name, side, verb in ((\"theta_confirm\", \"support\", \"confirms\"),):",
       "k": "theta_reject_below_a_single"
@@ -59,42 +59,42 @@
     },
     {
       "name": "canary: E-CAL-CONTAMINATION",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "            R.check(x.get(\"model_key\") not in weighted, \"E-CAL-CONTAMINATION\", w,",
       "new": "            R.check(True, \"E-CAL-CONTAMINATION\", w,",
       "k": "reproduced_canary"
     },
     {
       "name": "sentinel in the holdout",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "            R.check(app.get(\"split\") == \"holdout\", \"E-CAL-CONTAMINATION\", w,",
       "new": "            R.check(True, \"E-CAL-CONTAMINATION\", w,",
       "k": "sentinel_app"
     },
     {
       "name": "holdout read after preregistration",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "        R.check(reg is not None and at is not None and at >= reg, \"E-CAL-CONTAMINATION\", w,",
       "new": "        R.check(True, \"E-CAL-CONTAMINATION\", w,",
       "k": "before_preregistration"
     },
     {
       "name": "flagged variant gap warns",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "        if isinstance(x, dict) and x.get(\"flagged\") is True and x.get(\"model_key\") in weighted:",
       "new": "        if False:",
       "k": "flagged_variant_gap"
     },
     {
       "name": "holdout n >= 10 to generalise",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "            if t.get(\"generalised\") is True and not (num(ho.get(\"n\")) and ho[\"n\"] >= HOLDOUT_MIN_N):",
       "new": "            if False:",
       "k": "tiny_holdout"
     },
     {
       "name": "abstention as a coin flip",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "        a = {sk: smoothed_rate(*effective_counts(x), k, abar[(mk, sk)]) for sk, x in sides.items()}",
       "new": "        a = {sk: smoothed_rate(x.get(\"correct\", 0), x.get(\"n\", 0), k, abar[(mk, sk)]) for sk, x in sides.items()}",
       "k": "abstaining_on_the_hard_cases or examples_are_clean"

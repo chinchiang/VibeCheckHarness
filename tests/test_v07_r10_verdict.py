@@ -22,7 +22,7 @@ import copy
 import itertools
 
 from conftest import doc, split_stats
-from vchlib import adjudicate, checks, derive, verdict
+from vchlib import adjudicate, checks_calibration, derive, verdict
 from vchlib.checks import run_all
 
 
@@ -50,14 +50,14 @@ def test_theta_reject_below_a_single_refute_weight_is_rejected(b):
     cal = doc(b, "calibration.yaml").data
     cal["result"]["thresholds"]["theta_reject"] = {"value": 1.0, **copy.deepcopy(GOOD),
                                                    "by_bucket": {"authz": {"value": 1.0, **copy.deepcopy(GOOD)}}}
-    assert any(label == "theta_reject/authz" and "single" in msg for label, msg in checks.theta_problems(cal))
+    assert any(label == "theta_reject/authz" and "single" in msg for label, msg in checks_calibration.theta_problems(cal))
 
 
 def test_theta_reject_above_every_refute_weight_is_accepted(b):
     cal = doc(b, "calibration.yaml").data
     cal["result"]["thresholds"]["theta_reject"] = {"value": 2.0, **copy.deepcopy(GOOD),
                                                    "by_bucket": {"authz": {"value": 2.0, **copy.deepcopy(GOOD)}}}
-    assert not [p for p in checks.theta_problems(cal) if p[0].startswith("theta_reject")]
+    assert not [p for p in checks_calibration.theta_problems(cal) if p[0].startswith("theta_reject")]
 
 
 # ================================================================ sampled is not a signal
@@ -171,17 +171,17 @@ def test_a_threshold_does_not_generalise_on_a_tiny_holdout(b):
     # r11: consistent raw counts (1 of 1), so the ONLY problem is the size; with `tp` missing the split was reported as "not a
     # count", which passed this test without the holdout-size check
     cal["result"]["thresholds"]["theta_confirm"]["by_bucket"]["authz"]["holdout"] = \
-        {"precision": 1.0, "recall": 1.0, "ci_low": round(checks.wilson_lower(1, 1), 4), "ci_high": round(checks.wilson_upper(1, 1), 4),
+        {"precision": 1.0, "recall": 1.0, "ci_low": round(checks_calibration.wilson_lower(1, 1), 4), "ci_high": round(checks_calibration.wilson_upper(1, 1), 4),
          "n": 1, "tp": 1}
-    got = [(label, msg) for label, msg in checks.theta_problems(cal) if label == "theta_confirm/authz"]
+    got = [(label, msg) for label, msg in checks_calibration.theta_problems(cal) if label == "theta_confirm/authz"]
     assert any("generalised on a holdout of 1 clusters" in msg for _, msg in got), got
     assert not any("not a count" in msg or "recomputed" in msg for _, msg in got), got
 
 
 # ================================================================ abstention as a coin flip
 def test_abstentions_count_in_the_denominator():
-    assert checks.effective_counts({"n": 12, "correct": 12, "n_abstain": 5}) == (12, 17)      # r14: not half a right answer
-    assert checks.effective_counts({"n": 12, "correct": 12}) == (12, 12)
+    assert checks_calibration.effective_counts({"n": 12, "correct": 12, "n_abstain": 5}) == (12, 17)      # r14: not half a right answer
+    assert checks_calibration.effective_counts({"n": 12, "correct": 12}) == (12, 12)
 
 
 def test_abstaining_on_the_hard_cases_does_not_keep_the_weight(b):
@@ -196,8 +196,8 @@ def test_abstaining_on_the_hard_cases_does_not_keep_the_weight(b):
     for sk in ("support", "refute"):
         mine = [r[sk] for r in rows if r["model_key"] == "nemotron_self"]
         abar = sum(x["correct"] for x in mine) / sum(x["n"] for x in mine)
-        a[sk] = checks.smoothed_rate(12, 12, k, abar)
-    lr = checks.lr_weights(a["support"], a["refute"])
+        a[sk] = checks_calibration.smoothed_rate(12, 12, k, abar)
+    lr = checks_calibration.lr_weights(a["support"], a["refute"])
     for sk in ("support", "refute"):
         row[sk].update({"a": round(a[sk], 4), "w": round(lr[sk], 4), "near_zero": False, "near_zero_reasons": []})
     assert any("nemotron_self/authz" in i.where for i in errors(b, "E-CAL-WEIGHT"))

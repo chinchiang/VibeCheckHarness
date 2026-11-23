@@ -15,7 +15,7 @@ import copy
 import pytest
 
 from conftest import doc, split_stats
-from vchlib import checks
+from vchlib import checks_calibration
 from vchlib.checks import run_all
 
 ROOT_DOCS = __import__("pathlib").Path(__file__).resolve().parents[1] / "docs"
@@ -70,7 +70,7 @@ def reject(cal_tp, cal_n, ho_tp=0, ho_n=45, generalised=True):
 def reject_problems(b, thr):
     cal = copy.deepcopy(doc(b, "calibration.yaml").data)
     cal["result"]["thresholds"]["theta_reject"] = thr
-    return [p for p in checks.theta_problems(cal) if p[0].startswith("theta_reject")]
+    return [p for p in checks_calibration.theta_problems(cal) if p[0].startswith("theta_reject")]
 
 
 def test_sixty_rejected_clusters_without_a_true_defect_are_feasible(b):

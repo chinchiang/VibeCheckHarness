@@ -3,35 +3,35 @@
  "mutations": [
   {
    "name": "B9: confirmatory is not derived",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_calibration.py",
    "old": "    if ph.get(\"confirmatory\") is not confirmatory:\n        out.append(f\"primary_hypothesis: confirmatory",
    "new": "    if False:\n        out.append(f\"primary_hypothesis: confirmatory",
    "k": "cannot_be_confirmatory or first_use_cannot"
   },
   {
    "name": "B9: any count is a first use",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_calibration.py",
    "old": "    confirmatory = type(prior) is int and prior == 0",
    "new": "    confirmatory = type(prior) is int",
    "k": "cannot_be_confirmatory or nothing_is_shown"
   },
   {
    "name": "B9: a missing count is a first use",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_calibration.py",
    "old": "    confirmatory = type(prior) is int and prior == 0",
    "new": "    confirmatory = not prior",
    "k": "first_use_cannot"
   },
   {
    "name": "B9: a reused holdout still shows a winner",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_calibration.py",
    "old": "    if not confirmatory:\n        want = \"not_shown\"",
    "new": "    if False:\n        want = \"not_shown\"",
    "k": "nothing_is_shown"
   },
   {
    "name": "B9: nothing is ever shown",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_calibration.py",
    "old": "    if not confirmatory:\n        want = \"not_shown\"",
    "new": "    if True:\n        want = \"not_shown\"",
    "k": "nothing_is_shown"

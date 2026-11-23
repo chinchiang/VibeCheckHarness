@@ -19,7 +19,7 @@ import re
 import pytest
 
 from conftest import doc
-from vchlib import checks
+from vchlib import checks_calibration
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -35,7 +35,7 @@ def cal(b):
 
 def hyp(b):
     c = cal(b)
-    return checks.hypothesis_problems(c["config"], c["result"])
+    return checks_calibration.hypothesis_problems(c["config"], c["result"])
 
 
 # ================================================================ B9: the holdout is used once
@@ -78,7 +78,7 @@ def test_a_first_use_cannot_call_itself_exploratory_or_omit_the_count(b):
     b2 = copy.deepcopy(cal(b))
     del b2["config"]["preregistration"]["holdout_prior_unblindings"]
     b2["result"]["primary_hypothesis"]["confirmatory"] = True
-    assert any("holdout_prior_unblindings None gives False" in m for m in checks.hypothesis_problems(b2["config"], b2["result"]))
+    assert any("holdout_prior_unblindings None gives False" in m for m in checks_calibration.hypothesis_problems(b2["config"], b2["result"]))
     del cal(b)["config"]["preregistration"]["holdout_prior_unblindings"]
     assert "E-SCHEMA" in run_all(b).codes()
 

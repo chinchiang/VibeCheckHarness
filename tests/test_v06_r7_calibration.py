@@ -15,7 +15,7 @@ import math
 import pytest
 
 from conftest import apps_map, doc, hp_rule
-from vchlib import calibration, checks, derive, verdict
+from vchlib import calibration, checks_calibration, derive, verdict
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -33,12 +33,12 @@ def row(b, mk, bucket):
 # ================================================================ 3.2 likelihood-ratio weights
 def test_an_always_support_verifier_carries_no_information():
     """TPR 0.95 and TNR 0.05: it supports almost everything, so SUPPORT says nothing (v0.5: w = 2*0.95-1 = 0.9)."""
-    w = checks.lr_weights(0.95, 0.05)
+    w = checks_calibration.lr_weights(0.95, 0.05)
     assert w["support"] == pytest.approx(0.0, abs=1e-9) and w["refute"] == 0.0
 
 
 def test_the_weights_use_both_sides():
-    w = checks.lr_weights(0.8467, 0.8252)
+    w = checks_calibration.lr_weights(0.8467, 0.8252)
     assert w["support"] == pytest.approx(math.log(0.8467 / 0.1748)) and w["refute"] == pytest.approx(math.log(0.8252 / 0.1533))
 
 

@@ -43,11 +43,13 @@ def test_the_group_list_and_its_order_are_unchanged():
     assert names[19:23] == ["g_licenses", "g_crosswalk", "g_llm_schemas", "g_toolkit"] and names[23] == "g_misc"
     for fn in checks.GROUPS[19:23]:
         assert fn[1].__module__ == "vchlib.checks_config"     # the four groups PR-D0 moved
+    assert names[18] == "g_calibration" and checks.GROUPS[18][1].__module__ == "vchlib.checks_calibration"   # PR-D1
 
 
 def test_the_shared_base_imports_no_check_group():
     assert imports_of("report") <= {"timeutil", "context"}
     assert not {m for m in imports_of("checks_config") if m.startswith("checks")}
+    assert not {m for m in imports_of("checks_calibration") if m.startswith("checks")}
     for name in ("Issue", "Report", "doc_guard", "ts", "format_checker"):
         assert getattr(report, name).__module__ == "vchlib.report", name
     for name in ("GATE_ROLES", "FINAL_STATUSES", "TERMINAL_RUN_STATES", "LEGAL_GATE", "StrictValidator", "FORMATS"):
@@ -62,12 +64,15 @@ def test_nothing_below_the_checker_imports_it():
 
 
 def test_checks_keeps_no_re_exports_of_moved_names():
-    assert checks.__all__ == ["run_all", "GROUPS", "wilson_lower", "content_hash"]
+    assert checks.__all__ == ["run_all", "GROUPS", "content_hash"]
     src = (PKG / "checks.py").read_text(encoding="utf-8")
-    for moved in ("class Report", "class Issue", "class doc_guard", "def ts(", "GATE_ROLES = {", "def g_licenses(", "def g_toolkit("):
+    for moved in ("class Report", "class Issue", "class doc_guard", "def ts(", "GATE_ROLES = {", "def g_licenses(", "def g_toolkit(",
+                  "def g_calibration(", "def theta_problems(", "def wilson_lower("):
         assert moved not in src, moved
     tests_and_tools = [p for p in (ROOT / "tests").glob("*.py") if p.name != "test_split_checks.py"] + [ROOT / "tools" / "build_variants.py"]
     for p in tests_and_tools:
         text = p.read_text(encoding="utf-8")
-        for stale in ("checks.Report", "checks.Issue", "checks.FINAL_STATUSES", "checks.TERMINAL_RUN_STATES", "checks.LEGAL_GATE"):
+        for stale in ("checks.Report", "checks.Issue", "checks.FINAL_STATUSES", "checks.TERMINAL_RUN_STATES", "checks.LEGAL_GATE",
+                      "checks.theta_problems", "checks.hypothesis_problems", "checks.wilson_lower", "checks.wilson_upper",
+                      "checks.lr_weights", "checks.effective_counts", "checks.policy_problems"):
             assert stale not in text, (p.name, stale)

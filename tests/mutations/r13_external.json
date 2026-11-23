@@ -122,21 +122,21 @@
     },
     {
       "name": "no design effect",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    return n / (1 + (n / n_apps - 1) * icc)\n",
       "new": "    return float(n)\n",
       "k": "effective_n_is_the_design_effect or bounds_shrink or example_bounds_are_recomputed or forty_hits"
     },
     {
       "name": "feasible on three applications",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "            if split_n_apps(cs) < min_apps:\n",
       "new": "            if False:\n",
       "k": "feasible_threshold_needs_ten"
     },
     {
       "name": "clustering not pinned",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    for block, sec in ((\"near_zero_rules\", \"§4.3\"), (\"threshold_search\", \"§5.7\"), (\"clustering\", \"§5.7\")):\n",
       "new": "    for block, sec in ((\"near_zero_rules\", \"§4.3\"), (\"threshold_search\", \"§5.7\")):\n",
       "k": "clustering_policy_is_pinned"

@@ -122,21 +122,21 @@
     },
     {
       "name": "ext4 holdout counts",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "            if not (count_problems(R, hw, h.get(\"holdout_tp\"), h.get(\"holdout_n\"), \"holdout_tp\")",
       "new": "            if not (True",
       "k": "holdout_tp_cannot"
     },
     {
       "name": "ext4 correct <= n",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "        if not all(count_problems(R, f\"{w} weights {mk}/{row.get('cwe_bucket')} {sk}\", x.get(\"correct\"), x.get(\"n\"), \"correct\")",
       "new": "        if not all(True",
       "k": "correct_cannot_exceed"
     },
     {
       "name": "ext4 theta range",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "            R.check(val is None or (isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val) and val >= THETA_MIN),",
       "new": "            R.check(True,",
       "k": "positive_finite_score"

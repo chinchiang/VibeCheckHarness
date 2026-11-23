@@ -3,21 +3,21 @@
   "mutations": [
     {
       "name": "reject branch reads precision as the true-defect share",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                if not (num(cs.get(\"precision\")) and cs[\"precision\"] <= cap + 1e-9):",
       "new": "                if not (num(cs.get(\"precision\")) and 1 - cs[\"precision\"] <= cap + 1e-9):",
       "k": "without_a_true_defect or only_of_true_defects"
     },
     {
       "name": "reject branch uses the recomputed Wilson upper",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                if not (num(cs.get(\"ci_high\")) and cs[\"ci_high\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
       "new": "                if not (num(cs.get(\"ci_high\")) and 1 - cs[\"ci_low\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
       "k": "smallest_error_free_rejection_set"
     },
     {
       "name": "reject holdout margin",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "ho[\"precision\"] <= cap + 0.05 + 1e-9):",
       "new": "ho[\"precision\"] <= 1.0):",
       "k": "high_true_defect_share"

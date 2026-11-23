@@ -94,14 +94,14 @@
     },
     {
       "name": "the unit is pinned",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    if ind.get(\"unit\") != CAL_POLICY[\"independence_unit\"]:",
       "new": "    if False:",
       "k": "pins_the_split_rule"
     },
     {
       "name": "split evidence is checked",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "        if not (isinstance(x, dict) and derive.independence_evidence_ok(x)):",
       "new": "        if not isinstance(x, dict):",
       "k": "split_without_evidence"

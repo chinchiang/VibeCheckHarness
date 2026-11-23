@@ -17,7 +17,7 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
-from vchlib import checks, crypto, derive, report, verdict
+from vchlib import checks_calibration, crypto, derive, report, verdict
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -85,7 +85,7 @@ def test_tp_above_n_is_not_a_count(b, keys):
 
 
 def test_wilson_upper_matches_the_known_value():
-    assert round(checks.wilson_upper(0, 60), 4) == 0.0602          # docs/05 §5.7: 0 of 60 rejected -> upper about 0.060 and checks.wilson_upper(0, 0) == 0.0
+    assert round(checks_calibration.wilson_upper(0, 60), 4) == 0.0602          # docs/05 §5.7: 0 of 60 rejected -> upper about 0.060 and checks_calibration.wilson_upper(0, 0) == 0.0
 
 
 def test_every_weighted_model_needs_a_canary_result(b, keys):

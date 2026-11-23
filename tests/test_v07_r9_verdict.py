@@ -20,7 +20,7 @@ import copy
 import pytest
 
 from conftest import doc, rederive
-from vchlib import adjudicate, checks, context, derive, verdict
+from vchlib import adjudicate, checks, checks_calibration, context, derive, verdict
 from vchlib.checks import run_all
 
 AUDIT = "audit-event.run-2026-09-23-001.example.jsonl"
@@ -163,7 +163,7 @@ def test_theta_confirm_is_above_any_single_vote(b):
 
 def test_the_example_thresholds_meet_the_limits(b):
     c = context.Ctx(b)
-    assert checks.theta_problems(c.calibration) == []
+    assert checks_calibration.theta_problems(c.calibration) == []
 
 
 # ================================================================ W4 author independence

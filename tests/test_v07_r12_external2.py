@@ -19,7 +19,7 @@ import pytest
 
 from conftest import doc
 from vchlib import adjudicate as adj
-from vchlib import checks, context, derive, report, verdict
+from vchlib import checks, checks_calibration, context, derive, report, verdict
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -173,13 +173,13 @@ def test_independent_sources_and_diversity_use_the_same_key(b, monkeypatch):
 def test_the_calibration_policy_pins_the_split_rule(b, keys):
     cal = doc(b, "calibration.yaml").data
     cal["config"]["independence"] = {"unit": "lineage", "lineage_split": []}
-    assert any("independence.unit" in p for p in checks.policy_problems(cal["config"]))
+    assert any("independence.unit" in p for p in checks_calibration.policy_problems(cal["config"]))
 
 
 def test_a_split_without_evidence_is_rejected(b):
     cal = doc(b, "calibration.yaml").data
     cal["config"]["independence"] = {"unit": "family", "lineage_split": evidence(upper=0.7)}
-    assert any("lineage_split" in p for p in checks.policy_problems(cal["config"]))
+    assert any("lineage_split" in p for p in checks_calibration.policy_problems(cal["config"]))
 
 
 def test_the_rule_version_is_05_v0_13(b):

@@ -266,6 +266,15 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py：校準群組（PR-D1）
+[ADR 0003](docs/adr/0003-split-checks.md) 的第二步（發現 E8）：
+- 新模組 `tools/vchlib/checks_calibration.py`：`g_calibration` 與校準段的 21 個函式、常數（`theta_problems`、`hypothesis_problems`、`primary_comparison_problems`、`preregistration_problems`、`policy_problems`、`split_problems`、`contamination_problems`、`wilson_lower`／`wilson_upper`、`smoothed_rate`、`lr_weights`、`effective_counts`、`effective_n`、`required_holdout_n`、`bucket_score_max`、`BOUND_CLAIM_RE` 等）。原文搬移，544 行。
+- `checks.py` 由 5,563 行減為 5,016 行；`GROUPS` 仍是 24 組、順序不變；`checks.__all__` 不再列 `wilson_lower`。`g_verdicts` 用到的 `BOUND_CLAIM_RE` 由 `checks` 從新模組匯入。
+- 為通過 mypy（新模組不得列入豁免）：`calibration.CAL_POLICY` 標註為 `dict[str, Any]`；新模組有 14 行加上 `type: ignore`，都是上方已用 `num(...)` 或 schema 驗過、mypy 追不到的比較與呼叫。沒有改任何邏輯。
+- 不留 re-export：13 個測試檔（含 `conftest.py`）的 `checks.<校準函式>` 改為 `checks_calibration.<…>`；`docs/05` 與 `docs/schemas/README.md` 中的程式名稱引用同步（12 處），規則文字沒有動。
+- 突變清單：15 份清單的 75 個突變改指 `checks_calibration.py`。其中 3 個的錨點原本以換行結尾，而那一行現在多了 `type: ignore` 註解，所以錨點改為不含行尾（`calibration_theta_reach.json` 2 個、`r14_verdict.json` 1 個）；`split_checks.json` 的 `__all__` 錨點同步，並增加 1 個突變。
+- 等價證據：`run_all` 對主範例、四個變體與一份刻意弄壞的 bundle 回報的 issue、各群組檢查數與總檢查數，搬移前後以 `cmp` 比對完全相同；`sign_examples.py` 0 個檔案變動；331 個錯誤碼；15 份受影響的突變清單在 `main` 與本分支逐項比對（結果見 PR 說明）。
+
 ### 拆分 checks.py 的第一步：共用基礎與四個小群組（PR-D0）
 2026-11-22 審查的發現 E8（[ADR 0003](docs/adr/0003-split-checks.md)；使用者決定處理，推翻先前「不做」的判斷）：
 - 新模組 `tools/vchlib/report.py`：`Issue`、`Report`、`doc_guard`、`ts`、格式檢查器（`StrictValidator`、`format_checker` 等）與多個群組共用的常數（`GATE_ROLES`、`FINAL_STATUSES`、`TERMINAL_RUN_STATES` 等）。原文搬移。
