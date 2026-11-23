@@ -283,6 +283,15 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py：完整性群組（PR-D2）
+[ADR 0003](docs/adr/0003-split-checks.md) 的第三步（發現 E8）：
+- 新模組 `tools/vchlib/checks_integrity.py`：`g_schemas`、`g_jcs`、`g_derived`、`g_key_registry`、`g_persons` 五個群組，以及 `JCS_VECTORS` 與 `person_refs`。原文搬移，243 行。搬走的程式不依賴 `checks` 中任何其他名稱。
+- `checks.py` 由 5,016 行減為 4,789 行；`GROUPS` 仍是 24 組、順序不變。`g_signatures` 留在 `checks`（與簽章 helpers 一起，留到 ROE 那一步）。
+- 為通過 mypy：`g_jcs` 有 2 行加上 `type: ignore`（選用的 `rfc8785` 模組在匯入失敗時設為 `None`；把 RFC 向量傳給 `rfc8785.dumps`）。沒有改任何邏輯。
+- 不留 re-export：`test_bl66_config.py`、`test_v07_r12_external2.py`、`test_v07_r13_external.py`、`test_validator.py` 的 `checks.JCS_VECTORS`／`checks.jcs`／`checks.g_jcs` 改為 `checks_integrity.<…>`。這些測試都斷言 patch 之後會出現 `E-JCS`，所以 patch 目標若沒有跟著改，測試會失敗而不是照樣通過。`canonical.py` 與 `expectations.py` 兩處註解中的名稱同步。
+- 突變清單：5 份清單的 30 個突變改指 `checks_integrity.py`。`r12_external2.json` 的「rfc8785 is optional」錨點原本以換行結尾，那一行現在多了 `type: ignore` 註解，所以錨點改為不含行尾。`split_checks.json` 增加 2 個突變。
+- 等價證據：`run_all` 對主範例、四個變體與一份刻意弄壞的 bundle 回報的 issue、各群組檢查數與總檢查數，搬移前後以 `cmp` 比對完全相同；`sign_examples.py` 0 個檔案變動；331 個錯誤碼；5 份受影響的突變清單在 `main` 與本分支逐項比對（結果見 PR 說明）。
+
 ### 拆分 checks.py：校準群組（PR-D1）
 [ADR 0003](docs/adr/0003-split-checks.md) 的第二步（發現 E8）：
 - 新模組 `tools/vchlib/checks_calibration.py`：`g_calibration` 與校準段的 21 個函式、常數（`theta_problems`、`hypothesis_problems`、`primary_comparison_problems`、`preregistration_problems`、`policy_problems`、`split_problems`、`contamination_problems`、`wilson_lower`／`wilson_upper`、`smoothed_rate`、`lr_weights`、`effective_counts`、`effective_n`、`required_holdout_n`、`bucket_score_max`、`BOUND_CLAIM_RE` 等）。原文搬移，544 行。

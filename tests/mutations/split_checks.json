@@ -42,6 +42,20 @@
    "old": "    (\"calibration\", g_calibration),\n    (\"licenses and requirements\", g_licenses),",
    "new": "    (\"licenses and requirements\", g_licenses),\n    (\"calibration\", g_calibration),",
    "k": "order_are_unchanged"
+  },
+  {
+   "name": "an integrity group changes place",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"key registry\", g_key_registry),\n    (\"Ed25519 signatures\", g_signatures),",
+   "new": "    (\"Ed25519 signatures\", g_signatures),\n    (\"key registry\", g_key_registry),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "the integrity module imports the facade",
+   "file": "tools/vchlib/checks_integrity.py",
+   "old": "def g_persons(R: Report, c: Ctx):\n",
+   "new": "def g_persons(R: Report, c: Ctx):\n    from . import checks_config  # noqa: F401\n",
+   "k": "imports_no_check_group"
   }
  ]
 }

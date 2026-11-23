@@ -9,7 +9,7 @@
      "old": "            R.check(head.get(\"readjudicated_by\") != \"W3_adjudicate\", \"E-VERDICT-G2\", ids[heads[0]].path,",
      "new": "            R.check(True, \"E-VERDICT-G2\", ids[heads[0]].path,",
      "k": "post_g2_verdict"},
-    {"name": "schema coverage on the main bundle only", "file": "tools/vchlib/checks.py",
+    {"name": "schema coverage on the main bundle only", "file": "tools/vchlib/checks_integrity.py",
      "old": "            if getattr(b, \"variant\", None) is None:\n                R.check(name in seen, \"E-SCHEMA-NO-EXAMPLE\"",
      "new": "            if True:\n                R.check(name in seen, \"E-SCHEMA-NO-EXAMPLE\"",
      "k": "main_bundle_only or validates_cleanly"},

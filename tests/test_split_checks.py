@@ -10,7 +10,7 @@ import ast
 import importlib.util
 import pathlib
 
-from vchlib import checks, checks_config, report
+from vchlib import checks, checks_config, checks_integrity, report
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PKG = ROOT / "tools" / "vchlib"
@@ -44,17 +44,23 @@ def test_the_group_list_and_its_order_are_unchanged():
     for fn in checks.GROUPS[19:23]:
         assert fn[1].__module__ == "vchlib.checks_config"     # the four groups PR-D0 moved
     assert names[18] == "g_calibration" and checks.GROUPS[18][1].__module__ == "vchlib.checks_calibration"   # PR-D1
+    assert names[:6] == ["g_schemas", "g_jcs", "g_derived", "g_key_registry", "g_signatures", "g_persons"]
+    for i in (0, 1, 2, 3, 5):
+        assert checks.GROUPS[i][1].__module__ == "vchlib.checks_integrity", names[i]      # the five groups PR-D2 moved
+    assert checks.GROUPS[4][1].__module__ == "vchlib.checks"       # g_signatures stays with the signature helpers
 
 
 def test_the_shared_base_imports_no_check_group():
     assert imports_of("report") <= {"timeutil", "context"}
     assert not {m for m in imports_of("checks_config") if m.startswith("checks")}
     assert not {m for m in imports_of("checks_calibration") if m.startswith("checks")}
+    assert not {m for m in imports_of("checks_integrity") if m.startswith("checks")}
     for name in ("Issue", "Report", "doc_guard", "ts", "format_checker"):
         assert getattr(report, name).__module__ == "vchlib.report", name
     for name in ("GATE_ROLES", "FINAL_STATUSES", "TERMINAL_RUN_STATES", "LEGAL_GATE", "StrictValidator", "FORMATS"):
         assert hasattr(report, name), name
     assert checks_config.Report is report.Report and checks.Report is report.Report      # one Report class, not copies
+    assert checks_integrity.Report is report.Report
 
 
 def test_nothing_below_the_checker_imports_it():
