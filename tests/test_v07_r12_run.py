@@ -14,7 +14,7 @@ import pathlib
 import pytest
 
 from conftest import doc, rederive
-from vchlib import checks
+from vchlib import checks_roe
 from vchlib.bundle import load_variant
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -38,7 +38,7 @@ def renumber(log):
 
 def expected(b):
     c = Ctx(b)
-    return checks.expected_gaps(c, RID, c.runs[RID])
+    return checks_roe.expected_gaps(c, RID, c.runs[RID])
 
 
 @pytest.fixture(scope="module")
@@ -116,7 +116,7 @@ def test_the_lite_variant_lists_its_manual_testcase():
     run = doc(lite, "run.example.json").data
     assert any(g["kind"] == "manual" and g["ref"] == "TC-027-01" for g in run["gaps"]) and run["status"] == "COMPLETED"
     c = Ctx(lite)
-    assert ("manual", "TC-027-01") in checks.expected_gaps(c, RID, c.runs[RID])          # a MANUAL testcase is derived
+    assert ("manual", "TC-027-01") in checks_roe.expected_gaps(c, RID, c.runs[RID])          # a MANUAL testcase is derived
     assert run_all(lite).errors == []
 
 

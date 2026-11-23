@@ -124,7 +124,7 @@ def gate_event(b, rec_id):
 
 
 def test_decision_time_is_the_audit_writer_receive_time(b):
-    from vchlib.checks import decision_time
+    from vchlib.checks_signatures import decision_time
     from vchlib.context import Ctx
     from vchlib import timeutil
     rec = doc(b, G1).data

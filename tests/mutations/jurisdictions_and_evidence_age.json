@@ -3,7 +3,7 @@
  "mutations": [
   {
    "name": "C3: the lists are not compared",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_roe.py",
    "old": "    for j in missing_jurisdictions(c):\n        R.check(False, \"E-ROE-TRANSFER\", w,",
    "new": "    for j in []:\n        R.check(False, \"E-ROE-TRANSFER\", w,",
    "k": "leaves_out_the_destination or leaves_out_the_source"

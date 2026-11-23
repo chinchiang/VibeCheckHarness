@@ -59,7 +59,7 @@
     },
     {
       "name": "A3: an interrupted job is no gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        elif isinstance(job, dict) and job.get(\"status\") in (\"INTERRUPTED\", \"STOPPED\"):",
       "new": "        elif False:",
       "k": "interrupted_job_is_a_gap"
@@ -87,21 +87,21 @@
     },
     {
       "name": "A5: an all-ok VERIFY_FAILED",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_signatures.py",
       "old": "                    R.check(any(not r[\"ok\"] for r in real) or any(r.get(\"reason\") for r in ver.get(\"signer_results\") or [] if isinstance(r, dict)),",
       "new": "                    R.check(True,",
       "k": "verify_failed_record_names_what_failed"
     },
     {
       "name": "A6: needs_info at the end of G4 is no gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        if st.decision in (\"reject\", \"needs_info\"):\n            out[(\"g4_rejected\", tcid)] = f\"{st.decision} at G4\"",
       "new": "        if st.decision in (\"reject\",):\n            out[(\"g4_rejected\", tcid)] = f\"{st.decision} at G4\"",
       "k": "final_needs_info_at_g4_is_a_gap"
     },
     {
       "name": "A6: an undecided testcase is no gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "            if tc and (tc.data.get(\"tool_binding\") or {}).get(\"kind\") != \"MANUAL\" and tcid not in g4_states:",
       "new": "            if False:",
       "k": "no_g4_decision_covers"

@@ -9,7 +9,7 @@ C6  `providers[].zdr: confirmed` was one word in a signed file: no date, no scop
 C4  A shared-platform target was recognised by its host name only, so a custom domain that is a CNAME to acme.vercel.app
     proved ownership with dns_txt and needed no platform policy. The executor records the CNAME names it resolved
     (run.ownership_results[].cname_chain); an ok result whose chain reaches a shared platform needs platform_project of
-    that platform and its platform_policies entry (checks.cname_platform_problems, E-ROE-PLATFORM).
+    that platform and its platform_policies entry (checks_roe.cname_platform_problems, E-ROE-PLATFORM).
 
 Each `..._is_refused` test failed before the change and passes after it (tests/mutations/zdr_and_cname.json); the
 `..._still_...` tests check that nothing legitimate is refused. See CONTRIBUTING.md."""
@@ -19,7 +19,7 @@ import pathlib
 import pytest
 
 from conftest import doc
-from vchlib import checks, checks_engagement, report
+from vchlib import checks_engagement, checks_roe, report
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -154,25 +154,25 @@ def test_the_platform_policy_is_needed_too(b):
     t = dict(target(b), ownership_proof={"method": "platform_project", "platform": "vercel", "project_ref": "p", "evidence_ref": "doc:x"})
     o = dict(result(b), method="platform_project", cname_chain=["acme.vercel.app"])
     assert not any(p.get("platform") == "vercel" for p in c.roe.get("platform_policies") or [])
-    assert checks.cname_platform_problems(c, t, o) == [
+    assert checks_roe.cname_platform_problems(c, t, o) == [
         "tgt-staging-api: its host resolves through acme.vercel.app (a shared vercel domain) but the ROE has no platform_policies entry for vercel"]
     c.roe.setdefault("platform_policies", []).append({"platform": "vercel"})
-    assert checks.cname_platform_problems(c, t, o) == []
+    assert checks_roe.cname_platform_problems(c, t, o) == []
 
 
 def test_an_ordinary_cname_chain_still_passes(b):
     result(b)["cname_chain"] = ["lb.example.net", "edge-123.cdn.example.org", "notvercel.app.example.com"]
     assert msgs(b, "E-ROE-PLATFORM") == []
-    assert checks.chain_platforms(["evilvercel.app", "vercel.app.example.com", 7, None]) == {}
-    assert checks.chain_platforms(["a.vercel.app", "b.example.com"]) == {"a.vercel.app": "vercel"}
+    assert checks_roe.chain_platforms(["evilvercel.app", "vercel.app.example.com", 7, None]) == {}
+    assert checks_roe.chain_platforms(["a.vercel.app", "b.example.com"]) == {"a.vercel.app": "vercel"}
 
 
 def test_a_failed_check_is_not_an_error(b):
     """The executor refusing the target (ok false) is the rule working; the validator only rejects an ok result."""
     c = Ctx(b)
     o = dict(result(b), ok=False, cname_chain=["acme.vercel.app"])
-    assert checks.cname_platform_problems(c, target(b), o) == []
-    assert checks.cname_platform_problems(c, target(b), dict(o, ok=True)) != []
+    assert checks_roe.cname_platform_problems(c, target(b), o) == []
+    assert checks_roe.cname_platform_problems(c, target(b), dict(o, ok=True)) != []
 
 
 def test_the_run_schema_requires_the_chain(b):
@@ -189,7 +189,7 @@ def test_the_documents_state_both_rules_and_what_they_miss():
     assert {"`zdr_models`", "`zdr_confirmed_at`", "`zdr_expires_at`"} <= rows
     assert "`zdr_models` 列出這個模型、`zdr_confirmed_at` ≤ `issued_at`、`zdr_expires_at` ≥ `validity.not_after`（`checks_engagement.zdr_problems`）" in d08
     sec = d08.split("### 11.9 共享平台網域的所有權證明", 1)[1].split("\n### ", 1)[0]
-    assert "`run.ownership_results[].cname_chain`" in sec and "`checks.cname_platform_problems`" in sec
+    assert "`run.ownership_results[].cname_chain`" in sec and "`checks_roe.cname_platform_problems`" in sec
     assert "以 A／ALIAS 記錄直接指向平台 IP" in sec and "`cname.vercel-dns.com`" in sec          # what it cannot see
     d06 = text("docs/06-security-legal-limitations.md")
     row = next(ln for ln in d06.splitlines() if ln.startswith("| 37 |"))

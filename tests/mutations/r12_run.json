@@ -10,49 +10,49 @@
     },
     {
       "name": "a MANUAL W4 requirement is a gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "            out[(\"manual\", x.get(\"requirement_id\"))] = \"W4 requirement marked MANUAL\"",
       "new": "            out[(\"manual\", None)] = \"W4 requirement marked MANUAL\"",
       "k": "examples_list_their_derived"
     },
     {
       "name": "a MANUAL testcase is a gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        if tc and (tc.data.get(\"tool_binding\") or {}).get(\"kind\") == \"MANUAL\":\n            out[(\"manual\", tcid)]",
       "new": "        if False:\n            out[(\"manual\", tcid)]",
       "k": "lite_variant_lists"
     },
     {
       "name": "G5 skip reasons map to g5_skipped",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "\"g5_rejected\": \"g5_skipped\", \"g5_expired\": \"g5_skipped\",",
       "new": "",
       "k": "skip_reason_maps"
     },
     {
       "name": "a G4 reject at the end of the log is a gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        if st.decision in (\"reject\", \"needs_info\"):\n            out[(\"g4_rejected\", tcid)]",
       "new": "        if False:\n            out[(\"g4_rejected\", tcid)]",
       "k": "g4_reject_at"
     },
     {
       "name": "a failed ownership check is a gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        if isinstance(o, dict) and o.get(\"ok\") is False:",
       "new": "        if False:",
       "k": "failed_ownership"
     },
     {
       "name": "a result that did not run is a gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        if x.data.get(\"run_id\") == rid and x.data.get(\"outcome\") in UNRUN_OUTCOMES:",
       "new": "        if False:",
       "k": "did_not_run"
     },
     {
       "name": "a GB stop is a gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        if (gb.data.get(\"gb\") or {}).get(\"choice\") == \"stop_phase\":",
       "new": "        if False:",
       "k": "gb_stop"
