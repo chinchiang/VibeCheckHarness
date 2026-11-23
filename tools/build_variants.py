@@ -161,11 +161,11 @@ def v_lite(b: Bundle, keys) -> None:
 
 def _refresh_report(b: Bundle, rid: str) -> None:
     """The report manifest's counts and metrics after the run's verdicts changed (the validator recomputes them)."""
-    from vchlib import checks, context, verdict
+    from vchlib import checks, context, report, verdict
     rm = next(d for d in b.docs if d.kind == "report-manifest" and d.data.get("run_id") == rid).data
     c = context.Ctx(b)
     heads = verdict.verdict_heads(c, c.runs[rid]["verdicts"])
-    rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
+    rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in report.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, rid)
 
 

@@ -8,7 +8,7 @@ from referencing import Registry, Resource
 
 from conftest import ROOT, codes, doc
 from vchlib import llm_schema as L
-from vchlib.checks import StrictValidator, format_checker
+from vchlib.report import StrictValidator, format_checker
 
 
 def schemas(b):

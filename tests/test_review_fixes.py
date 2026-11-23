@@ -6,7 +6,7 @@ verifier-only votes. Each rule has a positive and a negative case."""
 import pytest
 
 from conftest import codes, doc, rederive
-from vchlib import checks, cli, jsonstrict, safety
+from vchlib import cli, jsonstrict, report, safety
 from vchlib.bundle import dump_jsonl, load_events, read_jsonl_lines, reload_json
 from vchlib.checks import run_all
 
@@ -117,7 +117,7 @@ def test_float_in_integer_schema_field_is_rejected(b):
 
 
 def test_bool_is_not_an_integer():
-    assert checks._strict_integer(None, 3) and not checks._strict_integer(None, 3.0) and not checks._strict_integer(None, True)
+    assert report._strict_integer(None, 3) and not report._strict_integer(None, 3.0) and not report._strict_integer(None, True)
 
 
 # ================================================================ 3 broken audit log short-circuit
@@ -210,12 +210,12 @@ def make_placeholder(b, key="gpt_flagship"):
 
 @pytest.mark.parametrize("lit", ["openai/TBD", "openai/{model-id}", "openai/<id>", "nvidia_nim/todo", "x/FIXME-later", "x/模型（實作時確認）"])
 def test_placeholder_pattern_matches(lit):
-    assert checks.PLACEHOLDER_ID.search(lit)
+    assert report.PLACEHOLDER_ID.search(lit)
 
 
 @pytest.mark.parametrize("lit", ["openai/gpt-5", "anthropic/claude-sonnet-4-5", "x/tbdx", "x/stodo"])
 def test_placeholder_pattern_ignores_real_ids(lit):
-    assert not checks.PLACEHOLDER_ID.search(lit)
+    assert not report.PLACEHOLDER_ID.search(lit)
 
 
 @pytest.mark.parametrize("lit", ["openai/TBD", "openai/{model-id}"])

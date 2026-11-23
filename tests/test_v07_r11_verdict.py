@@ -17,7 +17,7 @@ import pytest
 
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
-from vchlib import checks, crypto, derive, verdict
+from vchlib import checks, crypto, derive, report, verdict
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -211,7 +211,7 @@ def test_regression_fixed_is_derived_from_the_parent_verdict_and_the_pass(b):
 
 
 def test_fixed_is_a_final_status_and_never_provisional():
-    assert "FIXED" in checks.FINAL_STATUSES
+    assert "FIXED" in report.FINAL_STATUSES
     out = adj.adjudicate(adj.Inputs(regression_fixed=True))
     assert out.row in (1, 2, 3, 4, 5, 10, 14)
 

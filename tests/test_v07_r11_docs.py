@@ -9,7 +9,7 @@ Each test failed on the PR3 head and passes with this PR (tests/mutations/r11_do
 import pathlib
 import re
 
-from vchlib import checks
+from vchlib import checks, report
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -77,7 +77,7 @@ def test_the_glossary_has_the_r11_terms():
 
 def test_the_glossary_lists_every_final_status():
     row = [ln for ln in text("README.md").splitlines() if ln.startswith("| 裁決狀態 |")][0]
-    for status in checks.FINAL_STATUSES:
+    for status in report.FINAL_STATUSES:
         assert f"`{status}`" in row, status
 
 

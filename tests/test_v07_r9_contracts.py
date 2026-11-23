@@ -13,7 +13,7 @@ import copy
 import json
 
 from conftest import doc, rederive
-from vchlib import checks, context
+from vchlib import checks, context, report
 from vchlib.bundle import reload_json
 from vchlib.checks import run_all
 
@@ -67,7 +67,7 @@ def spot(b, kind, item, who="heidi", profile=None):
     c = context.Ctx(b)
     if profile:
         c.engagement = {**c.engagement, "assurance_profile": profile}
-    R = checks.Report()
+    R = report.Report()
     ev = {"actor": {"kind": "human", "id": who}, "payload": {"item_kind": kind, "item_id": item, "agrees": True}}
     checks.spot_check(R, c, "probe", c.runs[RUN], ev)
     return [i for i in R.errors if i.code == "E-SPOT-CHECK"]

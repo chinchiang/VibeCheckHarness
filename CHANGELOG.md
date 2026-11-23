@@ -266,6 +266,20 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py 的第一步：共用基礎與四個小群組（PR-D0）
+2026-11-22 審查的發現 E8（[ADR 0003](docs/adr/0003-split-checks.md)；使用者決定處理，推翻先前「不做」的判斷）：
+- 新模組 `tools/vchlib/report.py`：`Issue`、`Report`、`doc_guard`、`ts`、格式檢查器（`StrictValidator`、`format_checker` 等）與多個群組共用的常數（`GATE_ROLES`、`FINAL_STATUSES`、`TERMINAL_RUN_STATES` 等）。原文搬移。
+- 新模組 `tools/vchlib/checks_config.py`：`g_licenses`、`g_crosswalk`、`g_llm_schemas`、`g_toolkit` 四個群組。原文搬移；為了通過 mypy 加了三個附理由的 `type: ignore`，沒有改任何邏輯。
+- `checks.py` 由 5,841 行減為 5,563 行；`GROUPS` 仍是 24 組、順序不變。不留 re-export：測試與 `build_variants.py` 改用 `report.Report`、`report.FINAL_STATUSES` 等（12 個檔案），`checks.__all__` 不再列 `Report`、`Issue`。`run_all` 仍在 `checks`。
+- 連帶：`tests/test_seal.py` 的 AST 檢查由只掃 `checks.py` 擴大到 `checks*.py` 與 `report.py`；型別棘輪測試的檔案數改為依目錄計算（22）；ruff 對 `checks.py` 的 F402 豁免移除（`dataclasses.field` 的匯入隨 `Report` 搬走，不再有遮蔽），並更正註解中寫錯的函式名稱。
+- 突變清單：14 個突變的 `file` 改指 `checks_config.py`（`bl66_config.json` 9 個、`bl66_pipeline.json` 4 個、`r8_integrity.json` 1 個）。
+- 等價證據：
+  - `run_all` 對主範例、四個變體與一份刻意弄壞的 bundle（共 6 份）回報的 issue（等級、碼、位置、訊息、順序）、各群組的檢查數與總檢查數，搬移前後以 `cmp` 比對完全相同。
+  - `sign_examples.py` 重算後 0 個檔案變動；`build_variants.py --check`、`build_error_table.py --check`（331 個錯誤碼）通過。
+  - 受影響的突變清單在 `main`（`36a6b7a`）與本分支各完整執行一次，逐項結果相同（數字見 PR 說明）。
+  - 被測試 monkeypatch 的四個名稱（`JCS_VECTORS`、`jcs`、`run_start`、`result_controls`）與使用它們的函式這次都沒有搬動。
+- 新增 `tests/test_split_checks.py`（5 個測試，鎖住平面模組、群組順序、依賴方向與不留 re-export）與突變清單 `tests/mutations/split_checks.json`。
+
 ### 找不到 TEST ONLY 金鑰時的錯誤（PR-C2a）
 C3 動工前的小修正（候選 #2，[ADR 0002](docs/adr/0002-reseal-module.md)）：
 - `reseal` 簽 signed YAML、gate record、feedback、report withdrawal 時直接以 `by_fp[...]` 查金鑰，`current_key` 查 registry entry 的金鑰也一樣，所以 fixtures 裡沒有對應的私鑰時會拋出裸的 `KeyError`。現在 4 處都改走新的 `seal.signing_key(by_fp, fingerprint, where)`，改拋 `ResealError("<檔名>: no TEST ONLY key for <fingerprint>")`。訊息格式和舊版 `sign_examples` 簽 YAML 時的 `SystemExit` 相同，C3 改用 `reseal` 之後不會退步；`build_variants` 現在也會乾淨地結束。

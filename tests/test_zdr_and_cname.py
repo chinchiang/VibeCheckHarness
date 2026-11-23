@@ -19,7 +19,7 @@ import pathlib
 import pytest
 
 from conftest import doc
-from vchlib import checks
+from vchlib import checks, report
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -46,7 +46,7 @@ def test_the_example_confirmations_cover_the_engagement(b):
         assert p["zdr_models"] == models and p["zdr_evidence_ref"]
         assert p["zdr_confirmed_at"] <= e["issued_at"] and p["zdr_expires_at"] >= e["validity"]["not_after"]
         for k in models:
-            assert checks.zdr_problems(checks.Report(), e, p, k) == []
+            assert checks.zdr_problems(report.Report(), e, p, k) == []
     nv = provider(b, "nvidia")
     assert (nv["zdr"], nv["zdr_models"], nv["zdr_confirmed_at"], nv["zdr_expires_at"]) == ("not_available", [], None, None)
     assert msgs(b, "E-ENG-PROVIDER") == []
@@ -87,7 +87,7 @@ def test_the_boundary_dates_still_pass(b):
     e = doc(b, "engagement.yaml").data
     p = provider(b, "openai")
     p["zdr_confirmed_at"], p["zdr_expires_at"] = e["issued_at"], e["validity"]["not_after"]
-    assert checks.zdr_problems(checks.Report(), e, p, "gpt_flagship") == []
+    assert checks.zdr_problems(report.Report(), e, p, "gpt_flagship") == []
     assert msgs(b, "E-ENG-PROVIDER") == []
 
 

@@ -1,0 +1,40 @@
+{
+ "tests": "tests/test_split_checks.py",
+ "mutations": [
+  {
+   "name": "a group leaves its place in the order",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"licenses and requirements\", g_licenses),\n    (\"crosswalk\", g_crosswalk),",
+   "new": "    (\"crosswalk\", g_crosswalk),\n    (\"licenses and requirements\", g_licenses),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "checks re-exports Report",
+   "file": "tools/vchlib/checks.py",
+   "old": "__all__ = [\"run_all\", \"GROUPS\", \"wilson_lower\", \"content_hash\"]",
+   "new": "__all__ = [\"Report\", \"run_all\", \"GROUPS\", \"wilson_lower\", \"content_hash\"]",
+   "k": "no_re_exports"
+  },
+  {
+   "name": "the base imports a check group",
+   "file": "tools/vchlib/report.py",
+   "old": "from . import timeutil\n",
+   "new": "from . import timeutil\nfrom . import checks_config  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "derive imports the report module",
+   "file": "tools/vchlib/derive.py",
+   "old": "from . import timeutil\n",
+   "new": "from . import timeutil\nfrom . import report  # noqa: F401\n",
+   "k": "below_the_checker"
+  },
+  {
+   "name": "a caller goes back to checks.Report",
+   "file": "tests/test_zdr_and_cname.py",
+   "old": "            assert checks.zdr_problems(report.Report(), e, p, k) == []",
+   "new": "            assert checks.zdr_problems(checks.Report(), e, p, k) == []",
+   "k": "no_re_exports"
+  }
+ ]
+}
