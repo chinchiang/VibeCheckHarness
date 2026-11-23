@@ -9,7 +9,8 @@ from conftest import codes, doc, resign_gate
 from vchlib import crypto, safety, timeutil
 from vchlib.bundle import reload_yaml
 from vchlib.canonical import jcs
-from vchlib.checks import JCS_VECTORS, run_all
+from vchlib.checks import run_all
+from vchlib.checks_integrity import JCS_VECTORS
 
 G1, G2, G4, G5 = ("gate-record.g1.example.json", "gate-record.g2.example.json",
                   "gate-record.g4.example.json", "gate-record.g5.example.json")

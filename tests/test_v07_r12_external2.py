@@ -19,7 +19,7 @@ import pytest
 
 from conftest import doc
 from vchlib import adjudicate as adj
-from vchlib import checks, checks_calibration, context, derive, report, verdict
+from vchlib import checks_calibration, checks_integrity, context, derive, report, verdict
 from vchlib.checks import run_all
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -66,10 +66,10 @@ def test_the_validator_runs_without_the_reference_jcs_library():
 
 
 def test_without_the_reference_the_own_jcs_still_meets_the_rfc_vectors(monkeypatch):
-    monkeypatch.setattr(checks, "JCS_VECTORS", [({"a": 1}, '{"b":1}')])          # a wrong vector must still be caught
+    monkeypatch.setattr(checks_integrity, "JCS_VECTORS", [({"a": 1}, '{"b":1}')])          # a wrong vector must still be caught
     monkeypatch.setitem(sys.modules, "rfc8785", None)
     R = report.Report()
-    checks.g_jcs(R, context.Ctx(__import__("vchlib.bundle", fromlist=["x"]).load_bundle(ROOT)))
+    checks_integrity.g_jcs(R, context.Ctx(__import__("vchlib.bundle", fromlist=["x"]).load_bundle(ROOT)))
     assert any(i.code == "E-JCS" and "canonical.py" in i.where for i in R.errors)
     assert any(i.code == "W-JCS-REFERENCE-MISSING" for i in R.warnings)
 

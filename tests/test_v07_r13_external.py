@@ -27,7 +27,7 @@ import pytest
 from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive
 from test_v07_r11_anchor import renumber
 from vchlib import adjudicate as adj
-from vchlib import calibration, checks, checks_calibration, report
+from vchlib import calibration, checks, checks_calibration, checks_integrity, report
 from vchlib.bundle import load_variant
 from vchlib.canonical import jcs
 from vchlib.checks import run_all
@@ -174,7 +174,7 @@ def test_integer_valued_doubles_print_their_shortest_digits(value, expected):
 
 
 def test_the_vectors_cover_the_boundary():
-    assert any(1000000000000000100.0 in v for v, _ in checks.JCS_VECTORS if isinstance(v, list))
+    assert any(1000000000000000100.0 in v for v, _ in checks_integrity.JCS_VECTORS if isinstance(v, list))
 
 
 def test_random_doubles_agree_with_the_reference():

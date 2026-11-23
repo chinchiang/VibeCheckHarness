@@ -6,7 +6,7 @@ import shutil
 import pytest
 
 from conftest import ROOT, codes, doc
-from vchlib import checks, report
+from vchlib import checks_integrity, report
 from vchlib.bundle import load_bundle, reload_json
 from vchlib.checks import run_all
 
@@ -131,12 +131,12 @@ def test_e_selftest_overall_passed_must_be_derived(b):
 
 # ------------------------------------------------------------------ JCS
 def test_e_jcs_vector_mismatch_in_canonical_py(b, monkeypatch):
-    monkeypatch.setattr(checks, "JCS_VECTORS", [({"a": 1}, '{"a":2}')])
+    monkeypatch.setattr(checks_integrity, "JCS_VECTORS", [({"a": 1}, '{"a":2}')])
     assert has(b, "E-JCS", "canonical.py", "RFC 8785 vector mismatch")
 
 
 def test_e_jcs_vector_mismatch_in_reference_library(b, monkeypatch):
-    monkeypatch.setattr(checks, "JCS_VECTORS", [({"a": 1}, '{"a":2}')])
+    monkeypatch.setattr(checks_integrity, "JCS_VECTORS", [({"a": 1}, '{"a":2}')])
     assert has(b, "E-JCS", "rfc8785", "reference library disagrees")
     assert codes(b) == {"E-JCS"}
 
@@ -149,8 +149,8 @@ def test_e_jcs_document_not_canonicalisable(b):
 
 def test_e_jcs_canonical_differs_from_rfc8785(b, monkeypatch):
     target = doc(b, REPORT)
-    real = checks.jcs
-    monkeypatch.setattr(checks, "jcs", lambda x: real(x) + (b" " if x is target.data else b""))
+    real = checks_integrity.jcs
+    monkeypatch.setattr(checks_integrity, "jcs", lambda x: real(x) + (b" " if x is target.data else b""))
     assert has(b, "E-JCS", target.path, "canonical.jcs differs from rfc8785")
     assert codes(b) == {"E-JCS"}
 

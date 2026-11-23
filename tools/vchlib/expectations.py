@@ -43,7 +43,7 @@ def expectations(b: Bundle, for_writer: bool = False, problems: list | None = No
     def guard(d):
         try:
             yield
-        except Exception as exc:  # noqa: BLE001 - reported as E-INTERNAL for this document by checks.g_derived
+        except Exception as exc:  # noqa: BLE001 - reported as E-INTERNAL for this document by checks_integrity.g_derived
             if problems is None:
                 raise
             problems.append((d.path, exc))

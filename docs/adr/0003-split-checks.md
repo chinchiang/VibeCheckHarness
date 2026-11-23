@@ -16,7 +16,7 @@ status: accepted
 ## 每次搬移都要處理的五件事
 
 1. **突變清單**：`file` 指向 `checks.py` 的突變，函式搬走後要改 `file`；`old` 在新檔中必須仍然只出現一次；`new` 若引用新模組看不到的名稱會變成 NameError（判為 VERIFY 而不是 CAUGHT）。
-2. **Monkeypatch**：測試 patch `checks.JCS_VECTORS`、`checks.jcs`、`checks.run_start`、`checks.result_controls`。使用這些名稱的函式搬走時，patch 的目標要跟著改，並確認拿掉 patch 後該測試會失敗——否則 patch 失效而測試照樣通過。
+2. **Monkeypatch**：測試 patch `checks_integrity.JCS_VECTORS`、`checks_integrity.jcs`（PR-D2 之前在 `checks`）、`checks.run_start`、`checks.result_controls`。使用這些名稱的函式搬走時，patch 的目標要跟著改，並確認拿掉 patch 後該測試會失敗——否則 patch 失效而測試照樣通過。
 3. **`tests/test_seal.py`** 以 AST 確認 checker 不使用重新簽章的函式；它掃 `checks*.py` 與 `report.py`，新模組照這個命名就會被涵蓋。
 4. **ruff 的 `per-file-ignores`** 掛在檔名上：`pipeline_checks` 的 F841 搬走時，ignore 要跟著搬。
 5. **文件中的程式名稱**只同步引用，不動規則文字；歷史審查紀錄不改。
@@ -31,5 +31,6 @@ status: accepted
 
 - **PR-D0**（2026-11-23）：`report.py`（共用基礎）與 `checks_config.py`（licenses、crosswalk、LLM-facing schemas、toolkit 四個群組，約 100 行、14 個突變）。`checks.py` 由 5,841 行減為約 5,560 行。簽章 helpers 這次沒搬：它們依賴定義在 ROE 段的 `MAX_CLOCK_SKEW` 與 `decision_time`。
 - **PR-D1**（2026-11-23）：`checks_calibration.py`（`g_calibration` 與它的 21 個函式、常數，544 行、75 個突變）。`checks.py` 減為約 5,020 行。為通過 mypy：`calibration.CAL_POLICY` 標註為 `dict[str, Any]`，另在 14 行加 `type: ignore`（都是上方已用 `num(...)` 或 schema 驗過、mypy 追不到的比較與呼叫）；其中 3 行原本是多行突變錨點的結尾，錨點改為不含行尾。`g_verdicts` 用到的 `BOUND_CLAIM_RE` 由 `checks` 匯入。
-- 之後的順序（由易到難，每個另開 PR）：開頭的小群組（schemas、JCS、derived、key registry、persons）→ 模型與委任 → ROE 與簽章 helpers、gates、runs 與 testcases、W4／verdicts、trace、audit。越後面耦合越深、型別錯誤越多（audit 有 38 個）。
+- **PR-D2**（2026-11-23）：`checks_integrity.py`（schemas、JCS、derived、key registry、persons 五個群組與 `JCS_VECTORS`、`person_refs`，243 行、30 個突變）。`checks.py` 減為約 4,790 行。搬走的程式不依賴 `checks` 中任何其他名稱。`g_signatures` 沒有搬：它與簽章 helpers 一起留到 ROE 那一步。為通過 mypy 在 `g_jcs` 的兩行加 `type: ignore`（選用的 `rfc8785` 模組設為 `None`、把向量傳給 `rfc8785.dumps`）；其中一行是突變錨點的結尾，錨點改為不含行尾。三個測試檔的 patch 目標由 `checks` 改為 `checks_integrity`。
+- 之後的順序（由易到難，每個另開 PR）：模型與委任 → ROE 與簽章 helpers、gates、runs 與 testcases、W4／verdicts、trace、audit。越後面耦合越深、型別錯誤越多（audit 有 38 個）。
 - 沒有排定完成時間；每一步都可以停在那裡，`checks.py` 仍然完整可用。

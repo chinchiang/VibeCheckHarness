@@ -5,7 +5,7 @@
 documents need: objects with string keys (sorted by UTF-16 code units), arrays,
 strings (minimal JSON escaping, UTF-8 output), booleans, null, integers and finite
 IEEE-754 doubles serialised like ECMAScript Number.prototype.toString. The validator
-(checks.g_jcs) compares it with three RFC 8785 vectors (number serialisation, UTF-16 key
+(checks_integrity.g_jcs) compares it with three RFC 8785 vectors (number serialisation, UTF-16 key
 order, -0/1e21/1e-7 edge cases) and with the reference package rfc8785==0.1.4 on every
 example document; that is agreement on this repo's data, not a proof of full conformance.
 Non-JSON values (datetime, bytes, sets, NaN, Infinity) are rejected.
