@@ -283,6 +283,17 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py：簽章與 ROE 群組（PR-D4）
+[ADR 0003](docs/adr/0003-split-checks.md) 的第五步（發現 E8）：
+- 新模組 `tools/vchlib/checks_signatures.py`（231 行）：`verify_signature`、`silent_verify`、`first_verification`、`check_backdating`、`check_signed_doc`、`g_signatures`，以及簽章檢查的時間基準 `MAX_CLOCK_SKEW`、`decision_time`（原本在 ROE 段開頭）。
+- 新模組 `tools/vchlib/checks_roe.py`（493 行）：`g_roe`、`legal`、`incident_rules`、`seed_manifest_rules`、`platform_rules`、`shared_platform_proof`、`platform_of`、`chain_platforms`、`cname_platform_problems`、`proven_reads`、`path_shape`、`job_span`、`g4_latest_decisions`、`expected_gaps` 與 5 個常數。
+- `anchored_seqs` 移到 `report.py`（不依賴其他名稱，十幾個函式共用）。
+- `checks.py` 由 4,294 行減為 3,599 行；`GROUPS` 仍是 24 組、順序不變。`checks` 從新模組匯入它還在用的名稱（實際使用，不是 re-export）。`checks_roe` 匯入 `checks_engagement` 與 `checks_signatures`；`checks_signatures` 不匯入任何檢查模組；兩者都不匯入 `checks`。
+- 原文搬移。為通過 mypy：13 行 `type: ignore`；另有兩處只加型別標註（`SKIP_GAP_KIND: dict`，連帶它的兩行續行縮排對齊；`expected_gaps` 的 `out: dict`）。沒有改任何邏輯。
+- 不留 re-export：`conftest.py` 與 7 個測試檔改用新路徑；`docs/08`、`docs/schemas/README.md`、ADR 0002 與 `safety.py`、`seal.py` 註解中的程式名稱同步，規則文字沒有動。
+- 突變清單：9 份清單的 43 個突變改指新模組，錨點都沒有變。`split_checks.json` 增加 3 個突變。
+- 等價證據：`run_all` 對主範例、四個變體與一份刻意弄壞的 bundle 回報的 issue、各群組檢查數與總檢查數，搬移前後以 `cmp` 比對完全相同；`sign_examples.py` 0 個檔案變動；331 個錯誤碼；9 份受影響的突變清單在 `main` 與本分支逐項比對（結果見 PR 說明）。
+
 ### 拆分 checks.py：委任與模型群組（PR-D3）
 [ADR 0003](docs/adr/0003-split-checks.md) 的第四步（發現 E8）：
 - 新模組 `tools/vchlib/checks_engagement.py`（314 行）：`g_engagement` 與 `models_in_use`、`pricing_rules`、`z4_hosts`、`self_hosted`、`provider_rules`、`zdr_problems`、`c_cloud_families`、`transfer_rules`、`missing_jurisdictions`、`cross_border_declared`、`CONFIG_PIN_KINDS`、`config_pin_rules`；以及委任設定的存取函式 `profile`、`deployment`、`deployment_problems`、`consolidation_person`、`SINGLE_HOST`、`ANCHOR_LABEL`（原本在 gates 段，`g_engagement` 需要它們）。

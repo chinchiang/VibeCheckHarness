@@ -16,7 +16,7 @@ import copy
 import pytest
 
 from conftest import codes, doc
-from vchlib import checks, crypto, derive, jsonstrict, safety, verdict, yamlstrict
+from vchlib import checks_roe, crypto, derive, jsonstrict, safety, verdict, yamlstrict
 from vchlib.bundle import reload_json
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -220,5 +220,5 @@ def test_side_effect_get_is_matched_by_path_shape(b):
     ep["writes"] = True
     man = doc(b, "seed-manifest.yaml").data
     man["state_changing_reads"] = [dict(target_id="tgt-staging-api", method="GET",
-                                        path_template=checks.path_shape(ep["path"]).replace("{}", "{renamed}"))]
+                                        path_template=checks_roe.path_shape(ep["path"]).replace("{}", "{renamed}"))]
     assert not [i for i in errors(b, "E-SEED-SIDE-EFFECT") if ep["path"] in i.msg]

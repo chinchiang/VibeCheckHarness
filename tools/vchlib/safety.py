@@ -285,7 +285,7 @@ def path_shape(path) -> str | None:
 def read_is_proven(r: dict, manifest=None, proven_reads=None) -> bool:
     """D5 (2026-11-22 review, user decision): a GET / HEAD request is known not to change state. Either the signed seed
     manifest declares it in read_only_endpoints (same target, method and path shape), or the W0 inventory has the endpoint
-    with writes false: `proven_reads` is the set of (method, path shape) of those endpoints (checks.proven_reads); a HEAD
+    with writes false: `proven_reads` is the set of (method, path shape) of those endpoints (checks_roe.proven_reads); a HEAD
     is also proven by its GET. No inventory knowledge (None) proves nothing."""
     if _endpoint_in(manifest, "read_only_endpoints", r) is not None:
         return True

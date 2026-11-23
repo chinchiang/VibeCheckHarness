@@ -42,11 +42,11 @@ def codes(bundle):
 
 
 def proven_reads(bundle):
-    """D5: the GET / HEAD endpoints the bundle's W0 inventory proves read-only (checks.proven_reads); tests that compute a
+    """D5: the GET / HEAD endpoints the bundle's W0 inventory proves read-only (checks_roe.proven_reads); tests that compute a
     safety class or a mutation scope the way the validator does pass this."""
-    from vchlib import checks
+    from vchlib import checks_roe
     from vchlib.context import Ctx
-    return checks.proven_reads(Ctx(bundle))
+    return checks_roe.proven_reads(Ctx(bundle))
 
 
 # r14 (05-v0.15): the example corpus names 16 calibration and 13 holdout P applications; split statistics and high-precision

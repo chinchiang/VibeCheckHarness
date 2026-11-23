@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Signing policy: who signs which record, shared by the checker (checks.g_signatures, the feedback and withdrawal
+"""Signing policy: who signs which record, shared by the checker (checks_signatures.g_signatures, the feedback and withdrawal
 checks) and by the TEST ONLY writers that re-seal a bundle (tools/sign_examples.py, tools/build_variants.py,
 tests/conftest.py). See docs/adr/0002-reseal-module.md.
 

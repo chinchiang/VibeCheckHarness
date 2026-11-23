@@ -198,3 +198,8 @@ class doc_guard:
         self.R.error("E-INTERNAL", self.where, f"{et.__name__}: {ev} (at {last.name}:{last.lineno}; this document was skipped)"
                      if last else f"{et.__name__}: {ev}")
         return True
+
+
+def anchored_seqs(evs) -> int:
+    """The seq of the last audit_anchor of a log (0 when none): lines up to it are covered by the chain."""
+    return max((i + 1 for i, e in enumerate(evs) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"), default=0)

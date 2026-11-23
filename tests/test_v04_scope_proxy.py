@@ -7,7 +7,8 @@ import pytest
 
 from conftest import doc
 from vchlib import safety
-from vchlib.checks import platform_of, run_all
+from vchlib.checks import run_all
+from vchlib.checks_roe import platform_of
 
 
 # ================================================================ resolved addresses

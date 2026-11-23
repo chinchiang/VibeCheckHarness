@@ -4,7 +4,7 @@ status: accepted
 
 # 簽章政策只寫一次，重新封存只有一份記憶體內實作
 
-「誰簽什麼」原本寫了五次：checker（`checks.g_signatures`、`g_feedback`、`g_report_withdrawal`）寫一次，三個 TEST ONLY 寫入端（`tools/sign_examples.py`、`tests/conftest.py` 的 `rederive`／`resign_gate`、`build_variants.resign`）又各寫一次，連 `SIGNED_EVENTS` 都是從 `checks` 複製過去的。三份重新封存（reseal）實作也已經漂移：`rederive` 不簽 YAML、feedback 與 withdrawal，也不更新 `config_pins`；只有 `build_variants.resign` 會重編 `seq`。2026-11-05 依架構審查候選 #2 決定（設計逐項經使用者決定）：
+「誰簽什麼」原本寫了五次：checker（`checks_signatures.g_signatures`、`g_feedback`、`g_report_withdrawal`）寫一次，三個 TEST ONLY 寫入端（`tools/sign_examples.py`、`tests/conftest.py` 的 `rederive`／`resign_gate`、`build_variants.resign`）又各寫一次，連 `SIGNED_EVENTS` 都是從 `checks` 複製過去的。三份重新封存（reseal）實作也已經漂移：`rederive` 不簽 YAML、feedback 與 withdrawal，也不更新 `config_pins`；只有 `build_variants.resign` 會重編 `seq`。2026-11-05 依架構審查候選 #2 決定（設計逐項經使用者決定）：
 
 - **簽章政策（signing policy）** 只放在 `tools/vchlib/seal.py`：`SIGNED_EVENTS`、`gate_unsigned(rec)`、`required_signers(kind, data)`、`event_is_signed(ev)`。checker 與寫入端都從這裡讀。
   - checker 的錯誤碼分支保持不變：G0a/G0b 與 EXPIRED 各自回報 E-GATE-G0-SIG、E-GATE-EXPIRED-SIG，所以 `gate_unsigned` 只有寫入端使用。

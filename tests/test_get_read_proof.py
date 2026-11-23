@@ -4,7 +4,7 @@
 Until this change a GET was a read (S0, no seed binding, no G5) unless the seed manifest declared it a state-changing read.
 AI-generated applications are the ones that least respect HTTP semantics (GET /api/x/delete?id=, GET /logout), so the
 safety class depended on how complete that declaration was. Now a GET / HEAD is a read only when the W0 inventory has the
-endpoint with writes false (checks.proven_reads) or the signed seed manifest lists it in read_only_endpoints; any other
+endpoint with writes false (checks_roe.proven_reads) or the signed seed manifest lists it in read_only_endpoints; any other
 GET / HEAD is a write: it needs a seed binding and is at least S1, and without a binding it is S3.
 
 `..._is_a_write` / `..._is_refused` tests failed before the change and pass after it
@@ -14,7 +14,7 @@ import copy
 import pytest
 
 from conftest import codes, doc, proven_reads
-from vchlib import checks, safety
+from vchlib import checks_roe, safety
 from vchlib.checks import run_all
 
 API = "tgt-staging-api"
@@ -142,5 +142,5 @@ def test_a_plain_placeholder_matches_only_a_proven_read():
 
 
 def test_checks_and_safety_share_one_path_shape():
-    assert checks.path_shape is safety.path_shape
+    assert checks_roe.path_shape is safety.path_shape
     assert safety.path_shape("/a/{x}/b/{seed:y}") == "/a/{}/b/{}" and safety.path_shape(None) is None

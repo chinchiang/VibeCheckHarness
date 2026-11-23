@@ -94,35 +94,35 @@
   },
   {
    "name": "C4: only the first name is read",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_roe.py",
    "old": "    for name in chain if isinstance(chain, list) else []:",
    "new": "    for name in chain[:1] if isinstance(chain, list) else []:",
    "k": "resolves_to_a_shared_platform"
   },
   {
    "name": "C4: any platform_project will do",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_roe.py",
    "old": "        if not (op.get(\"method\") == \"platform_project\" and op.get(\"platform\") == plat):\n            out.append(f\"{t.get('id')}: its host resolves through",
    "new": "        if not (op.get(\"method\") == \"platform_project\"):\n            out.append(f\"{t.get('id')}: its host resolves through",
    "k": "another_platform"
   },
   {
    "name": "C4: no policy needed",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_roe.py",
    "old": "        elif plat not in policies:\n            out.append(f\"{t.get('id')}: its host resolves through",
    "new": "        elif False:\n            out.append(f\"{t.get('id')}: its host resolves through",
    "k": "policy_is_needed"
   },
   {
    "name": "C4: a failed check is an error too",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_roe.py",
    "old": "    if o.get(\"ok\") is not True:\n        return []\n    op, out = t.get(\"ownership_proof\") or {}, []",
    "new": "    op, out = t.get(\"ownership_proof\") or {}, []",
    "k": "failed_check_is_not"
   },
   {
    "name": "C4: an ok result is skipped",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_roe.py",
    "old": "    if o.get(\"ok\") is not True:\n        return []\n    op, out = t.get(\"ownership_proof\") or {}, []",
    "new": "    if o.get(\"ok\") is True:\n        return []\n    op, out = t.get(\"ownership_proof\") or {}, []",
    "k": "resolves_to_a_shared_platform or failed_check_is_not"

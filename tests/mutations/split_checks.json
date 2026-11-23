@@ -77,6 +77,27 @@
    "old": "# ============================================================== 10 gates\n",
    "new": "# ============================================================== 10 gates\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
    "k": "imports_no_check_group"
+  },
+  {
+   "name": "the signatures and ROE groups change place",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"Ed25519 signatures\", g_signatures),\n    (\"person references\", g_persons),\n    (\"engagement\", g_engagement),\n    (\"ROE and legal review L-1..L-6\", g_roe),",
+   "new": "    (\"ROE and legal review L-1..L-6\", g_roe),\n    (\"person references\", g_persons),\n    (\"engagement\", g_engagement),\n    (\"Ed25519 signatures\", g_signatures),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "the signatures module imports the ROE module",
+   "file": "tools/vchlib/checks_signatures.py",
+   "old": "def g_signatures(R: Report, c: Ctx):\n",
+   "new": "def g_signatures(R: Report, c: Ctx):\n    from . import checks_roe  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the facade redefines the receive clock",
+   "file": "tools/vchlib/checks.py",
+   "old": "# ============================================================== 10 gates\n",
+   "new": "# ============================================================== 10 gates\ndef decision_time(c: Ctx, rec: dict):\n    return c.ix.decision_time(rec)\n\n\n",
+   "k": "imports_no_check_group"
   }
  ]
 }

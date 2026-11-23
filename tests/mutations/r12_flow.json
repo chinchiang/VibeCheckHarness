@@ -59,14 +59,14 @@
     },
     {
       "name": "the expired gap is derived",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_roe.py",
       "old": "        out[(\"expired\", rid)] = \"the run was closed when the engagement validity ended (resume_expired)\"",
       "new": "        pass",
       "k": "expired_gap_is_derived"
     },
     {
       "name": "run_resume from_status is required",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_signatures.py",
       "old": "                        R.error(\"E-AUDIT-ACTOR\", where, f\"run_resume payload.from_status must be SUSPENDED or STOPPED (got {p.get('from_status')!r})\")",
       "new": "                        need = \"test_lead\"",
       "k": "needs_from_status"
