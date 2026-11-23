@@ -31,7 +31,7 @@ from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive, split_stats
 from test_v03_adjudication import _ix_cluster, _w4
 from test_v07_r11_verdict import pin_calibration
 from vchlib import adjudicate as adj
-from vchlib import calibration, checks, verdict
+from vchlib import calibration, checks_calibration, verdict
 from vchlib.bundle import load_variant
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -273,15 +273,15 @@ def test_a_split_names_its_applications(b):
     cal = doc(b, CAL).data
     cs = cal["result"]["thresholds"]["theta_confirm"]["calibration"]
     cs["apps"] = {"p-nextjs-supabase-01": 64}                            # n_apps = 1 in disguise
-    assert any("clustering.min_apps 10" in m for _, m in checks.theta_problems(cal))
+    assert any("clustering.min_apps 10" in m for _, m in checks_calibration.theta_problems(cal))
     cs["apps"] = apps_map(60)                                             # 16 applications, but they sum to 60, not 64
-    assert any("sum to 60, not n 64" in m for _, m in checks.theta_problems(cal))
+    assert any("sum to 60, not n 64" in m for _, m in checks_calibration.theta_problems(cal))
     cs["apps"] = apps_map(64, ids=[f"ghost-{i}" for i in range(16)])      # applications the corpus does not know
-    assert any("not corpus applications of the calibration split" in m for _, m in checks.theta_problems(cal))
+    assert any("not corpus applications of the calibration split" in m for _, m in checks_calibration.theta_problems(cal))
     cs["apps"] = apps_map(64, "holdout")                                  # holdout applications in the calibration split
-    assert any("not corpus applications of the calibration split" in m for _, m in checks.theta_problems(cal))
+    assert any("not corpus applications of the calibration split" in m for _, m in checks_calibration.theta_problems(cal))
     cs["apps"] = apps_map(64)
-    assert not [p for p in checks.theta_problems(cal) if "apps" in p[1]]
+    assert not [p for p in checks_calibration.theta_problems(cal) if "apps" in p[1]]
 
 
 def test_a_self_declared_n_apps_is_no_longer_accepted(b, keys):
@@ -304,7 +304,7 @@ def test_the_high_precision_rows_name_their_applications(b):
 def test_the_design_effect_uses_the_actual_counts():
     assert calibration.design_effect([4] * 16, 0.05) == pytest.approx(1.15)                 # equal sizes: 1 + (m - 1) rho
     assert calibration.design_effect([32] + [1] * 9, 0.05) == pytest.approx(2.21, abs=0.01)  # 41 hits, 32 from one application
-    assert checks.effective_n(41, 10, 0.05) == pytest.approx(41 / 1.155, abs=0.01)     # what 05-v0.14 computed for them
+    assert checks_calibration.effective_n(41, 10, 0.05) == pytest.approx(41 / 1.155, abs=0.01)     # what 05-v0.14 computed for them
     assert calibration.effective_n_of({"a": 32, **{f"b{i}": 1 for i in range(9)}}, 0.05) == pytest.approx(41 / 2.21, abs=0.1)
     assert calibration.effective_n_of({}, 0.05) == 0.0
 
@@ -320,7 +320,7 @@ def test_the_lower_bound_of_unequal_applications_is_lower(b):
 def test_icc_is_a_floor_that_the_measured_rho_raises(b, keys):
     cal = doc(b, CAL).data
     cal["config"]["clustering"]["icc"] = 0.04
-    assert any("below the floor 0.05" in p for p in checks.policy_problems(cal["config"]))
+    assert any("below the floor 0.05" in p for p in checks_calibration.policy_problems(cal["config"]))
     cal["config"]["clustering"]["icc"] = 0.05                               # the floor, but rho_observed is 0.06
     pin_calibration(b, keys)
     assert any("clustering.icc 0.05 != max(floor 0.05, rho_observed 0.06)" in i.msg for i in errors(b, "E-CAL-POLICY"))
@@ -334,12 +334,12 @@ def test_a_holdout_generalises_on_its_confidence_bound(b):
     cal = doc(b, CAL).data
     th = cal["result"]["thresholds"]["theta_confirm"]
     th["holdout"] = dict(split_stats(47, 52, "holdout"), recall=0.38)      # 0.904 point estimate, Wilson lower 0.78
-    got = [m for label, m in checks.theta_problems(cal) if label == "theta_confirm"]
+    got = [m for label, m in checks_calibration.theta_problems(cal) if label == "theta_confirm"]
     assert any("holdout Wilson lower 0.7819" in m for m in got), got
     th["holdout"] = dict(split_stats(48, 52, "holdout"), recall=0.38)      # the example: lower 0.8064
-    assert not [m for label, m in checks.theta_problems(cal) if label == "theta_confirm"]
+    assert not [m for label, m in checks_calibration.theta_problems(cal) if label == "theta_confirm"]
     th["holdout"] = dict(split_stats(50, 52, "holdout", k=9), recall=0.38)  # nine applications generalise nothing
-    assert any("holdout of 9 applications" in m for label, m in checks.theta_problems(cal) if label == "theta_confirm")
+    assert any("holdout of 9 applications" in m for label, m in checks_calibration.theta_problems(cal) if label == "theta_confirm")
 
 
 def test_a_high_precision_holdout_of_ten_is_not_enough(b):
@@ -352,26 +352,26 @@ def test_a_high_precision_holdout_of_ten_is_not_enough(b):
 def test_the_primary_hypothesis_is_derived(b):
     cal = doc(b, CAL).data
     cfg, res = cal["config"], cal["result"]
-    assert checks.hypothesis_problems(cfg, res) == []
+    assert checks_calibration.hypothesis_problems(cfg, res) == []
     ph = res["primary_hypothesis"]
     shipped = dict(ph, ci_low=0.02, h1=False, h2=True, outcome="not_shown", holdout_n_final=262)   # the 05-v0.14 example
     ex = dict(res["exploratory"], ci_low=0.09, ci_high=-0.01)
-    got = checks.hypothesis_problems(cfg, dict(res, primary_hypothesis=shipped, exploratory=ex))
+    got = checks_calibration.hypothesis_problems(cfg, dict(res, primary_hypothesis=shipped, exploratory=ex))
     assert any("h1 False but ci_low 0.02 > 0" in m for m in got)
     assert any("h2 True but H2 is not evaluated" in m for m in got) or any("outcome" in m for m in got)
     assert any("holdout_n_final 262 < 379" in m for m in got)
     assert any("recall_diff_vs_arm3 -0.05 is outside its interval [0.09, -0.01]" in m for m in got)
     won = dict(ph, ci_low=0.02, h1=True, h2=True, outcome="multi_family_wins", holdout_n_final=380)
-    assert checks.hypothesis_problems(cfg, dict(res, primary_hypothesis=won)) == []
-    assert any("outcome 'not_shown'" in m for m in checks.hypothesis_problems(cfg, dict(res, primary_hypothesis=dict(won, outcome="not_shown"))))
-    assert any("outside its interval" in m for m in checks.hypothesis_problems(cfg, dict(res, primary_hypothesis=dict(won, delta=0.2))))
+    assert checks_calibration.hypothesis_problems(cfg, dict(res, primary_hypothesis=won)) == []
+    assert any("outcome 'not_shown'" in m for m in checks_calibration.hypothesis_problems(cfg, dict(res, primary_hypothesis=dict(won, outcome="not_shown"))))
+    assert any("outside its interval" in m for m in checks_calibration.hypothesis_problems(cfg, dict(res, primary_hypothesis=dict(won, delta=0.2))))
 
 
 def test_required_holdout_n_matches_docs_05():
-    assert checks.required_holdout_n(0.08, 0.20, 0.05) == 359             # docs/05 §5.5: 243 -> 341 -> 359
-    assert checks.required_holdout_n(0.08, 0.15, 0.05) == 269
-    assert checks.required_holdout_n(0.05, 0.20, 0.05) == 924
-    assert checks.required_holdout_n(0.08, 0.20, 0.06) == 379             # the example's rho_observed
+    assert checks_calibration.required_holdout_n(0.08, 0.20, 0.05) == 359             # docs/05 §5.5: 243 -> 341 -> 359
+    assert checks_calibration.required_holdout_n(0.08, 0.15, 0.05) == 269
+    assert checks_calibration.required_holdout_n(0.05, 0.20, 0.05) == 924
+    assert checks_calibration.required_holdout_n(0.08, 0.20, 0.06) == 379             # the example's rho_observed
 
 
 def test_e_cal_hypothesis_is_reported(b, keys):
@@ -384,14 +384,14 @@ def test_e_cal_hypothesis_is_reported(b, keys):
 def test_the_preregistration_controls(b, keys):
     cal = doc(b, CAL).data
     cfg, res = cal["config"], cal["result"]
-    assert checks.preregistration_problems(cfg, res) == []
+    assert checks_calibration.preregistration_problems(cfg, res) == []
     bad = copy.deepcopy(cfg)
     bad["threshold_search"]["min_clusters"] = 30                            # the registered configuration changed
-    assert any("doc_sha256" in m for m in checks.preregistration_problems(bad, res))
-    assert any("frozen_at is required" in m for m in checks.preregistration_problems(cfg, dict(res, frozen_at=None)))
-    assert any("after the first holdout access" in m for m in checks.preregistration_problems(cfg, dict(res, frozen_at="2026-09-09T09:00:00+08:00")))
-    assert any("before preregistration.registered_at" in m for m in checks.preregistration_problems(cfg, dict(res, frozen_at="2026-07-01T09:00:00+08:00")))
-    assert any("holdout_access_log is empty" in m for m in checks.preregistration_problems(cfg, dict(res, holdout_access_log=[])))
+    assert any("doc_sha256" in m for m in checks_calibration.preregistration_problems(bad, res))
+    assert any("frozen_at is required" in m for m in checks_calibration.preregistration_problems(cfg, dict(res, frozen_at=None)))
+    assert any("after the first holdout access" in m for m in checks_calibration.preregistration_problems(cfg, dict(res, frozen_at="2026-09-09T09:00:00+08:00")))
+    assert any("before preregistration.registered_at" in m for m in checks_calibration.preregistration_problems(cfg, dict(res, frozen_at="2026-07-01T09:00:00+08:00")))
+    assert any("holdout_access_log is empty" in m for m in checks_calibration.preregistration_problems(cfg, dict(res, holdout_access_log=[])))
     res["holdout_access_log"] = []
     pin_calibration(b, keys)
     assert errors(b, "E-CAL-PREREG")
@@ -405,8 +405,8 @@ def test_frozen_at_is_required_by_the_schema(b, keys):
 
 # ================================================================ B8. an abstention is a denominator
 def test_an_abstention_is_a_denominator():
-    assert checks.effective_counts({"n": 12, "correct": 12, "n_abstain": 5}) == (12, 17)
-    assert checks.effective_counts({"n": 40, "correct": 34, "n_abstain": 4}) == (34, 44)
+    assert checks_calibration.effective_counts({"n": 12, "correct": 12, "n_abstain": 5}) == (12, 17)
+    assert checks_calibration.effective_counts({"n": 40, "correct": 34, "n_abstain": 4}) == (34, 44)
 
 
 def test_the_example_weights_count_abstentions_as_misses(b):

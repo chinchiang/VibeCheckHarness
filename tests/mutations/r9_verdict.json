@@ -45,42 +45,42 @@
     },
     {
       "name": "theta: min_clusters",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "            if not (num(cs.get(\"n\")) and cs[\"n\"] >= ts.get(\"min_clusters\", 0)):",
       "new": "            if False:",
       "k": "search_limits"
     },
     {
       "name": "theta: confirm precision floor",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                if not (num(cs.get(\"precision\")) and cs[\"precision\"] >= floor):",
       "new": "                if False:",
       "k": "search_limits"
     },
     {
       "name": "theta: confirm holdout",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                if t.get(\"generalised\") is True and not (num(ho.get(\"precision\")) and ho[\"precision\"] >= floor - 0.05):",
       "new": "                if False:",
       "k": "search_limits"
     },
     {
       "name": "theta: reject true-defect share",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                if not (num(cs.get(\"precision\")) and cs[\"precision\"] <= cap + 1e-9):",
       "new": "                if False:",
       "k": "reject_limits"
     },
     {
       "name": "theta: reject Wilson upper",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                if not (num(cs.get(\"ci_high\")) and cs[\"ci_high\"] <= ts.get(\"reject_wilson_upper_max\", 0) + 1e-9):",
       "new": "                if False:",
       "k": "reject_limits"
     },
     {
       "name": "theta: above any single vote",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "        if num(top) and val <= top:",
       "new": "        if False:",
       "k": "above_any_single_vote"
@@ -94,7 +94,7 @@
     },
     {
       "name": "abstention rate",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                                            (\"abstain_rate_gt_max\", abstain_rate(x) > nz.get(\"abstain_rate_max\", 1))) if hit]",
       "new": "                                            (\"abstain_rate_gt_max\", False)) if hit]",
       "k": "abstains_too_often"

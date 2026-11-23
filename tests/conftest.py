@@ -67,12 +67,12 @@ def apps_map(n, split="calibration", k=None, ids=None):
 
 def split_stats(tp, n, split="calibration", k=None, icc=EXAMPLE_ICC, recall=0.3, ids=None):
     """A consistent split statistic (precision and Wilson bounds recomputed on the design-effect-adjusted n_eff)."""
-    from vchlib import calibration, checks
+    from vchlib import calibration, checks_calibration
     apps = apps_map(n, split, k, ids) if n else {}
     ne = calibration.effective_n_of(apps, icc)
     p = tp / n if n else 0.0
-    return {"precision": round(p, 4), "recall": recall, "ci_low": round(checks.wilson_lower(p * ne, ne), 4),
-            "ci_high": round(checks.wilson_upper(p * ne, ne), 4), "n": n, "tp": tp, "apps": apps}
+    return {"precision": round(p, 4), "recall": recall, "ci_low": round(checks_calibration.wilson_lower(p * ne, ne), 4),
+            "ci_high": round(checks_calibration.wilson_upper(p * ne, ne), 4), "n": n, "tp": tp, "apps": apps}
 
 
 def hp_rule(n, tp, holdout_n=30, holdout_tp=30, k=None, h_k=None, icc=EXAMPLE_ICC, ids=None, h_ids=None, **fields):

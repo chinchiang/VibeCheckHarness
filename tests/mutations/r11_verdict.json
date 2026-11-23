@@ -3,35 +3,35 @@
   "mutations": [
     {
       "name": "policy constants are pinned",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    for msg in policy_problems(cfg):\n        R.error(\"E-CAL-POLICY\", w, msg)",
       "new": "    for msg in []:\n        R.error(\"E-CAL-POLICY\", w, msg)",
       "k": "policy_constant or review_probe"
     },
     {
       "name": "smoothing_k is part of the policy",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    if cfg.get(\"smoothing_k\") != CAL_POLICY[\"smoothing_k\"]:",
       "new": "    if False:",
       "k": "policy_constant and smoothing"
     },
     {
       "name": "split statistics are recomputed",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "                out += split_problems(label, \"calibration\", cs, icc, splits) + split_problems(label, \"holdout\", ho, icc, splits)",
       "new": "                pass",
       "k": "raw_counts or wilson_bound or tp_above_n"
     },
     {
       "name": "tp is a count",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    if not (type(tp) is int and type(n) is int and 0 <= tp <= n):",
       "new": "    if not (type(tp) is int and type(n) is int):",
       "k": "tp_above_n"
     },
     {
       "name": "every weighted model is canary-checked",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    for mk in sorted(weighted - checked):",
       "new": "    for mk in []:",
       "k": "canary_result"

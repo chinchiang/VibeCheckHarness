@@ -87,7 +87,7 @@
     },
     {
       "name": "high_precision_min is pinned",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    R.check(hp is None or hp == CAL_POLICY[\"high_precision_min\"], \"E-CAL-POLICY\", w,",
       "new": "    R.check(True, \"E-CAL-POLICY\", w,",
       "k": "high_precision_min_is_pinned"

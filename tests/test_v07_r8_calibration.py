@@ -11,7 +11,7 @@ import copy
 
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
-from vchlib import checks, derive, verdict
+from vchlib import checks_calibration, derive, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -31,9 +31,9 @@ def test_rule_version(b):
 
 # ================================================================ 1. the prior
 def test_smoothed_rate_is_strictly_inside_the_unit_interval():
-    assert 0 < checks.smoothed_rate(0, 0, 0, 0) < 1
-    assert 0 < checks.smoothed_rate(40, 40, 10, 1.0) < 1
-    assert checks.smoothed_rate(34, 40, 10, 50 / 60) == (34 + 10 * 50 / 60 + 1) / 52
+    assert 0 < checks_calibration.smoothed_rate(0, 0, 0, 0) < 1
+    assert 0 < checks_calibration.smoothed_rate(40, 40, 10, 1.0) < 1
+    assert checks_calibration.smoothed_rate(34, 40, 10, 50 / 60) == (34 + 10 * 50 / 60 + 1) / 52
 
 
 def test_a_verifier_perfect_on_one_side_keeps_its_weight(b):
@@ -51,8 +51,8 @@ def test_a_verifier_perfect_on_one_side_keeps_its_weight(b):
 
 
 def test_lr_weights_never_divides_by_zero():
-    assert checks.lr_weights(0.9, 1.0) == {"support": 0.0, "refute": checks.lr_weights(0.9, 1.0)["refute"]}
-    assert checks.lr_weights(checks.smoothed_rate(36, 40, 10, 0.9), checks.smoothed_rate(40, 40, 10, 1.0))["support"] > 0
+    assert checks_calibration.lr_weights(0.9, 1.0) == {"support": 0.0, "refute": checks_calibration.lr_weights(0.9, 1.0)["refute"]}
+    assert checks_calibration.lr_weights(checks_calibration.smoothed_rate(36, 40, 10, 0.9), checks_calibration.smoothed_rate(40, 40, 10, 1.0))["support"] > 0
 
 
 def test_the_example_weights_are_recomputed(b):

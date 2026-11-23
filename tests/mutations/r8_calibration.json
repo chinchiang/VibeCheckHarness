@@ -3,7 +3,7 @@
   "mutations": [
     {
       "name": "prior back to v0.6",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_calibration.py",
       "old": "    return (correct + k * abar + 1) / (n + k + 2)",
       "new": "    return (correct + k * abar) / (n + k) if n + k else 0",
       "k": "perfect_on_one_side or example_weights_are_recomputed"
