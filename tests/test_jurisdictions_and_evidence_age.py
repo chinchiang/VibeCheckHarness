@@ -4,7 +4,7 @@
 C3  legal_review.jurisdictions said which jurisdictions the legal review covers; the signed engagement said where the data
     starts and where it is sent. The shipped example reviewed ["TW"] while sending code to US providers, and no rule
     compared the two. The ROE's list must now cover the engagement's source jurisdiction and every transfer region
-    (checks.missing_jurisdictions, E-ROE-TRANSFER). docs/06 also gains a question list for the reviewer (not legal advice).
+    (checks_engagement.missing_jurisdictions, E-ROE-TRANSFER). docs/06 also gains a question list for the reviewer (not legal advice).
 C5  The evidence ledger had no date: nothing said when a claim about a licence or a provider's terms was last read. The
     findings file carries `checked_at_default`, an entry may carry its own `checked_at`, and the generator reports the
     entries past the recheck age (tools/build_evidence_ledger.py --age-report). docs/07 states the 180-day rule.
@@ -17,7 +17,7 @@ import pathlib
 import pytest
 
 from conftest import doc
-from vchlib import checks
+from vchlib import checks_engagement
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -37,12 +37,12 @@ def test_the_example_review_covers_where_the_data_goes(b):
     assert doc(b, "roe.yaml").data["legal_review"]["jurisdictions"] == ["TW", "US"]
     dt = doc(b, "engagement.yaml").data["data_transfer"]
     assert dt["source_jurisdiction"] == "TW" and {t["region"] for t in dt["transfers"]} == {"US"}
-    assert checks.missing_jurisdictions(Ctx(b)) == [] and msgs(b, "E-ROE-TRANSFER") == []
+    assert checks_engagement.missing_jurisdictions(Ctx(b)) == [] and msgs(b, "E-ROE-TRANSFER") == []
 
 
 def test_a_review_that_leaves_out_the_destination_is_refused(b):
     doc(b, "roe.yaml").data["legal_review"]["jurisdictions"] = ["TW"]           # what the example said before
-    assert checks.missing_jurisdictions(Ctx(b)) == ["US"]
+    assert checks_engagement.missing_jurisdictions(Ctx(b)) == ["US"]
     assert any("does not cover US" in m for m in msgs(b, "E-ROE-TRANSFER"))
 
 
@@ -54,15 +54,15 @@ def test_a_review_that_leaves_out_the_source_is_refused(b):
 def test_every_transfer_region_counts(b):
     doc(b, "engagement.yaml").data["data_transfer"]["transfers"].append(
         {"family": "nvidia", "region": "DE", "mechanism": "contract", "reference": "doc:x"})
-    assert checks.missing_jurisdictions(Ctx(b)) == ["DE"]
+    assert checks_engagement.missing_jurisdictions(Ctx(b)) == ["DE"]
 
 
 def test_extra_jurisdictions_and_a_domestic_engagement_still_pass(b):
     doc(b, "roe.yaml").data["legal_review"]["jurisdictions"] = ["JP", "TW", "US"]
-    assert checks.missing_jurisdictions(Ctx(b)) == []
+    assert checks_engagement.missing_jurisdictions(Ctx(b)) == []
     doc(b, "engagement.yaml").data["data_transfer"]["transfers"] = []
     doc(b, "roe.yaml").data["legal_review"]["jurisdictions"] = ["TW"]
-    assert checks.missing_jurisdictions(Ctx(b)) == []
+    assert checks_engagement.missing_jurisdictions(Ctx(b)) == []
 
 
 def test_docs06_states_the_comparison_and_the_question_list():

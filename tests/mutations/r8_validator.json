@@ -108,14 +108,14 @@
     },
     {
       "name": "ext3 cycle",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_models.py",
       "old": "    for cyc in c.ix.lineage_cycles():",
       "new": "    for cyc in []:",
       "k": "lineage_cycle"
     },
     {
       "name": "ext3 derived_from exists",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_models.py",
       "old": "            R.check(m[\"derived_from\"] in lineages and m[\"derived_from\"] != m.get(\"lineage\"), \"E-MODEL-LINEAGE\"",
       "new": "            R.check(True, \"E-MODEL-LINEAGE\"",
       "k": "names_a_registry_lineage"

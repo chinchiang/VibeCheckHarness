@@ -5,7 +5,7 @@ C6  `providers[].zdr: confirmed` was one word in a signed file: no date, no scop
     single models from zero data retention and a confirmation ends with its contract. A cloud model that can receive C
     data now needs, besides `confirmed` and a signed DPA: an evidence reference, its own key in `zdr_models`, a
     `zdr_confirmed_at` not later than the engagement's issued_at and a `zdr_expires_at` not earlier than validity.not_after
-    (checks.zdr_problems, E-ENG-PROVIDER).
+    (checks_engagement.zdr_problems, E-ENG-PROVIDER).
 C4  A shared-platform target was recognised by its host name only, so a custom domain that is a CNAME to acme.vercel.app
     proved ownership with dns_txt and needed no platform policy. The executor records the CNAME names it resolved
     (run.ownership_results[].cname_chain); an ok result whose chain reaches a shared platform needs platform_project of
@@ -19,7 +19,7 @@ import pathlib
 import pytest
 
 from conftest import doc
-from vchlib import checks, report
+from vchlib import checks, checks_engagement, report
 from vchlib.checks import run_all
 from vchlib.context import Ctx
 
@@ -46,7 +46,7 @@ def test_the_example_confirmations_cover_the_engagement(b):
         assert p["zdr_models"] == models and p["zdr_evidence_ref"]
         assert p["zdr_confirmed_at"] <= e["issued_at"] and p["zdr_expires_at"] >= e["validity"]["not_after"]
         for k in models:
-            assert checks.zdr_problems(report.Report(), e, p, k) == []
+            assert checks_engagement.zdr_problems(report.Report(), e, p, k) == []
     nv = provider(b, "nvidia")
     assert (nv["zdr"], nv["zdr_models"], nv["zdr_confirmed_at"], nv["zdr_expires_at"]) == ("not_available", [], None, None)
     assert msgs(b, "E-ENG-PROVIDER") == []
@@ -87,7 +87,7 @@ def test_the_boundary_dates_still_pass(b):
     e = doc(b, "engagement.yaml").data
     p = provider(b, "openai")
     p["zdr_confirmed_at"], p["zdr_expires_at"] = e["issued_at"], e["validity"]["not_after"]
-    assert checks.zdr_problems(report.Report(), e, p, "gpt_flagship") == []
+    assert checks_engagement.zdr_problems(report.Report(), e, p, "gpt_flagship") == []
     assert msgs(b, "E-ENG-PROVIDER") == []
 
 
@@ -187,7 +187,7 @@ def test_the_documents_state_both_rules_and_what_they_miss():
     d08 = text("docs/08-implementation-spec.md")
     rows = {ln.split("|")[1].strip() for ln in d08.split("### 11.14 供應商資料處理宣告", 1)[1].split("\n### ", 1)[0].splitlines() if ln.startswith("| `")}
     assert {"`zdr_models`", "`zdr_confirmed_at`", "`zdr_expires_at`"} <= rows
-    assert "`zdr_models` 列出這個模型、`zdr_confirmed_at` ≤ `issued_at`、`zdr_expires_at` ≥ `validity.not_after`（`checks.zdr_problems`）" in d08
+    assert "`zdr_models` 列出這個模型、`zdr_confirmed_at` ≤ `issued_at`、`zdr_expires_at` ≥ `validity.not_after`（`checks_engagement.zdr_problems`）" in d08
     sec = d08.split("### 11.9 共享平台網域的所有權證明", 1)[1].split("\n### ", 1)[0]
     assert "`run.ownership_results[].cname_chain`" in sec and "`checks.cname_platform_problems`" in sec
     assert "以 A／ALIAS 記錄直接指向平台 IP" in sec and "`cname.vercel-dns.com`" in sec          # what it cannot see

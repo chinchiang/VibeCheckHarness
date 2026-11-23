@@ -19,7 +19,7 @@ import pathlib
 import pytest
 
 from conftest import doc
-from vchlib import checks
+from vchlib import checks_engagement, report
 from vchlib.bundle import load_variant
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -51,7 +51,7 @@ def single_host(bundle, white_box_only=True):
     doc(bundle, "engagement.yaml").data["deployment_profile"] = "single_host"
     doc(bundle, RM).data["audit_anchor"] = "local"
     if white_box_only:
-        bundle.docs[:] = [d for d in bundle.docs if not (d.kind == "gate-record" and d.data.get("gate") in checks.ROE_GATES)]
+        bundle.docs[:] = [d for d in bundle.docs if not (d.kind == "gate-record" and d.data.get("gate") in report.ROE_GATES)]
     return bundle
 
 
@@ -59,17 +59,17 @@ def single_host(bundle, white_box_only=True):
 def test_the_examples_are_three_zone_and_countersigned(b, lite_base):
     for bundle in (b, lite_base):
         assert "deployment_profile" not in doc(bundle, "engagement.yaml").data
-        assert checks.deployment(Ctx(bundle)) == "three_zone"
+        assert checks_engagement.deployment(Ctx(bundle)) == "three_zone"
         assert doc(bundle, RM).data["audit_anchor"] == "countersigned"
-        assert checks.deployment_problems(Ctx(bundle)) == []
+        assert checks_engagement.deployment_problems(Ctx(bundle)) == []
     assert run_all(b).errors == [] and run_all(lite_base).errors == []
 
 
 # ================================================================ E-ENG-DEPLOYMENT
 def test_a_white_box_lite_engagement_may_be_single_host(lite):
     single_host(lite)
-    assert checks.deployment(Ctx(lite)) == "single_host"
-    assert checks.deployment_problems(Ctx(lite)) == []
+    assert checks_engagement.deployment(Ctx(lite)) == "single_host"
+    assert checks_engagement.deployment_problems(Ctx(lite)) == []
     assert msgs(lite, "E-ENG-DEPLOYMENT") == [] and msgs(lite, "E-REPORT-ANCHOR") == []
     assert "E-SCHEMA" not in {i.code for i in run_all(lite).errors if "engagement.yaml" in i.where or RM in i.where}
 

@@ -17,7 +17,7 @@
     },
     {
       "name": "M1 toolkit pin",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_engagement.py",
       "old": "\"licenses\": \"licenses\", \"toolkit\": \"toolkit-config\",",
       "new": "\"licenses\": \"licenses\",",
       "k": "toolkit_is_pinned"

@@ -3,77 +3,77 @@
  "mutations": [
   {
    "name": "C6: the new conditions are not applied",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "        for msg in zdr_problems(R, e, p, k):\n            R.check(False, \"E-ENG-PROVIDER\", w, f\"{k} ({m.get('family')}) can receive C data but {msg}\")\n",
    "new": "",
    "k": "does_not_name_the_model or another_model or without_evidence or dated_after or ends_before"
   },
   {
    "name": "C6: any model of the family is covered",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if model_key not in (p.get(\"zdr_models\") or []):",
    "new": "    if not (p.get(\"zdr_models\") or []):",
    "k": "another_model"
   },
   {
    "name": "C6: the model list is not read",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if model_key not in (p.get(\"zdr_models\") or []):",
    "new": "    if False:",
    "k": "does_not_name_the_model"
   },
   {
    "name": "C6: evidence is optional",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if not p.get(\"zdr_evidence_ref\"):",
    "new": "    if False:",
    "k": "without_evidence"
   },
   {
    "name": "C6: an undated confirmation passes",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if got is None or (issued is not None and got > issued):",
    "new": "    if got is not None and (issued is not None and got > issued):",
    "k": "dated_after"
   },
   {
    "name": "C6: a later confirmation passes",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if got is None or (issued is not None and got > issued):",
    "new": "    if got is None:",
    "k": "dated_after"
   },
   {
    "name": "C6: confirmed on the issue day is refused",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "(issued is not None and got > issued)",
    "new": "(issued is not None and got >= issued)",
    "k": "boundary_dates"
   },
   {
    "name": "C6: no expiry needed",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if exp is None or (until is not None and exp < until):",
    "new": "    if exp is not None and (until is not None and exp < until):",
    "k": "ends_before"
   },
   {
    "name": "C6: an early expiry passes",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "    if exp is None or (until is not None and exp < until):",
    "new": "    if exp is None:",
    "k": "ends_before"
   },
   {
    "name": "C6: expiring with the engagement is refused",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "(until is not None and exp < until)",
    "new": "(until is not None and exp <= until)",
    "k": "boundary_dates"
   },
   {
    "name": "C6: the earlier rule is skipped",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_engagement.py",
    "old": "        if not R.check(p.get(\"zdr\") == \"confirmed\" and p.get(\"dpa_signed\") is True, \"E-ENG-PROVIDER\", w,",
    "new": "        if not R.check(True, \"E-ENG-PROVIDER\", w,",
    "k": "unconfirmed_is_still"

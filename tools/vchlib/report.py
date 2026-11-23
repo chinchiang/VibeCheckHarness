@@ -27,6 +27,8 @@ GATE_ROLES = {
     "G4": {"security_reviewer"},
     "G5": {"security_reviewer"},
 }
+ENGAGEMENT_GATES = ("G0a", "G1", "G2")
+ROE_GATES = ("G0b", "G3", "G4", "G5")
 DETERMINISTIC_ROLES = {"aggregator", "scope_proxy", "executor"}
 NON_ADJUDICATING_ROLES = {"reporter"}
 LEGAL_GATE = "法務閘門"

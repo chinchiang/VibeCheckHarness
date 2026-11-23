@@ -80,35 +80,35 @@
     },
     {
       "name": "unknown-priced cloud models run",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_engagement.py",
       "old": "        if m.get(\"hosting\") == \"cloud\" and m.get(\"pricing\") is None:\n",
       "new": "        if False and m.get(\"hosting\") == \"cloud\" and m.get(\"pricing\") is None:\n",
       "k": "unknown_priced_cloud_model_needs or fallback_chain_counts"
     },
     {
       "name": "self-hosted models need a price too",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_engagement.py",
       "old": "        if m.get(\"hosting\") == \"cloud\" and m.get(\"pricing\") is None:\n",
       "new": "        if m.get(\"hosting\") in (\"cloud\", \"self\") and m.get(\"pricing\") is None:\n",
       "k": "cloud_model_turned_self_hosted or self_hosted_model_needs_no_price"
     },
     {
       "name": "a zero price bound",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_engagement.py",
       "old": "            R.check(isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0, \"E-ENG-PRICING\", w,",
       "new": "            R.check(isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0, \"E-ENG-PRICING\", w,",
       "k": "price_bound_must_be_positive"
     },
     {
       "name": "a price assumption for no model",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_engagement.py",
       "old": "        if not R.check(c.model(k) is not None, \"E-ENG-PRICING\", w, f\"budgets.price_assumptions.{k}: unknown model\"):\n",
       "new": "        if not R.check(True, \"E-ENG-PRICING\", w, f\"budgets.price_assumptions.{k}: unknown model\"):\n",
       "k": "price_assumption_names_a_model"
     },
     {
       "name": "the models.yaml fallback chain is not followed",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_engagement.py",
       "old": "            todo += list((c.model(k) or {}).get(\"fallback\") or [])\n",
       "new": "            pass\n",
       "k": "fallback_chain_counts"
