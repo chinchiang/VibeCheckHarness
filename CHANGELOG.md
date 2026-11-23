@@ -4,6 +4,22 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## 四個機制的介面簽名與失敗契約（2026-11-22 內部審查 D1；09 BL-78）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增 validator 錯誤碼（這些是執行期契約，bundle 驗證器看不到）。**只有規格文字與一個 schema 列舉；產品程式不存在，無法執行驗證。**
+
+- **重驗結果**（原本是審查代理回報、未逐條重驗）：fencing token 與 CAS 生命週期「只有敘述」成立；job 帳本與副簽 RPC 部分成立（位置、欄位、重試與冪等原本就有）。待辦列把帳本寫成 Z2，實際在 Z3，已更正。
+- **重驗時找到的矛盾**：
+  - 08 §11.7 說 `JobAllowlist` 有 `fencing_token` 欄位，§2.3 的類別定義沒有 → 補上欄位。
+  - job 帳本的欄位，03 §5.8 寫 `outcome`、08 §7.2 寫「結果 ref」→ 統一為 `result_ref`，兩處列出相同的九個欄位。
+  - 08 §7.5 要求「每次撤銷與刪除都寫稽核事件」，事件列舉卻只有 `artifact_stored` → 新增 `artifact_revoked`、`artifact_deleted`（03 §13.2 與 `audit-event.schema.json`）。
+  - 新測試另外抓到兩個既有缺口：`NotFound` 被 08 §2.2 引用卻不在 §6.1 例外表；`feedback_recorded` 在 schema 列舉中卻不在 03 §13.2 的表。都已補上。
+- **08 §2.3 新增**：`JobLease`、`JobLedgerEntry`、`JobLedger`（`claim`／`renew`／`complete`／`lookup`）；生命週期版的 `ContentStore`（`put` 帶 `run_id`、`producer_node`、`legal_hold`；`get` 帶 `run_id`；`revoke`、`set_legal_hold`；`gc` 回傳 `GcReport`）與 `KekProvider`；`CountersignRequest`、`CountersignResponse`、`AnchorCountersigner`。`ContentStore` 不再「原樣沿用」03 §15 的最小簽名。
+- **08 §6.1 新增例外**：`StaleLease`、`JobAlreadyExecuted`、`AnchorRejected`（理由 `chain_mismatch`／`counter_regression`／`unknown_run`／`malformed_request`，不重試）、`ReferenceExpired`、`NotFound`。§6.2 新增副簽單次呼叫逾時。§11.19 寫明傳輸方式（三區走 Z1→Z3 mTLS HTTP JSON API；單機以子行程的 stdin／stdout）。
+- **我提議、待確認的值**：副簽逾時 10 秒 [H]；端點路徑 `POST /v1/anchors/countersign`。租約長度與續租間隔刻意不寫數字（由 `toolkit.yaml` 設定，待 M1 實測）。
+- 新增 `tests/test_interface_contracts.py`（12 個測試，以 `ast` 解析 08 §2.3 的程式區塊；在 `69ee269` 上全部失敗）與突變清單 `tests/mutations/interface_contracts.json`。
+- 受影響的既有測試：`test_docs_review_2026_11_22.py` 中 BL-78 的狀態斷言由「待辦」改為「介面已訂；未實作，數值待實測」，並斷言不得寫成已完成；`docs_review_2026_11_22.json` 一個錨點。
+
 ## 其餘發現的處置：對抗子集、單機 profile 的資料等級、三個待辦（2026-11-22 內部審查 A2、A4、A5、B3、D1、D3、D4、D5、E8）
 
 只有文件與待辦，沒有規則或程式變更。

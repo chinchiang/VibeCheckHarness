@@ -172,8 +172,8 @@
   {
    "name": "D1: BL-78 closed",
    "file": "docs/09-backlog.md",
-   "old": "| M1 開工前 | 待辦；審查代理回報，未逐條重驗 |",
-   "new": "| M1 開工前 | 已完成 |",
+   "old": "| M1 | 介面已訂；未實作，數值待實測 |",
+   "new": "| M1 | 已完成 |",
    "k": "open_design_items"
   }
  ]

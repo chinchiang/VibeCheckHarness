@@ -746,7 +746,7 @@ stateDiagram-v2
 - **Sandbox 與 Executor job**：job ID 由輸入 hash 決定；結果已存在就不重跑。
 - `B4_s2_snapshot` 以 `run_id + job_id` 為冪等鍵：快照已存在就略過。
 - `B4_s0s1_exec`、`B4_s2_exec` 執行前查 Z3 job 帳本（下一點；`executed_jobs` 只是快取），防止 resume 或重試時重跑；狀態為 `EXECUTING` 卻沒有結果的 job 一律標 `INTERRUPTED`，依 §5.6 的續跑規則處理。
-- **job 帳本在 checkpoint 之外**[H]：`executed_jobs` 只是快取；權威是 Z3 Executor 的 **job 帳本**（append-only，每筆 `{run_id, job_id, g5_gate_record_id, started_at, finished_at, outcome}`，由 z3_executor 金鑰簽署）。Executor 收到 job 時先查帳本：已有紀錄 → 拒絕執行並回傳原結果。理由：checkpoint 可以回溯（時間旅行重播、從較早的 checkpoint 分叉），回溯後 state 內的 `executed_jobs` 也會倒退；job_id 又是確定性的，可能對上原本的 G5 紀錄，於是 S2 job 會在沒有新 G5 的情況下重跑。
+- **job 帳本在 checkpoint 之外**[H]：`executed_jobs` 只是快取；權威是 Z3 Executor 的 **job 帳本**（append-only，每筆 `{run_id, job_id, g5_gate_record_id, started_at, finished_at, result_ref, holder, fencing_token, lease_expires_at}`，由 z3_executor 金鑰簽署；型別與方法見 [08 §2.3](08-implementation-spec.md#23-擴充介面) 的 `JobLedgerEntry`／`JobLedger`）。Executor 收到 job 時先查帳本：已有紀錄 → 拒絕執行並回傳原結果。理由：checkpoint 可以回溯（時間旅行重播、從較早的 checkpoint 分叉），回溯後 state 內的 `executed_jobs` 也會倒退；job_id 又是確定性的，可能對上原本的 G5 紀錄，於是 S2 job 會在沒有新 G5 的情況下重跑。
 - **每個 run 一把鎖**[H]：Run Controller、Gate Service 的 `submit`／`expire_due` 與 `run abort` 修改同一個 run 之前，先取得以 `run_id` 為鍵的 PostgreSQL advisory lock。LangGraph 的 OSS 版本沒有 thread 層級的互斥，同時寫入會讓 checkpoint 歷史分叉。
 - **kill switch 走圖外通道**[H]：`kill_switch` 在 state 中只是紀錄。觸發時 CLI 直接呼叫 `Executor.kill(run_id)` 與 Scope Proxy 的關閉介面（兩者都在 Z3，與圖的執行無關），再寫入 state；節點執行途中無法更新 state，所以不能靠圖內的欄位停止正在進行的 job。
 - **durability**[H]：有外部副作用的節點（`B4_*`、`B0_ownership_verify`、Gate Service 寫入）使用同步 checkpoint；非同步模式在當機時可能遺失最後一個 checkpoint，讓已完成的副作用在 resume 時重做。
@@ -1353,10 +1353,10 @@ erDiagram
 | 規劃與政策 | `commander_plan`、`policy_decision`（allow／deny＋規則 ID）、`coverage_floor_applied` |
 | 關卡 | `gate_opened`、`gate_decision`、`gate_expired`、`gate_skipped`、`gate_load_warning`（G2 未決比例超過 `gate_queues.g2_timeout_warn_ratio`，[02 W3](02-methodology.md#w3-交叉驗證與裁決g2)）、`spot_check_result`（ASI09 抽查結果，人為事件、必須簽章，不是 `gate_decision`） |
 | 預算 | `budget_threshold`、`budget_exhausted` |
-| 產物與裁決 | `artifact_stored`、`artifact_validation`、`verdict_changed` |
+| 產物與裁決 | `artifact_stored`、`artifact_revoked`、`artifact_deleted`（CAS 參照的撤銷與內容的刪除，[08 §7.5](08-implementation-spec.md#75-保留與刪除)）、`artifact_validation`、`verdict_changed` |
 | 執行 | `sandbox_job_start`、`sandbox_job_end`、`tool_invocation_start`、`tool_invocation_end`、`session_login`、`egress_blocked`、`third_party_contact`、`job_skipped` |
 | 停止與補償 | `stop_condition`、`kill_switch`、`snapshot_created`、`snapshot_restored`、`restore_failed`、`restore_drill`、`seed_reset_failed`、`policy_violation` |
-| 報告 | `report_published`、`followup_draft_created` |
+| 報告 | `feedback_recorded`（簽署的回饋紀錄被 run 採用，[08 §11.16](08-implementation-spec.md#1116-sarif-輸出與報告回饋)；schema 列舉一直有它，本表原本漏列）、`report_published`、`followup_draft_created` |
 | 稽核本身 | `audit_anchor`、`anchor_rejected`（Z3 拒簽錨點：鏈接不上或編號倒退，[08 §11.19](08-implementation-spec.md#1119-錨點副簽服務mvp-0-的最小-z3h)；run 進 `SUSPENDED`） |
 
 ## 14. 序列圖
@@ -1486,6 +1486,7 @@ class Provenance(BaseModel):
     run_id: str
 
 # --- Content-addressed Store（Z1；M1）---
+# 2026-11-22 內部審查：這是最小簽名；帶 run_id／producer_node／legal_hold 與撤銷方法的版本在 08 §2.3，以那一版為準
 class ContentStore(Protocol):
     def put(self, data: bytes, media_type: str, data_class: Literal["P", "C"],
             retention_days: int) -> ArtifactRef: ...          # 已存在則直接回傳同一 hash

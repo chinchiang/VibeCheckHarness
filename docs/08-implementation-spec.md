@@ -124,7 +124,7 @@ L0  errors, models
 
 以下介面的簽名**原樣沿用** [03 §15](03-system-architecture.md#15-元件介面h)，本文件不重寫：
 
-- `Provenance`、`ContentStore`、`Blackboard`、`SignatureVerifier`、`AuditWriter`、`ModelGateway`
+- `Provenance`、`Blackboard`、`SignatureVerifier`、`AuditWriter`、`ModelGateway`（`ContentStore` 不在此列：它的簽名以 §2.3「介面補齊」的生命週期版為準，03 §15 的版本產生不出 §7.3 的參照檔）
 - `SandboxJobSpec`、`SandboxResult`、`SandboxRunner`
 - `Executor`、`SessionHandle`、`SessionProvider`、`SnapshotService`
 - `RelayRequest`、`LlmRelay`、`BudgetTracker`
@@ -133,7 +133,9 @@ L0  errors, models
 
 | 方法 | 例外 |
 |---|---|
-| `ContentStore.get` | 重算的 hash 不符 → `IntegrityError`；不存在 → `NotFound` |
+| `ContentStore.get` | 重算的 hash 不符 → `IntegrityError`；不存在 → `NotFound`；這個 run 沒有仍有效的參照 → `ReferenceExpired` |
+| `JobLedger.claim`／`renew`／`complete` | 已完成 → `JobAlreadyExecuted`（帶原結果，不是失敗）；token 或租約過期 → `StaleLease` |
+| `AnchorCountersigner.countersign` | Z3 拒簽 → `AnchorRejected`；連不上或逾時 → `Z3Unavailable` |
 | `Blackboard.publish` | schema 驗證失敗 → `SchemaInvalid`（不寫入任何東西） |
 | `SignatureVerifier.load_registry` | 根簽章無效 → `SignatureInvalid`；版本回滾 → `RegistryRollback` |
 | `SignatureVerifier.verify_document` | **不丟例外**，一律回傳 `VerifyResult`；由呼叫者決定後果 |
@@ -250,6 +252,7 @@ class JobAllowlist(BaseModel):
     expires_at: str
     protocols: list[Literal["http1", "h2", "ws", "sse"]]  # M1 只有 ["http1"]；ws、sse 的限制見 §11.7
     job_token_id: str                  # per-job proxy 認證權杖的 ID；權杖本身只在 Z3（§11.7）
+    fencing_token: int                 # JobLedger.claim 發的 token（下面「介面補齊」）；Proxy 拒絕過期的 token（StaleLease）
     edge_ip_ranges: list[str]          # 取自 ROE targets[].edge_ip_ranges（v0.4 起 ROE schema 已有，E-ROE-EDGE-RANGE）；省略時為空（§11.7）
                                        # 這個欄位（09 BL-15），補上之前一律為空
 
@@ -371,6 +374,76 @@ class Aggregator(Protocol):
                    previous: BaseModel | None) -> BaseModel: ...
     # 回傳 verdict.schema.json 的新一版裁決（append-only）；rule_trace 記錄每條被觸發的規則
     # 規則順序：R9、R10、R0、R1、R2–R7、R8、R11、R12、R13（05 §4.2）；每次都從 A 段重新評估
+# --- 介面補齊（2026-11-22 內部審查 D1，09 BL-78）：之前只有敘述的四個機制 ---
+
+# --- JobLedger（executor；Z3；M3）：job 的原子領取、租約與 fencing（03 §5.8）---
+class JobLease(BaseModel):
+    run_id: str
+    job_id: str
+    holder: str                        # 領取者（worker 行程的識別）
+    fencing_token: int                 # 每次領取由帳本遞增；出口元件只接受不小於帳本目前值的 token
+    lease_expires_at: str              # 以帳本資料庫的時間計算，不用 worker 的時鐘
+
+class JobLedgerEntry(BaseModel):       # append-only；每筆以 z3_executor 金鑰簽署（03 §5.8、§7.2）
+    run_id: str
+    job_id: str
+    g5_gate_record_id: str | None
+    started_at: str
+    finished_at: str | None            # None＝已領取、尚未完成
+    result_ref: str | None             # 結果的 ArtifactRef；03 與 §7.2 原本一個寫 outcome、一個寫「結果 ref」
+    holder: str
+    fencing_token: int
+    lease_expires_at: str
+
+class JobLedger(Protocol):
+    def claim(self, run_id: str, job_id: str, holder: str, g5_gate_record_id: str | None) -> JobLease: ...
+    # 一筆資料庫交易＋唯一 job 鍵＋條件更新。已完成 → JobAlreadyExecuted（帶原本的 result_ref，不重跑）；
+    # 別人持有且租約未過期 → StaleLease；租約已過期 → 遞增 fencing_token 後由新的持有者領取
+    def renew(self, lease: JobLease) -> JobLease: ...            # token 不是帳本目前值或租約已過期 → StaleLease
+    def complete(self, lease: JobLease, result_ref: str) -> JobLedgerEntry: ...   # 同上；晚到的舊結果不覆寫
+    def lookup(self, run_id: str, job_id: str) -> JobLedgerEntry | None: ...
+# 出口檢查：ScopeProxy.open_job（JobAllowlist.fencing_token）、SandboxRunner.run、ModelGateway.complete 在放行每個
+# 新請求前向帳本確認 token 與租約；帳本連不上、租約過期、kill switch 已觸發或 token 過期 → StaleLease，請求不送出。
+# 租約長度與續租間隔由 toolkit.yaml 設定，本文件不寫死數字（待 M1 實測）[H]
+
+# --- ContentStore 的生命週期（core；M1）：取代 03 §15 的簽名，欄位對應 §7.3 的參照檔 ---
+class GcReport(BaseModel):
+    references_deleted: int
+    contents_deleted: int              # 所有參照都過期且沒有 legal hold 的內容才刪
+    skipped_legal_hold: int
+
+class ContentStore(Protocol):
+    def put(self, data: bytes, media_type: str, data_class: Literal["P", "C"], retention_days: int,
+            run_id: str, producer_node: str, legal_hold: bool = False) -> ArtifactRef: ...
+    # 內容已存在 → 只新增這個 run 的參照，回傳同一個 hash；寫 artifact_stored
+    def get(self, ref: ArtifactRef, run_id: str) -> bytes: ...
+    # hash 不是授權：run_id 沒有仍有效的參照 → ReferenceExpired；重算的 hash 不符 → IntegrityError；不存在 → NotFound
+    def exists(self, ref: ArtifactRef) -> bool: ...
+    def revoke(self, ref: ArtifactRef, run_id: str) -> None: ...                 # 撤銷這個 run 的參照；寫 artifact_revoked
+    def set_legal_hold(self, ref: ArtifactRef, run_id: str, on: bool) -> None: ...
+    def gc(self, now: str) -> GcReport: ...                                      # 每刪一個內容寫一筆 artifact_deleted
+
+class KekProvider(Protocol):           # KMS 的選型見 §10 U-05；single_host 用作業系統 keychain（§11.20）
+    def wrap(self, engagement_id: str, dek: bytes) -> bytes: ...
+    def unwrap(self, engagement_id: str, wrapped: bytes) -> bytes: ...           # 金鑰已銷毀 → NotFound（內容從此不可讀）
+
+# --- AnchorCountersigner（audit；Z1 用戶端；M1）：§11.19 的副簽 RPC ---
+class CountersignRequest(BaseModel):
+    engagement_id: str
+    run_id: str
+    seq: int
+    draft_anchor_event: dict           # 還沒有 anchor_counter 與副簽的錨點事件
+    lines_since_last_anchor: list[str]  # 上一個錨點之後的每一行（JSONL 原文，UTF-8）
+
+class CountersignResponse(BaseModel):
+    anchor_counter: int
+    countersignature: dict             # common.schema.json 的 signature；簽的是 crypto.anchor_payload
+
+class AnchorCountersigner(Protocol):
+    def countersign(self, request: CountersignRequest, timeout_s: float) -> CountersignResponse: ...
+    # 冪等鍵 (run_id, seq, event_sha256)：同一個鍵重送回傳同一個 response。
+    # Z3 拒簽 → AnchorRejected(reason)，reason 是 chain_mismatch、counter_regression、unknown_run、malformed_request 之一；
+    # 連不上或逾時 → Z3Unavailable（§6.2 重試）。兩者不可混用：拒簽重試也不會成功
 ```
 
 **v0.3 的擴充介面**寫在 §11，與規格放在一起：
@@ -679,6 +752,11 @@ class ToolAdapter(ABC):
 | `ScopeViolation` | Scope Proxy | 否 | 依 03 §7.3：job 停止；指向 ROE 以外主機 → 另寫 `policy_violation` | `egress_blocked`、`policy_violation` | 5 |
 | `OwnershipFailed` | B0、`B4_preflight` | 否 | 該目標 `SKIPPED`；全部目標失敗：B0 → `B6_report`（M1 是 `m1_finish`），`B4_preflight` → `abort_handler` → `STOPPED`（[03 §5.5](03-system-architecture.md#55-b4-執行迴圈)） | `ownership_check` | — |
 | `Z3Unavailable` | Executor 用戶端 | 是（§6.2） | 用盡 → `SUSPENDED` | `run_status_changed` | 9 |
+| `AnchorRejected` | `AnchorCountersigner`（Z3 拒簽錨點） | 否（重試也不會成功） | `SUSPENDED`，等人檢查稽核檔 | `anchor_rejected`（附 `reason`） | 9 |
+| `StaleLease` | `JobLedger`、Scope Proxy、Sandbox 派送、Model Gateway 的出口檢查 | 否 | 該 worker 停止，不送出新請求、不覆寫結果；job 由目前的持有者繼續 | `policy_violation` | —（run 不因此結束） |
+| `JobAlreadyExecuted` | `JobLedger.claim` | 否（不是失敗） | 回傳帳本中原本的結果，不重跑 | `job_skipped` | — |
+| `ReferenceExpired` | `ContentStore.get` | 否 | 該節點失敗 → `FAILED` | `policy_violation` | 8 |
+| `NotFound` | `ContentStore.get`、`KekProvider.unwrap`（§2.2 一直引用這個名稱，本表原本沒有這一列） | 否 | 該節點失敗 → `FAILED` | `artifact_validation` | 8 |
 | `StopConditionTriggered` | Executor | 否 | `abort_handler` → `STOPPED` | `stop_condition` | — |
 | `BuildMismatch` | `B4_preflight`、Executor（§11.7） | 否 | 該目標本批的 job `SKIPPED`（`build_mismatch`），列入 B6；其他目標繼續 | `policy_decision`（deny） | — |
 | `SessionUnavailable` | `B4_preflight` 的 whoami、Session Provider（§11.8） | 重新登入 1 次 | 該角色本批的 job `SKIPPED`（`session_unavailable`；登入方式無法自動化時為 `login_unavailable`），列入 B6 | `session_login`（失敗） | — |
@@ -703,6 +781,7 @@ class ToolAdapter(ABC):
 | Z2 基礎設施失敗 | 立即重試 | 1 次 | 缺口或 `FAILED` |
 | `W4_exec` | 重試 | 1 次 | `ERROR` |
 | Z3 無法連線 | 5、15、45 秒 | 3 次（[03 §5.4](03-system-architecture.md#54-b-子圖g0b-到-g4)） | `SUSPENDED` |
+| 錨點副簽（`countersign`）單次呼叫逾時 | 10 秒 [H]，逾時算 Z3 無法連線，沿用上一列的退避 | 同上 | `SUSPENDED` |
 | `B4_s2_restore` | 立即重試 | 2 次 | `abort_handler` |
 | Postgres 暫時性錯誤 | 0.5、1、2、4、8 秒 | 5 次 | 行程結束 |
 | **絕不重試** | 驗章失敗、政策拒絕、範圍違規、停止條件、`BudgetExceeded`、完整性失敗、黑箱測試請求本身（避免超出 `max_requests`；工具自己的重試也要關閉） | — | — |
@@ -759,7 +838,7 @@ class ToolAdapter(ABC):
 | `budget_ledger` | 每次 reserve 與 record（M2） |
 | `key_registry_state` | 上次接受的版本與 hash（防回滾） |
 | `run_locks` | 不是資料表，而是以 `run_id` 為鍵的 PostgreSQL advisory lock；Run Controller、Gate Service、`run abort` 修改 run 之前取得（[03 §5.8](03-system-architecture.md#58-節點邊界規則)） |
-| Z3 `job_ledger` | 在 Z3（不在 Z1 的資料庫），append-only：`run_id`、`job_id`、`g5_gate_record_id`、開始與結束時間、結果 ref；每筆以 z3_executor 金鑰簽署。不受 checkpoint 回溯影響 |
+| Z3 `job_ledger` | 在 Z3（不在 Z1 的資料庫），append-only：`run_id`、`job_id`、`g5_gate_record_id`、`started_at`、`finished_at`、`result_ref`、`holder`、`fencing_token`、`lease_expires_at`（§2.3 的 `JobLedgerEntry`）；每筆以 z3_executor 金鑰簽署。不受 checkpoint 回溯影響 |
 | LangGraph 的資料表 | 由 checkpointer 自己建立；本工具包的遷移**不修改**這些資料表 |
 
 ### 7.3 CAS 配置
@@ -2067,7 +2146,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 |---|---|
 | 身分 | 金鑰登錄中 `person_id: z3-executor`、角色只有 `z3_executor`（`E-KR-SERVICE`：服務身分不得兼任任何人員角色，不能當發起者或核准者） |
 | 金鑰存放 | 獨立行程，以不同的 OS 使用者（或作業系統 keychain）持有私鑰；Z1（Run Controller、Audit Writer）的行程讀不到。Team／Full 放在另一台主機；`three_zone` 的 Lite 可以在同一台機器，但仍是獨立行程與使用者。例外：`deployment_profile: single_host` 的 Lite 用本機錨點（同一個 OS 使用者的子行程，[§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)），報告標示 `audit_anchor: local` |
-| 介面 | RPC `countersign(request) → response`（第十四輪內部審查 C5 改寫）：request＝`{engagement_id, run_id, seq, draft_anchor_event, lines_since_last_anchor}`（`draft_anchor_event` 是還沒有 `anchor_counter` 與副簽的錨點事件）；response＝`{anchor_counter, countersignature}`。Z3 以 `(run_id, seq, event_sha256)` 為冪等鍵：同一個請求重送回傳同一個計數與簽章（Z3 簽了、Z1 當掉再重送時不會多消耗編號，否則錨點編號會出現缺口、`E-AUDIT-ANCHOR-GAP` 誤報）；計數器與每個 run 上一個錨點的 hash 都持久化在 Z3。Z3 重算這段的 `prev_hash` 鏈與錨點事件的 `event_sha256`（`anchor_counter` 在被簽的 hash 內，所以由 Z3 編號並一起回傳），以 `vibecheck/audit_anchor/v2` domain tag 簽 `{domain, run_id, seq, prev_hash, event_sha256}`。鏈接不上或編號倒退 → 拒簽；Z1 寫稽核事件 `anchor_rejected`（[03 §13.2](03-system-architecture.md#132-事件類型enum)，payload 帶 Z3 回傳的理由），run 進 `SUSPENDED` |
+| 介面 | RPC `countersign(request) → response`（第十四輪內部審查 C5 改寫）：request＝`{engagement_id, run_id, seq, draft_anchor_event, lines_since_last_anchor}`（`draft_anchor_event` 是還沒有 `anchor_counter` 與副簽的錨點事件）；response＝`{anchor_counter, countersignature}`。Z3 以 `(run_id, seq, event_sha256)` 為冪等鍵：同一個請求重送回傳同一個計數與簽章（Z3 簽了、Z1 當掉再重送時不會多消耗編號，否則錨點編號會出現缺口、`E-AUDIT-ANCHOR-GAP` 誤報）；計數器與每個 run 上一個錨點的 hash 都持久化在 Z3。Z3 重算這段的 `prev_hash` 鏈與錨點事件的 `event_sha256`（`anchor_counter` 在被簽的 hash 內，所以由 Z3 編號並一起回傳），以 `vibecheck/audit_anchor/v2` domain tag 簽 `{domain, run_id, seq, prev_hash, event_sha256}`。鏈接不上或編號倒退 → 拒簽；Z1 寫稽核事件 `anchor_rejected`（[03 §13.2](03-system-architecture.md#132-事件類型enum)，payload 帶 Z3 回傳的理由），run 進 `SUSPENDED`。**傳輸**（2026-11-22 內部審查）：`three_zone` 走 §1.3 的 Z1→Z3 mTLS HTTP JSON API（`POST /v1/anchors/countersign`，呼叫者以 Z1 控制平面憑證認證）；`single_host` 由 CLI 啟動子行程，以 stdin／stdout 各傳一份相同的 JSON。型別與例外見 §2.3 的 `AnchorCountersigner`：拒簽是 `AnchorRejected`（理由 `chain_mismatch`／`counter_regression`／`unknown_run`／`malformed_request`），不重試；單次呼叫逾時 10 秒（§6.2） |
 | 不做 | MVP-0 沒有 Z3 自產的事件（`tool_invocation_*` 在 Z2、沒有 `sandbox_job_*`、沒有所有權驗證），所以 03 §13.1 的「核對 Z3 自己產生的事件」留到 MVP-1 的完整 Z3（[09 BL-36](09-backlog.md)）；沒有網路出站 |
 | 信任界線 | 副簽只證明「這些行在簽章時已存在、之後沒被改」。Lite 的一人同時持有 Z1 與 Z3 的金鑰，整條鏈仍可重寫（[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16、#26），報告維持 `evidential: self_attested`；Team／Full 的 Z3 主機由不同的人管理才有對外證據力 |
 | 可用性 | 服務不可用時 Audit Writer 不能寫錨點，依 §6.1 的 `Z3Unavailable` 處理（唯一的一版；第十四輪內部審查之前這裡寫「等待」、§6.1 寫 `SUSPENDED`）：依 §6.2 重試，用盡 → run `SUSPENDED`，寫 `run_status_changed`，結束碼 9；需要錨定的事件（關卡決定、階段結束、`audit.anchor_interval_events` 的計數到期）在 Z3 恢復並寫入錨點之前**不寫入**（fail-closed，[03 §13.1](03-system-architecture.md#131-稽核事件格式audit-eventschemajsonh)），所以關卡決定在 Z3 不可用期間不會生效 |
