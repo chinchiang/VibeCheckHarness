@@ -19,7 +19,7 @@
    "name": "the base imports a check group",
    "file": "tools/vchlib/report.py",
    "old": "from . import timeutil\n",
-   "new": "from . import timeutil\nfrom . import checks_config  # noqa: F401\n",
+   "new": "from . import timeutil\n\n\ndef _late():\n    from . import checks_config  # noqa: F401\n    return checks_config\n\n\n",
    "k": "imports_no_check_group"
   },
   {
