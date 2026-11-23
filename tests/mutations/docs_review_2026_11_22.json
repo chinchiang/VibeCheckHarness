@@ -116,8 +116,8 @@
   {
    "name": "C7: a category removed",
    "file": "docs/04-threat-to-testcase.md",
-   "old": "| JWT 驗證細節 | `alg: none`",
-   "new": "| 權杖 | `alg: none`",
+   "old": "| JWT 驗證細節 | JWKS 來源被替換",
+   "new": "| 權杖 | JWKS 來源被替換",
    "k": "uncovered_attack_surfaces"
   },
   {
@@ -128,10 +128,10 @@
    "k": "uncovered_attack_surfaces"
   },
   {
-   "name": "C7: BL-75 closed",
+   "name": "C7: BL-75 open again",
    "file": "docs/09-backlog.md",
-   "old": "| MVP-2 | 待辦；目前這些類別只能以 `MANUAL` 或 G4 核准的 `GENERATED_SCRIPT` 處理 |",
-   "new": "| MVP-2 | 已完成 |",
+   "old": "| 已補列；全部未實作，websocket 能力仍是候選 |",
+   "new": "| 待辦 |",
    "k": "uncovered_attack_surfaces"
   },
   {

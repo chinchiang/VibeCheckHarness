@@ -134,10 +134,12 @@ def test_docs04_lists_the_uncovered_attack_surfaces():
     rows = [ln.split("|")[1].strip() for ln in sec.splitlines() if ln.startswith("| ") and not ln.startswith("| 類別")]
     assert rows == ["WebSocket／SSE 與自建即時通道", "OAuth／OIDC 流程", "JWT 驗證細節", "LLM 輸出的渲染外洩", "黑箱注入（Lite）"]
     assert "只能是 `MANUAL`" in sec and "不能讓「Binding 表每一列都測了」被讀成「常見攻擊面都測了」" in sec
-    for cited in ("「Realtime 訂閱隔離」", "「Open redirect（伺服器端）」", "「非 LLM 的 XSS」"):
+    # 2026-11-23 (BL-75): the rows were added or extended; the list now says what is STILL not covered and names the rows
+    # that exist (tests/test_binding_table.py). The first version said none of the five had a row, which was wrong
+    for cited in ("「Realtime 訂閱隔離」", "「OAuth／OIDC 流程」", "「JWT 處理」", "「非 LLM 的 XSS」"):
         assert cited in sec and cited.strip("「」") in s.split("**這張表沒有涵蓋的類別**", 1)[0], cited    # the rows it points at exist
     bl = next(ln for ln in text("docs/09-backlog.md").splitlines() if ln.startswith("| BL-75 |"))
-    assert "PKCE" in bl and "| 待辦" in bl
+    assert "PKCE" in bl and "| 已補列；全部未實作" in bl and "| 待辦" not in bl
 
 
 # ================================================================ D2: LiteLLM is a library in the Gateway

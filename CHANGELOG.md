@@ -4,6 +4,22 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## Binding 表補列五類攻擊面，並更正一句錯話（2026-11-22 內部審查 C7；09 BL-75）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼，`tools.yaml` 不變（沒有新增 adapter）。**只有規格文字；adapter 未實作，無法執行驗證。**
+
+- **更正**：`9d3868c` 在 04 §4.3 加的「這張表沒有涵蓋的類別」寫「下列攻擊面沒有任何一列」。這句話是錯的——A 表原本就有「OAuth／OIDC 流程」與「JWT 處理」兩列，只是各測一件事。那段文字出自審查代理的回報，我當時沒有對原表核對。段落已改為列出「仍然沒有涵蓋什麼」與已有的列名，並在頁面上留下更正說明。
+- **擴充兩列**：
+  - OAuth／OIDC：除了未登錄的 `redirect_uri`，加上 `state` 被改動、token 交換缺少或帶錯 `code_verifier`、授權碼重放；只用測試帳號。
+  - JWT：單一欄位變化加上錯誤簽發者、`alg` 改為 `none`、非對稱改對稱、`kid` 指向不存在的金鑰；需求來源補上 ASVS 5.0 V9（`E:threat_modeling-40`）。
+- **新增三列**：
+  - A 表「WebSocket／SSE 的連線與訂閱授權」：升級請求的認證與只接收的訂閱；送訊息只能是 G4 核准的 `script_turns`（守 08 §11.7）。adapter 的 websocket 能力仍是候選，Scope Proxy 的支援在 M4。
+  - B 表「輸出的渲染外洩」：canary 伺服器沒有收到瀏覽器的請求（`CANARY`）加上 DOM 斷言，兩個都是確定性 oracle。
+  - A 表「注入類定點檢查」：固定、少量、不含語句的語法標記，S1，Lite 可執行。綁 `playwright:api` 而不是 `schemathesis:hook`（後者只跑 GET／HEAD）。它只找得到有錯誤訊息或回顯的注入；「Lite 沒有黑箱注入測試」改為「Lite 只有注入類的定點檢查」，並規定 PASS 不得寫成「沒有注入漏洞」。
+- **沒有引用未查證的 WSTG ID**：`WSTG-v42-SESS-10`（JWT）不是 v4.2 的項目（`E:threat_modeling-56`），`CLNT-10`、`ATHZ-05` 在 repo 中沒有證據；新列的該欄寫「未對到官方 ID」。
+- 新增 `tests/test_binding_table.py`（12 個測試；在 `59f3580` 上 9 個失敗，通過的 3 個是原有列也成立的性質）與突變清單 `tests/mutations/binding_table.json`（`CAUGHT 24/24`）。測試解析六張子表，所以對原有的 79 列也成立：欄數、adapter 已登錄或標為候選、等級不低於 adapter 的 `base_class`、每個 WSTG ID 帶證據標籤。原有的列沒有違反任何一條。
+- 受影響的既有測試：`test_docs_review_2026_11_22.py::test_docs04_lists_the_uncovered_attack_surfaces` 改為斷言新的列名與 BL-75 的新狀態；`docs_review_2026_11_22.json` 兩個錨點。
+
 ## 四個機制的介面簽名與失敗契約（2026-11-22 內部審查 D1；09 BL-78）
 
 CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增 validator 錯誤碼（這些是執行期契約，bundle 驗證器看不到）。**只有規格文字與一個 schema 列舉；產品程式不存在，無法執行驗證。**
