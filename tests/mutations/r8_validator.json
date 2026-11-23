@@ -3,7 +3,7 @@
   "mutations": [
     {
       "name": "F2a job never finished",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(isinstance(job, dict) and job.get(\"status\") in JOB_RAN_STATES, \"E-JOB-AUDIT\", where,",
       "new": "        R.check(True, \"E-JOB-AUDIT\", where,",
       "k": "never_ran"
@@ -17,14 +17,14 @@
     },
     {
       "name": "F2b one result per job",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(len(trs) == 1, \"E-JOB-AUDIT\", where,",
       "new": "        R.check(True, \"E-JOB-AUDIT\", where,",
       "k": "second_result"
     },
     {
       "name": "F2b unanchored end",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                R.check(False, \"E-JOB-AUDIT\", where,\n                        f\"testresult {tr.get('result_id')}: its sandbox_job_end",
       "new": "                R.check(True, \"E-JOB-AUDIT\", where,\n                        f\"testresult {tr.get('result_id')}: its sandbox_job_end",
       "k": "unanchored_job_end"
@@ -150,28 +150,28 @@
     },
     {
       "name": "F1 B needs VERIFIED G0b",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(last_before(\"G0b\", t) == \"VERIFIED\", \"E-GATE-ORDER\", where,",
       "new": "            R.check(True, \"E-GATE-ORDER\", where,",
       "k": "failed_g0b_stops or verified_g0b or later_failed_g0b"
     },
     {
       "name": "F3 first-decision order",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(prev is None or first[g] > first[prev], \"E-GATE-ORDER\", w,",
       "new": "            R.check(True, \"E-GATE-ORDER\", w,",
       "k": "g4_cannot_precede_g3"
     },
     {
       "name": "F3 W4 after G2",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(\"G2\" not in first or min(w4_events) > first[\"G2\"], \"E-GATE-ORDER\", w,",
       "new": "        R.check(True, \"E-GATE-ORDER\", w,",
       "k": "w4_runs_after_g2"
     },
     {
       "name": "F4 claim",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(bool(claims) and min(claims) < min(gated), \"E-RUN-CLAIM\", w,",
       "new": "            R.check(True, \"E-RUN-CLAIM\", w,",
       "k": "claimed_by_a_human or claim_precedes"
@@ -199,21 +199,21 @@
     },
     {
       "name": "M2 spot check independence",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    R.check(who not in approvers and who not in initiators, \"E-SPOT-CHECK\", where,",
       "new": "    R.check(True, \"E-SPOT-CHECK\", where,",
       "k": "approver_cannot_spot_check"
     },
     {
       "name": "M2 spot check role",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    R.check(actor.get(\"kind\") == \"human\" and \"security_reviewer\" in c.roles_of(who), \"E-SPOT-CHECK\", where,",
       "new": "    R.check(True, \"E-SPOT-CHECK\", where,",
       "k": "only_a_security_reviewer"
     },
     {
       "name": "M2 spot check item",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    if not R.check(rec is not None and rec.get(\"gate\", \"\").lower() == kind",
       "new": "    if not R.check(True",
       "k": "names_a_gate_record"

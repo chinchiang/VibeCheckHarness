@@ -3,35 +3,35 @@
   "mutations": [
     {
       "name": "A1: a Z3 job may hide behind any node",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        if e.get(\"zone\") == \"Z3\":\n            R.check(e.get(\"node\") == \"B4\", \"E-JOB-AUDIT\", where,",
       "new": "        if e.get(\"zone\") == \"Z3\":\n            R.check(True, \"E-JOB-AUDIT\", where,",
       "k": "z3_job_cannot_hide"
     },
     {
       "name": "A1: a Z3 job labelled W1 is not in run.jobs",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(jid in jobs, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")\n        elif e.get(\"node\") in B_NODES:",
       "new": "            R.check(True, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")\n        elif e.get(\"node\") in B_NODES:",
       "k": "z3_job_cannot_hide"
     },
     {
       "name": "A1: a Z3 job labelled W1 needs no G0b",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                and (node not in (\"W0\", \"W1\", \"W4\") or e.get(\"zone\") == \"Z3\"):",
       "new": "                and (node not in (\"W0\", \"W1\", \"W4\")):",
       "k": "labelled_w1_is_still_a_b_phase"
     },
     {
       "name": "A1: a B4 job in Z2",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        elif e.get(\"node\") in B_NODES:\n            R.check(False, \"E-JOB-AUDIT\", where,",
       "new": "        elif e.get(\"node\") in B_NODES:\n            R.check(True, \"E-JOB-AUDIT\", where,",
       "k": "b4_job_runs_in_z3"
     },
     {
       "name": "A1: a W4 job outside Z2",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(e.get(\"node\") in (\"W0\", \"W1\", \"W4\") and e.get(\"zone\") == \"Z2\", \"E-JOB-AUDIT\", where,",
       "new": "            R.check(True, \"E-JOB-AUDIT\", where,",
       "k": "w4_job_runs_in_z2"
@@ -66,7 +66,7 @@
     },
     {
       "name": "A3: a PENDING job in a completed run",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(job.get(\"status\") not in (\"PENDING\", \"SNAPSHOTTED\", \"EXECUTING\"), \"E-JOB-AUDIT\", where,",
       "new": "            R.check(True, \"E-JOB-AUDIT\", where,",
       "k": "pending_approved_job_cannot_sit"
@@ -80,7 +80,7 @@
     },
     {
       "name": "A5: a VERIFY_FAILED need not abort",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(nxt is not None and nxt.get(\"event_type\") == \"run_status_changed\"\n                    and (nxt.get(\"payload\") or {}).get(\"to\") in (\"ABORTED\", \"SUSPENDED\"), \"E-GATE-ORDER\", where,",
       "new": "            R.check(True, \"E-GATE-ORDER\", where,",
       "k": "verify_failed_g0b_must_abort"
@@ -108,28 +108,28 @@
     },
     {
       "name": "A7: no G0a after a resume",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                    if y.get(\"event_type\") in WORK_EVENTS + (\"gate_decision\", \"verdict_changed\", \"ownership_check\") or y.get(\"node\") in B_NODES:\n                        R.check(False, \"E-RUN-RESUME\",",
       "new": "                    if y.get(\"event_type\") in WORK_EVENTS + (\"gate_decision\", \"verdict_changed\", \"ownership_check\") or y.get(\"node\") in B_NODES:\n                        R.check(True, \"E-RUN-RESUME\",",
       "k": "resume_without_a_new_g0a_is_rejected"
     },
     {
       "name": "A7: a failed G0a re-verification",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                        R.check(yp.get(\"outcome\") == \"VERIFIED\", \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
       "new": "                        R.check(True, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",",
       "k": "failed_g0a_re_verification"
     },
     {
       "name": "A7: no ownership re-check after a B-phase resume",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                    R.check(bool(later), \"E-RUN-OWNERSHIP\", f\"{w} seq {e.get('seq')}\",",
       "new": "                    R.check(True, \"E-RUN-OWNERSHIP\", f\"{w} seq {e.get('seq')}\",",
       "k": "re_checks_ownership_before_the_next_job"
     },
     {
       "name": "A8: events after the terminal status",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        if prev in TERMINAL_RUN_STATES and e.get(\"event_type\") != \"audit_anchor\":",
       "new": "        if False:",
       "k": "run_end_anchor_follows_a_terminal_status"
@@ -150,7 +150,7 @@
     },
     {
       "name": "A9: the baseline is not pinned",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        for k in (\"run_kind\", \"trigger\", \"baseline_run_id\"):",
       "new": "        for k in (\"run_kind\", \"trigger\"):",
       "k": "baseline_is_pinned_by_run_created"

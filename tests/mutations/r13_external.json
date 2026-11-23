@@ -3,28 +3,28 @@
   "mutations": [
     {
       "name": "a terminal state can be left again",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    \"ABORTED\": (), \"FAILED\": (), \"COMPLETED\": (), \"COMPLETED_WITH_GAPS\": (),\n",
       "new": "    \"ABORTED\": (\"RUNNING\",), \"FAILED\": (\"RUNNING\",), \"COMPLETED\": (\"RUNNING\",), \"COMPLETED_WITH_GAPS\": (\"RUNNING\",),\n",
       "k": "terminal_state_is_never_left"
     },
     {
       "name": "work while the run is not RUNNING",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(prev == \"RUNNING\", \"E-RUN-STATUS\", f\"{w} seq {e.get('seq')}\",\n                    f\"{e.get('event_type')} while the run is {prev}: work only happens",
       "new": "            R.check(True, \"E-RUN-STATUS\", f\"{w} seq {e.get('seq')}\",\n                    f\"{e.get('event_type')} while the run is {prev}: work only happens",
       "k": "work_only_happens_while"
     },
     {
       "name": "a gate decided while SUSPENDED",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(prev in GATE_STATES, \"E-RUN-STATUS\",",
       "new": "            R.check(True, \"E-RUN-STATUS\",",
       "k": "gate_is_decided_while"
     },
     {
       "name": "the code's table drifts from the docs",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    \"WAITING_GATE\": (\"RUNNING\", \"SUSPENDED\", \"STOPPED\", \"ABORTED\", \"FAILED\"),\n",
       "new": "    \"WAITING_GATE\": (\"RUNNING\", \"SUSPENDED\", \"STOPPED\", \"ABORTED\", \"FAILED\", \"COMPLETED\"),\n",
       "k": "transition_table_in_the_docs"
@@ -38,14 +38,14 @@
     },
     {
       "name": "W nodes without G1",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        if node in G1_GATED_NODES and not lane_a:\n",
       "new": "        if node in () and not lane_a:\n",
       "k": "cannot_scan_before_g1 or cannot_adjudicate_before_g1"
     },
     {
       "name": "W3 before W1",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                R.check(first_w1 is not None and first_w1 < t, \"E-GATE-ORDER\", where,",
       "new": "                R.check(True, \"E-GATE-ORDER\", where,",
       "k": "w3_follows_the_first_w1"
@@ -207,8 +207,8 @@
     {
       "name": "02 without the prerequisites",
       "file": "docs/02-methodology.md",
-      "old": "**W 階段的前置條件**（第十三輪外部審查；validator 以 `checks.G1_GATED_NODES`",
-      "new": "**W 階段的順序**（第十三輪外部審查；validator 以 `checks.G1_GATED_NODES`",
+      "old": "**W 階段的前置條件**（第十三輪外部審查；validator 以 `checks_audit.G1_GATED_NODES`",
+      "new": "**W 階段的順序**（第十三輪外部審查；validator 以 `checks_audit.G1_GATED_NODES`",
       "k": "phase_prerequisites_are_documented"
     }
   ]

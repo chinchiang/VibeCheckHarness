@@ -94,14 +94,14 @@
     },
     {
       "name": "run_created pins run_kind and trigger",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(run.get(k) == payload.get(k), \"E-RUN-COMMIT\", f\"run {rid}\",",
       "new": "            R.check(True, \"E-RUN-COMMIT\", f\"run {rid}\",",
       "k": "pins_the_run_kind"
     },
     {
       "name": "a registry older than a run loaded is a rollback",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(type(v) is int and type(reg_v) is int and reg_v >= v, \"E-KR-ROLLBACK\",",
       "new": "            R.check(True, \"E-KR-ROLLBACK\",",
       "k": "older_than_a_run_loaded"

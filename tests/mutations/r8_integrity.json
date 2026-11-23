@@ -3,14 +3,14 @@
   "mutations": [
     {
       "name": "H4 verdict pin",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                    R.check(v is not None and p.get(\"verdict_sha256\") == content_hash(v.data), \"E-AUDIT-VERDICT\", where,",
       "new": "                    R.check(True, \"E-AUDIT-VERDICT\", where,",
       "k": "verdict_edited_after"
     },
     {
       "name": "H4 report pin",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                    R.check(rm is not None and p.get(\"report_manifest_sha256\") == content_hash(rm.data), \"E-AUDIT-REPORT\", where,",
       "new": "                    R.check(True, \"E-AUDIT-REPORT\", where,",
       "k": "report_edited_after"
