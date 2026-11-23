@@ -26,7 +26,7 @@ import json
 
 
 from conftest import doc, rederive
-from vchlib import checks, context, derive, expectations, verdict
+from vchlib import checks, context, derive, expectations, report, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -119,7 +119,7 @@ def roll_back_to_g4(b):
     refix_nokey(b)
     c = context.Ctx(b)
     heads = verdict.verdict_heads(c, run["verdicts"])
-    rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
+    rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in report.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, RUN)
     refix_nokey(b)
 
@@ -175,7 +175,7 @@ def add_k301_verdict(b):
     # r13: the follow-up run has no W1 events, so a W3 event there is E-GATE-ORDER; the B-phase run writes it at B5
     ev = tail_event(b, FAUDIT, "verdict_changed", "B5", {"verdict_id": "V-301-1"}, "verdict-V-301-1")
     refix_nokey(b)
-    c = context.Ctx(checks.quarantine(checks.Report(), b))
+    c = context.Ctx(checks.quarantine(report.Report(), b))
     dv = verdict.derive_verdict(c, v)                                               # v.cluster_id is K-301
     out = dv.outcome
     v.update({"status": out.status, "status_cap": out.status_cap, "advisory": out.advisory,

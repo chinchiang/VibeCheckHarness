@@ -6,7 +6,7 @@ import shutil
 import pytest
 
 from conftest import ROOT, codes, doc
-from vchlib import checks
+from vchlib import checks, report
 from vchlib.bundle import load_bundle, reload_json
 from vchlib.checks import run_all
 
@@ -225,7 +225,7 @@ def test_e_lic_missing_requirement_not_listed(b):
 
 
 def test_e_lic_gate_needs_gate_milestone(b):
-    x = next(x for x in lic(b) if x["status"] == checks.LEGAL_GATE)
+    x = next(x for x in lic(b) if x["status"] == report.LEGAL_GATE)
     x["gate_milestone"] = None
     assert has(b, "E-LIC-GATE", "licenses.yaml", "needs a gate_milestone")
 

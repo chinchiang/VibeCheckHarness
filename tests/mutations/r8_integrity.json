@@ -24,7 +24,7 @@
     },
     {
       "name": "M1 queue cap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_config.py",
       "old": "        R.check(type(val) is int and val >= 1, \"E-TOOLKIT\", w,",
       "new": "        R.check(True, \"E-TOOLKIT\", w,",
       "k": "zero_queue_cap"

@@ -24,7 +24,7 @@ import time
 
 from conftest import doc, rederive, resign_gate
 from test_v07_r9_anchor import AUDIT, FAUDIT, FRUN, RUN, rechain, refix_nokey, tail_event
-from vchlib import checks, context, derive, expectations, verdict
+from vchlib import checks, context, derive, expectations, report, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -77,7 +77,7 @@ def follow_up_manifest(b):
                "build_unverified_targets": [], "absent_fingerprints": []})
     c = context.Ctx(b)
     heads = verdict.verdict_heads(c, run["verdicts"])
-    rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in checks.FINAL_STATUSES}
+    rm["verdict_counts"] = {s: sum(1 for v in heads if v.get("status") == s) for s in report.FINAL_STATUSES}
     rm["metrics"] = checks.report_metrics(c, FRUN)
     base = run.get("baseline_run_id")
     cur = {derive.cluster_fingerprint(k.data) for k in c.docs("cluster") if k.data.get("run_id") == FRUN}

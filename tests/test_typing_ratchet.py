@@ -41,7 +41,8 @@ def test_the_checked_modules_pass():
     pytest.importorskip("mypy")
     r = subprocess.run([sys.executable, "-m", "mypy"], cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0, r.stdout[-2000:]
-    assert "no issues found in 20 source files" in r.stdout
+    n = len(list((ROOT / "tools" / "vchlib").glob("*.py")))        # report.py and checks_config.py were split out of checks (PR-D0)
+    assert n >= 22 and f"no issues found in {n} source files" in r.stdout
 
 
 def test_ci_runs_the_type_check_and_pins_the_tool():

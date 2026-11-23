@@ -27,7 +27,7 @@ import pytest
 from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive
 from test_v07_r11_anchor import renumber
 from vchlib import adjudicate as adj
-from vchlib import calibration, checks
+from vchlib import calibration, checks, report
 from vchlib.bundle import load_variant
 from vchlib.canonical import jcs
 from vchlib.checks import run_all
@@ -106,7 +106,7 @@ def doc_transitions():
 def test_the_transition_table_in_the_docs_is_the_validators():
     table = doc_transitions()
     assert table and table == {k: tuple(v) for k, v in checks.RUN_TRANSITIONS.items()}
-    assert all(not checks.RUN_TRANSITIONS[s] for s in checks.TERMINAL_RUN_STATES)
+    assert all(not checks.RUN_TRANSITIONS[s] for s in report.TERMINAL_RUN_STATES)
 
 
 # ================================================================ 2. the white-box phase follows G1, W1 first

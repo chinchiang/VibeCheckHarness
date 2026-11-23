@@ -9,18 +9,22 @@ import pytest
 from conftest import ROOT, codes, doc
 from vchlib import seal
 
-CHECKS = ROOT / "tools" / "vchlib" / "checks.py"
+# The checker is checks.py, the check-group modules split out of it (checks_*.py) and their shared base (report.py)
+# (architecture refactor PR-D0, docs/adr/0003-split-checks.md).
+CHECKERS = sorted((ROOT / "tools" / "vchlib").glob("checks*.py")) + [ROOT / "tools" / "vchlib" / "report.py"]
 
 
 def test_the_checker_never_reseals():
     """checks.py reads the signing policy from seal but must not sign: no reseal / sign_event_in_place / current_key / signing_key."""
     writers = {"reseal", "sign_event_in_place", "current_key", "signing_key"}
-    tree = ast.parse(CHECKS.read_text(encoding="utf-8"))
-    used = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name)
-            and n.value.id == "seal"}
-    imported = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and (n.module or "").endswith("seal")
-                for a in n.names}
-    assert not (used | imported) & writers, sorted((used | imported) & writers)
+    assert {p.name for p in CHECKERS} >= {"checks.py", "checks_config.py", "report.py"}
+    for path in CHECKERS:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        used = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name)
+                and n.value.id == "seal"}
+        imported = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and (n.module or "").endswith("seal")
+                    for a in n.names}
+        assert not (used | imported) & writers, (path.name, sorted((used | imported) & writers))
 
 
 def test_reseal_leaves_the_clean_bundle_unchanged(b, keys):

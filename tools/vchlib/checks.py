@@ -17,10 +17,9 @@ import datetime as dt
 import math
 import re
 import traceback
-from dataclasses import dataclass, field
 
 from urllib.parse import urlsplit
-from jsonschema import Draft202012Validator, FormatChecker, validators
+from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 from referencing import Registry, Resource
 
@@ -30,29 +29,17 @@ from .bundle import Bundle, Doc, read_jsonl_lines
 from .calibration import (CAL_POLICY, HOLDOUT_MIN_N, apps_problem, clustering_icc, corpus_splits, effective_n_of,
                           high_precision_min, high_precision_problems)
 from .canonical import CanonicalizationError, content_hash, jcs, sha256_hex, signing_payload
-from .context import REQUIRED_AUTOMATION, Ctx
+from .checks_config import g_crosswalk, g_licenses, g_llm_schemas, g_toolkit
+from .context import Ctx
+from .report import (DETERMINISTIC_ROLES, FINAL_STATUSES, FORMATS, GATE_ROLES, LEGAL_GATE, M1_REQUIRED_SELFTESTS,
+                     NON_ADJUDICATING_ROLES, PLACEHOLDER_ID, PUBLISH_SCOPES, TERMINAL_RUN_STATES, Report,
+                     StrictValidator, doc_guard, format_checker, is_date, retention_max, roe_windows, schema_formats, ts,
+                     url_problem)
 from .verdict import (derive_verdict, derived_no_eligible_verifier, eligible_verifier_families, g2_latest,
                       is_verifier_vote, members_at_vote, PHASE_ORDER, PRE_G3_PHASES, _resolving_event,
                       sarif_ref_problem, verdict_heads, verifier_template_controls, VERIFIER_TEMPLATE_ID, vote_model,
                       vote_terms)
 
-GATE_ROLES = {
-    "G0a": {"app_owner", "management"},
-    "G0b": {"test_lead", "management", "infrastructure_owner"},
-    "G1": {"app_owner"},
-    "G2": {"security_reviewer"},
-    "G3": {"security_reviewer", "app_owner"},
-    "G4": {"security_reviewer"},
-    "G5": {"security_reviewer"},
-}
-DETERMINISTIC_ROLES = {"aggregator", "scope_proxy", "executor"}
-NON_ADJUDICATING_ROLES = {"reporter"}
-LEGAL_GATE = "法務閘門"
-M1_REQUIRED_SELFTESTS = {"ST-1", "ST-3", "ST-7"}
-# placeholder model IDs: <...>, {...}, or a TBD / TODO / FIXME / 實作時確認 token (case-insensitive)
-PLACEHOLDER_ID = re.compile(r"<[^<>]*>|\{[^{}]*\}|(?<![A-Za-z0-9])(?:TBD|TODO|FIXME)(?![A-Za-z0-9])|實作時確認", re.IGNORECASE)
-TERMINAL_RUN_STATES = ("COMPLETED", "COMPLETED_WITH_GAPS", "ABORTED", "FAILED")   # D2; SUSPENDED and STOPPED are resumable
-FINAL_STATUSES = ("CONFIRMED_EXECUTABLE", "CONFIRMED_CORROBORATED", "LIKELY", "UNCORROBORATED", "DISPUTED", "REJECTED", "FIXED")   # FIXED: r11, 05-v0.10
 # RFC 8785 §3.2.2.3 / Appendix B number vectors and §3.2.3 key-order vector
 JCS_VECTORS = [
     ([333333333.33333329, 1e30, 4.50, 2e-3, 0.000000000000000000000000001], b"[333333333.3333333,1e+30,4.5,0.002,1e-27]"),
@@ -66,148 +53,6 @@ JCS_VECTORS = [
     ([1000000000000000100.0, -1000000000000000100.0, 9007199254740993.0, 1.2345678901234568e+20, 1234567890123456789.0, 1e20, 123456789012345680000.0],
      b"[1000000000000000100,-1000000000000000100,9007199254740992,123456789012345680000,1234567890123456800,100000000000000000000,123456789012345680000]"),
 ]
-
-
-# ============================================================== report
-@dataclass
-class Issue:
-    level: str      # error | warning
-    code: str
-    where: str
-    msg: str
-
-
-@dataclass
-class Report:
-    issues: list[Issue] = field(default_factory=list)
-    groups: list[tuple[str, int, int]] = field(default_factory=list)   # (name, checks, errors)
-    notes: list[str] = field(default_factory=list)
-    _checks: int = 0
-
-    def error(self, code, where, msg):
-        self.issues.append(Issue("error", code, where, msg))
-
-    def warn(self, code, where, msg):
-        self.issues.append(Issue("warning", code, where, msg))
-
-    def check(self, cond, code, where, msg) -> bool:
-        self._checks += 1
-        if not cond:
-            self.error(code, where, msg)
-        return bool(cond)
-
-    @property
-    def errors(self):
-        return [i for i in self.issues if i.level == "error"]
-
-    @property
-    def warnings(self):
-        return [i for i in self.issues if i.level == "warning"]
-
-    def codes(self) -> set[str]:
-        return {i.code for i in self.errors}
-
-
-# ============================================================== helpers
-def ts(R: Report, value, where, what="timestamp"):
-    """Parse an RFC 3339 timestamp; report E-DATETIME and return None when invalid."""
-    if value is None:
-        return None
-    try:
-        return timeutil.parse_dt(value)
-    except timeutil.TimeError as exc:
-        R.error("E-DATETIME", where, f"{what}: {exc}")
-        return None
-
-
-def is_date(value) -> bool:
-    if not isinstance(value, str) or not re.match(r"^\d{4}-\d{2}-\d{2}$", value):
-        return False
-    try:
-        dt.date.fromisoformat(value)
-        return True
-    except ValueError:
-        return False
-
-
-def is_uri(value) -> bool:
-    """D3: an absolute URI with a scheme and a host (no whitespace)."""
-    if not isinstance(value, str) or not value or any(ch.isspace() for ch in value):
-        return False
-    try:
-        u = urlsplit(value)
-        return bool(re.match(r"^[A-Za-z][A-Za-z0-9+.-]*$", u.scheme or "")) and bool(u.hostname)
-    except ValueError:
-        return False
-
-
-FORMATS = {"date-time", "date", "uri"}     # every `format` a schema uses must have a checker (E-SCHEMA-FORMAT)
-LOCAL_HTTP_HOSTS = ("localhost", "127.0.0.1", "::1")
-
-
-def format_checker() -> FormatChecker:
-    fc = FormatChecker(formats=())
-    fc.checks("date-time")(lambda v: not isinstance(v, str) or timeutil.is_datetime(v))
-    fc.checks("date")(lambda v: not isinstance(v, str) or is_date(v))
-    fc.checks("uri")(lambda v: not isinstance(v, str) or is_uri(v))
-    return fc
-
-
-def schema_formats(node, path="") -> list[tuple[str, str]]:
-    """[(json path, format)] of every `format` keyword in a schema."""
-    out = []
-    if isinstance(node, dict):
-        for k, v in node.items():
-            if k == "format" and isinstance(v, str):
-                out.append((path, v))
-            out += schema_formats(v, f"{path}/{k}")
-    elif isinstance(node, list):
-        for i, v in enumerate(node):
-            out += schema_formats(v, f"{path}[{i}]")
-    return out
-
-
-def url_problem(url) -> str | None:
-    """D3: ROE URLs must be https://; http:// only for localhost / 127.0.0.1 / [::1] (MVP-1 local targets)."""
-    if not is_uri(url):
-        return f"{url!r} is not an absolute URI"
-    u = urlsplit(url)
-    if u.scheme.lower() == "https":
-        return None
-    if u.scheme.lower() == "http" and (u.hostname or "").lower() in LOCAL_HTTP_HOSTS:
-        return None
-    return f"{url!r} must be https:// (http:// only for localhost, 127.0.0.1 or [::1])"
-
-
-def _strict_integer(checker, instance) -> bool:
-    """JSON Schema "integer" without the 2020-12 leniency: 3.0 / 3e0 (float) and bools are not integers."""
-    return type(instance) is int
-
-
-# Draft 2020-12 accepts 3.0 as an integer; a signed / hash-chained document must not depend on
-# that (3e0 and 3 canonicalise identically but are different literals), so integer = Python int.
-StrictValidator = validators.extend(
-    Draft202012Validator,
-    type_checker=Draft202012Validator.TYPE_CHECKER.redefine("integer", _strict_integer),
-)
-
-
-# v0.5 (BL-17): least-privilege token scopes the publisher may hold (comment on PRs, open / update issues; no code access)
-PUBLISH_SCOPES = {"github": frozenset({"metadata:read", "issues:write", "pull_requests:write"})}
-# v0.5 (BL-16, docs/08 §11.7): the crawler's baseline skip list; toolkit.yaml may add keywords, never drop these
-B1_SKIP_BASELINE = frozenset({"logout", "log-out", "signout", "sign-out", "delete", "remove", "unsubscribe", "approve", "confirm", "reset",
-                              "cron", "send", "pay", "toggle", "activate", "publish", "登出", "刪除", "移除", "取消訂閱", "核准", "確認",
-                              "重設", "送出", "付款", "發布"})
-
-
-def retention_max(tk: dict, data_class) -> int | None:
-    """Org maximum (= default) content retention in days for a data class (toolkit.yaml retention)."""
-    ret = tk.get("retention") or {}
-    return ret.get("c_days_after_run_end") if data_class == "C" else ret.get("p_days") if data_class == "P" else None
-
-
-def roe_windows(c: Ctx):
-    return ((c.roe.get("validity") or {}).get("windows")) or []
 
 
 # ============================================================== signatures
@@ -5393,110 +5238,6 @@ def g_calibration(R: Report, c: Ctx):
                 f"{x.get('batch_id')}: accepted must equal kappa >= kappa_min")
 
 
-# ============================================================== 17 licenses
-def g_licenses(R: Report, c: Ctx):
-    comps = {x.get("component"): x for x in c.licenses.get("components", [])}
-    R.check(len(comps) == len(c.licenses.get("components", [])), "E-LIC-DUP", "licenses.yaml", "duplicate components")
-    for t, spec in (c.tools.get("tools") or {}).items():
-        R.check(spec.get("license_ref") in comps, "E-LIC-MISSING", "tools.yaml", f"{t}: license_ref {spec.get('license_ref')!r} not in licenses.yaml")
-    for x in comps.values():
-        if x.get("status") == LEGAL_GATE:
-            R.check(x.get("gate_milestone") is not None, "E-LIC-GATE", "licenses.yaml", f"{x.get('component')}: 法務閘門 needs a gate_milestone")
-    req = c.b.requirements_txt
-    if R.check(req is not None, "E-REQ", "requirements.txt", "requirements.txt missing"):
-        names = [re.split(r"[<>=!~\[; ]", ln.strip())[0].lower() for ln in req.splitlines() if ln.strip() and not ln.startswith("#")]
-        lic = {k.lower(): v for k, v in comps.items()}
-        for n in names:
-            R.check(n in lic and str(lic[n].get("usage", "")).startswith("validator"), "E-LIC-MISSING", "requirements.txt",
-                    f"{n} is not listed in licenses.yaml as a validator dependency")
-        R.check("rfc8785==0.1.4" in req.replace(" ", ""), "E-REQ", "requirements.txt", "rfc8785 must be pinned to 0.1.4")
-
-
-# ============================================================== 18 crosswalk
-def g_crosswalk(R: Report, c: Ctx):
-    x, w = c.crosswalk, "crosswalk.yaml"
-    if not x:
-        return
-    R.check(x.get("owasp_llm_default") == c.toolkit.get("owasp_llm_default"), "E-XWALK-OWASP", w, "owasp_llm_default differs from toolkit.yaml")
-    seen = set()
-    for l in x.get("links", []):
-        key = (l.get("from_scheme"), l.get("from_id"), l.get("target_scheme"), l.get("target_id"))
-        R.check(key not in seen, "E-XWALK-DUP", w, f"duplicate link {key}")
-        seen.add(key)
-        R.check((l.get("provenance") == "curated") == (l.get("reviewed_by") is not None), "E-XWALK-REVIEW", w,
-                f"{key}: curated links need reviewed_by; llm-suggested links must not have it")
-        if l.get("target_scheme") == "invariant":
-            R.check(l.get("target_id") in {i.get("requirement_id") for i in c.invariants.get("invariants", [])}, "E-TRACE", w, f"{key}: unknown invariant")
-        fs = str(l.get("from_scheme"))
-        if fs.startswith("owasp-llm@"):
-            R.check(fs[len("owasp-llm@"):] in ("2025", "2026"), "E-XWALK-OWASP", w, f"{fs}: unknown OWASP LLM version")
-
-
-# ============================================================== 19 LLM-facing schemas
-def g_llm_schemas(R: Report, c: Ctx):
-    """C / D7: for every LLM_OUTPUTS entry, project (harness-owned fields removed) and degrade the archival schema;
-    the result uses only the cross-vendor subset, contains no harness-owned field, and every example's LLM part
-    validates against it (round trip: the LLM part plus the harness fields is the archival example)."""
-    schemas = c.b.schemas
-    for out_name, spec in llm_schema.LLM_OUTPUTS.items():
-        where = f"LLM output {out_name} ({spec['schema']}.schema.json)"
-        s = schemas.get(spec["schema"])
-        if not R.check(s is not None, "E-LLM-SCHEMA", where, "schema missing"):
-            continue
-        try:
-            deg = llm_schema.degrade_for_llm(llm_schema.project(s, spec, schemas), schemas)
-        except llm_schema.DegradeError as exc:
-            R.error("E-LLM-SCHEMA", where, f"cannot be degraded: {exc}")
-            continue
-        hits = llm_schema.find_forbidden(deg)
-        R.check(not hits, "E-LLM-SCHEMA", where, f"outside the common subset: {hits[:5]}")
-        owned = llm_schema.owned_paths_present(deg, spec)
-        R.check(not owned, "E-LLM-SCHEMA", where, f"harness-owned fields are still in the LLM schema: {owned}")
-        try:
-            Draft202012Validator.check_schema(deg)
-        except SchemaError as exc:
-            R.error("E-LLM-SCHEMA", where, exc.message)
-            continue
-        v = Draft202012Validator(deg)
-        for d in c.docs(spec["schema"]):
-            for part in llm_schema.project_instance(d.data, spec):
-                errs = list(v.iter_errors(part))
-                R.check(not errs, "E-LLM-SCHEMA", d.path,
-                        f"{out_name}: the LLM part does not validate against the degraded schema: {errs[0].message[:200] if errs else ''}")
-
-
-# ============================================================== 20 toolkit
-def g_toolkit(R: Report, c: Ctx):
-    tk, w = c.toolkit, "toolkit.yaml"
-    if not R.check(bool(tk), "E-TOOLKIT", w, "toolkit.yaml missing"):
-        return
-    R.check(re.match(r"^\d+\.\d+\.\d+$", str(tk.get("toolkit_version", ""))) is not None, "E-TOOLKIT", w, "toolkit_version must be semver")
-    R.check(REQUIRED_AUTOMATION <= set(tk.get("automation_accounts", [])), "E-TOOLKIT", w, f"automation_accounts must include {sorted(REQUIRED_AUTOMATION)}")
-    R.check(tk.get("owasp_llm_default") in ("2025", "2026"), "E-TOOLKIT", w, "owasp_llm_default must be 2025 or 2026")
-    missing = B1_SKIP_BASELINE - {str(k).lower() for k in (tk.get("b1_crawl") or {}).get("skip_keywords") or []}
-    R.check(not missing, "E-TOOLKIT-B1", w, f"b1_crawl.skip_keywords drops the baseline keywords {sorted(missing)} (docs/08 §11.7)")
-    R.check((tk.get("gate_timeouts_hours") or {}).get("G5", 99) <= 24, "E-TOOLKIT", w, "G5 timeout must be <= 24 h")
-    for key in ("g2_max_items", "g3_max_items", "g4_max_items"):          # v0.7 (review r8 M1): a cap of 0 sends every item to over_cap unreviewed
-        val = (tk.get("gate_queues") or {}).get(key)
-        R.check(type(val) is int and val >= 1, "E-TOOLKIT", w, f"gate_queues.{key} {val!r} must be an integer >= 1 (0 would skip the gate)")
-    R.check(set(GATE_ROLES) - {"G0a", "G0b"} | {"claim_run", "GB"} <= set(tk.get("gate_timeouts_hours") or {}), "E-TOOLKIT", w, "missing gate timeouts")
-    ref = tk.get("tool_registry_ref")
-    R.check(ref is not None and (c.b.root / ref).exists(), "E-TOOLKIT", w, f"tool_registry_ref {ref} does not exist")
-    ret = tk.get("retention") or {}
-    for f in ("p_days", "c_days_after_run_end", "audit_days", "checkpoint_days_after_run_end", "checkpoint_keep_last"):
-        R.check(isinstance(ret.get(f), int) and ret[f] >= (1 if f == "checkpoint_keep_last" else 0), "E-RETENTION", w, f"retention.{f} must be a non-negative integer")
-    R.check(isinstance(ret.get("legal_hold"), list), "E-RETENTION", w, "retention.legal_hold must be a list")
-    R.check(ret.get("audit_days", 0) >= max(ret.get("p_days", 0), ret.get("c_days_after_run_end", 0)), "E-RETENTION", w,
-            "audit records must be kept at least as long as the content")
-    for t, spec in (c.tools.get("tools") or {}).items():
-        for m in (spec.get("modes") or {}):
-            R.check(safety.ADAPTER_RE.match(f"{t}:{m}") is not None, "E-TOOLS-ID", "tools.yaml", f"{t}:{m} is not a D13 tool:mode id")
-        for m, ms in (spec.get("modes") or {}).items():
-            if ms.get("b4_executable") and not ms.get("toolkit_denied"):
-                R.check(ms.get("base_class") in safety.ORDER, "E-TOOLS-CLASS", "tools.yaml", f"{t}:{m}: executable mode needs a base_class")
-            R.check(not ms.get("b4_executable") or spec.get("zone") == "Z3", "E-TOOLS-ZONE", "tools.yaml", f"{t}:{m}: B4 modes run in Z3")
-
-
 # ============================================================== 21 DFD, report, selftest, checkpoint
 def access_matrix_cells(c: Ctx) -> set:
     """(role, resource, action) of every cell of the G1 access matrix (each action of a row is one cell)."""
@@ -5798,25 +5539,6 @@ def quarantine(R: Report, b: Bundle) -> Bundle:
     return Bundle(root=b.root, schemas=b.schemas, docs=docs, requirements_txt=b.requirements_txt)
 
 
-class doc_guard:
-    """D6: guard one document (not a whole group): an unexpected exception becomes one E-INTERNAL for that document
-    and the loop continues with the next one."""
-
-    def __init__(self, R: Report, where: str):
-        self.R, self.where = R, where
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, et, ev, tb):
-        if et is None or not issubclass(et, Exception):
-            return False
-        last = traceback.extract_tb(tb)[-1] if tb else None
-        self.R.error("E-INTERNAL", self.where, f"{et.__name__}: {ev} (at {last.name}:{last.lineno}; this document was skipped)"
-                     if last else f"{et.__name__}: {ev}")
-        return True
-
-
 def run_all(b: Bundle, real_run: bool = False) -> Report:
     """Run every check group. real_run=True (CLI --real-run): placeholder models reachable from an
     agent are E-MODEL-PLACEHOLDER errors instead of W-MODEL-PLACEHOLDER warnings."""
@@ -5838,4 +5560,4 @@ def run_all(b: Bundle, real_run: bool = False) -> Report:
     return R
 
 
-__all__ = ["Report", "Issue", "run_all", "GROUPS", "wilson_lower", "content_hash"]
+__all__ = ["run_all", "GROUPS", "wilson_lower", "content_hash"]
