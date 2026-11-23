@@ -185,7 +185,7 @@
     },
     {
       "name": "H3 review owner",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "                        owner = (x.get(\"carried_from\") or {}).get(\"gate_record_id\") or rec.get(\"gate_record_id\")",
       "new": "                        owner = rec.get(\"gate_record_id\")",
       "k": "carried_g3_keeps or examples_are_clean"

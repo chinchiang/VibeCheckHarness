@@ -74,8 +74,8 @@
   {
    "name": "the facade redefines an engagement accessor",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 10 gates\n",
-   "new": "# ============================================================== 10 gates\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
+   "old": "# ============================================================== 11 runs\n",
+   "new": "# ============================================================== 11 runs\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
    "k": "imports_no_check_group"
   },
   {
@@ -95,8 +95,29 @@
   {
    "name": "the facade redefines the receive clock",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 10 gates\n",
-   "new": "# ============================================================== 10 gates\ndef decision_time(c: Ctx, rec: dict):\n    return c.ix.decision_time(rec)\n\n\n",
+   "old": "# ============================================================== 11 runs\n",
+   "new": "# ============================================================== 11 runs\ndef decision_time(c: Ctx, rec: dict):\n    return c.ix.decision_time(rec)\n\n\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the gates group changes place",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"gates\", g_gates),\n    (\"run state, jobs, test results\", g_runs),",
+   "new": "    (\"run state, jobs, test results\", g_runs),\n    (\"gates\", g_gates),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "the gates module imports the ROE module",
+   "file": "tools/vchlib/checks_gates.py",
+   "old": "def g_gates(R: Report, c: Ctx):\n",
+   "new": "def g_gates(R: Report, c: Ctx):\n    from . import checks_roe  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the facade redefines run_start",
+   "file": "tools/vchlib/checks.py",
+   "old": "# ============================================================== 11 runs\n",
+   "new": "# ============================================================== 11 runs\ndef run_start(c: Ctx, run_id):\n    return None\n\n\n",
    "k": "imports_no_check_group"
   }
  ]

@@ -3,7 +3,7 @@
   "mutations": [
     {
       "name": "an EXPIRED G3/G4 implies no outcome",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "            if gate in (\"G3\", \"G4\") and decs and rec.get(\"outcome\") != \"EXPIRED\":",
       "new": "            if gate in (\"G3\", \"G4\") and decs:",
       "k": "implies_no_outcome or validates_cleanly"

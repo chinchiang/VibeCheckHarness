@@ -10,8 +10,8 @@ import ast
 import importlib.util
 import pathlib
 
-from vchlib import (checks, checks_config, checks_engagement, checks_integrity, checks_models, checks_roe, checks_signatures,
-                    report)
+from vchlib import (checks, checks_config, checks_engagement, checks_gates, checks_integrity, checks_models, checks_roe,
+                    checks_signatures, report)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PKG = ROOT / "tools" / "vchlib"
@@ -50,7 +50,8 @@ def test_the_group_list_and_its_order_are_unchanged():
         assert checks.GROUPS[i][1].__module__ == "vchlib.checks_integrity", names[i]      # the five groups PR-D2 moved
     assert checks.GROUPS[4][1].__module__ == "vchlib.checks_signatures"      # PR-D4: with the signature helpers
     assert checks.GROUPS[7][1].__module__ == "vchlib.checks_roe"             # PR-D4
-    assert names[9] == "g_gates" and checks.GROUPS[9][1].__module__ == "vchlib.checks"       # not moved yet
+    assert names[9] == "g_gates" and checks.GROUPS[9][1].__module__ == "vchlib.checks_gates"     # PR-D5
+    assert names[10] == "g_runs" and checks.GROUPS[10][1].__module__ == "vchlib.checks"       # not moved yet
     assert names[6:9] == ["g_engagement", "g_roe", "g_models"]
     assert checks.GROUPS[6][1].__module__ == "vchlib.checks_engagement" and checks.GROUPS[8][1].__module__ == "vchlib.checks_models"   # PR-D3
 
@@ -66,6 +67,9 @@ def test_the_shared_base_imports_no_check_group():
     # PR-D4: signatures import no check group; the ROE group reads the engagement accessors and silent_verify
     assert not {m for m in imports_of("checks_signatures") if m.startswith("checks")}
     assert {m for m in imports_of("checks_roe") if m.startswith("checks")} == {"checks_engagement", "checks_signatures"}
+    # PR-D5: the gates group reads the engagement accessors and the signature helpers
+    assert {m for m in imports_of("checks_gates") if m.startswith("checks")} == {"checks_engagement", "checks_signatures"}
+    assert checks.run_start is checks_gates.run_start and "\ndef run_start(" not in (PKG / "checks.py").read_text(encoding="utf-8")
     assert report.anchored_seqs([{"event_type": "x"}, {"event_type": "audit_anchor"}, {"event_type": "y"}]) == 2
     # the facade uses these, it does not redefine them
     for home, names in ((checks_signatures, ("decision_time", "verify_signature", "MAX_CLOCK_SKEW")),
@@ -84,7 +88,7 @@ def test_the_shared_base_imports_no_check_group():
     assert checks_config.Report is report.Report and checks.Report is report.Report      # one Report class, not copies
     assert checks_integrity.Report is report.Report and checks_engagement.Report is report.Report
     assert checks_models.Report is report.Report and checks_roe.Report is report.Report
-    assert checks_signatures.Report is report.Report
+    assert checks_signatures.Report is report.Report and checks_gates.Report is report.Report
 
 
 def test_nothing_below_the_checker_imports_it():

@@ -283,6 +283,16 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py：關卡群組（PR-D5）
+[ADR 0003](docs/adr/0003-split-checks.md) 的第六步（發現 E8）：
+- 新模組 `tools/vchlib/checks_gates.py`（365 行）：`g_gates`、`oracle_approval_problems`、`gate_sod`、`g5_g4_link`、`carried_decisions`、`opened_time`、`CARRY_GATES`、`GATE_MAX_ROUNDS`，以及 `g5_escalation` 與 `run_start`（`g_gates` 需要前者，前者需要後者）。
+- `checks.py` 由 3,599 行減為 3,252 行；`GROUPS` 仍是 24 組、順序不變。`checks` 從新模組匯入 `g_gates` 與它還在用的 `run_start`（實際使用，不是 re-export）。`checks_gates` 匯入 `checks_engagement` 與 `checks_signatures`，不匯入 `checks`。
+- 原文搬移。為通過 mypy 加了 21 行 `type: ignore`，沒有改任何邏輯。
+- Monkeypatch：`test_bl60_suspend.py` patch 的 `checks.run_start` 改為 `checks_gates.run_start`。該測試先斷言沒有升級、patch 之後斷言有升級，所以 patch 目標若沒有跟著改，測試會失敗。
+- 不留 re-export：`test_bl60_suspend.py`、`test_v06_r7_methodology.py`、`test_v03_gates.py` 改用新路徑；`build_variants.py` 一處註解同步。
+- 突變清單：11 份清單的 28 個突變改指新模組，錨點都沒有變。`split_checks.json` 有 2 個突變原本錨定在「10 gates」的區段標題，標題已搬走，改錨定「11 runs」；另增加 3 個突變。
+- 等價證據：`run_all` 對主範例、四個變體與一份刻意弄壞的 bundle 回報的 issue、各群組檢查數與總檢查數，搬移前後以 `cmp` 比對完全相同；`sign_examples.py` 0 個檔案變動；331 個錯誤碼；11 份受影響的突變清單在 `main` 與本分支逐項比對（結果見 PR 說明）。
+
 ### 拆分 checks.py：簽章與 ROE 群組（PR-D4）
 [ADR 0003](docs/adr/0003-split-checks.md) 的第五步（發現 E8）：
 - 新模組 `tools/vchlib/checks_signatures.py`（231 行）：`verify_signature`、`silent_verify`、`first_verification`、`check_backdating`、`check_signed_doc`、`g_signatures`，以及簽章檢查的時間基準 `MAX_CLOCK_SKEW`、`decision_time`（原本在 ROE 段開頭）。

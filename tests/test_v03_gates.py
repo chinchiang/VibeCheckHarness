@@ -6,7 +6,8 @@ relay (E4), provider data handling (B13), cost caps with unpriced models (B14). 
 
 from conftest import codes, doc
 from vchlib import safety
-from vchlib.checks import gate_sod, run_all
+from vchlib.checks import run_all
+from vchlib.checks_gates import gate_sod
 from vchlib.checks_roe import platform_of
 from vchlib.report import Report
 from vchlib.context import Ctx

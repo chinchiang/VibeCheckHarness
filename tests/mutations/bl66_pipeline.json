@@ -61,7 +61,7 @@
      "old": "R.check((t.get(\"review\") or {}).get(\"status\") != \"ACCEPTED\" or not bad, \"E-THREAT-LLM-LINK\"",
      "new": "R.check(True, \"E-THREAT-LLM-LINK\"",
      "k": "test_e_threat_llm_link"},
-    {"name": "invariant signoff matches G1", "file": "tools/vchlib/checks.py",
+    {"name": "invariant signoff matches G1", "file": "tools/vchlib/checks_gates.py",
      "old": "R.check(dec is not None and so.get(\"gate_record_id\") == owner",
      "new": "R.check(True or dec is not None and so.get(\"gate_record_id\") == owner",
      "k": "test_e_trace_invariant"},

@@ -80,56 +80,56 @@
   },
   {
    "name": "validator: the list is not checked",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "            oracle_approval_problems(R, c, rec, w)\n",
    "new": "",
    "k": "only_a_g3_record or must_name or not_an_approval_item or must_pin or named_once"
   },
   {
    "name": "validator: any gate carries it",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "    R.check(rec.get(\"gate\") == \"G3\", \"E-GATE-ORACLE\", w,",
    "new": "    R.check(True, \"E-GATE-ORACLE\", w,",
    "k": "only_a_g3_record"
   },
   {
    "name": "validator: duplicates pass",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "        R.check(tid not in seen, \"E-GATE-ORACLE\", w, f\"oracle_approvals names {tid} twice\")",
    "new": "        pass",
    "k": "named_once"
   },
   {
    "name": "validator: any run's testcase",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "if t.data.get(\"testcase_id\") == tid and t.data.get(\"run_id\") == rec.get(\"run_id\")), None)",
    "new": "if t.data.get(\"testcase_id\") == tid), None)",
    "k": "must_name"
   },
   {
    "name": "validator: an unknown testcase passes",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "        if not R.check(tc is not None, \"E-GATE-ORACLE\", w, f\"oracle_approvals names {tid}, which is not a W4 testcase of run {rec.get('run_id')}\"):\n            continue",
    "new": "        if tc is None:\n            continue",
    "k": "must_name"
   },
   {
    "name": "validator: a code oracle may be listed",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "        R.check(not derive.oracle_preregistered_by_code(tc), \"E-GATE-ORACLE\", w,",
    "new": "        R.check(True, \"E-GATE-ORACLE\", w,",
    "k": "not_an_approval_item"
   },
   {
    "name": "validator: the hash is not checked",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "            R.check(d.get(\"testcase_sha256\") == derive.approval_hash(tc), \"E-GATE-ORACLE\", w,",
    "new": "            R.check(True, \"E-GATE-ORACLE\", w,",
    "k": "must_pin"
   },
   {
    "name": "validator: a rejection must pin too",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_gates.py",
    "old": "        if d.get(\"decision\") == \"accept\":\n            R.check(d.get(\"testcase_sha256\") == derive.approval_hash(tc)",
    "new": "        if True:\n            R.check(d.get(\"testcase_sha256\") == derive.approval_hash(tc)",
    "k": "must_pin"

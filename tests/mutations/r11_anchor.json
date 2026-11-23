@@ -66,7 +66,7 @@
     },
     {
       "name": "gate rounds have a limit",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "            R.check(isinstance(rec.get(\"round\"), int) and 1 <= rec.get(\"round\") <= lim_r, \"E-GATE-ROUND\", w,",
       "new": "            R.check(True, \"E-GATE-ROUND\", w,",
       "k": "g4_round_limit"
@@ -87,7 +87,7 @@
     },
     {
       "name": "a null initiator only on Lane A",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_gates.py",
       "old": "                R.check(run.get(\"run_kind\") == \"lane_a\", \"E-GATE-INITIATOR\", w, \"initiator null is only allowed on a Lane A run\")",
       "new": "                R.check(True, \"E-GATE-INITIATOR\", w, \"initiator null is only allowed on a Lane A run\")",
       "k": "lane_a_run_has_no_initiator"
