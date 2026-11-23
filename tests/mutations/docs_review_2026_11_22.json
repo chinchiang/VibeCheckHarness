@@ -147,6 +147,34 @@
    "old": "選定前不能宣稱「已鎖版本」。",
    "new": "",
    "k": "how_litellm_is_used"
+  },
+  {
+   "name": "B3: the adversarial subset is called built",
+   "file": "docs/05-bias-calibration.md",
+   "old": "| A：對抗子集（2026-11-22 內部審查；**尚未建立**） |",
+   "new": "| A：對抗子集（2026-11-22 內部審查） |",
+   "k": "adversarial_subset"
+  },
+  {
+   "name": "A4: init downgrades silently",
+   "file": "docs/08-implementation-spec.md",
+   "old": "`vibecheck init` 不替使用者降級，而是列出三條路並要求本人選一條、寫進委任設定：",
+   "new": "`vibecheck init` 自動把資料等級設為 P：",
+   "k": "does_not_downgrade"
+  },
+  {
+   "name": "A4: no choice still writes an engagement",
+   "file": "docs/08-implementation-spec.md",
+   "old": "都不選就不產生委任設定 |",
+   "new": "|",
+   "k": "does_not_downgrade"
+  },
+  {
+   "name": "D1: BL-78 closed",
+   "file": "docs/09-backlog.md",
+   "old": "| M1 開工前 | 待辦；審查代理回報，未逐條重驗 |",
+   "new": "| M1 開工前 | 已完成 |",
+   "k": "open_design_items"
   }
  ]
 }

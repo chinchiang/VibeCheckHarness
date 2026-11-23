@@ -2090,6 +2090,7 @@ W4 需要安裝相依並建置受測程式 [H]：
 | checkpointer | SqliteSaver，檔案在 `--dir` 之下；同一個目錄同時只允許一個 run（檔案鎖） | 三區部署用 PostgresSaver（§7.1） |
 | 套件存在性 | 允許直連公開 registry 的中繼資料 API（只送套件名稱與版本，不下載內容）；`vibecheck init` 會顯示「套件名稱會送到公開 registry」並要求確認，拒絕時 W1 的套件存在性檢查列為 gap | 三區部署一律經鏡像 |
 | 模型呼叫 | 與三區部署相同：只經 Model Gateway，遮罩先於任何 LLM 呼叫（MVP0-X2） | 沒有差別 |
+| 資料等級與可用模型 | 未標記的 repo 仍是 C 級（fail-closed，[03 §8.4](03-system-architecture.md#84-資料治理)），而單人開發者通常沒有任何供應商的 ZDR 確認，所以**預設情況下沒有雲端模型可用**。`vibecheck init` 不替使用者降級，而是列出三條路並要求本人選一條、寫進委任設定：(1) repo 已公開或本人確認不含機密 → 資料等級宣告為 P，雲端模型可用；(2) 使用自架模型（`z4_model_hosts`）；(3) 只跑確定性最小切片（不呼叫任何模型）。都不選就不產生委任設定 | 規則相同；差別只在 Team／Full 通常由組織取得 ZDR |
 
 **`vibecheck init [--dir DIR]`**（只用於單機 profile；一次）：
 

@@ -149,3 +149,28 @@ def test_docs03_and_08_agree_on_how_litellm_is_used():
     assert "**版本尚未選定**" in a03 and "選定前不能宣稱「已鎖版本」" in a03
     lic = next(ln for ln in text("docs/examples/licenses.yaml").splitlines() if "component: LiteLLM" in ln)
     assert "usage: reference" in lic                          # the statement in 03 about this row is true
+
+
+# ================================================================ later additions of the same review (B3, A4, D1, D3)
+def test_docs05_lists_the_adversarial_subset_as_not_built():
+    s = text("docs/05-bias-calibration.md")
+    row = next(ln for ln in s.splitlines() if ln.startswith("| A：對抗子集"))
+    assert "**尚未建立**" in row and "宣稱已檢查權限的註解" in row and "09 BL-77" in row
+    cells = [c.strip() for c in row.strip().strip("|").split("|")]
+    assert len(cells) == 4 and cells[3].startswith("否")        # not part of the primary hypothesis n
+
+
+def test_the_single_host_profile_does_not_downgrade_the_data_class_for_the_user():
+    s = text("docs/08-implementation-spec.md")
+    row = next(ln for ln in s.splitlines() if ln.startswith("| 資料等級與可用模型 |"))
+    assert "未標記的 repo 仍是 C 級" in row and "**預設情況下沒有雲端模型可用**" in row
+    assert "`vibecheck init` 不替使用者降級" in row and "都不選就不產生委任設定" in row
+    for choice in ("資料等級宣告為 P", "使用自架模型", "只跑確定性最小切片"):
+        assert choice in row, choice
+
+
+def test_the_open_design_items_are_on_the_backlog():
+    s = text("docs/09-backlog.md")
+    for bl, needle in (("BL-77", "對抗子集"), ("BL-78", "fencing token"), ("BL-79", "LangGraph checkpoint 的 spike")):
+        row = next(ln for ln in s.splitlines() if ln.startswith(f"| {bl} |"))
+        assert needle in row and "| 待辦" in row, bl
