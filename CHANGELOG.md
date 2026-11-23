@@ -4,6 +4,23 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## LangGraph 相容性 spike 的規格（2026-11-22 內部審查的發現 D3；09 BL-79）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼，validator、schema 與範例都沒有改。**只有規格文字；spike 沒有執行，沒有安裝或執行過 LangGraph，也沒有查閱它的文件，所以沒有新增任何關於 LangGraph 行為的斷言。**
+
+- **重驗結果**（BL-79 原本依審查代理的回報寫成，未對原文核對）：
+  - 「權威帳本、kill switch、關卡都在圖外」成立（03 §5.8、08 §7.1），而且這些規則幾乎都是 [H]。
+  - (a)「不一致時以誰為準」部分成立：優先順序散在各處，缺的是恢復流程。
+  - (b)「`interrupt`／`Command(resume)` 與圖外關卡服務」部分成立：重新執行節點有 [V] 證據；未驗證的是圖外如何觀察待處理的 interrupt、metadata 列的原子性、子圖內的關卡、並行寫入。
+  - (c)「兩種 saver 的差異」成立，而且文件自相矛盾（下一點）。
+  - 另有九項 BL-79 沒有列到的假設（durability、節點執行中 checkpoint、序列化、加密、保留期限刪除、`Send` 分支失敗、當機窗口、遷移、版本實測）。
+- **更正一處矛盾**：08 §7.1 與 06 的授權表說 SqliteSaver「只是測試依賴／只用於測試」，但 08 §11.20 與 07 §1.3 把它當成單機 profile 的正式 checkpointer。兩處改為「測試，以及單機 profile」。單機 profile 沒有 PostgreSQL advisory lock 的問題沒有在這次自行解決，列為 spike 的案例 LG-06。
+- **新增 08 §11.21**（仿照 §11.7 的 Scope Proxy 原型關卡）：15 個必要案例（LG-01–LG-15），每個都有通過條件與不通過時的後果；8 個決定性案例；恢復流程的方向（圖外紀錄為準，checkpoint 不能反過來覆寫）；決策規則（保留 LangGraph，或改為自寫的狀態機；只在 SqliteSaver 不通過時只改單機 profile；不得以關掉檢查的方式通過）。
+- **放進計畫**：08 §10 新增 U-24（未決定時 T-09 不開工）；T-09 的依賴加上 U-24；07 新增出口準則 M1-X11 與 §1.4 的順序列。
+- **狀態**：09 BL-79 由「待辦」改為「規格已訂；spike 未執行」，來源欄註明是發現 D3（與同日設計決定的 D3 不同）；findings D3 同步。
+- 新增 `tests/test_langgraph_spike.py`（10 個測試；在修改前的文件上 10 個都失敗）與突變清單 `tests/mutations/langgraph_spike.json`（`CAUGHT 26/26`）。這些測試只守住規格文字彼此一致，**不能證明任何案例會通過**。
+- 受影響的既有測試：`test_docs_review_2026_11_22.py::test_the_open_design_items_are_on_the_backlog` 改為斷言 BL-79 的新狀態；`test_lite_single_host.py::test_08_specifies_the_profile_and_init` 原本把 §11.20 之後到檔尾都當成該節，現在只取到下一個標題（斷言不變）。
+
 ## Binding 表補列五類攻擊面，並更正一句錯話（2026-11-22 內部審查 C7；09 BL-75）
 
 CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼，`tools.yaml` 不變（沒有新增 adapter）。**只有規格文字；adapter 未實作，無法執行驗證。**

@@ -811,7 +811,7 @@ class ToolAdapter(ABC):
 
 - **正式環境**使用 PostgresSaver，以 `thread_id` 為鍵 [V][E:orchestration-05]，套件是 langgraph-checkpoint-postgres 3.1.2，依賴 psycopg [V][E:orchestration-42]。
   - psycopg 是 LGPL-3.0，屬於 **M1 前的法務閘門**：未確認前只做內部部署、不散布映像（[07 §3](07-roadmap.md#3-入口閘門法務與查證)）。
-- **測試**使用 InMemorySaver 與 SqliteSaver [V][E:orchestration-05]。SqliteSaver 來自 langgraph-checkpoint-sqlite 3.1.1（MIT）[V][E:orchestration-59]，只是測試依賴。
+- **測試**使用 InMemorySaver 與 SqliteSaver [V][E:orchestration-05]。SqliteSaver 來自 langgraph-checkpoint-sqlite 3.1.1（MIT）[V][E:orchestration-59]。它同時是**單機 profile 的正式 checkpointer**（[§11.20](#1120-lite-的單機部署-profile-與-vibecheck-inith)），所以隨單機 profile 散布，不只是測試依賴；兩種 saver 的行為差異還沒有實測（[§11.21](#1121-langgraph-相容性-spike原型關卡h)）。
 - LangGraph 本身鎖定 1.2.12（MIT）[V][E:orchestration-01]。
 - **設計規則** [H]：
   - `thread_id = run_id`；子圖使用 LangGraph 預設的 namespace。
@@ -1042,7 +1042,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | T-06 | 1 | `store`：`ContentStore`（檔案系統＋meta；加密先以 `KekProvider` 介面加上測試用實作）、Postgres 遷移、`Blackboard`、`vibecheck db migrate` | T-03 | N-23；同一內容 put 兩次 → 同一個 ref；schema 不合法的物件 → `SchemaInvalid`，而且沒有寫入任何東西 |
 | T-07 | 2 | `config`：7 種設定檔的載入、跨檔規則、優先順序、環境變數；`vibecheck config validate`、`keys verify`、`keys show`、`keys fingerprint` | T-04 | `docs/examples/` 全部通過；N-11、N-27、N-28；CLI 不能放寬設定（以旗標嘗試 → 結束碼 2） |
 | T-08 | 2 | `policy`：`verify_engagement`、`verify_roe`（含 L-1–L-6、`TOOLKIT_DENYLIST`、時間窗、保證等級、共享平台網域、URL 規則）、`check`、`resolve_target`；`vibecheck sign`、`engagement verify`、`roe verify` | T-04、T-07 | 以測試金鑰簽署 `docs/examples/` 的 engagement 與 ROE → 通過；N-09、N-12、N-25、N-26、N-34、N-37、N-39 |
-| T-09 | 2 | `graph` 骨架：`RunState`、`run_init`、`G0a_engagement_check`、暫時的 `m1_finish` 節點；PostgresSaver 與 SqliteSaver；`vibecheck run start`、`run status`、`run abort`、`run resume` | T-05、T-06、T-08 | N-15、N-24；在每個節點邊界 kill 行程再 resume → 最終產物的 hash 與不中斷的 run 相同，稽核去重後沒有重複事件 |
+| T-09 | 2 | `graph` 骨架：`RunState`、`run_init`、`G0a_engagement_check`、暫時的 `m1_finish` 節點；PostgresSaver 與 SqliteSaver；`vibecheck run start`、`run status`、`run abort`、`run resume` | T-05、T-06、T-08；U-24 結案（§11.21 的 spike） | N-15、N-24；在每個節點邊界 kill 行程再 resume → 最終產物的 hash 與不中斷的 run 相同，稽核去重後沒有重複事件 |
 | T-10 | 2 | `sandbox`：以 gVisor（runsc，版本寫進 SBOM）執行、`network: none`、資源上限、job ID、輸出收集與遮罩 | T-06 | N-19、N-20；同一個 spec 執行兩次 → 只跑一次；runsc 的版本出現在 SBOM 中 |
 | T-11 | 2 | `gateway`：`ModelGateway.complete` 的前置檢查、`RecordedTransport`、LLM 快取、schema 降階與修復、重試策略 | T-06、T-07 | N-01–N-04（假供應商收到 0 個請求）；429 會遵守 `Retry-After`；修復 2 次後 → `SchemaRepairExhausted` |
 | T-12 | 2 | `selftest` 骨架＋`selftest/injected/invoices-app-{clean,injected}` 的初版（先只有 canary secret 與 INJ-CMT） | T-10 | `vibecheck selftest run --items ST-7` 產出通過 schema 驗證的 `selftest-report.json`，其中 ST-7 為 `status: RUN`、`passed: true` |
@@ -1094,6 +1094,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | U-21 | Z2 本地 RLS 測試用的 PostgreSQL 版本，以及 BaaS 認證函式的替身 | `toolkit_maintainer` | 與 migrations 相容的 PostgreSQL 主版本，鎖 digest；替身只實作「取得目前使用者 ID」一類的函式（§11.17） | M2 |
 | U-22 | 校準前 W3 每個叢集派幾位驗證者（M） | 使用者（成本）、`toolkit_maintainer` | M＝1；票只當參考意見（§11.11） | M2 |
 | U-23 | staging 使用自簽憑證時，Scope Proxy 如何信任目標（例如 ROE 宣告目標的 CA） | 資安團隊、ROE 簽署人 | 不支援：TLS 驗證失敗 → 該目標的 job `ERROR` 並列入缺口；不提供略過驗證的選項（§11.7） | M4 |
+| U-24 | 編排層保留 LangGraph，或改為自寫的狀態機（[09 BL-79](09-backlog.md)） | `toolkit_maintainer`，依 §11.21 的 spike 報告 | T-09 不開工：spike 沒有報告之前，不寫任何依賴 checkpointer 的產品程式（T-01–T-08 不受影響） | M1 |
 
 ## 11. 元件規格補充
 
@@ -2185,3 +2186,47 @@ W4 需要安裝相依並建置受測程式 [H]：
 **確定性最小切片**（MVP-0 的第一個可交付物，[07 §1.1](07-roadmap.md#11-分段-mvp) 的 MVP-0a）：W0（secrets 掃描與遮罩、inventory）＋W1（SCA、套件存在性、確定性規則）＋SARIF 輸出。沒有任何 LLM 呼叫，所以不需要模型金鑰、Model Gateway 與 G1；產出是 inventory、工具結果與 SARIF（只有工具來源的 result），沒有裁決、沒有叢集投票、沒有報告清單。它的用途是讓第一個使用者在最少設定下拿到結果，並提早驗證 W0 抽取器與 SARIF 的穩定性（MVP0-X1 的三個植入問題都必須在這個切片就找得到）。
 
 **信任界線**（與 [06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #16、#26 一致）：單機 profile 的簽章、錨點與收件時間都由同一個人、同一台機器產生，只供自查。它保留完整的資料格式，是為了讓同一份產出日後能在 `three_zone` 部署下重跑比對，不是為了證據力。
+
+### 11.21 LangGraph 相容性 spike（原型關卡）[H]
+
+**為什麼要有**：本設計把權威資料都放在圖外——job 帳本、GateRecord 驗章、kill switch、每個 run 一把鎖、稽核去重（[03 §5.8](03-system-architecture.md#58-節點邊界規則)、§7.1）。這些規則幾乎都標 [H]，依據是文件，不是實測：研究階段沒有執行過任何框架程式（[證據帳本](evidence/ledger.md)的研究限制）。2026-11-22 內部審查的發現 D3 把它列為待辦（[09 BL-79](09-backlog.md)）。本節訂出 spike 要回答什麼、怎樣算通過；**本輪沒有執行 spike，也不宣稱任何一個案例已通過**。本節不對 LangGraph 的行為做新的斷言：下表「要回答的問題」欄寫的都是待驗證的事。
+
+**做法**：
+
+- 拋棄式程式，不進產品；只經 `lgapi` 使用 LangGraph（§1.2 規則 7），順便驗證這個接縫夠不夠用。
+- 使用 §7.1 釘選的三個版本（langgraph 1.2.12、langgraph-checkpoint-postgres 3.1.2、langgraph-checkpoint-sqlite 3.1.1），報告記錄實際安裝的版本與 hash。
+- **每個案例在 PostgresSaver 與 SqliteSaver 上各跑一次**，兩者的差異逐項記錄；InMemorySaver 不算數。
+- 圖用 T-09 的最小骨架加上一個 `Send` fan-out、一個子圖內的關卡節點、一個有假副作用的節點；Gate Service、job 帳本與稽核寫入端用假物件，但要走真的資料庫連線與真的行程（當機案例以 kill 行程製造，不是模擬例外）。
+- 時點：M1 第一週，T-09 開工之前（[07 §1.4](07-roadmap.md#14-實作前置工作與驗收順序-h)、M1-X11）。
+
+**必要案例**（「決定性」欄為「是」的，適用下面的決策規則）：
+
+| # | 要回答的問題 | 通過條件 | 不通過時 | 決定性 |
+|---|---|---|---|---|
+| LG-01 | 三個釘選版本能否一起安裝，並只經 `lgapi` 重新匯出的名稱完成 interrupt、resume、`Send` 與兩種 saver 的最小圖 | 以 hash 檢查模式安裝成功；spike 程式除 `lgapi` 外沒有 `import langgraph` | 更新釘選版本並重查授權（06 §2.3）；`lgapi` 匯出面不足時改 §1.2 | 否 |
+| LG-02 | 只做 interrupt 的節點（`G*_gate`、`claim_run`、`suspended_wait`）resume 後是否從節點開頭重新執行、且沒有其他副作用；子圖內的關卡節點在預設 namespace 下能否被 resume 到正確的節點 | 每個關卡節點 resume 後只前進一次；假副作用計數為 0；子圖內的關卡同樣成立 | 子圖不成立 → 關卡節點一律放在最外層的圖，改 03 §5；最外層也不成立 → 決策規則 | 是 |
+| LG-03 | Gate Service 以**唯讀**帳號能否從圖外得知「哪個 run 的哪個關卡、第幾輪正在等待」（§2 的 `open_pending`），不寫 checkpoint 資料表、不依賴未公開的資料表結構 | 只用 saver 的公開介面或本工具包自己的 metadata 列就能列出待處理的關卡；重複觀察不產生第二筆 `gate_opened` | 改由 Run Controller 在進入關卡節點**之前的節點**寫 metadata 列（仍不在 interrupt 節點內產生副作用）；兩種做法都不成立 → 決策規則 | 是 |
+| LG-04 | §7.1 的 checkpoint metadata 列能否與 checkpoint 在同一個交易寫入 | 同一交易；或者不同交易但在兩次寫入之間 kill 行程後，重啟能偵測到缺列或孤兒列並修復，不把 run 留在無法 resume 的狀態 | 把 metadata 改為可由 checkpoint 重建的衍生資料，改 §7.1 與 `E-CHECKPOINT` 的說明 | 否 |
+| LG-05 | 直接寫 checkpoint 資料庫放入偽造的 resume 值，或以不存在、未簽章的 `gate_record_id` resume（N-15） | run 不前進；`signature_invalid`；關卡節點之後的節點執行次數為 0 | 決策規則（checkpoint 不能成為授權依據是 06 §1.6 的硬性要求） | 是 |
+| LG-06 | 兩個寫入者（Run Controller 與 Gate Service 的 `submit`，或 `run abort`）同時操作同一個 `thread_id` 時會發生什麼；取得 03 §5.8 的 run 鎖之後是否只有一方前進。SqliteSaver 沒有 PostgreSQL advisory lock：§11.20 的目錄檔案鎖是否涵蓋 `submit` 與 `run abort` | 不取鎖時的行為有紀錄（是否分叉）；取鎖後 checkpoint 歷史是單一一條鏈；單機 profile 有等效的互斥，且 `run abort` 不會被長時間執行的節點擋住 | PostgresSaver 不成立 → 決策規則；只有 SqliteSaver 不成立 → 單機 profile 換 checkpointer 或換互斥機制，改 §11.20 | 是 |
+| LG-07 | 有外部副作用的節點能否逐節點要求「節點結束時 checkpoint 已經落盤」（03 §5.8 的 durability）；在「假副作用已完成、checkpoint 尚未寫入」的時點 kill 行程後 resume 會怎樣 | 逐節點可設定，或整張圖設為同步而延遲可接受（記錄量測值）；kill 後 resume 重新進入該節點，節點依帳本查到已完成而不重做 | 整張圖一律同步；連同步模式都會遺失已完成節點的 checkpoint → 決策規則 | 是 |
+| LG-08 | 「節點執行中」能否先寫 checkpoint 再轉往別的節點（03 §5.2 與 §11 預算觸頂時的「先 checkpoint 再進 `GB_budget_gate`」） | 做得到，且 resume 不重複已花費的呼叫（LLM 快取命中） | 改 03 §5.2：`BudgetExceeded` 讓節點以例外結束，由條件邊進 `GB_budget_gate`，已完成的呼叫靠 LLM 快取（03 §5.8）不重複計費 | 否 |
+| LG-09 | `RunState`（Pydantic）經 saver 存取後是否逐欄位相同；載入時在哪裡重算 `state_sha256`；讀到被改過的 checkpoint 內容時會不會執行其中的程式碼 | 往返後 JCS hash 相同；雜湊不符時在任何節點執行之前丟 `IntegrityError`；反序列化不執行資料內含的程式碼（以一份惡意內容實測） | 改用自訂的序列化器（只接受 JSON）；做不到 → 決策規則。另外要在本案例定案 `state_sha256` 的定義：§7.1 寫「`RunState` 的 JCS hash」，參考驗證器目前以 run 紀錄的內容雜湊檢查範例（`vchlib.expectations`），兩者要統一 | 是 |
+| LG-10 | C 級 run 的 checkpoint 要 `encrypted: true`（`E-CHECKPOINT`），用什麼機制達成 | 有一種機制在兩種 saver 上都可用（序列化層加密或儲存層加密），金鑰不進 checkpoint；報告寫明選哪一種 | SqliteSaver 做不到 → 單機 profile 的 C 級 run 改為檔案系統層加密並在 §11.20 寫明；兩者都做不到 → state 中不得出現任何 C 級衍生欄位，並重審 `RunState` | 否 |
+| LG-11 | 保留期限（§7.5 的 `checkpoint_days_after_run_end`、`checkpoint_keep_last`）到期時，能否用 saver 的公開介面刪除，而不違反 §7.2「不修改 LangGraph 的資料表」 | 公開介面可以刪除指定 `thread_id` 的舊 checkpoint 並保留最後 N 個；刪除後該 run 仍可查詢狀態 | 把 §7.2 改為「不修改結構，但允許依 `thread_id` 刪除資料列」，並為釘選版本的資料表結構加契約測試 | 否 |
+| LG-12 | `Send` fan-out 的一個分支拋出例外或逾時時，其他分支與 fan-in 會怎樣；重試用盡的分支能否記為缺票而不讓整次 fan-out 失敗（03 §4 與 §5.9 的 quorum） | 失敗的分支在 state 中留下缺票紀錄；其餘分支的結果保留；fan-in 只執行一次 | 每個分支在節點內自己捕捉例外並回傳缺票（不依賴框架的失敗語意）；03 §4 與 §5.9 的「晚到的分支」改為「逾時視同失敗」 | 否 |
+| LG-13 | 從較早的 checkpoint 重播或分叉後，圖是否試圖重跑已執行的 job；checkpoint 與 job 帳本、稽核檔不一致時能否恢復 | Executor 假物件依帳本拒絕重跑並回傳原結果；稽核檔沒有重複的 `idempotency_key`；依下面的「恢復流程」能把 run 帶回可 resume 的狀態，或明確結束為 `FAILED` | 禁用重播與分叉（CLI 不提供、資料表權限不允許）；恢復流程做不到 → 決策規則 | 是 |
+| LG-14 | 舊 `schema_version` 的 checkpoint 經 `graph/migrations.py` 的純函式轉換後能否 resume | 轉換後 resume 成功；`state_sha256` 以轉換後的內容重算並留下稽核事件 | 不支援跨版本 resume：升級前必須讓 run 到達終止狀態，寫入 §7.1 與升級說明 | 否 |
+| LG-15 | T-09 驗收的預演：在每個節點邊界 kill 行程再 resume | 兩種 saver 上，最終產物的 hash 都與不中斷的 run 相同；假副作用沒有重做；稽核沒有重複事件 | 決策規則 | 是 |
+
+**恢復流程的方向**（LG-13 要驗證做不做得到；先訂方向，免得 spike 變成各自解讀）：checkpoint 與圖外紀錄不一致時，**圖外紀錄為準**——job 是否執行過看 Z3 job 帳本，關卡是否核准看 GateRecord，run 的狀態看稽核檔。checkpoint 只能被丟棄或由圖外紀錄重建，不能反過來覆寫帳本、GateRecord 或稽核檔。重建不了時 run 以 `FAILED` 結束並列入缺口，不猜測狀態。
+
+**決策規則**（U-24 依此結案）：
+
+1. 決定性案例（LG-02、LG-03、LG-05、LG-06、LG-07、LG-09、LG-13、LG-15）在 PostgresSaver 上全部通過 → 保留 LangGraph。
+2. 任何一個決定性案例在 PostgresSaver 上不通過，且「不通過時」欄的替代做法也不成立 → 編排層改為自寫的狀態機（狀態存 Postgres、以 run 鎖序列化轉移）；`lgapi` 接縫保留為狀態機的介面。替代方案的設計另開待辦，本節不預先設計。
+3. 決定性案例只在 SqliteSaver 上不通過 → 三區部署保留 LangGraph；單機 profile 依該案例的「不通過時」欄處理，§11.20 的 checkpointer 列跟著改。
+4. 非決定性案例不通過 → 依「不通過時」欄改設計，記入變更紀錄；不影響是否保留。
+5. 不允許以「關掉檢查」通過任何案例：不得為了通過而讓 checkpoint 成為授權依據、取消 run 鎖、或允許自動重送結果不明的 job。
+
+**產出**：spike 報告放 `docs/evidence/`，內容為實際版本、每個案例在兩種 saver 上的結果（通過／不通過／不適用與原因）、重現指令、量測值（LG-07 的延遲）。報告出來之後，§7.1 與 03 §5.8 中被驗證過的 [H] 才能改標並引用報告；沒有驗證到的維持 [H]。T-09 的驗收（N-15、逐節點 kill 與 resume）仍要在產品程式上重跑，spike 的結果不能代替它。

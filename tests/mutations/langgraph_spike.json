@@ -1,0 +1,187 @@
+{
+ "tests": "tests/test_langgraph_spike.py",
+ "mutations": [
+  {
+   "name": "a case loses its consequence",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 不支援跨版本 resume：升級前必須讓 run 到達終止狀態，寫入 §7.1 與升級說明 | 否 |",
+   "new": "|  | 否 |",
+   "k": "pass_condition_and_a_consequence"
+  },
+  {
+   "name": "a case is dropped",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| LG-14 | 舊 `schema_version`",
+   "new": "| LX-14 | 舊 `schema_version`",
+   "k": "pass_condition_and_a_consequence"
+  },
+  {
+   "name": "a decisive case becomes optional",
+   "file": "docs/08-implementation-spec.md",
+   "old": "；恢復流程做不到 → 決策規則 | 是 |",
+   "new": "；恢復流程做不到 → 決策規則 | 否 |",
+   "k": "pass_condition_and_a_consequence"
+  },
+  {
+   "name": "a decisive failure no longer reaches the rule",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 兩種 saver 上，最終產物的 hash 都與不中斷的 run 相同；假副作用沒有重做；稽核沒有重複事件 | 決策規則 | 是 |",
+   "new": "| 兩種 saver 上，最終產物的 hash 都與不中斷的 run 相同；假副作用沒有重做；稽核沒有重複事件 | 記入變更紀錄 | 是 |",
+   "k": "leads_to_the_decision_rule"
+  },
+  {
+   "name": "the forged resume case loses its expected result",
+   "file": "docs/08-implementation-spec.md",
+   "old": "run 不前進；`signature_invalid`；關卡節點之後的節點執行次數為 0",
+   "new": "run 不前進；關卡節點之後的節點執行次數為 0",
+   "k": "three_questions_of_bl79"
+  },
+  {
+   "name": "the single-host lock question is dropped",
+   "file": "docs/08-implementation-spec.md",
+   "old": "：§11.20 的目錄檔案鎖是否涵蓋 `submit` 與 `run abort`",
+   "new": "",
+   "k": "three_questions_of_bl79"
+  },
+  {
+   "name": "the hash definition conflict is dropped",
+   "file": "docs/08-implementation-spec.md",
+   "old": "參考驗證器目前以 run 紀錄的內容雜湊檢查範例（`vchlib.expectations`），兩者要統一",
+   "new": "兩者要統一",
+   "k": "three_questions_of_bl79"
+  },
+  {
+   "name": "only one saver is required",
+   "file": "docs/08-implementation-spec.md",
+   "old": "- **每個案例在 PostgresSaver 與 SqliteSaver 上各跑一次**，兩者的差異逐項記錄；InMemorySaver 不算數。",
+   "new": "- 每個案例在 PostgresSaver 上跑一次。",
+   "k": "both_savers_run_every_case"
+  },
+  {
+   "name": "the spike uses another version than the pin",
+   "file": "docs/08-implementation-spec.md",
+   "old": "（langgraph 1.2.12、langgraph-checkpoint-postgres 3.1.2、",
+   "new": "（langgraph 1.3.0、langgraph-checkpoint-postgres 3.1.2、",
+   "k": "both_savers_run_every_case"
+  },
+  {
+   "name": "the rule forgets a decisive case",
+   "file": "docs/08-implementation-spec.md",
+   "old": "決定性案例（LG-02、LG-03、LG-05、LG-06、LG-07、LG-09、LG-13、LG-15）",
+   "new": "決定性案例（LG-02、LG-03、LG-05、LG-06、LG-07、LG-13、LG-15）",
+   "k": "decision_rule_names_every_decisive_case"
+  },
+  {
+   "name": "the rule has no exit",
+   "file": "docs/08-implementation-spec.md",
+   "old": " → 編排層改為自寫的狀態機（狀態存 Postgres、以 run 鎖序列化轉移）",
+   "new": " → 另行討論（狀態存 Postgres、以 run 鎖序列化轉移）",
+   "k": "decision_rule_names_every_decisive_case"
+  },
+  {
+   "name": "a case may pass by switching a safeguard off",
+   "file": "docs/08-implementation-spec.md",
+   "old": "5. 不允許以「關掉檢查」通過任何案例：不得為了通過而讓 checkpoint 成為授權依據、取消 run 鎖、或允許自動重送結果不明的 job。\n",
+   "new": "",
+   "k": "decision_rule_names_every_decisive_case"
+  },
+  {
+   "name": "the checkpoint wins a disagreement",
+   "file": "docs/08-implementation-spec.md",
+   "old": "checkpoint 只能被丟棄或由圖外紀錄重建，不能反過來覆寫帳本、GateRecord 或稽核檔。",
+   "new": "checkpoint 可以用來修正帳本。",
+   "k": "never_lets_a_checkpoint_overwrite"
+  },
+  {
+   "name": "the section claims the spike passed",
+   "file": "docs/08-implementation-spec.md",
+   "old": "**本輪沒有執行 spike，也不宣稱任何一個案例已通過**",
+   "new": "本輪的 spike 已通過",
+   "k": "does_not_claim_the_spike_was_run"
+  },
+  {
+   "name": "the spike replaces the T-09 acceptance",
+   "file": "docs/08-implementation-spec.md",
+   "old": "T-09 的驗收（N-15、逐節點 kill 與 resume）仍要在產品程式上重跑，spike 的結果不能代替它。",
+   "new": "",
+   "k": "does_not_claim_the_spike_was_run"
+  },
+  {
+   "name": "the section tags a claim as verified",
+   "file": "docs/08-implementation-spec.md",
+   "old": "- 拋棄式程式，不進產品；",
+   "new": "- 拋棄式程式 [V]，不進產品；",
+   "k": "does_not_claim_the_spike_was_run"
+  },
+  {
+   "name": "T-09 may start without the spike",
+   "file": "docs/08-implementation-spec.md",
+   "old": "T-05、T-06、T-08；U-24 結案（§11.21 的 spike） |",
+   "new": "T-05、T-06、T-08 |",
+   "k": "before_the_first_checkpointer_ticket"
+  },
+  {
+   "name": "U-24 has no default that blocks",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| T-09 不開工：spike 沒有報告之前，不寫任何依賴 checkpointer 的產品程式（T-01–T-08 不受影響） |",
+   "new": "| 保留 LangGraph |",
+   "k": "before_the_first_checkpointer_ticket"
+  },
+  {
+   "name": "the exit criterion is gone",
+   "file": "docs/07-roadmap.md",
+   "old": "| M1-X11 | **LangGraph 相容性 spike**",
+   "new": "| M1-X12 | **LangGraph 相容性 spike**",
+   "k": "before_the_first_checkpointer_ticket"
+  },
+  {
+   "name": "the exit criterion tolerates a decisive failure",
+   "file": "docs/07-roadmap.md",
+   "old": "有決定性案例不通過仍保留 LangGraph；",
+   "new": "",
+   "k": "before_the_first_checkpointer_ticket"
+  },
+  {
+   "name": "the ordering row is gone",
+   "file": "docs/07-roadmap.md",
+   "old": "| M1 第一週，T-09 開工之前 | BL-79 LangGraph 相容性 spike（M1-X11；08 U-24） |",
+   "new": "| M1 之內 | BL-79 LangGraph 相容性 spike（M1-X11；08 U-24） |",
+   "k": "before_the_first_checkpointer_ticket"
+  },
+  {
+   "name": "BL-79 says done",
+   "file": "docs/09-backlog.md",
+   "old": "| 規格已訂；spike 未執行，相容性假設仍未經驗證 |",
+   "new": "| 已完成 |",
+   "k": "say_specified_not_run"
+  },
+  {
+   "name": "BL-79 source is ambiguous again",
+   "file": "docs/09-backlog.md",
+   "old": "；不是同日設計決定的 D3）",
+   "new": "）",
+   "k": "say_specified_not_run"
+  },
+  {
+   "name": "the finding says verified",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "相容性仍是 **[推測]**（沒有執行過 LangGraph）",
+   "new": "相容性已驗證",
+   "k": "say_specified_not_run"
+  },
+  {
+   "name": "08 calls SqliteSaver test-only again",
+   "file": "docs/08-implementation-spec.md",
+   "old": "。它同時是**單機 profile 的正式 checkpointer**",
+   "new": "，只是測試依賴。它同時是單機 profile 的 checkpointer",
+   "k": "sqlitesaver_is_not_called_test_only"
+  },
+  {
+   "name": "06 calls the sqlite saver test-only again",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "| 測試，以及 Lite 的單機 profile（[08 §11.20](08-implementation-spec.md#1120-lite-的單機部署-profile-與-vibecheck-inith)）；單機 profile 會隨工具包散布 |",
+   "new": "| 只用於測試 |",
+   "k": "sqlitesaver_is_not_called_test_only"
+  }
+ ]
+}

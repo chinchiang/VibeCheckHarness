@@ -147,7 +147,7 @@ def test_a_single_host_anchor_keeps_the_same_format(lite):
 def test_08_specifies_the_profile_and_init():
     s = text("docs/08-implementation-spec.md")
     assert "### 11.20 Lite 的單機部署 profile 與 `vibecheck init`[H]" in s
-    sec = s.split("### 11.20 Lite 的單機部署 profile", 1)[1]
+    sec = s.split("### 11.20 Lite 的單機部署 profile", 1)[1].split("\n### ", 1)[0]     # section 11.21 follows it now
     rows = {ln.split("|")[1].strip() for ln in sec.splitlines() if ln.startswith("| ")}
     assert {"金鑰數量", "金鑰存放", "錨點副簽", "報告標示", "Z2 沙箱", "checkpointer", "套件存在性", "模型呼叫"} <= rows
     for needle in ("`deployment_profile: single_host`", "`E-ENG-DEPLOYMENT`", "`E-REPORT-ANCHOR`", "`audit_anchor: \"local\"`",

@@ -173,9 +173,11 @@ def test_the_single_host_profile_does_not_downgrade_the_data_class_for_the_user(
 
 def test_the_open_design_items_are_on_the_backlog():
     s = text("docs/09-backlog.md")
-    for bl, needle in (("BL-77", "對抗子集"), ("BL-79", "LangGraph checkpoint 的 spike")):
-        row = next(ln for ln in s.splitlines() if ln.startswith(f"| {bl} |"))
-        assert needle in row and "| 待辦" in row, bl
+    row = next(ln for ln in s.splitlines() if ln.startswith("| BL-77 |"))
+    assert "對抗子集" in row and "| 待辦" in row
+    # BL-79 was specified on 2026-11-23 (tests/test_langgraph_spike.py); the spike itself has not been run
+    row = next(ln for ln in s.splitlines() if ln.startswith("| BL-79 |"))
+    assert "LangGraph checkpoint 的 spike" in row and "| 規格已訂；spike 未執行" in row and "已完成" not in row
     # BL-78 was specified on 2026-11-23 (tests/test_interface_contracts.py); it stays on the backlog as not implemented
     row = next(ln for ln in s.splitlines() if ln.startswith("| BL-78 |"))
     assert "fencing token" in row and "| 介面已訂；未實作，數值待實測 |" in row and "已完成" not in row
