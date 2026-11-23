@@ -200,6 +200,7 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
   - **已確認**：寫進 [06 §2.3](06-security-legal-limitations.md#23-授權登錄表) 與 `licenses.yaml`；
   - **未確認**：該元件在這個里程碑停用，並以設定檔證明它已停用（`tools.yaml`、`models.yaml` 或 engagement 的允許清單）。
 - 項目與負責人取自 [06 §4](06-security-legal-limitations.md#4-開放的法務與查證項目)；研究缺口取自 [01 §5](01-research-survey.md#5-研究缺口未搜尋或未能確認)。
+- **證據會過期**（2026-11-22 內部審查）[H]：[證據帳本](evidence/ledger.md)的條目多數是 2026-09 下旬查核的；授權條款、供應商政策、價格與模型版本都會變。帳本記錄每條的查核日期（`research-findings.json` 的 `checked_at_default`，個別重查過的條目另有 `checked_at`）。規定：一個閘門要以某條證據為依據而結案時，該條的查核日期距今不得超過 180 天；超過就先重查並更新日期。`python tools/build_evidence_ledger.py --age-report` 列出超過期限的條目（只報告，不讓 CI 因日期而失敗）。目前沒有人排定定期重查；2026-09-23 的連結檢查中有 136 個連結當時就無法確認（多為網站擋自動化請求），至今沒有補查 [A]。
 
 | 閘門 | 項目 | 負責 | 未確認則 |
 |---|---|---|---|

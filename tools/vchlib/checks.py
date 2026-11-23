@@ -847,6 +847,15 @@ def transfer_rules(R: Report, c: Ctx):
                     f"{fam}: {src} -> {region} is a cross-border transfer; it needs a mechanism other than same_jurisdiction and a reference")
 
 
+def missing_jurisdictions(c: Ctx) -> list[str]:
+    """The jurisdictions of the engagement's data_transfer (source and every transfer region) that the ROE's
+    legal_review.jurisdictions does not list."""
+    dt = (c.engagement or {}).get("data_transfer") or {}
+    named = [dt.get("source_jurisdiction")] + [t.get("region") for t in dt.get("transfers") or [] if isinstance(t, dict)]
+    covered = set(((c.roe or {}).get("legal_review") or {}).get("jurisdictions") or [])
+    return sorted({j for j in named if isinstance(j, str) and j and j not in covered})
+
+
 def cross_border_declared(c: Ctx) -> bool:
     """Some engagement transfer leaves the source jurisdiction."""
     dt = (c.engagement or {}).get("data_transfer") or {}
@@ -1165,6 +1174,12 @@ def legal(R: Report, c: Ctx):
     if cross_border_declared(c):
         R.check(cb is True or (isinstance(cb, dict) and cb.get("value") is True), "E-ROE-TRANSFER", w,
                 "engagement data_transfer leaves the source jurisdiction, so legal_review.scope.cross_border must be true")
+    # C3 (2026-11-22 review): the review names the jurisdictions it covers; the signed engagement names where the data
+    # starts and where it goes. A review of "TW" for an engagement that sends code to US providers had not looked at
+    # the destination, and nothing compared the two (the shipped example was exactly that)
+    for j in missing_jurisdictions(c):
+        R.check(False, "E-ROE-TRANSFER", w, f"legal_review.jurisdictions {lr.get('jurisdictions')!r} does not cover {j} "
+                "(the engagement's data_transfer names it as the source jurisdiction or a transfer region)")
     # L-2
     att = lr.get("attested_by")
     live = [x for x in c.entries if x.get("person_id") == att and not x.get("revoked_at")]

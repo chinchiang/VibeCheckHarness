@@ -143,6 +143,14 @@ def test_the_pull_request_job_runs_the_touched_lists():
     assert sorted(job["strategy"]["matrix"]["shard"]) == [0, 1, 2, 3] and "NR % 4 == s" in run
 
 
+def test_the_mutation_jobs_install_the_development_tools_too():
+    """The first run of the job reported typing_ratchet.json as VERIFY: its test needs mypy (requirements-dev.txt), the job
+    installed requirements.lock only, the test was skipped and a skipped test catches nothing."""
+    for name, job in (("validate.yml", "mutations"), ("mutations.yml", "all-lists")):
+        installs = [s["run"] for s in workflow(name)["jobs"][job]["steps"] if "pip install" in str(s.get("run"))]
+        assert [("requirements.lock" in c, "requirements-dev.txt" in c) for c in installs] == [(True, False), (False, True)], name
+
+
 def test_the_weekly_workflow_runs_every_list():
     wf = workflow("mutations.yml")
     on = wf.get("on") or wf.get(True)                          # YAML 1.1 reads the key `on` as true

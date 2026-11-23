@@ -171,7 +171,7 @@ db_access:                       # docs/03 §7.6；由 infrastructure_owner（da
 legal_review:                    # docs/06 §2.1.1；grace 必須也簽這份 ROE（L-3），且不能是 test_lead（L-5）
   attested_by: grace
   attested_at: "2026-09-29T16:00:00+08:00"
-  jurisdictions: ["TW"]
+  jurisdictions: ["TW", "US"]    # 必須涵蓋委任設定 data_transfer 的來源與每個傳輸目的地（E-ROE-TRANSFER）
   scope:
     computer_misuse: true
     privacy: true
@@ -197,16 +197,16 @@ signatures:                      # 每位 signatory 與 legal_review.attested_by
   - signer: alice
     key_fingerprint: "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
     alg: ed25519
-    value: "aC3kKHBZmxQ+3MxQ1fzMoILy8kd4pY2q+CAKfwTvYLGyGLv3rVFGKk3KqW7ThPti+5Pl00Ri7W3KL3rSROyFAg=="
+    value: "Hjl8bdk0DRq2/RpfXVBey+mnb5sCNbtBuRmMIBJMBrs/nO5Wbryh90KSAo7iBQnIPCjS8NuEB9ZgfjhUaf90BQ=="
   - signer: carol
     key_fingerprint: "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
     alg: ed25519
-    value: "U0AF14FMfiXQQu3nkVf21hiASvNQYFUHKARiaB/40SRGxWZdALs4pkGF5Mt2eVQM4VmczN0OYhCvvR/UOyd2Dg=="
+    value: "KYGQkuk7D3vc3DnvsyTSf7m8a7qdvGA1otpwt2pzuzvf+b5TjQKZC6YWrdCscAIG28oOubetgl5rGpf6x6l3AA=="
   - signer: dave
     key_fingerprint: "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
     alg: ed25519
-    value: "xu2R66DARNz+yDS4m3d7k1tqfLveWUSfGqZS5APjjTLNf1ooWHdycWztrF88Vq+TOCIc7X5IzfYeSrVGveUHDg=="
+    value: "rgr0XCFBfGbCMhpyskmQQM4KQbMs5TcOTOb73BnyNA20UpnlhwOibgjwzQGh1O7E5/OHNSGWNoBkbAcr0NJfCw=="
   - signer: grace
     key_fingerprint: "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
     alg: ed25519
-    value: "mU19I99870AL4XaEVhs0tZiturhYf9dxNnRcpGh3pXDNBnnlM+AImJ9vqYApoCG9lNIqFGKwJRrgByh+JPpgCA=="
+    value: "hiw9LZcQlLbJxy4hs7byBpGb9N+Hu7h4r1D+M3/YjNLSVT8b6+0QFMTytZDasZUvNmiXaRqyS3htl9/vpy40BA=="

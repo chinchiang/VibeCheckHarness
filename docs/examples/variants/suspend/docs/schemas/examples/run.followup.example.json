@@ -64,7 +64,7 @@
     }
   ],
   "rule_version": "05-v0.17",
-  "roe_ref": "sha256:d2394a0ed1ba897b9f869a0da1dc190d0243e929fd906be337b093d77d92cc39",
+  "roe_ref": "sha256:1ebc6477b0d60c065a5a58cf9f51b08021309b4ca6bbbad14b2e25e715aabd8e",
   "repo_commit": "7d3e1a0c4b2e9f6d1a8c3b5e7f9a2d4c6e8b0f1a",
   "owasp_llm_version": "2026",
   "calibration_version": 3,
@@ -142,7 +142,7 @@
       "gate_record_id": "GR-G0b-0002",
       "outcome": "VERIFIED",
       "round": 1,
-      "subject_hash": "sha256:d2394a0ed1ba897b9f869a0da1dc190d0243e929fd906be337b093d77d92cc39",
+      "subject_hash": "sha256:1ebc6477b0d60c065a5a58cf9f51b08021309b4ca6bbbad14b2e25e715aabd8e",
       "job_id": null,
       "opened_at": "2026-10-07T10:01:00+08:00",
       "decided_at": "2026-10-07T10:02:00+08:00"
@@ -225,23 +225,23 @@
     },
     {
       "seq": 14,
-      "line_sha256": "sha256:31a03ad53f71dc8a1562e3e2eed35c433243c0f2360c71c023120f416028f855"
+      "line_sha256": "sha256:066a6cb9410a08442cd3782ea9b3ac5f3e6cff2a60f264053fe62aef084d6807"
     },
     {
       "seq": 19,
-      "line_sha256": "sha256:04e02f7d3d3c56fb5aea0cb8b5cfd705b75a0ae17d17bda44fd3d98d450e2179"
+      "line_sha256": "sha256:54ce0797aeb3536d27a217fd5f60e42057af6cf7075e0b3012cee3ece3fe4be8"
     },
     {
       "seq": 23,
-      "line_sha256": "sha256:9f9e929209b260e685531a0843ee89c73d948fbaebafe71e25284efdeb5eab41"
+      "line_sha256": "sha256:078f05e9b170d6f1b5178cc5444b7f2b78141bbedfad9b90d84c7698b5ffd464"
     },
     {
       "seq": 25,
-      "line_sha256": "sha256:cfcfc84f37839256216c895bd9872f2c9949a20eb4a49d7e7a268539062d25a8"
+      "line_sha256": "sha256:06a0f5393b84cbc0ebbd345547f9da74c781a860ac80ddb0fa0fbf279c319308"
     },
     {
       "seq": 27,
-      "line_sha256": "sha256:d68a3b03324742202bb208fbe53776cf25db8019d3ef6ca55d4e72acf2f5b0dd"
+      "line_sha256": "sha256:eb30d235f92b6dbb3563b859280613a8f2db5728f658310fb823aea8ac206df6"
     }
   ],
   "errors": [],

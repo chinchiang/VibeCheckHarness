@@ -217,6 +217,7 @@
   "attested_at": "2026-09-29T16:00:00+08:00"
   "jurisdictions":
   - "TW"
+  - "US"
   "scope":
     "computer_misuse": true
     "privacy": true
@@ -245,16 +246,16 @@
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "QVBVGCuWLlpIQ+ECGo0CM75Grs4dX8bb99zFlzvYFc7SlNKTz8m8godjrbxfljngaPVtYniDE0It58r2GI2jCg=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "QVBVGCuWLlpIQ+ECGo0CM75Grs4dX8bb99zFlzvYFc7SlNKTz8m8godjrbxfljngaPVtYniDE0It58r2GI2jCg=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "QVBVGCuWLlpIQ+ECGo0CM75Grs4dX8bb99zFlzvYFc7SlNKTz8m8godjrbxfljngaPVtYniDE0It58r2GI2jCg=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "QVBVGCuWLlpIQ+ECGo0CM75Grs4dX8bb99zFlzvYFc7SlNKTz8m8godjrbxfljngaPVtYniDE0It58r2GI2jCg=="
+  "value": "56F3ghW9XIgqXOWrIm9DaIzNtrachGGMiTr/knsukljQURES15g5scduUNICNSfuT3C1Hb0WElBLT9Nr2sz5Aw=="

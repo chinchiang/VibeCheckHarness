@@ -220,6 +220,7 @@
   "attested_at": "2026-09-29T16:00:00+08:00"
   "jurisdictions":
   - "TW"
+  - "US"
   "scope":
     "computer_misuse": true
     "privacy": true
@@ -248,16 +249,16 @@
 - "signer": "alice"
   "key_fingerprint": "ed25519:SHA256:Ky18wBOUaXHcEHxhUsM/vuhUCjGa9bY7wyIGXDDoK1o"
   "alg": "ed25519"
-  "value": "RX+g1dVkrW5D8Eausu57exYqIvHB+7GFYjZeOP+yVR8p52GrZ//x255lKE5b5oBm0WOBq94mKCchIhIdoy/6Bg=="
+  "value": "d31TSDnlga9WgySsaOboUdwrQvRVrWmEF+aWypn1ulEzugT6oLskcpeE+9GqTi3Sbmrf1ZnJCOEz7d9tAUvzCw=="
 - "signer": "carol"
   "key_fingerprint": "ed25519:SHA256:raVQ7so30NzKYQXvVVAC60cao19GTQKdsz1Xbu2O170"
   "alg": "ed25519"
-  "value": "acMKV60HrjsU29QXuPZnt5wb2La99DytlCTN6qy+lQ3AGsz7fdl1nRjsGcDLDrI9ZGeEea5U1z3ebZ3x41n3CQ=="
+  "value": "c/iNGvE3H1M/95ytGVwYUuTfae/+AzEwXw7LR+7+bOlLR10MlowO76w8oyt3vIcj7bWh9gghYE4SGgPkzTXrBQ=="
 - "signer": "dave"
   "key_fingerprint": "ed25519:SHA256:IPO3dJJ8KKWIfdOok1Q7rGKMls2YIXxQu5BB/d5tVLQ"
   "alg": "ed25519"
-  "value": "WzZE8WbgEmnyDkA6a+Z9oLOOaopYbGofskZNihSGAA7kdAzbBmO0aYbbizotmcMJx2xH0g/fFRx2M/wWlFkyAQ=="
+  "value": "pkzLv9goPTykNiaYdJpTb4Q5V0hZPp826+R6ncKQrdeWiz5Az/N35Dh8SozxXm/MzRutCM2WEgvQTcCb265nCQ=="
 - "signer": "grace"
   "key_fingerprint": "ed25519:SHA256:J0LcrVkCA9yHiPokgJewx172vyto12+LeL7hkCqSp8w"
   "alg": "ed25519"
-  "value": "e7gDI8uHLrztYTa0JRsTjr/tfDtEkLZRCN53cnqkfYcJJ2SLDIiaKs7dJjbt850zb4egegXC5ACkV1A5mIxzBQ=="
+  "value": "QjOiDXRilV3LbJ856ahFAnzs6boF4tb1Ox86f79fr9y4JzS6KooiAOw70L67Wsct+e8NaYaIFe2e8630l/h3Aw=="

@@ -4,6 +4,15 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## 法務聲明的管轄地涵蓋；證據帳本的查核日期（2026-11-22 內部審查 C3、C5）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼。
+
+- **C3**：`legal_review.jurisdictions` 原本沒有與任何欄位比對；範例寫 `["TW"]`，委任設定卻宣告程式碼送往 US 的供應商。現在必須涵蓋委任設定 `data_transfer` 的 `source_jurisdiction` 與每個 `transfers[].region`（`checks.missing_jurisdictions`，沿用 `E-ROE-TRANSFER`）。範例改為 `["TW", "US"]`，重簽。06 §2.1.1 新增「法務審查至少要看什麼」：每個 `scope` 項目的提問與常見的相關法規——**這是提問清單，不是法律意見，沒有經過律師審閱** [A]。
+- **C5**：證據帳本沒有任何日期。`research-findings.json` 新增 `checked_at_default`（2026-09-23，取最早一波研究的日期）；個別條目可帶 `checked_at`；帳本開頭與條目顯示日期。`tools/build_evidence_ledger.py --age-report [--as-of] [--max-age-days]` 列出超過期限（預設 180 天）或沒有日期的條目，只報告、不讓 CI 因日期失敗。07 §3 寫明：閘門以某條證據為依據結案時，該條的查核日期不得超過 180 天。**456 條本身沒有重查**，2026-09-23 當時未確認的 136 個連結也沒有補查。
+- **CI**：第一次在 GitHub 上執行的 `mutations` job 有一個分片失敗——`typing_ratchet.json` 的測試需要 mypy，job 只裝了 `requirements.lock`，測試被跳過，突變判為 VERIFY。兩個突變 job 改為也安裝 `requirements-dev.txt`，並加測試鎖住。其餘三個分片與 `lint`（含 mypy）在那一輪通過。
+- 新增 `tests/test_jurisdictions_and_evidence_age.py`（12 個測試；在 `307c50c` 上全部失敗）與突變清單 `tests/mutations/jurisdictions_and_evidence_age.json`（`CAUGHT 17/17`）；`test_ci_supply_chain.py` 再加 1 個測試、`ci_supply_chain.json` 再加 1 個突變。
+
 ## 修正上一筆造成的 CI 失敗；型別檢查棘輪；簽章文件互斥性的測試（2026-11-22 內部審查 E7、E11）
 
 不是規格變更。

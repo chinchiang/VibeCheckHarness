@@ -1,0 +1,124 @@
+{
+ "tests": "tests/test_jurisdictions_and_evidence_age.py",
+ "mutations": [
+  {
+   "name": "C3: the lists are not compared",
+   "file": "tools/vchlib/checks.py",
+   "old": "    for j in missing_jurisdictions(c):\n        R.check(False, \"E-ROE-TRANSFER\", w,",
+   "new": "    for j in []:\n        R.check(False, \"E-ROE-TRANSFER\", w,",
+   "k": "leaves_out_the_destination or leaves_out_the_source"
+  },
+  {
+   "name": "C3: only the source counts",
+   "file": "tools/vchlib/checks.py",
+   "old": "    named = [dt.get(\"source_jurisdiction\")] + [t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]",
+   "new": "    named = [dt.get(\"source_jurisdiction\")]",
+   "k": "leaves_out_the_destination or every_transfer_region"
+  },
+  {
+   "name": "C3: only the destinations count",
+   "file": "tools/vchlib/checks.py",
+   "old": "    named = [dt.get(\"source_jurisdiction\")] + [t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]",
+   "new": "    named = [t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]",
+   "k": "leaves_out_the_source"
+  },
+  {
+   "name": "C3: only the first transfer counts",
+   "file": "tools/vchlib/checks.py",
+   "old": "[t.get(\"region\") for t in dt.get(\"transfers\") or [] if isinstance(t, dict)]\n    covered",
+   "new": "[t.get(\"region\") for t in (dt.get(\"transfers\") or [])[:1] if isinstance(t, dict)]\n    covered",
+   "k": "every_transfer_region"
+  },
+  {
+   "name": "C3: an extra jurisdiction is an error",
+   "file": "tools/vchlib/checks.py",
+   "old": "    return sorted({j for j in named if isinstance(j, str) and j and j not in covered})",
+   "new": "    return sorted({j for j in named if isinstance(j, str) and j and j not in covered} | (covered - set(named)))",
+   "k": "extra_jurisdictions"
+  },
+  {
+   "name": "C3: the example reviews TW only",
+   "file": "docs/examples/roe.yaml",
+   "old": "  jurisdictions: [\"TW\", \"US\"]",
+   "new": "  jurisdictions: [\"TW\"]",
+   "k": "review_covers_where"
+  },
+  {
+   "name": "C3: the list is called legal advice",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "下表是給法務人員的**提問清單，不是法律意見**，也沒有經過律師審閱；",
+   "new": "下表是法律意見；",
+   "k": "question_list"
+  },
+  {
+   "name": "C3: a scope item has no row",
+   "file": "docs/06-security-legal-limitations.md",
+   "old": "  | `upstream_llm_terms` | 受測應用所用的 LLM 供應商",
+   "new": "  | 上游條款 | 受測應用所用的 LLM 供應商",
+   "k": "question_list"
+  },
+  {
+   "name": "C5: the default date is ignored",
+   "file": "tools/build_evidence_ledger.py",
+   "old": "    return finding.get(\"checked_at\") or data.get(\"checked_at_default\")",
+   "new": "    return finding.get(\"checked_at\")",
+   "k": "carry_its_own_date or reported_by_age"
+  },
+  {
+   "name": "C5: an entry's own date is ignored",
+   "file": "tools/build_evidence_ledger.py",
+   "old": "    return finding.get(\"checked_at\") or data.get(\"checked_at_default\")",
+   "new": "    return data.get(\"checked_at_default\")",
+   "k": "carry_its_own_date or reported_by_age"
+  },
+  {
+   "name": "C5: the limit day is already stale",
+   "file": "tools/build_evidence_ledger.py",
+   "old": "            if age is None or age > max_age_days:",
+   "new": "            if age is None or age >= max_age_days:",
+   "k": "reported_by_age"
+  },
+  {
+   "name": "C5: an undated entry is fresh",
+   "file": "tools/build_evidence_ledger.py",
+   "old": "            if age is None or age > max_age_days:",
+   "new": "            if age is not None and age > max_age_days:",
+   "k": "without_any_date"
+  },
+  {
+   "name": "C5: the entry's date is not printed",
+   "file": "tools/build_evidence_ledger.py",
+   "old": "            if f.get(\"checked_at\"):\n                lines.append(f\"- **查核日期**：{esc(f['checked_at'])}\")\n",
+   "new": "",
+   "k": "carry_its_own_date"
+  },
+  {
+   "name": "C5: the header invents a date",
+   "file": "tools/build_evidence_ledger.py",
+   "old": "    default = data.get(\"checked_at_default\")\n    if default:",
+   "new": "    default = data.get(\"checked_at_default\") or \"2026-09-23\"\n    if default:",
+   "k": "without_any_date"
+  },
+  {
+   "name": "C5: the report fails the build",
+   "file": "tools/build_evidence_ledger.py",
+   "old": "            print(f\"  {topic}: {n}\")\n        return 0",
+   "new": "            print(f\"  {topic}: {n}\")\n        return 1 if old else 0",
+   "k": "never_fails_the_build"
+  },
+  {
+   "name": "C5: the findings file has no date",
+   "file": "docs/evidence/research-findings.json",
+   "old": "  \"checked_at_default\": \"2026-09-23\",\n",
+   "new": "",
+   "k": "records_when_it_was_checked"
+  },
+  {
+   "name": "C5: 07 claims a recheck schedule",
+   "file": "docs/07-roadmap.md",
+   "old": "目前沒有人排定定期重查；",
+   "new": "",
+   "k": "recheck_rule"
+  }
+ ]
+}

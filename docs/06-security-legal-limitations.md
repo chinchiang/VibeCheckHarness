@@ -284,7 +284,7 @@ v0.1 把法律問題「留給使用者」，但沒有任何機制確認使用者
 legal_review:
   attested_by: "grace"            # 必須是金鑰登錄中的人，角色含 legal_reviewer（或 management，見下）
   attested_at: "2026-10-01T09:00:00+08:00"
-  jurisdictions: ["TW"]           # 測試方、受測方、資料所在地
+  jurisdictions: ["TW", "US"]     # 測試方、受測方、資料所在地；必須涵蓋委任設定 data_transfer 的來源與每個目的地
   scope:                          # 每一項都必須明確為 true，或附 not_applicable_reason
     computer_misuse: true         # 電腦濫用／妨害電腦使用相關法規
     privacy: true                 # 個資法規（staging 是否含真實個資）
@@ -312,7 +312,17 @@ signatures:                       # 見 §1.6；value 是對移除 signatures �
 | L-5 | `attested_by` 不是 ROE 的 `test_lead`（職責分離） | `VERIFY_FAILED`（理由 `legal_attester_is_test_lead`），但 run 不中止：`SUSPENDED`（`suspended_wait`）等 ROE 修正後重新驗章。**例外（Lite）**：engagement 為 `lite`、`role_consolidation` 已聲明，且簽署者就是該人時，改為警告 `W-L5-LITE`，報告首頁標示「法務聲明由測試負責人本人簽署」（[02 §1.7](02-methodology.md#17-保證等級liteteamfull)） |
 | L-6 | 依序對照：ROE 的 `allowed_tools` → `tools.yaml` 各工具的 `license_ref` → `licenses.yaml` 對應列。只要有一列 `status: 法務閘門`，`component_licenses` 就必須為 `true` | 該元件從允許清單移除，並列入 B6；過濾後的允許清單記入 G0b GateRecord，B 階段只用這份清單 |
 
-- 工具包**只檢查聲明存在且簽章有效**，不判斷法律意見的內容（§3 #24）。
+- 工具包**只檢查聲明存在且簽章有效**，不判斷法律意見的內容（§3 #24）。唯一的內容比對（2026-11-22 內部審查）：`jurisdictions` 必須涵蓋委任設定 `data_transfer` 的 `source_jurisdiction` 與每個 `transfers[].region`（`E-ROE-TRANSFER`）；之前範例寫 `["TW"]`，委任設定卻宣告資料送往 US，沒有任何檢查比對這兩處。
+- **法務審查至少要看什麼**（2026-11-22 內部審查）[A]：下表是給法務人員的**提問清單，不是法律意見**，也沒有經過律師審閱；條號與適用範圍請以現行法規為準。它的用途是讓 `scope` 的每一項不只是打勾。
+
+  | `scope` 項目 | 要回答的問題 | 常見的相關法規（依 `jurisdictions` 取用） |
+  |---|---|---|
+  | `computer_misuse` | 受測系統的擁有者是否以書面授權這些測試、範圍與時間；共享基礎設施（平台、CDN、第三方 API）的擁有者是否也需要授權 | 臺灣：刑法第 36 章妨害電腦使用罪（第 358–363 條）；美國：Computer Fraud and Abuse Act；歐盟各國依 Directive 2013/40/EU 的國內法 |
+  | `privacy` | staging 是否含真實個資；測試帳號與種子資料是否為合成；測試中讀到的他人資料如何處理與刪除 | 臺灣：個人資料保護法；歐盟：GDPR；美國：各州法（例如 CCPA／CPRA） |
+  | `cross_border` | 原始碼與測試資料送到哪些國家的哪些供應商；是否有合約或其他合法的傳輸依據；供應商的保留與訓練政策 | 臺灣：個人資料保護法第 21 條（國際傳輸限制）；歐盟：GDPR 第五章 |
+  | `third_party_platform_policy` | 每個受測目標所在平台的安全測試政策是否允許這些測試類型與流量 | 各平台的服務條款與安全測試政策（[08 §11.9](08-implementation-spec.md#119-共享平台網域的所有權證明)） |
+  | `upstream_llm_terms` | 受測應用所用的 LLM 供應商是否允許對其模型做對抗測試；工具包自己使用的 LLM 是否允許這種用途 | §2.2 的供應商條款表 |
+  | `component_licenses` | 本次啟用的元件中，標為法務閘門的授權是否已審 | §2.3 |
 - **G0b 之前不使用 `legal_review`** [H]：ROE（含 `legal_review`）在 G0b 才驗章，所以 G0b 之前的節點（W0–W5、Lane A）不讀任何 ROE 欄位，只用 G0a 已驗章的委任設定。元件授權有兩層：
   - **工具包層級**：法務閘門依 [07 §3](07-roadmap.md#3-入口閘門法務與查證) 結案之前，該元件的 adapter 不註冊（[08 §2.3](08-implementation-spec.md#23-擴充介面)）。W0／W1 的工具（例如 `trufflehog:scan`、`semgrep:scan`）只受這一層控制。
   - **ROE 層級**（L-6）：只在 G0b 檢查，只影響 B 階段的工具。

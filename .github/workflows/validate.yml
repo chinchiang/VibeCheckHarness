@@ -119,6 +119,9 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install --require-hashes -r requirements.lock
+      # some lists run tools from requirements-dev.txt (typing_ratchet needs mypy); without them the test is skipped and
+      # the mutation is reported as VERIFY
+      - run: python -m pip install --require-hashes -r requirements-dev.txt
       - name: Run the mutation lists this pull request touched (shard ${{ matrix.shard }} of 4)
         shell: bash
         run: |
