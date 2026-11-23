@@ -81,6 +81,36 @@ def test_ci_installs_every_requirement_file_with_require_hashes():
     assert any("tools/lock_hashes.py --check requirements.lock requirements-dev.txt" in c for c in runs(workflow("validate.yml")))
 
 
+def test_a_dependency_only_some_platforms_need_must_be_pinned(lh):
+    """The first hashed lock installed where it was made and failed on three of four CI platforms: referencing needs
+    typing_extensions below Python 3.13 and pytest needs colorama on Windows; neither was pinned."""
+    requires = {"referencing": ["attrs>=22.2.0", 'typing-extensions>=4.4.0; python_version < "3.13"'],
+                "pytest": ['colorama>=0.4; sys_platform == "win32"', "pluggy<2,>=1.5", 'tomli>=1; python_version < "3.11"'],
+                "pytest-xdist": ["pytest>=7.0.0", 'psutil>=3.0; extra == "psutil"']}
+    lock = {"referencing": "0.37.0", "attrs": "26.1.0", "pytest": "9.1.1", "pluggy": "1.7.0"}
+    got = lh.closure_problems([("requirements.lock", lock)], requires)
+    assert got == ["requirements.lock: pytest needs colorama on python 3.11 / win32, which is not pinned in this file or an earlier one",
+                   "requirements.lock: pytest needs colorama on python 3.13 / win32, which is not pinned in this file or an earlier one",
+                   "requirements.lock: referencing needs typing-extensions on python 3.11 / linux, which is not pinned in this file or an earlier one",
+                   "requirements.lock: referencing needs typing-extensions on python 3.11 / win32, which is not pinned in this file or an earlier one"]
+    full = dict(lock, typing_extensions="4.16.0", colorama="0.4.6")
+    assert lh.closure_problems([("requirements.lock", full)], requires) == []
+    # a later file may rely on an earlier one, not the other way round; an extra is not followed
+    dev = {"pytest-xdist": "3.8.0"}
+    assert lh.closure_problems([("requirements.lock", full), ("requirements-dev.txt", dev)], requires) == []
+    assert any("pytest-xdist needs pytest" in m for m in lh.closure_problems([("requirements-dev.txt", dev), ("requirements.lock", full)], requires))
+    # a pin outside the required range
+    assert lh.closure_problems([("l", dict(full, pluggy="2.0.0"))], requires) == ["l: pytest needs pluggy<2,>=1.5, but pluggy is pinned to 2.0.0"]
+
+
+def test_the_lock_pins_the_platform_dependent_requirements(lh):
+    pins = {lh.norm(e["name"]) for e in lh.parse((ROOT / "requirements.lock").read_text(encoding="utf-8")) if "name" in e}
+    assert {"typing-extensions", "colorama"} <= pins
+    lint = workflow("validate.yml")["jobs"]["lint"]
+    installs = [s["run"] for s in lint["steps"] if "pip install" in str(s.get("run"))]
+    assert [("requirements.lock" in c, "requirements-dev.txt" in c) for c in installs] == [(True, False), (False, True)]    # lock first
+
+
 # ================================================================ E10: mutations run in CI
 def test_a_list_is_selected_by_its_own_change_or_its_tests(cml):
     lists = {"tests/mutations/a.json": "tests/test_a.py", "tests/mutations/b.json": "tests/test_b.py", "tests/mutations/c.json": None}

@@ -122,7 +122,7 @@ def sensitive_digits(text: str) -> str:
     return "".join(ch for ch in unicodedata.normalize("NFKC", text) if ch.isdigit())
 
 
-def sensitive_leaks(output: str, fields: list[dict]) -> list[str]:
+def sensitive_leaks(output: str, fields: list[dict]) -> list:
     """The `field` names of registered sensitive fields that appear in a model output. Paraphrases ("the customer in
     Taipei") are not matched: they need LLM_GRADER / a human and are not a deterministic oracle."""
     out, digits = normalize_sensitive(output), sensitive_digits(output)
@@ -261,7 +261,7 @@ def graphql_paths(roe: dict | None) -> dict[str, set[str]]:
 
 def graphql_declared(r: dict, gql: dict[str, set[str]] | None) -> bool:
     """The request goes to a ROE-declared GraphQL path of its target over GET / POST."""
-    return r.get("method") in GRAPHQL_METHODS and r.get("path") in (gql or {}).get(r.get("target_id"), set())
+    return r.get("method") in GRAPHQL_METHODS and r.get("path") in (gql or {}).get(r.get("target_id"), set())  # type: ignore[arg-type]  # a missing target_id finds nothing
 
 
 def _endpoint_in(manifest, key: str, r: dict) -> dict | None:
@@ -1005,7 +1005,8 @@ def seed_side_effects(manifest, roe, r: dict) -> str | None:
     refs = [m.group(1) for s in segments(r.get("path", "")) for m in [SEED_SEG_RE.match(s)] if m]
     refs += [m.group(1) for x in r.get("object_refs") or [] for m in [SEED_REF_RE.match(str(x))] if m]
     for key in refs:
-        sd = seeds.get(key) if isinstance(seeds.get(key), dict) else {}
+        raw = seeds.get(key)
+        sd: dict = raw if isinstance(raw, dict) else {}
         effects = sd.get("side_effects")
         if effects is None:
             effects = "external" if live else "none"

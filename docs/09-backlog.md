@@ -92,6 +92,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-73 | r14 C10 | Calibration Lab 的實際人力與語料刷新：§5.1 的 30 人週估算、模型更換後的新批次、κ 最小批量，由 U-10 的決定與第一批標註的實測回填 | [05 §5.1](05-bias-calibration.md#51-語料)、[07 §1.5](07-roadmap.md#15-人力與時程估算-h) | M2 | 待辦 |
 | BL-74 | 2026-11-22 內部審查 | 寫入請求的 body 樣板比對：測試案例宣告每個寫入請求的完整 body 樣板，Scope Proxy 只放行把 `{seed:}`／`{created:}` 代換後與樣板完全相等的 body（比照 `safety.server_action_problem`），取代依鍵名猜測哪些欄位是物件 ID 的做法；要改 testcase schema、範例與簽章 | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #46 | MVP-1 | 待辦 |
 | BL-75 | 2026-11-22 內部審查 C7 | Binding 表補列：WebSocket／SSE 的訊息層授權、OAuth／OIDC（`state`、PKCE、redirect URI）、JWT 驗證細節（`alg`、`kid`、`aud`／`iss`）、LLM 輸出的渲染外洩（Markdown 圖片與連結）、Lite 可用的 S0／S1 注入檢查；每列要有需求來源、oracle 與安全等級，新 adapter 要登錄到 `tools.yaml` | [04 §4.3](04-threat-to-testcase.md#43-binding-表)、[06 §3](06-security-legal-limitations.md#3-做不到不承諾的事) #49 | MVP-2 | 待辦；目前這些類別只能以 `MANUAL` 或 G4 核准的 `GENERATED_SCRIPT` 處理 |
+| BL-76 | 2026-11-22 內部審查 E11 | 文件簽章的領域標籤：`sign_document` 簽的是「去掉 `signatures` 的文件」的 JCS，沒有像稽核錨點那樣的領域標籤（`ANCHOR_DOMAIN`）。目前靠「各種簽章文件的 schema 互斥」防止跨類型重放——每種都是封閉物件，而且任兩種之間至少有一個必填欄位對方不允許（`tests/test_signature_domains.py` 逐對檢查，新增簽章文件種類時會失敗）。根本解是在簽章位元組前加上文件種類與版本的標籤；這會改變每一筆既有簽章與 03 §6.1 的格式，要與產品的 `keys` 模組一起做 | [03 §6.1](03-system-architecture.md#6-人工關卡服務)、[08 §2.4](08-implementation-spec.md#24-參考實作) | M1（`keys` 模組） | 待辦；互斥性已有測試 |
 
 ## 5. 已完成（保留編號供追溯）
 

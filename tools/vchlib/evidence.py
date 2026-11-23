@@ -78,7 +78,7 @@ def match_snippet(slice_text: str, ev: dict) -> tuple[str, int | None, int | Non
     return "NOT_FOUND", ls, le
 
 
-def resolve_pointer(doc, pointer: str):
+def resolve_pointer(doc, pointer: str | None):
     """RFC 6901 JSON Pointer; returns the sentinel MISSING (module-private) when it does not resolve."""
     if not isinstance(pointer, str) or (pointer and not pointer.startswith("/")):
         return _MISSING

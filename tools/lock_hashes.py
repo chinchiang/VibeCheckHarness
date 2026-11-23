@@ -12,6 +12,15 @@ lock file then installs on every CI platform. Comment lines are kept.
 
     python tools/lock_hashes.py requirements.lock requirements-dev.txt     # needs network (pypi.org)
     python tools/lock_hashes.py --check requirements.lock ...              # offline: every pin has at least one hash
+    python tools/lock_hashes.py --closure requirements.lock requirements-dev.txt   # network: nothing a CI platform needs is unpinned
+
+`--closure` exists because --require-hashes refuses every dependency that is not pinned, and which dependencies a
+package has depends on the platform: referencing needs typing_extensions below Python 3.13, pytest needs colorama on
+Windows. A lock made with `pip freeze` on one machine misses those, and a dry run in an environment that already has the
+packages does not notice (this happened on 2026-11-22: the first hashed lock installed locally and failed on three of
+the four CI platforms). The check reads each pin's Requires-Dist from the index, evaluates the markers for every
+environment in CI_ENVIRONMENTS and reports requirements that no listed file pins or whose pin is outside the range. The
+files are taken together, in order: a file may rely on pins of the files before it, never on later ones.
 
 The digests are taken from the index at the time the tool runs: they pin what the index served then, they do not prove
 the files are benign. Review the diff of a regenerated lock file like any other dependency change.
@@ -69,6 +78,45 @@ def problems(text: str) -> list[str]:
     return out if pins else ["no pinned requirement"]
 
 
+# The environments CI installs in (.github/workflows/validate.yml): python_version x sys_platform.
+CI_ENVIRONMENTS = [(py, plat) for py in ("3.11", "3.13") for plat in ("linux", "win32")]
+
+
+def norm(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def closure_problems(files: list[tuple[str, dict[str, str]]], requires: dict[str, list[str]], environments=None) -> list[str]:
+    """`files`: [(file name, {package: pinned version})] in install order; `requires`: {package: its Requires-Dist lines}.
+    A requirement that applies in some CI environment must be pinned in the same file or an earlier one, inside its
+    version range. Extras are not followed (nothing is installed with an extra)."""
+    from packaging.markers import default_environment
+    from packaging.requirements import Requirement
+    out, seen = set(), {}
+    for fname, pins in files:
+        seen.update({norm(k): v for k, v in pins.items()})
+        for pkg in sorted(pins):
+            for line in requires.get(norm(pkg)) or []:
+                req = Requirement(line)
+                for py, plat in environments or CI_ENVIRONMENTS:
+                    env = dict(default_environment(), python_version=py, python_full_version=py + ".0", sys_platform=plat,
+                               os_name="nt" if plat == "win32" else "posix", platform_system="Windows" if plat == "win32" else "Linux",
+                               implementation_name="cpython", platform_python_implementation="CPython", extra="")
+                    if req.marker is not None and not req.marker.evaluate(env):
+                        continue
+                    name = norm(req.name)
+                    if name not in seen:
+                        out.add(f"{fname}: {pkg} needs {req.name} on python {py} / {plat}, which is not pinned in this file or an earlier one")
+                    elif not req.specifier.contains(seen[name], prereleases=True):
+                        out.add(f"{fname}: {pkg} needs {line}, but {req.name} is pinned to {seen[name]}")
+    return sorted(out)
+
+
+def fetch_requires(name: str, version: str) -> list[str]:
+    with urllib.request.urlopen(INDEX.format(name=name, version=version), timeout=60) as r:    # noqa: S310 (fixed https URL)
+        return json.load(r)["info"].get("requires_dist") or []
+
+
 def fetch(name: str, version: str) -> list[str]:
     with urllib.request.urlopen(INDEX.format(name=name, version=version), timeout=60) as r:    # noqa: S310 (fixed https URL)
         files = json.load(r)["urls"]
@@ -79,8 +127,17 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("files", nargs="+", type=pathlib.Path)
     ap.add_argument("--check", action="store_true", help="offline: exit 1 unless every pin has a hash")
+    ap.add_argument("--closure", action="store_true", help="network: every dependency a CI platform needs is pinned")
     args = ap.parse_args(argv)
     rc = 0
+    if args.closure:
+        files = [(str(p), {e["name"]: e["version"] for e in parse(p.read_text(encoding="utf-8")) if "name" in e}) for p in args.files]
+        requires = {norm(n): fetch_requires(n, v) for _, pins in files for n, v in pins.items()}
+        found = closure_problems(files, requires)
+        for msg in found:
+            print(msg, file=sys.stderr)
+        print(f"closure: {sum(len(p) for _, p in files)} pin(s), {len(CI_ENVIRONMENTS)} environment(s), {len(found)} problem(s)")
+        return 1 if found else 0
     for path in args.files:
         text = path.read_text(encoding="utf-8")
         if args.check:

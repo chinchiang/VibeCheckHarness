@@ -44,7 +44,7 @@ def main(argv=None) -> int:
     from .checks import run_all
     for s in (sys.stdout, sys.stderr):
         try:
-            s.reconfigure(encoding="utf-8", errors="replace")
+            s.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]  # a replaced stream may lack it (AttributeError below)
         except (AttributeError, ValueError):
             pass
     b = load_variant(pathlib.Path(args.root), args.variant) if args.variant else load_bundle(pathlib.Path(args.root))

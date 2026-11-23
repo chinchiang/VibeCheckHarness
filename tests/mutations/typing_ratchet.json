@@ -1,0 +1,47 @@
+{
+ "tests": "tests/test_typing_ratchet.py",
+ "mutations": [
+  {
+   "name": "a module is added to the exempt list",
+   "file": "pyproject.toml",
+   "old": "    \"vchlib.expectations\",  # 7\n",
+   "new": "    \"vchlib.expectations\",  # 7\n    \"vchlib.safety\",\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "everything is excluded",
+   "file": "pyproject.toml",
+   "old": "ignore_missing_imports = true\nwarn_unused_ignores = true\n",
+   "new": "ignore_missing_imports = true\nwarn_unused_ignores = true\nexclude = [\"tools/vchlib\"]\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "a type fix is reverted",
+   "file": "tools/vchlib/context.py",
+   "old": "        self.runs: dict = {}\n",
+   "new": "        self.runs = {}\n",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "a checked module gets a type error",
+   "file": "tools/vchlib/timeutil.py",
+   "old": "from __future__ import annotations\n",
+   "new": "from __future__ import annotations\n_BROKEN: int = \"not an int\"\n",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "CI does not run mypy",
+   "file": ".github/workflows/validate.yml",
+   "old": "      - name: Type check (a ratchet; pyproject.toml [tool.mypy])\n        run: python -m mypy\n",
+   "new": "",
+   "k": "ci_runs_the_type_check"
+  },
+  {
+   "name": "mypy is not pinned",
+   "file": "requirements-dev.txt",
+   "old": "\nmypy==2.3.1 \\\n",
+   "new": "\nmypyx==2.3.1 \\\n",
+   "k": "ci_runs_the_type_check"
+  }
+ ]
+}

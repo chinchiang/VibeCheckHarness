@@ -1,0 +1,33 @@
+{
+ "tests": "tests/test_signature_domains.py",
+ "mutations": [
+  {
+   "name": "feedback becomes an open object",
+   "file": "docs/schemas/feedback.schema.json",
+   "old": "  \"type\": \"object\",\n  \"additionalProperties\": false,",
+   "new": "  \"type\": \"object\",\n  \"additionalProperties\": true,",
+   "k": "closed_object"
+  },
+  {
+   "name": "a gate record no longer requires its signatures",
+   "file": "docs/schemas/gate-record.schema.json",
+   "old": "\"opened_at\",\"timestamp\",\"signatures\"]}",
+   "new": "\"opened_at\",\"timestamp\"]}",
+   "k": "closed_object"
+  },
+  {
+   "name": "an event counts as its own payload plus a tag",
+   "file": "tools/vchlib/crypto.py",
+   "old": "    return jcs({\"domain\": ANCHOR_DOMAIN, \"run_id\": event.get(\"run_id\"), \"seq\": event.get(\"seq\"),\n                \"prev_hash\": event.get(\"prev_hash\"), \"event_sha256\": digest})",
+   "new": "    return jcs({\"run_id\": event.get(\"run_id\"), \"seq\": event.get(\"seq\"),\n                \"prev_hash\": event.get(\"prev_hash\"), \"event_sha256\": digest})",
+   "k": "own_domain_tag"
+  },
+  {
+   "name": "the backlog item is closed",
+   "file": "docs/09-backlog.md",
+   "old": "| M1（`keys` 模組） | 待辦；互斥性已有測試 |",
+   "new": "| M1（`keys` 模組） | 已完成 |",
+   "k": "backlog_records"
+  }
+ ]
+}

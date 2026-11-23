@@ -4,11 +4,22 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## 修正上一筆造成的 CI 失敗；型別檢查棘輪；簽章文件互斥性的測試（2026-11-22 內部審查 E7、E11）
+
+不是規格變更。
+
+- **我造成的 CI 失敗與修正**：上一筆（`1fa4529`）把 CI 改為 `--require-hashes` 後，`validate` 的 ubuntu／py3.11 與兩個 Windows 組合、以及 `lint` 都在安裝步驟失敗。原因：這個模式下 pip 拒絕任何沒有釘住的相依，而 `referencing` 在 Python 3.13 以下需要 `typing_extensions`、`pytest` 在 Windows 需要 `colorama`、`pytest-xdist` 需要 `pytest`；鎖檔是在 Linux／py3.13 上以 `pip freeze` 產生的，沒有這些。我當時的本機驗證是在已經裝好套件的環境做 `--dry-run`，所以沒有發現——那不是有效的驗證。
+  - 修正：`requirements.lock` 補上 `typing_extensions`、`colorama`；`lint` job 先裝 `requirements.lock` 再裝開發工具；`requirements-dev.txt` 註明它依賴前者。
+  - 防止再犯：`tools/lock_hashes.py --closure` 從索引讀每個釘選版本的 `Requires-Dist`，對 CI 的四個環境（py3.11／3.13 × linux／win32）求值，回報沒有被釘住或版本不在範圍內的相依。對上一筆的鎖檔執行，回報的正是 CI 上失敗的那四項；對修正後的檔案回報 0 項。另在全新的虛擬環境實際安裝成功（Linux／py3.13）。Windows 與 py3.11 的實際安裝只能由 CI 驗證。
+- **E7 型別檢查**：`mypy tools/vchlib` 原本有 226 個錯誤、沒有任何地方執行它。修掉 `bundle`、`cli`、`context`、`evidence`、`safety` 的 10 個（只改型別標註，不改行為）；`pyproject.toml` 加 `[tool.mypy]`，其餘 216 個錯誤所在的 5 個模組列為 `ignore_errors`。`python -m mypy` 必須通過（CI `lint` job）；豁免清單只能縮小（`tests/test_typing_ratchet.py`）。mypy 與其相依套件加入 `requirements-dev.txt`（含 hash）。
+- **E11 簽章領域標籤**：沒有改簽章格式（記為 09 BL-76）。新增 `tests/test_signature_domains.py`，檢查原本只是論述的緩解條件：六種簽章文件都是封閉物件且必填 `signatures`；任兩種之間至少有一個必填欄位對方不允許（30 組逐對檢查）；範例互不通過對方的 schema；稽核事件不是任何一種簽章文件。這些性質在修改前就成立（41 個測試中只有檢查待辦列的 1 個原本失敗）——這是替既有的假設補上測試，不是修正缺陷。
+- 測試與突變：`test_ci_supply_chain.py` 增加 2 個測試（共 12 個）、`ci_supply_chain.json` 增加 7 個突變（共 26 個）；新增 `typing_ratchet.json`（6 個）與 `signature_domains.json`（4 個）。
+
 ## 鎖檔 hash 與 CI 執行突變清單（2026-11-22 內部審查 E9、E10；09 BL-57）
 
 不是規格變更（CI 與開發工具）。
 
-- **E9**：`requirements.lock` 與 `requirements-dev.txt` 原本只釘版本。新增 `tools/lock_hashes.py`：向索引的 JSON API 取每個釘選版本所有檔案（各平台 wheel 與 sdist）的 sha256 寫入 `--hash` 行；`--check` 離線確認每個釘選都有 hash。CI 的每個 `pip install -r` 都加 `--require-hashes`。本機以 `pip install --require-hashes --dry-run` 驗證兩份檔案都能解析安裝。digest 取自產生當下的索引：能防「同版本被換檔」，不能證明檔案無害。
+- **E9**：`requirements.lock` 與 `requirements-dev.txt` 原本只釘版本。新增 `tools/lock_hashes.py`：向索引的 JSON API 取每個釘選版本所有檔案（各平台 wheel 與 sdist）的 sha256 寫入 `--hash` 行；`--check` 離線確認每個釘選都有 hash。CI 的每個 `pip install -r` 都加 `--require-hashes`。（當時的本機驗證無效，CI 失敗，見上一節。）digest 取自產生當下的索引：能防「同版本被換檔」，不能證明檔案無害。
 - **E10**：CI 原本只做 `--anchors-only`，從不執行突變。新增 `tools/changed_mutation_lists.py` 與 `validate.yml` 的 `mutations` job：pull request 執行它新增或改動的清單，以及測試檔有改動的清單（4 個分片平行）。新增 `.github/workflows/mutations.yml`：每週一與手動觸發時執行全部清單。分支名稱經環境變數傳入 shell，不直接內插。
 - 新增 `tests/test_ci_supply_chain.py`（10 個測試；在 `9d3868c` 上 4 個失敗、6 個因工具不存在而錯誤）與突變清單 `tests/mutations/ci_supply_chain.json`（`CAUGHT 19/19`）。
 - 既有測試：`test_v07_r8_process.py::test_the_lock_pins_every_direct_dependency` 解析鎖檔時去掉行尾的續行符號（斷言不變）。

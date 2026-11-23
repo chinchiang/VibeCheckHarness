@@ -35,3 +35,21 @@ select = ["E9", "F"]
 # `w_status`; both are harmless, and editing the lines would move mutation anchors in the validator.
 "tools/vchlib/checks.py" = ["F402", "F841"]
 
+# Type checking is a ratchet (2026-11-22 review E7): `python -m mypy` must pass. Modules listed under ignore_errors are
+# the ones that do not pass yet (the count of their errors on 2026-11-22 is in the comment); remove a module from the
+# list when it is clean, never add one. tests/test_typing_ratchet.py keeps the list from growing.
+[tool.mypy]
+files = ["tools/vchlib"]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "vchlib.checks",        # 175
+    "vchlib.derive",        # 14
+    "vchlib.verdict",       # 10
+    "vchlib.calibration",   # 10
+    "vchlib.expectations",  # 7
+]
+ignore_errors = true
