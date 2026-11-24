@@ -138,7 +138,7 @@ def test_report_export_has_markdown_and_run_start_exits_5_on_pricing():
 # ================================================================ C9 / C10. milestones, pilot effort, labelling budget
 def test_w0_extractors_and_pii_belong_to_m1_and_the_pilot_effort_is_listed():
     s7 = doc("07-roadmap.md")
-    assert "| M1 基礎與安全控制 | 12 | 7 |" in s7 and "**W0 抽取器**（含 `inventory:nextjs`、`inventory:baas_client`）" in s7
+    assert "| M1 基礎與安全控制 | 12 | 7.5 |" in s7 and "**W0 抽取器**（含 `inventory:nextjs`、`inventory:baas_client`）" in s7
     assert "**MVP-0 的出場另需 pilot 人力，不在這 16 人週內**" in s7
     assert "同一 commit、同一目標環境、同樣的時間窗；MVP-1 的目標是本地拋棄式環境" in s7
     s8 = doc("08-implementation-spec.md")

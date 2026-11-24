@@ -1,0 +1,89 @@
+{
+ "tests": "tests/test_effort_estimate.py",
+ "mutations": [
+  {
+   "name": "the total goes back to 29",
+   "file": "docs/07-roadmap.md",
+   "old": "| **合計** | **48** | **30** | | |",
+   "new": "| **合計** | **48** | **29** | | |",
+   "k": "calendar_weeks_follow_the_formula"
+  },
+  {
+   "name": "a row is rounded down again",
+   "file": "docs/07-roadmap.md",
+   "old": "| M1 基礎與安全控制 | 12 | 7.5 |",
+   "new": "| M1 基礎與安全控制 | 12 | 7 |",
+   "k": "calendar_weeks_follow_the_formula"
+  },
+  {
+   "name": "the formula is no longer stated",
+   "file": "docs/07-roadmap.md",
+   "old": "，也就是「人週 ÷ 2 ÷ 0.8」，表中照算出來的值寫、不進位",
+   "new": "",
+   "k": "calendar_weeks_follow_the_formula"
+  },
+  {
+   "name": "an unestimated item is dropped",
+   "file": "docs/07-roadmap.md",
+   "old": "  - Binding 表擴充的五類攻擊面與它們的 adapter（[04 §4.3](04-threat-to-testcase.md)，BL-75）——未估。\n",
+   "new": "",
+   "k": "listed_as_unestimated"
+  },
+  {
+   "name": "an item gets an invented number",
+   "file": "docs/07-roadmap.md",
+   "old": "，BL-78）——未估。",
+   "new": "，BL-78）——約 2 人週。",
+   "k": "listed_as_unestimated"
+  },
+  {
+   "name": "the list no longer says nothing was estimated",
+   "file": "docs/07-roadmap.md",
+   "old": "這裡不替它們填數字——沒有依據；BL-63 重估時必須逐項補上。",
+   "new": "",
+   "k": "listed_as_unestimated"
+  },
+  {
+   "name": "U-25 is gone",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| U-25 | LangGraph spike（§11.21）的時間上限，",
+   "new": "| U-99 | LangGraph spike（§11.21）的時間上限，",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the default squeezes the spike into week one",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 不壓縮：spike 用掉多少人日，第 1 週的工單就順延多少；M1 的 12 人週不含 spike，實際用量記入 BL-63 |",
+   "new": "| 與第 1 週的工單並行 |",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the ticket table hides that it has no slack",
+   "file": "docs/08-implementation-spec.md",
+   "old": "下表的 12 張工單排滿兩人兩週（每人每週 3 張），沒有餘裕；",
+   "new": "",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the estimate section drops the pointer to U-25",
+   "file": "docs/07-roadmap.md",
+   "old": "spike 要多少時間、要不要順延工單，是 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 的 U-25。",
+   "new": "",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "BL-63 says measured",
+   "file": "docs/09-backlog.md",
+   "old": "重估時逐項補上；待量測 |",
+   "new": "重估時逐項補上；已完成 |",
+   "k": "measured_speed_is_still_missing"
+  },
+  {
+   "name": "A6 says fixed",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "| ⚠️ 部分處理（2026-11-24）：速度仍只能由 BL-63 量測，文件修不出來。",
+   "new": "| ✅ 已處理（2026-11-24）：速度仍只能由 BL-63 量測，文件修不出來。",
+   "k": "measured_speed_is_still_missing"
+  }
+ ]
+}
