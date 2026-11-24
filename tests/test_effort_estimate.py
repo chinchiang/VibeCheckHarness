@@ -12,6 +12,8 @@ checked and were wrong or missing:
     time limit.
 
 docs/07 section 1.5 now lists the unestimated scope without inventing numbers for it; the conflict is docs/08 U-25.
+U-25 was decided by the user on 2026-11-24: one engineer on the spike, at most five person-days, the week-one tickets
+slip by at most that much, and reaching the limit means stop and report -- never fewer cases or a weaker pass rule.
 
 Each test failed before the change and passes after it (tests/mutations/effort_estimate.json); see CONTRIBUTING.md."""
 import pathlib
@@ -76,15 +78,32 @@ def test_every_unestimated_item_is_really_in_the_specification():
         assert f"| {bl} |" in backlog, bl
 
 
-def test_the_week_one_conflict_is_an_open_decision_with_a_default_that_does_not_squeeze():
+def test_the_week_one_conflict_is_decided_with_a_limit_that_does_not_squeeze():
     u25 = row("docs/08-implementation-spec.md", "| U-25 |")
-    assert "§11.21" in u25 and "T-01–T-06" in u25 and "時間上限" in u25
-    assert "不壓縮" in u25 and "順延" in u25 and "BL-63" in u25 and u25.rstrip().endswith("| M1 |")
-    intro = text("docs/08-implementation-spec.md").split("### 9.2 M1 前兩週的工單", 1)[1].split("\n| # |", 1)[0]
-    assert "沒有餘裕" in intro and "U-25" in intro
-    tickets = re.findall(r"^\| (T-\d\d) \| ([12]) \|", text("docs/08-implementation-spec.md"), re.M)
+    assert "**已決定（2026-11-24，使用者）**" in u25 and "§11.21" in u25 and "T-01–T-06" in u25
+    assert "時間上限是 5 人日" in u25 and "一位工程師專做" in u25 and "最多順延 5 人日" in u25
+    assert "停止並回報" in u25 and "由使用者決定延長或改為自寫的狀態機" in u25
+    assert "不得以減少案例或放寬通過條件來趕上限" in u25
+    assert "不壓縮" in u25 and "BL-63" in u25 and u25.rstrip().endswith("| M1 |")
+    spec = text("docs/08-implementation-spec.md")
+    intro = spec.split("### 9.2 M1 前兩週的工單", 1)[1].split("\n| # |", 1)[0]
+    assert "沒有餘裕" in intro and "U-25" in intro and "上限 5 人日" in intro and "最多順延 5 人日" in intro
+    tickets = re.findall(r"^\| (T-\d\d) \| ([12]) \|", spec, re.M)
     assert [w for _, w in tickets] == ["1"] * 6 + ["2"] * 6                 # what "twelve tickets in two weeks" means
-    assert "U-25" in section() and "第一週原本已排 6 張工單" in section()
+    sec = section()
+    assert "U-25 已決定（2026-11-24）" in sec and "第一週原本已排 6 張工單" in sec
+    assert "這是上限，不是估算" in sec and "實際用量由 BL-63 回填" in sec
+
+
+def test_the_spike_section_states_the_limit_and_what_it_may_not_change():
+    spike = text("docs/08-implementation-spec.md").split("### 11.21 LangGraph 相容性 spike", 1)[1].split("\n### ", 1)[0]
+    how = spike.split("**做法**", 1)[1].split("**必要案例**", 1)[0]
+    limit = [ln for ln in how.splitlines() if ln.startswith("- 時間上限：")]
+    assert len(limit) == 1
+    assert "5 人日" in limit[0] and "一位工程師專做" in limit[0] and "§10 U-25" in limit[0]
+    assert "停止" in limit[0] and "由使用者決定延長或改為自寫的狀態機" in limit[0] and "T-09 仍不開工" in limit[0]
+    assert "上限不改變必要案例的數目、通過條件與決策規則" in limit[0]
+    assert len(re.findall(r"^\| LG-\d\d \|", spike, re.M)) == 15         # the limit did not shrink the case list
 
 
 def test_the_backlog_and_the_findings_say_measured_speed_is_still_missing():
@@ -93,4 +112,5 @@ def test_the_backlog_and_the_findings_say_measured_speed_is_still_missing():
     a6 = row("docs/evidence/findings-2026-11-22.md", "| A6 |")
     assert "⚠️ 部分處理" in a6 and "✅" not in a6
     assert "仍只能由 BL-63 量測" in a6 and "U-25" in a6 and "30，不是 29" in a6
+    assert "上限 5 人日" in a6 and "待決定" not in a6
     assert "[代理]" not in a6 and "已對原文核對" in a6
