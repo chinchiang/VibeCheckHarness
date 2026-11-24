@@ -14,7 +14,7 @@ Rejected (same number rules as yamlstrict._check_numbers):
     internal error) and lone UTF-16 surrogates in keys or strings (not representable in UTF-8 or RFC 8785 JCS, so
     every hash and signature over the document failed later as E-INTERNAL for the whole group)
 Float literals such as 3e0 or 3.0 stay floats (never silently integers); integer-typed fields
-reject them in the schema check (checks.format_checker type checker) and in the audit seq check.
+reject them in the schema check (report.format_checker type checker) and in the audit seq check.
 """
 from __future__ import annotations
 

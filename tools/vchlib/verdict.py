@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Verdict derivation (docs/05 §4.2): everything a verdict version's derived fields are computed from, in one module.
 
-The checker (checks.g_verdicts), the derived values (expectations.py) and the variant writer (tools/build_variants.py)
+The checker (checks_verdicts.g_verdicts), the derived values (expectations.py) and the variant writer (tools/build_variants.py)
 all read a verdict version's derived fields from here (architecture refactor PR-B; ADR 0001).
 """
 from __future__ import annotations

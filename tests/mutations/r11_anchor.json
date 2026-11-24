@@ -94,7 +94,7 @@
     },
     {
       "name": "every initial run needs its invariants",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_w4.py",
       "old": "        R.check(run.get(\"run_kind\") in (\"followup\", \"regression\") and reused, \"E-W4-COVERAGE\", w,",
       "new": "        R.check(True, \"E-W4-COVERAGE\", w,",
       "k": "without_its_own_invariants"

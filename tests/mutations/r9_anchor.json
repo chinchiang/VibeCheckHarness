@@ -38,21 +38,21 @@
     },
     {
       "name": "members: carried cluster has no members",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "        R.check(not k.get(\"member_finding_ids\"), \"E-CLUSTER-CARRY\", w,",
       "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
       "k": "carried_cluster_has_no_members"
     },
     {
       "name": "phase: first version is W3",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "                R.check(phase == \"W3_adjudicate\", \"E-VERDICT-PHASE\", w,",
       "new": "                R.check(True, \"E-VERDICT-PHASE\", w,",
       "k": "first_version"
     },
     {
       "name": "phase: G2_apply names its G2 record",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "                    R.check(lid is not None and v.get(\"g2_decision_ref\") == lid, \"E-VERDICT-G2\", d.path,",
       "new": "                    R.check(True, \"E-VERDICT-G2\", d.path,",
       "k": "g2_apply_version"
@@ -73,7 +73,7 @@
     },
     {
       "name": "seed: source cluster of the seed's run",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "            R.check(cl is None or cl.data.get(\"run_id\") == d.data.get(\"run_id\"), \"E-TRACE-SEED\", d.path,",
       "new": "            R.check(True, \"E-TRACE-SEED\", d.path,",
       "k": "moving_the_seed"

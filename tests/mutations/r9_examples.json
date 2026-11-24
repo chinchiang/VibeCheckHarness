@@ -38,7 +38,7 @@
     },
     {
       "name": "threat DFD of its own run",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "            dfd = ix.first(\"dfd\", run_id=trun, viewpoint=\"merged\") if trun else None",
       "new": "            dfd = ix.first(\"dfd\", viewpoint=\"merged\")",
       "k": "own_runs_dfd"

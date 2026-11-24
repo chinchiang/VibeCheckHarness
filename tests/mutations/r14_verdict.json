@@ -31,8 +31,8 @@
     },
     {
       "name": "B7: a carried cluster may vote",
-      "file": "tools/vchlib/checks.py",
-      "old": "            if dv.cluster.get(\"carried_from\"):\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
+      "file": "tools/vchlib/checks_verdicts.py",
+      "old": "            if dv.cluster.get(\"carried_from\"):  # type: ignore[union-attr]  # a value an earlier check or lookup ruled out as None; mypy cannot follow it\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
       "new": "            if False:\n                R.check(not v.get(\"votes\") and not v.get(\"missing_votes\"), \"E-VERDICT-VOTE\", w,",
       "k": "carried_cluster_accepts_no_votes"
     },

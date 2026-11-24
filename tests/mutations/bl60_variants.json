@@ -5,7 +5,7 @@
      "old": "                if ((tc.data if tc else {}).get(\"tool_binding\") or {}).get(\"kind\") == \"MANUAL\":\n                    continue",
      "new": "                if False:\n                    continue",
      "k": "manual_testcase_needs_no or validates_cleanly"},
-    {"name": "G2 rejection needs a post-G2 head", "file": "tools/vchlib/checks.py",
+    {"name": "G2 rejection needs a post-G2 head", "file": "tools/vchlib/checks_verdicts.py",
      "old": "            R.check(head.get(\"readjudicated_by\") != \"W3_adjudicate\", \"E-VERDICT-G2\", ids[heads[0]].path,",
      "new": "            R.check(True, \"E-VERDICT-G2\", ids[heads[0]].path,",
      "k": "post_g2_verdict"},

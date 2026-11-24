@@ -115,10 +115,10 @@ def test_calibration_and_crosswalk_are_pinned(b, name):
 
 # ================================================================ provisional
 def test_strong_tool_row_is_not_provisional(b, monkeypatch):
-    from vchlib import checks, verdict
+    from vchlib import checks_verdicts, verdict
     c = Ctx(b)
     v = dict(doc(b, V014).data, calibration_version=None, theta_confirm=None)   # uncalibrated: provisional by default
     assert verdict.derive_verdict(c, v).provisional is True
-    real = checks.adj.adjudicate
-    monkeypatch.setattr(checks.adj, "adjudicate", lambda x: real(adj.Inputs(strong_tool=True, independent_families=1)))
+    real = checks_verdicts.adj.adjudicate
+    monkeypatch.setattr(checks_verdicts.adj, "adjudicate", lambda x: real(adj.Inputs(strong_tool=True, independent_families=1)))
     assert verdict.derive_verdict(c, v).provisional is False                      # row 10 is not decided by votes

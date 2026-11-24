@@ -31,49 +31,49 @@
     },
     {
       "name": "every arrow form is a status claim",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "TRACE_STATUS = re.compile(r\"(?:->|→|=>)\\s*(?:cap\\s+)?([A-Za-z_]+)\")",
       "new": "TRACE_STATUS = re.compile(r\"(?:->)\\s*(?:cap\\s+)?([A-Za-z_]+)\")",
       "k": "every_arrow_form"
     },
     {
       "name": "the status is read case-insensitively",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "        arrows = [m.group(1) for m in TRACE_STATUS.finditer(text) if m.group(1).upper() in TRACE_STATUSES]",
       "new": "        arrows = [m.group(1) for m in TRACE_STATUS.finditer(text) if m.group(1) in TRACE_STATUSES]",
       "k": "every_arrow_form"
     },
     {
       "name": "only the last arrow of an item is the claim",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "        if arrows and arrows[-1].upper() != status:",
       "new": "        if arrows and arrows[0].upper() != status:",
       "k": "only_the_last_arrow"
     },
     {
       "name": "a number may be written with spaces, a colon, ≈ or θ_",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "                          r\"weighted_support|weighted_refute|valid_votes)\\s*[=:≈]\\s*([+\\-−]?[0-9A-Za-z.]*)\")",
       "new": "                          r\"weighted_support|weighted_refute|valid_votes)=([+\\-−]?[0-9A-Za-z.]*)\")",
       "k": "wrong_number_in_any_form"
     },
     {
       "name": "the θ_ prefix is accepted",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "TRACE_NUMBER = re.compile(r\"(?<![A-Za-z0-9_])(score|S|theta_confirm|theta_reject|θ_confirm|θ_reject|independent_sources",
       "new": "TRACE_NUMBER = re.compile(r\"(?<![A-Za-z0-9_])(score|S|theta_confirm|theta_reject|independent_sources",
       "k": "wrong_number_in_any_form"
     },
     {
       "name": "a value that is not a plain decimal is an error",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "            if not TRACE_PLAIN.match(raw):",
       "new": "            if False:",
       "k": "not_a_plain_decimal"
     },
     {
       "name": "a unicode minus is a sign",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "            val = float(raw.replace(\"−\", \"-\"))",
       "new": "            val = float(raw.replace(\"−\", \"+\"))",
       "k": "unicode_minus"

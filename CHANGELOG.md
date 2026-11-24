@@ -283,6 +283,19 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py：W4、裁決與追溯群組（PR-D8）
+[ADR 0003](docs/adr/0003-split-checks.md) 的第九步（發現 E8）。做完這一步，24 個群組已搬出 23 個，`checks.py` 只剩門面與 `g_misc`：
+- 新模組 `tools/vchlib/checks_w4.py`（169 行）：`g_w4_testcases`、`w4_coverage`、`w4_execution`、`W4_CLUSTER_ORIGINS`。
+- 新模組 `tools/vchlib/checks_verdicts.py`（272 行）：`g_verdicts`、`verdict_chains`、`trace_text_problems`、`max_vote_round`、`weighted_vote_counts` 與 4 個 `TRACE_*` 常數。
+- 新模組 `tools/vchlib/checks_trace.py`（718 行）：`g_trace`、`cluster_origin`、`cluster_binding`、`finding_round`、`finding_evidence`、`inventory_checks`、`invariants_checks`、`plan_facets`、`plan_coverage`、`check_report_queues`、`pipeline_checks`、`inventory_of_run` 等；加上原本放在裁決段、但只有 `cluster_origin` 使用的 `_tool_of`。
+- `checks.py` 由 1,468 行減為 355 行（起點 5,841 行）；`GROUPS` 仍是 24 組、順序不變。相依方向：`checks_verdicts` 不匯入後面的群組；`checks_trace` 匯入 `checks_runs`；`checks_w4` 匯入 `checks_trace`（`inventory_of_run`）；沒有循環，也都不匯入 `checks`。
+- 原文搬移。為通過 mypy 加了 42 行 `type: ignore`，沒有改任何邏輯。`pyproject.toml` 的 F841 豁免（`pipeline_checks` 的未使用變數）跟著函式從 `checks.py` 改掛到 `checks_trace.py`。
+- Monkeypatch：`test_v05_round6_group2.py` patch 的 `checks.adj.adjudicate` 改為 `checks_verdicts.adj.adjudicate`（被改的是同一個 `adjudicate` 模組；門面不再匯入它）。該測試在 patch 前後各有一個相反的斷言，patch 失效就會失敗。
+- 不留 re-export：`test_bl01_trace_text.py`、`test_v07_r11_contracts.py`、`test_v07_r12_verdict.py`、`test_v07_r9_anchor.py` 改用新路徑；`verdict.py` 一處註解同步。
+- **補上之前漏掉的名稱同步**：PR-D5 把 `g5_escalation` 搬到 `checks_gates`，但 `docs/02`、`docs/schemas/README.md` 與 suspend 變體 README 仍寫 `checks.g5_escalation`；PR-D0 把 `format_checker` 搬到 `report`，但 `jsonstrict.py` 的註解仍寫 `checks.format_checker`。這次一併更正（都只是程式名稱，規則文字沒有動）。
+- 突變清單：15 份清單的 42 個突變改指新模組。其中 2 個錨點的第一行現在帶 `type: ignore` 註解，錨點改為含該註解（`r14_verdict.json`「B7: a carried cluster may vote」、`rule_v016.json`「D6: a stated bound is accepted」；突變本身不變）。`split_checks.json` 有 5 個突變原本錨定被搬走的區段標題，改錨定「21 DFD…」；另增加 3 個突變。
+- 等價證據：`run_all` 對主範例、四個變體與一份刻意弄壞的 bundle 回報的 issue、各群組檢查數與總檢查數，搬移前後以 `cmp` 比對完全相同；`sign_examples.py` 0 個檔案變動；331 個錯誤碼；15 份受影響的突變清單在 `main` 與本分支逐項比對（結果見 PR 說明）。
+
 ### 拆分 checks.py：稽核紀錄群組（PR-D7）
 [ADR 0003](docs/adr/0003-split-checks.md) 的第八步（發現 E8）：
 - 新模組 `tools/vchlib/checks_audit.py`（812 行）：`g_audit`、`anchor_counter_problems`、`report_events`、`ownership_events`、`run_log_state`、`pinned_documents`、`artifact_pins`、`run_transitions`、`spot_check`、`spot_check_item`、`job_audit`、`run_structure`、`audit_anchor_tail`，以及 12 個常數（`RUN_TRANSITIONS`、`G1_GATED_NODES`、`AFTER_W1_NODES`、`GATE_ORDER` 等）。

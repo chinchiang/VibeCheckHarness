@@ -17,7 +17,8 @@ import pytest
 from conftest import doc, rederive
 from vchlib import adjudicate as adj
 from vchlib.bundle import load_variant
-from vchlib.checks import run_all, trace_text_problems
+from vchlib.checks import run_all
+from vchlib.checks_verdicts import trace_text_problems
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 

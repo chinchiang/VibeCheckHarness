@@ -74,8 +74,8 @@
   {
    "name": "the facade redefines an engagement accessor",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 12b W4 testcases\n",
-   "new": "# ============================================================== 12b W4 testcases\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
+   "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
+   "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\ndef profile(c: Ctx) -> str:\n    return c.engagement.get(\"assurance_profile\") or \"team\"\n\n\n",
    "k": "imports_no_check_group"
   },
   {
@@ -95,8 +95,8 @@
   {
    "name": "the facade redefines the receive clock",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 12b W4 testcases\n",
-   "new": "# ============================================================== 12b W4 testcases\ndef decision_time(c: Ctx, rec: dict):\n    return c.ix.decision_time(rec)\n\n\n",
+   "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
+   "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\ndef decision_time(c: Ctx, rec: dict):\n    return c.ix.decision_time(rec)\n\n\n",
    "k": "imports_no_check_group"
   },
   {
@@ -116,8 +116,8 @@
   {
    "name": "the facade redefines run_start",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 12b W4 testcases\n",
-   "new": "# ============================================================== 12b W4 testcases\ndef run_start(c: Ctx, run_id):\n    return None\n\n\n",
+   "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
+   "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\ndef run_start(c: Ctx, run_id):\n    return None\n\n\n",
    "k": "imports_no_check_group"
   },
   {
@@ -137,8 +137,8 @@
   {
    "name": "the facade redefines a run constant",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 12b W4 testcases\n",
-   "new": "# ============================================================== 12b W4 testcases\nJOB_RAN_STATES = (\"EXECUTED\",)\n",
+   "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
+   "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\nJOB_RAN_STATES = (\"EXECUTED\",)\n",
    "k": "imports_no_check_group"
   },
   {
@@ -158,8 +158,29 @@
   {
    "name": "the facade redefines an audit table",
    "file": "tools/vchlib/checks.py",
-   "old": "# ============================================================== 14 traceability\n",
-   "new": "# ============================================================== 14 traceability\nRUN_TRANSITIONS = {}\n",
+   "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
+   "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\nRUN_TRANSITIONS = {}\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the verdict and trace groups change place",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"verdict recomputation (docs/05 §4.2)\", g_verdicts),\n    (\"traceability\", g_trace),",
+   "new": "    (\"traceability\", g_trace),\n    (\"verdict recomputation (docs/05 §4.2)\", g_verdicts),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "the trace module reads the W4 module (a cycle)",
+   "file": "tools/vchlib/checks_trace.py",
+   "old": "def g_trace(R: Report, c: Ctx):\n",
+   "new": "def g_trace(R: Report, c: Ctx):\n    from . import checks_w4  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the facade redefines inventory_of_run",
+   "file": "tools/vchlib/checks.py",
+   "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
+   "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\ndef inventory_of_run(c: Ctx, run_id):\n    return None\n\n\n",
    "k": "imports_no_check_group"
   }
  ]

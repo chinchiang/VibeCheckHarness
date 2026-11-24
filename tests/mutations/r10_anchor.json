@@ -38,7 +38,7 @@
     },
     {
       "name": "W4: a completed run's w4-testcases ran",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_w4.py",
       "old": "            R.check(t.get(\"testcase_id\") in ran, \"E-W4-COVERAGE\", w,",
       "new": "            R.check(True, \"E-W4-COVERAGE\", w,",
       "k": "never_ran_does_not_cover"

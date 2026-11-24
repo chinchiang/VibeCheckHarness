@@ -52,28 +52,28 @@
     },
     {
       "name": "ext5 fingerprint",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "        R.check(src is not None and src.data.get(\"fingerprint\") == cf.get(\"fingerprint\") == k.get(\"fingerprint\"), \"E-CLUSTER-CARRY\", w,",
       "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
       "k": "keeps_the_fingerprint"
     },
     {
       "name": "ext5 twin",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "        R.check(not twins, \"E-CLUSTER-CARRY\", w,",
       "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
       "k": "twin_without_carried_from"
     },
     {
       "name": "ext5 parent",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "        R.check(run.get(\"run_kind\") in (\"followup\", \"regression\") and cf.get(\"run_id\") == run.get(\"parent_run_id\"), \"E-CLUSTER-CARRY\", w,",
       "new": "        R.check(True, \"E-CLUSTER-CARRY\", w,",
       "k": "initial_run_cannot_carry"
     },
     {
       "name": "ext6 declared",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_w4.py",
       "old": "            R.check(tr.get(\"observations_source\") in (\"harness\", \"sut\"), \"E-W4-OBSERVATION\", w,",
       "new": "            R.check(True, \"E-W4-OBSERVATION\", w,",
       "k": "declares_its_observation_source"

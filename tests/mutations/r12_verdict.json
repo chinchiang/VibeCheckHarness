@@ -66,21 +66,21 @@
     },
     {
       "name": "self-review is judged at vote time",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "                    fams_v, lins_v = members_at_vote(c.ix, vt, dv.cluster)",
       "new": "                    fams_v, lins_v = dv.cluster.get(\"families\", []), dv.cluster.get(\"lineages\")",
       "k": "r11_scenario_has_no_self_review"
     },
     {
       "name": "voted_after_round is bounded",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "                    R.check(bound is None or type(vt.get(\"voted_after_round\")) is not int or vt[\"voted_after_round\"] <= bound,",
       "new": "                    R.check(True,",
       "k": "cannot_exceed_the_dispatched"
     },
     {
       "name": "an anchored CMD-2 plan raises the bound",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_verdicts.py",
       "old": "    return 1 + max(rounds, default=0)",
       "new": "    return 1",
       "k": "anchored_cmd2_plan"

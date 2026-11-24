@@ -31,21 +31,21 @@
     },
     {
       "name": "F5 severity derived",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "    R.check(k.get(\"severity\") == want, \"E-CLUSTER-SEVERITY\", w,",
       "new": "    R.check(True, \"E-CLUSTER-SEVERITY\", w,",
       "k": "cluster_severity_is_the_rubric"
     },
     {
       "name": "F5 routing on W3 status",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "                w3_status, sev = w3_status_of.get(k), derive.rubric_severity(c.ix, cl)",
       "new": "                w3_status, sev = w_status_of.get(k), derive.rubric_severity(c.ix, cl)",
       "k": "w4_readjudicated_still_needs"
     },
     {
       "name": "F5 routing on rubric",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and sev in HIGH_SEVERITIES) or no_elig:",
       "new": "                if w3_status == \"DISPUTED\" or (w3_status == \"UNCORROBORATED\" and {f.data.get(\"severity\") for f in c.docs(\"finding\") if f.data.get(\"finding_id\") in (cl.get(\"member_finding_ids\") or [])} & set(HIGH_SEVERITIES)) or no_elig:",
       "k": "self_reported_severity"
