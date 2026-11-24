@@ -3,14 +3,14 @@
   "mutations": [
     {
       "name": "a carried cluster stands for its source",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "                        return cf.get(\"cluster_id\") if isinstance(cf, dict) else k",
       "new": "                        return k",
       "k": "regression_variant_is_clean or names_the_carried_cluster"
     },
     {
       "name": "only within the result's own run",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "                        cf = cl.get(\"carried_from\") if cl.get(\"run_id\") == tr.get(\"run_id\") else None",
       "new": "                        cf = cl.get(\"carried_from\")",
       "k": "only_for_its_own_runs_results"

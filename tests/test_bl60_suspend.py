@@ -93,7 +93,7 @@ def test_the_g5_approver_may_not_spot_check_it(s, keys):
 
 def test_the_overturn_escalates_later_runs_only(s, monkeypatch):
     """The example has no run that starts after the spot check, so a later run of the engagement is stood in for by
-    its start time (checks.run_start reads it from that run's own audit log)."""
+    its start time (checks_gates.run_start reads it from that run's own audit log)."""
     c = Ctx(s)
     assert g5_escalation(c, FOLLOWUP) is None                    # the follow-up run started before the spot check
     later = copy.deepcopy(c.runs[FOLLOWUP])

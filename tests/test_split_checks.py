@@ -11,7 +11,8 @@ import importlib.util
 import pathlib
 
 from vchlib import (checks, checks_audit, checks_config, checks_engagement, checks_gates, checks_integrity, checks_models, checks_roe,
-                    checks_runs, checks_signatures, checks_testcases, report)
+                    checks_runs, checks_signatures, checks_testcases, checks_trace, checks_verdicts, checks_w4,
+                    report)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PKG = ROOT / "tools" / "vchlib"
@@ -55,10 +56,13 @@ def test_the_group_list_and_its_order_are_unchanged():
     assert checks.GROUPS[10][1].__module__ == "vchlib.checks_runs"                             # PR-D6
     for i in (11, 13, 14):
         assert checks.GROUPS[i][1].__module__ == "vchlib.checks_testcases", names[i]           # PR-D6
-    assert names[12] == "g_w4_testcases" and checks.GROUPS[12][1].__module__ == "vchlib.checks"       # not moved yet
+    assert names[12] == "g_w4_testcases" and checks.GROUPS[12][1].__module__ == "vchlib.checks_w4"    # PR-D8
     assert names[15:18] == ["g_verdicts", "g_trace", "g_audit"]
     assert checks.GROUPS[17][1].__module__ == "vchlib.checks_audit"                            # PR-D7
-    assert {checks.GROUPS[i][1].__module__ for i in (15, 16, 23)} == {"vchlib.checks"}         # not moved yet
+    assert checks.GROUPS[15][1].__module__ == "vchlib.checks_verdicts"                         # PR-D8
+    assert checks.GROUPS[16][1].__module__ == "vchlib.checks_trace"                            # PR-D8
+    # only g_misc is still defined in the facade
+    assert [fn.__name__ for _, fn in checks.GROUPS if fn.__module__ == "vchlib.checks"] == ["g_misc"]
     assert names[6:9] == ["g_engagement", "g_roe", "g_models"]
     assert checks.GROUPS[6][1].__module__ == "vchlib.checks_engagement" and checks.GROUPS[8][1].__module__ == "vchlib.checks_models"   # PR-D3
 
@@ -85,6 +89,10 @@ def test_the_shared_base_imports_no_check_group():
     assert {m for m in imports_of("checks_audit") if m.startswith("checks")} == {"checks_engagement", "checks_runs", "checks_signatures"}
     for other in PKG.glob("checks_*.py"):
         assert "checks_audit" not in imports_of(other.stem), other.name
+    # PR-D8: verdicts read no later group; trace reads the run module; W4 reads trace (inventory_of_run). No cycle.
+    assert {m for m in imports_of("checks_verdicts") if m.startswith("checks")} == {"checks_calibration", "checks_roe"}
+    assert {m for m in imports_of("checks_trace") if m.startswith("checks")} == {"checks_runs"}
+    assert {m for m in imports_of("checks_w4") if m.startswith("checks")} == {"checks_runs", "checks_testcases", "checks_trace"}
     # a moved name lives once: the facade may import it (when it still uses it) but never redefines it
     facade = (PKG / "checks.py").read_text(encoding="utf-8")
     for home, names in ((checks_signatures, ("decision_time", "verify_signature", "MAX_CLOCK_SKEW")),
@@ -92,7 +100,10 @@ def test_the_shared_base_imports_no_check_group():
                         (checks_gates, ("run_start", "g5_escalation")), (checks_engagement, ("profile", "deployment", "consolidation_person")),
                         (checks_runs, ("result_controls", "baseline_checks", "JOB_RAN_STATES")),
                         (checks_testcases, ("access_matrix_cells", "feedback_suppression")),
-                        (checks_audit, ("anchor_counter_problems", "spot_check", "RUN_TRANSITIONS", "run_structure"))):
+                        (checks_audit, ("anchor_counter_problems", "spot_check", "RUN_TRANSITIONS", "run_structure")),
+                        (checks_verdicts, ("trace_text_problems", "max_vote_round", "verdict_chains")),
+                        (checks_trace, ("inventory_of_run", "pipeline_checks", "_tool_of", "cluster_origin")),
+                        (checks_w4, ("w4_coverage", "W4_CLUSTER_ORIGINS"))):
         for name in names:
             assert hasattr(home, name), name
             assert getattr(checks, name, getattr(home, name)) is getattr(home, name), name
@@ -108,6 +119,7 @@ def test_the_shared_base_imports_no_check_group():
     assert checks_signatures.Report is report.Report and checks_gates.Report is report.Report
     assert checks_runs.Report is report.Report and checks_testcases.Report is report.Report
     assert checks_audit.Report is report.Report
+    assert checks_trace.Report is report.Report and checks_verdicts.Report is report.Report and checks_w4.Report is report.Report
 
 
 def test_nothing_below_the_checker_imports_it():

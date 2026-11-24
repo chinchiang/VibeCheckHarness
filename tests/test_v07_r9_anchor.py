@@ -26,7 +26,7 @@ import json
 
 
 from conftest import doc, rederive
-from vchlib import checks, checks_audit, context, derive, expectations, report, verdict
+from vchlib import checks, checks_audit, checks_verdicts, context, derive, expectations, report, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -186,7 +186,7 @@ def add_k301_verdict(b):
               "tool_signal": dv.tool_signal,
               "diversity_degraded": dv.diversity_degraded,
               "no_eligible_verifier": dv.no_eligible_verifier,
-              "provisional": dv.provisional, "rule_version": checks.adj.RULE_VERSION})
+              "provisional": dv.provisional, "rule_version": checks_verdicts.adj.RULE_VERSION})
     refix_nokey(b)
     ev["payload"].update({"status": v["status"], "verdict_sha256": content_hash(v)})
     assert rechain(b, FAUDIT)

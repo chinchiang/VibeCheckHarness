@@ -171,7 +171,7 @@ flowchart TD
 
 - **兼任者**在金鑰登錄中仍須具備每個兼任的角色；兼任只免除「必須是不同的人」，不免除角色登錄與簽章。
 - **各等級實際需要的人**[H]：規則是逐份紀錄的職責分離（`E-GATE-SOD`、`E-ROE-SOD`、`E-G5-G4`、`E-G5-TWO-PERSON`），所以真正的限制是 **`security_reviewer` 的人數**，不是總人數：`lite` 1 人（兼任聲明）；`team` 至少 1 位資安審查者，ROE 的必要簽署角色由不同的人擔任（一人可以兼任測試負責人＋資安審查者等多個角色，只要同一份紀錄裡的角色不是同一人）；有 S2 的 `team` 需要 2 位資安審查者（G4 核准者計入發起者，G5 核准者不得是發起者）；`full` 每個 G5 需要兩位不同的資安審查者，加上 G4 的一位，需要 **3 位**資安審查者。抽查推翻後的升級（下一點）讓 `team` 的 G5 也需要兩位：只有 2 位資安審查者的委任從此**無法再執行 S2**（不是「切換為 Full」——其他等級規則不變），報告要寫明。人數不足時，等級或 S2 不能宣告，不是「先跑再補」。
-- **抽查推翻後自動升級**：同一委任的另一個 run 中，一筆已錨定、收件時間早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）推翻了 G5 決定，本 run 起 G5 一律需要兩位不同的資安審查者（`E-G5-TWO-PERSON`，`checks.g5_escalation`；只有這一條規則改變，其他等級規則不變；[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包) ASI09）。
+- **抽查推翻後自動升級**：同一委任的另一個 run 中，一筆已錨定、收件時間早於本 run 開始的 `spot_check_result`（`item_kind: g5`、`outcome: overturned`）推翻了 G5 決定，本 run 起 G5 一律需要兩位不同的資安審查者（`E-G5-TWO-PERSON`，`checks_gates.g5_escalation`；只有這一條規則改變，其他等級規則不變；[06 §1.1](06-security-legal-limitations.md#11-以-owasp-agentic-top-10-檢視工具包) ASI09）。
 - **G3 與 G4 同一次審查** [H]：
   - 做法：G3 簽核後，`CMD4_testplan` 與 B3 立即產生測試案例並開 G4，審查者接著在同一次審查中處理。
   - 兩者仍是兩份 GateRecord，各自簽章、各自綁定產物 hash。G4 在 G3 之後才開，所以 G3 駁回的威脅不會有測試案例出現在 G4。

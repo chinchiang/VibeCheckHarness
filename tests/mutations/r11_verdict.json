@@ -52,7 +52,7 @@
     },
     {
       "name": "no_eligible_verifier clusters go to G2",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_trace.py",
       "old": "                no_elig = w3_status not in (None, \"REJECTED\") and derived_no_eligible_verifier(c, cl)",
       "new": "                no_elig = False",
       "k": "needs_a_g2_decision"

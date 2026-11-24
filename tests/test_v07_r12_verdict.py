@@ -20,7 +20,7 @@ import pytest
 from conftest import doc, rederive
 from test_v07_r11_verdict import REFUTE, nvidia_member, pin_calibration, settle
 from vchlib import adjudicate as adj
-from vchlib import checks, verdict
+from vchlib import checks_verdicts, verdict
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
 from vchlib.context import Ctx
@@ -86,7 +86,7 @@ def test_an_anchored_cmd2_plan_raises_the_bound(b):
     log.data.insert(at, ev)
     c = Ctx(b)
     v = doc(b, "verdict.k-014-w3.example.json").data
-    assert checks.max_vote_round(c, v, c.ix.first("cluster", cluster_id=v["cluster_id"]).data) == 2
+    assert checks_verdicts.max_vote_round(c, v, c.ix.first("cluster", cluster_id=v["cluster_id"]).data) == 2
 
 
 def test_only_a_refute_is_a_refute_by_a_later_member(b):

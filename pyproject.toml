@@ -34,7 +34,7 @@ select = ["E9", "F"]
 # pipeline_checks keeps an unused `w_status`; it is harmless, and editing the line would move mutation anchors in the
 # validator. (F402 was ignored here for a loop variable named `field` in g_verdicts that shadowed dataclasses.field; the
 # import moved to report.py with the Report class in PR-D0, so nothing is shadowed any more.)
-"tools/vchlib/checks.py" = ["F841"]
+"tools/vchlib/checks_trace.py" = ["F841"]      # pipeline_checks moved there in PR-D8
 
 # Type checking is a ratchet (2026-11-22 review E7): `python -m mypy` must pass. Modules listed under ignore_errors are
 # the ones that do not pass yet (the count of their errors on 2026-11-22 is in the comment); remove a module from the
