@@ -283,6 +283,11 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py：收尾（發現 E8 結案）
+- `docs/evidence/findings-2026-11-22.md` 的 E8 由「進行中」改為「已處理」，寫明結果：23 個群組搬到 14 個 `checks_*.py` 模組，`checks.py` 由 5,841 行減為 355 行；以及留下的事（約 150 行 `type: ignore` 的理由是通則、`g_misc` 是否搬出門面沒有排定）。
+- `tests/test_split_checks.py` 新增一個測試，把這一列的數字（群組數、模組數、門面行數、`type: ignore` 的量級）與程式實際狀態對照；程式變了而紀錄沒跟著改，測試會失敗。在更新前的文件上這個測試失敗。`split_checks.json` 增加 3 個突變。
+- 沒有程式變更。
+
 ### 拆分 checks.py：W4、裁決與追溯群組（PR-D8）
 [ADR 0003](docs/adr/0003-split-checks.md) 的第九步（發現 E8）。做完這一步，24 個群組已搬出 23 個，`checks.py` 只剩門面與 `g_misc`：
 - 新模組 `tools/vchlib/checks_w4.py`（169 行）：`g_w4_testcases`、`w4_coverage`、`w4_execution`、`W4_CLUSTER_ORIGINS`。

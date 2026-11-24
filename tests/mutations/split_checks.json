@@ -182,6 +182,27 @@
    "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
    "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\ndef inventory_of_run(c: Ctx, run_id):\n    return None\n\n\n",
    "k": "imports_no_check_group"
+  },
+  {
+   "name": "E8 is open again",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "| ✅ 已處理（使用者決定處理，推翻原本「不做」的判斷；",
+   "new": "| ⚠️ 進行中（使用者決定處理，推翻原本「不做」的判斷；",
+   "k": "findings_file_records_the_split"
+  },
+  {
+   "name": "E8 states a line count the facade does not have",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "減為 355 行",
+   "new": "減為 300 行",
+   "k": "findings_file_records_the_split"
+  },
+  {
+   "name": "the facade grows without the record changing",
+   "file": "tools/vchlib/checks.py",
+   "old": "# ============================================================== 21 DFD, report, selftest, checkpoint\n",
+   "new": "# ============================================================== 21 DFD, report, selftest, checkpoint\n# a line nobody recorded\n",
+   "k": "findings_file_records_the_split"
   }
  ]
 }

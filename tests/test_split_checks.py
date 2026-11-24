@@ -141,3 +141,20 @@ def test_checks_keeps_no_re_exports_of_moved_names():
                       "checks.theta_problems", "checks.hypothesis_problems", "checks.wilson_lower", "checks.wilson_upper",
                       "checks.lr_weights", "checks.effective_counts", "checks.policy_problems"):
             assert stale not in text, (p.name, stale)
+
+
+def test_the_findings_file_records_the_split_as_done_with_the_numbers_the_code_has():
+    """Finding E8 (2026-11-22 review): the row is closed only while what it says is still true of the package."""
+    row = next(ln for ln in (ROOT / "docs" / "evidence" / "findings-2026-11-22.md").read_text(encoding="utf-8").splitlines()
+               if ln.startswith("| E8 |"))
+    assert "✅ 已處理" in row and "進行中" not in row and "adr/0003-split-checks.md" in row
+    moved = [fn for _, fn in checks.GROUPS if fn.__module__ != "vchlib.checks"]
+    modules = sorted(p.name for p in PKG.glob("checks_*.py"))
+    assert len(moved) == 23 and "搬出 23 個" in row
+    assert len(modules) == 14 and "14 個 `checks_*.py` 模組" in row
+    assert {fn.__module__.split(".")[1] + ".py" for fn in moved} == set(modules)       # every module holds a group
+    lines = len((PKG / "checks.py").read_text(encoding="utf-8").splitlines())
+    assert lines == 355 and "減為 355 行" in row
+    ignores = sum(p.read_text(encoding="utf-8").count("# type: ignore") for p in PKG.glob("checks_*.py"))
+    assert 140 <= ignores <= 165 and "約 150 行 `type: ignore`" in row, ignores
+
