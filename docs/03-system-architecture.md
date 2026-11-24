@@ -248,7 +248,7 @@ LangGraph 的 supervisor 模式（「以其他 agent 為工具的 agent」[V][E:
 
 ### 5.1 State（Pydantic，示意）
 
-State 只存**參照**（CAS 的 `sha256:` hash 或 Blackboard ID），不存大型內容。持久化的 run 紀錄（`run.schema.json`）是 RunState 的子集；checkpoint 的中繼資料依 checkpoint metadata schema。**checkpoint 內容不是授權依據**（§6）。
+State 只存**參照**（CAS 的 `sha256:` hash 或 Blackboard ID），不存大型內容。持久化的 run 紀錄（`run.schema.json`）是 RunState 的持久化形式：欄位以 `run.schema.json` 為準，下面的類別是示意，兩者的欄位名稱必須一一對應。checkpoint 的中繼資料依 checkpoint metadata schema；其中 `state_sha256` 是 run 紀錄的內容雜湊（[08 §7.1](08-implementation-spec.md#71-langgraph-checkpointer)），所以 **RunState 不得有 run 紀錄以外、又會影響續跑的欄位**——那樣的欄位不在雜湊保護之內。**checkpoint 內容不是授權依據**（§6）。
 
 v0.3 起 run 紀錄同時是 **run manifest**（`run.schema.json`）[H]：
 - `config_refs`：`models`、`agents`、`tools`、`calibration`、`invariants`、`seed_manifest` 各一個 `{path, sha256}`。validator 以參照的檔案重算 sha256（`E-DERIVED`），並檢查路徑指向正確種類的設定檔；`seed_manifest` 只有 Lane A run 可以是 null（`E-RUN-CONFIG`）。
@@ -392,6 +392,7 @@ class RunState(BaseModel):
     parent_run_id: str | None = None
     reuse: list[ArtifactRef] = []       # 沿用的上一 run 產物（輸入 hash 必須相同）
     trigger: Literal["manual", "schedule", "merge", "pull_request"]
+    pr_origin: Literal["same_repo", "fork"] | None = None   # Lane A 必填；fork 的 PR 不做 LLM 審查（§12，E-RUN-LANE-A）
     run_owner: str                      # 委任設定指定的人；自動觸發時的紀錄發起者
     initiators: Annotated[list[str], add] = []   # 啟動者、認領者（initiator_claim）、G4 核准者；都必須是人
     status: RunStatus = RunStatus.RUNNING
@@ -433,6 +434,7 @@ class RunState(BaseModel):
     g2_queue: list[str] = []            # 空 → 略過 G2
     w4_iteration: int = 0               # CoverUp 迭代輪次（≤3）
     w4_results: Annotated[list[ArtifactRef], add] = []
+    w4_manual_requirements: list[dict] = []   # 沒有 W4 測試、改以 MANUAL 處理的 G1 不變量與原因（02 W4 完成條件）
     whitebox_report_ref: ArtifactRef | None = None
     w_sarif_ref: ArtifactRef | None = None
     dfd_ref: ArtifactRef | None = None
@@ -453,6 +455,7 @@ class RunState(BaseModel):
     testplan_ref: ArtifactRef | None = None
     testcase_ids: list[str] = []
     artifact_hashes: dict[str, ArtifactRef] = {}
+    owasp_llm_version: Literal["2025", "2026"] | None = None   # B2 實際使用的 OWASP LLM 版本；W-only 與 Lane A 為 None
     g4_round: int = 0
     approved_testcase_ids: list[str] = []
     restore_drill_ref: ArtifactRef | None = None

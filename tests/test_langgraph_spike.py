@@ -74,7 +74,7 @@ def test_the_cases_cover_the_three_questions_of_bl79_and_the_ones_it_missed():
         "LG-06": ("advisory lock", "run abort", "§11.20 的目錄檔案鎖是否涵蓋"),
         "LG-07": ("durability", "kill"),
         "LG-08": ("BudgetExceeded", "GB_budget_gate"),
-        "LG-09": ("state_sha256", "IntegrityError", "vchlib.expectations"),
+        "LG-09": ("state_sha256", "IntegrityError", "已在 §7.1 定案"),
         "LG-10": ("encrypted: true", "E-CHECKPOINT"),
         "LG-11": ("checkpoint_keep_last", "不修改"),
         "LG-12": ("Send", "缺票"),
