@@ -44,30 +44,9 @@
    "k": "listed_as_unestimated"
   },
   {
-   "name": "U-25 is gone",
-   "file": "docs/08-implementation-spec.md",
-   "old": "| U-25 | LangGraph spike（§11.21）的時間上限，",
-   "new": "| U-99 | LangGraph spike（§11.21）的時間上限，",
-   "k": "week_one_conflict"
-  },
-  {
-   "name": "the default squeezes the spike into week one",
-   "file": "docs/08-implementation-spec.md",
-   "old": "| 不壓縮：spike 用掉多少人日，第 1 週的工單就順延多少；M1 的 12 人週不含 spike，實際用量記入 BL-63 |",
-   "new": "| 與第 1 週的工單並行 |",
-   "k": "week_one_conflict"
-  },
-  {
    "name": "the ticket table hides that it has no slack",
    "file": "docs/08-implementation-spec.md",
    "old": "下表的 12 張工單排滿兩人兩週（每人每週 3 張），沒有餘裕；",
-   "new": "",
-   "k": "week_one_conflict"
-  },
-  {
-   "name": "the estimate section drops the pointer to U-25",
-   "file": "docs/07-roadmap.md",
-   "old": "spike 要多少時間、要不要順延工單，是 [08 §10](08-implementation-spec.md#10-尚未決定需使用者決定) 的 U-25。",
    "new": "",
    "k": "week_one_conflict"
   },
@@ -83,6 +62,104 @@
    "file": "docs/evidence/findings-2026-11-22.md",
    "old": "| ⚠️ 部分處理（2026-11-24）：速度仍只能由 BL-63 量測，文件修不出來。",
    "new": "| ✅ 已處理（2026-11-24）：速度仍只能由 BL-63 量測，文件修不出來。",
+   "k": "measured_speed_is_still_missing"
+  },
+  {
+   "name": "U-25 is gone",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| U-25 | **已決定（2026-11-24，使用者）**：",
+   "new": "| U-99 | **已決定（2026-11-24，使用者）**：",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "U-25 goes back to undecided",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| U-25 | **已決定（2026-11-24，使用者）**：LangGraph",
+   "new": "| U-25 | LangGraph",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the limit is doubled",
+   "file": "docs/08-implementation-spec.md",
+   "old": "的時間上限是 5 人日，由一位工程師專做",
+   "new": "的時間上限是 10 人日，由一位工程師專做",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "both engineers do the spike",
+   "file": "docs/08-implementation-spec.md",
+   "old": "的時間上限是 5 人日，由一位工程師專做",
+   "new": "的時間上限是 5 人日，由兩位工程師一起做",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the limit may be met by dropping cases",
+   "file": "docs/08-implementation-spec.md",
+   "old": "；不得以減少案例或放寬通過條件來趕上限 |",
+   "new": " |",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "reaching the limit no longer goes to the user",
+   "file": "docs/08-implementation-spec.md",
+   "old": "到上限仍有必要案例沒有結果時停止並回報，由使用者決定延長或改為自寫的狀態機；",
+   "new": "",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the default squeezes the spike into week one",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 不壓縮：spike 實際用掉多少人日（至多 5），第 1 週的工單就順延多少；M1 的 12 人週不含 spike，實際用量記入 BL-63 |",
+   "new": "| 與第 1 週的工單並行 |",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the ticket intro drops the limit",
+   "file": "docs/08-implementation-spec.md",
+   "old": "；U-25 已決定由一人專做、上限 5 人日，第 1 週的工單因此最多順延 5 人日。",
+   "new": "。",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the estimate section drops the decision",
+   "file": "docs/07-roadmap.md",
+   "old": " 的 U-25 已決定（2026-11-24）：一人專做、上限 5 人日，第一週的工單最多順延 5 人日；",
+   "new": " 的 U-25；",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the limit is presented as an estimate",
+   "file": "docs/07-roadmap.md",
+   "old": "這是上限，不是估算，實際用量由 BL-63 回填。",
+   "new": "",
+   "k": "week_one_conflict"
+  },
+  {
+   "name": "the spike section has no limit",
+   "file": "docs/08-implementation-spec.md",
+   "old": "- 時間上限：5 人日，一位工程師專做（§10 U-25）。",
+   "new": "- 備註：",
+   "k": "spike_section_states_the_limit"
+  },
+  {
+   "name": "the limit lets T-09 start",
+   "file": "docs/08-implementation-spec.md",
+   "old": "由使用者決定延長或改為自寫的狀態機；T-09 仍不開工。",
+   "new": "由使用者決定延長或改為自寫的狀態機。",
+   "k": "spike_section_states_the_limit"
+  },
+  {
+   "name": "the limit may change the pass rule",
+   "file": "docs/08-implementation-spec.md",
+   "old": "上限不改變必要案例的數目、通過條件與決策規則。",
+   "new": "",
+   "k": "spike_section_states_the_limit"
+  },
+  {
+   "name": "A6 still says undecided",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "2026-11-24 使用者決定：一人專做、上限 5 人日，第 1 週工單最多順延 5 人日",
+   "new": "待決定",
    "k": "measured_speed_is_still_missing"
   }
  ]
