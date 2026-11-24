@@ -44,10 +44,10 @@
    "k": "three_questions_of_bl79"
   },
   {
-   "name": "the hash definition conflict is dropped",
+   "name": "LG-09 loses its pointer to the settled definition",
    "file": "docs/08-implementation-spec.md",
-   "old": "參考驗證器目前以 run 紀錄的內容雜湊檢查範例（`vchlib.expectations`），兩者要統一",
-   "new": "兩者要統一",
+   "old": "`state_sha256` 的定義已在 §7.1 定案（run 紀錄的內容雜湊），",
+   "new": "",
    "k": "three_questions_of_bl79"
   },
   {

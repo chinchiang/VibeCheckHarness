@@ -4,6 +4,17 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## `state_sha256` 的定義：規格改為與參考驗證器一致（2026-11-24）
+
+CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼；**驗證器、範例與簽章都沒有改**，只改規格文字與 schema 的說明字串。
+
+- **矛盾**（寫 08 §11.21 時找到，當時只列進 LG-09）：08 §7.1 與 `checkpoint-metadata.schema.json` 說 `state_sha256` 是「`RunState` 的 JCS hash」；參考驗證器一直以 **run 紀錄**的內容雜湊檢查它（`expectations.py`，不符是 `E-DERIVED`），`sign_examples.py` 也照這條規則寫範例。bundle 裡沒有 `RunState` 這種文件，照字面的規則無從驗證。
+- **決定**：規格跟著驗證器。08 §7.1 改為「該 checkpoint 當下 run 紀錄的內容雜湊」，並寫出原本沒寫的一點：bundle 帶的是該 run 最後一個 checkpoint 的中繼資料（對應 `E-CHECKPOINT`）。schema 的兩處說明同步；約束（`sha256` 格式）沒有動。反過來做得新增一種 `RunState` 文件與全套範例，而它與 run 紀錄幾乎相同，所以不採。
+- **03 §5.1 另一句寫反了**：「run 紀錄是 RunState 的子集」。實際上示意類別的 79 個欄位都在 `run.schema.json` 裡，run 紀錄另有 3 個欄位（`owasp_llm_version`、`pr_origin`、`w4_manual_requirements`）示意類別沒有。改為「run 紀錄是 RunState 的持久化形式，欄位以 `run.schema.json` 為準」，示意類別補上這 3 個欄位，並寫明後果：RunState 不得有 run 紀錄以外、又會影響續跑的欄位（那樣的欄位不在雜湊保護之內）。
+- 08 §11.21 的 LG-09 拿掉「要在本案例定案定義」，保留它要實測的事。
+- 新增 `tests/test_state_sha256.py`（9 個測試）與突變清單 `tests/mutations/state_sha256.json`。5 個文件測試在修改前失敗；4 個行為測試修改前後都通過，用來釘住現有行為（改 run 紀錄而不更新 checkpoint → `E-DERIVED`），確認沒有因為改文字而放寬。其中一個測試要求示意類別的欄位集合等於 `run.schema.json` 的屬性集合。
+- 受影響的既有測試：`test_langgraph_spike.py` 中 LG-09 的斷言改為新的文字；`langgraph_spike.json` 有一個突變（刪掉「兩者要統一」那句的出處）隨矛盾解決而過時，改為刪掉 LG-09 指向 §7.1 定案的那一句。
+
 ## LangGraph 相容性 spike 的規格（2026-11-22 內部審查的發現 D3；09 BL-79）
 
 CONTRIBUTING 第 2 類。`rule_version` 不變，沒有新增錯誤碼，validator、schema 與範例都沒有改。**只有規格文字；spike 沒有執行，沒有安裝或執行過 LangGraph，也沒有查閱它的文件，所以沒有新增任何關於 LangGraph 行為的斷言。**

@@ -1,0 +1,82 @@
+{
+ "tests": "tests/test_state_sha256.py",
+ "mutations": [
+  {
+   "name": "the spec says RunState again",
+   "file": "docs/08-implementation-spec.md",
+   "old": "**`state_sha256` 是該 checkpoint 當下 run 紀錄的內容雜湊**",
+   "new": "**`state_sha256` 是 `RunState` 的 JCS hash**",
+   "k": "spec_defines_it_as_the_hash_of_the_run_record"
+  },
+  {
+   "name": "the spec forgets which checkpoint a bundle carries",
+   "file": "docs/08-implementation-spec.md",
+   "old": "bundle 帶的是該 run **最後一個** checkpoint 的中繼資料：",
+   "new": "",
+   "k": "spec_defines_it_as_the_hash_of_the_run_record"
+  },
+  {
+   "name": "the schema describes the RunState hash again",
+   "file": "docs/schemas/checkpoint-metadata.schema.json",
+   "old": "\"description\": \"該 checkpoint 當下 run 紀錄的內容雜湊（content_hash）；validator 以 bundle 中的 run 紀錄重算（E-DERIVED）\"",
+   "new": "\"description\": \"序列化 RunState 的 hash\"",
+   "k": "schema_describes_the_same_thing"
+  },
+  {
+   "name": "the schema loosens the hash format",
+   "file": "docs/schemas/checkpoint-metadata.schema.json",
+   "old": "\"$ref\": \"common.schema.json#/$defs/sha256\",\n      \"description\": \"該 checkpoint",
+   "new": "\"type\": \"string\",\n      \"description\": \"該 checkpoint",
+   "k": "schema_describes_the_same_thing"
+  },
+  {
+   "name": "the validator stops deriving the hash",
+   "file": "tools/vchlib/expectations.py",
+   "old": "                exp(d, [\"state_sha256\"], content_hash(run.data), \"content hash of the run state\")\n",
+   "new": "",
+   "k": "run_record_that_changed or validator_derives or anything_else"
+  },
+  {
+   "name": "the validator hashes only part of the run record",
+   "file": "tools/vchlib/expectations.py",
+   "old": "exp(d, [\"state_sha256\"], content_hash(run.data), \"content hash of the run state\")",
+   "new": "exp(d, [\"state_sha256\"], content_hash({\"run_id\": run.data.get(\"run_id\")}), \"content hash of the run state\")",
+   "k": "example_checkpoint_carries or validator_derives or anything_else"
+  },
+  {
+   "name": "the spike case asks for a definition again",
+   "file": "docs/08-implementation-spec.md",
+   "old": "`state_sha256` 的定義已在 §7.1 定案（run 紀錄的內容雜湊），",
+   "new": "`state_sha256` 的定義兩者要統一，",
+   "k": "spike_case_no_longer"
+  },
+  {
+   "name": "the sketch loses a run-record field",
+   "file": "docs/03-system-architecture.md",
+   "old": "    w4_manual_requirements: list[dict] = []   # 沒有 W4 測試、改以 MANUAL 處理的 G1 不變量與原因（02 W4 完成條件）\n",
+   "new": "",
+   "k": "sketched_runstate_has_exactly"
+  },
+  {
+   "name": "the sketch gains a field the run record lacks",
+   "file": "docs/03-system-architecture.md",
+   "old": "    g4_round: int = 0\n",
+   "new": "    g4_round: int = 0\n    scratch_notes: list[str] = []\n",
+   "k": "sketched_runstate_has_exactly"
+  },
+  {
+   "name": "docs/03 says subset again",
+   "file": "docs/03-system-architecture.md",
+   "old": "是 RunState 的持久化形式：欄位以 `run.schema.json` 為準，",
+   "new": "是 RunState 的子集；",
+   "k": "relation_the_right_way_round"
+  },
+  {
+   "name": "docs/03 drops the consequence",
+   "file": "docs/03-system-architecture.md",
+   "old": "，所以 **RunState 不得有 run 紀錄以外、又會影響續跑的欄位**——那樣的欄位不在雜湊保護之內。",
+   "new": "。",
+   "k": "relation_the_right_way_round"
+  }
+ ]
+}

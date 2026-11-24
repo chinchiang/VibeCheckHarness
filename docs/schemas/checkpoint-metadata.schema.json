@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "checkpoint-metadata.schema.json",
   "title": "Checkpoint Metadata（checkpoint 中繼資料）",
-  "description": "LangGraph checkpoint 的中繼資料（docs/03 §5.1）。checkpoint 內容不是授權依據：resume 時 Policy Engine 重新驗證 gate_records 指向的簽章紀錄、委任設定與 ROE（G0a／G0b）。 檔名依 docs/08 §4（D15）為 checkpoint-metadata；state_sha256＝RunState 的 JCS hash（content_hash），反序列化時重算，不符 → IntegrityError。",
+  "description": "LangGraph checkpoint 的中繼資料（docs/03 §5.1）。checkpoint 內容不是授權依據：resume 時 Policy Engine 重新驗證 gate_records 指向的簽章紀錄、委任設定與 ROE（G0a／G0b）。 檔名依 docs/08 §4（D15）為 checkpoint-metadata；state_sha256＝該 checkpoint 當下 run 紀錄（run.schema.json）的內容雜湊（content_hash）；載入時以還原出的 run 紀錄重算，不符 → IntegrityError（docs/08 §7.1）。",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -34,7 +34,7 @@
     },
     "state_sha256": {
       "$ref": "common.schema.json#/$defs/sha256",
-      "description": "序列化 RunState 的 hash"
+      "description": "該 checkpoint 當下 run 紀錄的內容雜湊（content_hash）；validator 以 bundle 中的 run 紀錄重算（E-DERIVED）"
     },
     "schema_version": {
       "type": "string"
