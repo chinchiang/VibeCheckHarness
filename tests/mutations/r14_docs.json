@@ -14,7 +14,7 @@
     {"name": "C6: the example answers nothing with null", "file": "docs/schemas/examples/decisions.g1.example.json", "old": "\"answer\": null,", "new": "\"answer\": \"不知道\",", "k": "decisions_yaml_has_a_schema"},
     {"name": "C7: no Lite cap", "file": "docs/examples/toolkit.yaml", "old": "  g2_max_items_lite: 15", "new": "  g2_max_items_lite: 30", "k": "lite_g2_cap"},
     {"name": "C8: no markdown export", "file": "docs/08-implementation-spec.md", "old": "`RUN_ID --format json\\|sarif\\|markdown\\|html --out DIR", "new": "`RUN_ID --format json\\|sarif\\|html --out DIR", "k": "report_export_has_markdown"},
-    {"name": "C9: W0 extractors back in M2", "file": "docs/07-roadmap.md", "old": "| M1 基礎與安全控制 | 12 | 7 |", "new": "| M1 基礎與安全控制 | 10 | 6 |", "k": "belong_to_m1"},
+    {"name": "C9: W0 extractors back in M2", "file": "docs/07-roadmap.md", "old": "| M1 基礎與安全控制 | 12 | 7.5 |", "new": "| M1 基礎與安全控制 | 10 | 6.25 |", "k": "belong_to_m1"},
     {"name": "C10: six person-weeks again", "file": "docs/05-bias-calibration.md", "old": "≈ **30 人週**", "new": "≈ **6 人週**", "k": "thirty_person_weeks"},
     {"name": "C11: R0-R13 again", "file": "docs/00-overview.md", "old": "Aggregator（規則 R0–R16）", "new": "Aggregator（規則 R0–R13）", "k": "r0_to_r13"},
     {"name": "C11: 43 again", "file": "README.md", "old": "51 條明列", "new": "43 條明列", "k": "limitation_count"},
