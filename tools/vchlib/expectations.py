@@ -340,7 +340,7 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
         "clusters of this run with a verdict carrying w4_became_disputed")
     audit = ix.audit_for(rid)
     if audit and for_writer:
-        # writer-only: the reader side checks the anchors against the raw lines in checks.g_audit
+        # writer-only: the reader side checks the anchors against the raw lines in checks_audit.g_audit
         # (E-AUDIT-ANCHOR / -MISMATCH / -TRUNCATED / -TAIL), so a tampered log is reported as such
         lines = read_jsonl_lines(audit.text or "")
         exp(d, ["audit_anchors"],
@@ -367,7 +367,7 @@ def _report_expectations(ix: Index, d: Doc, exp):
             val = content_hash(x.data) if x else MISSING
         elif kind == "audit_log":
             # v0.7 (review r10 manifest): the report_published of this manifest's report_id (v0.7 r9 took the first event of
-            # the run). A manifest without its event is E-AUDIT-REPORT (checks.report_events), not a derivation
+            # the run). A manifest without its event is E-AUDIT-REPORT (checks_audit.report_events), not a derivation
             pub = [e for e in (audit.data if audit else []) if isinstance(e, dict) and e.get("event_type") == "report_published"
                    and (e.get("payload") or {}).get("report_id") == d.data.get("report_id")]
             val = pub[0].get("prev_hash") if pub else MISSING

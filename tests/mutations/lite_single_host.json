@@ -87,7 +87,7 @@
   },
   {
    "name": "the anchor signature is waived",
-   "file": "tools/vchlib/checks.py",
+   "file": "tools/vchlib/checks_audit.py",
    "old": "                    R.check(ok, \"E-AUDIT-ANCHOR-SIG\", where, \"audit_anchor needs a valid z3_countersignature by \"",
    "new": "                    R.check(True, \"E-AUDIT-ANCHOR-SIG\", where, \"audit_anchor needs a valid z3_countersignature by \"",
    "k": "still_needs_the_z3 or keeps_the_same_format"

@@ -3,21 +3,21 @@
   "mutations": [
     {
       "name": "rollback: anchor counter gap",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    for p in ([] if c.broken_audit_runs else anchor_counter_problems(counters)):",
       "new": "    for p in []:",
       "k": "counter_gap"
     },
     {
       "name": "status: last run_status_changed",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    R.check(run.get(\"status\") == want, \"E-RUN-STATUS\", f\"run {rid}\",",
       "new": "    R.check(True, \"E-RUN-STATUS\", f\"run {rid}\",",
       "k": "run_end_anchor_is_terminal or last_status_change"
     },
     {
       "name": "verdict: verdict_changed must be anchored",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(min(seqs) <= anchored_seqs(evs), \"E-AUDIT-VERDICT\", v.path,",
       "new": "            R.check(True, \"E-AUDIT-VERDICT\", v.path,",
       "k": "unanchored_tail_is_not_a_verdict"
@@ -59,14 +59,14 @@
     },
     {
       "name": "seed: artifact_stored pins the seed threats",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(seq <= last and len(match) == 1 and content_hash(match[0].data) == sha, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
       "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
       "k": "moving_the_seed"
     },
     {
       "name": "seed: seed threats need an anchored event",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(len(pins) == 1, \"E-AUDIT-ARTIFACT\", d.path,",
       "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", d.path,",
       "k": "moving_the_seed"
@@ -80,28 +80,28 @@
     },
     {
       "name": "commit: run record vs run_created",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(run.get(\"repo_commit\") == pinned, \"E-RUN-COMMIT\", f\"run {rid}\",",
       "new": "        R.check(True, \"E-RUN-COMMIT\", f\"run {rid}\",",
       "k": "rewriting_the_run_commit"
     },
     {
       "name": "commit: inventory vs run_created",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                R.check(inv.data.get(\"repo_commit\") == pinned, \"E-RUN-COMMIT\", inv.path,",
       "new": "                R.check(True, \"E-RUN-COMMIT\", inv.path,",
       "k": "inventory_of_another_commit"
     },
     {
       "name": "jobs: orphan sandbox_job event",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(jid in jobs, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")",
       "new": "            R.check(True, \"E-JOB-AUDIT\", where, f\"{e.get('event_type')} names job {jid}, which is not in run.jobs\")",
       "k": "orphan_sandbox_job"
     },
     {
       "name": "jobs: approved testcase has a job",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                    R.check(x.get(\"item_id\") in have, \"E-JOB-AUDIT\", w,",
       "new": "                    R.check(True, \"E-JOB-AUDIT\", w,",
       "k": "approved_testcase"

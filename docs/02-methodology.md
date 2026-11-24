@@ -98,7 +98,7 @@ flowchart TD
 | `COMPLETED` | 全部完成，未能測試清單中只有設計上的 `MANUAL` 項 | 是 |
 | `COMPLETED_WITH_GAPS` | 完成，但有計畫中的覆蓋沒做到（例如 G3 全部駁回、目標所有權失敗、版本識別不符、G5 駁回、執行錯誤或 `INVALID` 結果、GB 停止階段） | 是 |
 
-**合法轉移**（第十三輪外部審查；[03 §5.2](03-system-architecture.md#52-主狀態圖) 的狀態圖收斂成這張表，validator 以 `checks.RUN_TRANSITIONS` 強制，`E-RUN-STATUS`）[H]：每筆 `run_status_changed` 的 `from → to` 必須是下表的一列；終止狀態沒有任何出口（之前只檢查 `from` 接得上上一筆，`RUNNING → ABORTED → RUNNING` 再接著跑黑箱也過）。工作事件（`sandbox_job_start`、`tool_invocation_start`）只能發生在 `RUNNING`；`gate_decision` 只能發生在 `RUNNING` 或 `WAITING_GATE`。
+**合法轉移**（第十三輪外部審查；[03 §5.2](03-system-architecture.md#52-主狀態圖) 的狀態圖收斂成這張表，validator 以 `checks_audit.RUN_TRANSITIONS` 強制，`E-RUN-STATUS`）[H]：每筆 `run_status_changed` 的 `from → to` 必須是下表的一列；終止狀態沒有任何出口（之前只檢查 `from` 接得上上一筆，`RUNNING → ABORTED → RUNNING` 再接著跑黑箱也過）。工作事件（`sandbox_job_start`、`tool_invocation_start`）只能發生在 `RUNNING`；`gate_decision` 只能發生在 `RUNNING` 或 `WAITING_GATE`。
 
 | 來源 | 可轉到 |
 |---|---|
@@ -108,7 +108,7 @@ flowchart TD
 | `STOPPED` | `RUNNING`、`COMPLETED_WITH_GAPS`、`FAILED` |
 | `ABORTED`、`FAILED`、`COMPLETED`、`COMPLETED_WITH_GAPS` | （終止，無出口） |
 
-**W 階段的前置條件**（第十三輪外部審查；validator 以 `checks.G1_GATED_NODES`、`AFTER_W1_NODES` 強制，`E-GATE-ORDER`）[H]：`W1`～`W5` 節點的每個事件之前都要有 `APPROVED` 的 G1 決定（G1 的「進入 W1」）；`W2`～`W5` 的事件都晚於 W1 的第一個事件（W1 靜態分析先跑；CMD-2 加派回 W2 仍晚於 W1）；W4 另需 G2 決定（既有）。例外：`run_kind: lane_a` 沒有 G1（§1.5）。之前只檢查關卡彼此的先後與 W4，W1 在 G1 之前掃描、W3 在 G1 之前裁決都過。
+**W 階段的前置條件**（第十三輪外部審查；validator 以 `checks_audit.G1_GATED_NODES`、`AFTER_W1_NODES` 強制，`E-GATE-ORDER`）[H]：`W1`～`W5` 節點的每個事件之前都要有 `APPROVED` 的 G1 決定（G1 的「進入 W1」）；`W2`～`W5` 的事件都晚於 W1 的第一個事件（W1 靜態分析先跑；CMD-2 加派回 W2 仍晚於 W1）；W4 另需 G2 決定（既有）。例外：`run_kind: lane_a` 沒有 G1（§1.5）。之前只檢查關卡彼此的先後與 W4，W1 在 G1 之前掃描、W3 在 G1 之前裁決都過。
 
 **各關卡結果的處理**（[H]，依共同設計決定 D2）：
 

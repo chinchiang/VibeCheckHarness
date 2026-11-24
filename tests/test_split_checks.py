@@ -10,7 +10,7 @@ import ast
 import importlib.util
 import pathlib
 
-from vchlib import (checks, checks_config, checks_engagement, checks_gates, checks_integrity, checks_models, checks_roe,
+from vchlib import (checks, checks_audit, checks_config, checks_engagement, checks_gates, checks_integrity, checks_models, checks_roe,
                     checks_runs, checks_signatures, checks_testcases, report)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -56,6 +56,9 @@ def test_the_group_list_and_its_order_are_unchanged():
     for i in (11, 13, 14):
         assert checks.GROUPS[i][1].__module__ == "vchlib.checks_testcases", names[i]           # PR-D6
     assert names[12] == "g_w4_testcases" and checks.GROUPS[12][1].__module__ == "vchlib.checks"       # not moved yet
+    assert names[15:18] == ["g_verdicts", "g_trace", "g_audit"]
+    assert checks.GROUPS[17][1].__module__ == "vchlib.checks_audit"                            # PR-D7
+    assert {checks.GROUPS[i][1].__module__ for i in (15, 16, 23)} == {"vchlib.checks"}         # not moved yet
     assert names[6:9] == ["g_engagement", "g_roe", "g_models"]
     assert checks.GROUPS[6][1].__module__ == "vchlib.checks_engagement" and checks.GROUPS[8][1].__module__ == "vchlib.checks_models"   # PR-D3
 
@@ -78,13 +81,18 @@ def test_the_shared_base_imports_no_check_group():
     assert {m for m in imports_of("checks_runs") if m.startswith("checks")} == lower
     assert {m for m in imports_of("checks_testcases") if m.startswith("checks")} == lower
     assert report.anchored_seqs([{"event_type": "x"}, {"event_type": "audit_anchor"}, {"event_type": "y"}]) == 2
+    # PR-D7: the audit group reads the engagement, signature and run modules; nothing reads it but the facade
+    assert {m for m in imports_of("checks_audit") if m.startswith("checks")} == {"checks_engagement", "checks_runs", "checks_signatures"}
+    for other in PKG.glob("checks_*.py"):
+        assert "checks_audit" not in imports_of(other.stem), other.name
     # a moved name lives once: the facade may import it (when it still uses it) but never redefines it
     facade = (PKG / "checks.py").read_text(encoding="utf-8")
     for home, names in ((checks_signatures, ("decision_time", "verify_signature", "MAX_CLOCK_SKEW")),
                         (checks_roe, ("job_span", "expected_gaps", "path_shape")), (report, ("anchored_seqs",)),
                         (checks_gates, ("run_start", "g5_escalation")), (checks_engagement, ("profile", "deployment", "consolidation_person")),
                         (checks_runs, ("result_controls", "baseline_checks", "JOB_RAN_STATES")),
-                        (checks_testcases, ("access_matrix_cells", "feedback_suppression"))):
+                        (checks_testcases, ("access_matrix_cells", "feedback_suppression")),
+                        (checks_audit, ("anchor_counter_problems", "spot_check", "RUN_TRANSITIONS", "run_structure"))):
         for name in names:
             assert hasattr(home, name), name
             assert getattr(checks, name, getattr(home, name)) is getattr(home, name), name
@@ -99,6 +107,7 @@ def test_the_shared_base_imports_no_check_group():
     assert checks_models.Report is report.Report and checks_roe.Report is report.Report
     assert checks_signatures.Report is report.Report and checks_gates.Report is report.Report
     assert checks_runs.Report is report.Report and checks_testcases.Report is report.Report
+    assert checks_audit.Report is report.Report
 
 
 def test_nothing_below_the_checker_imports_it():

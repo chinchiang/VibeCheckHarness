@@ -3,56 +3,56 @@
   "mutations": [
     {
       "name": "resume needs a signed run_resume",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            if R.check(bool(resumes), \"E-RUN-RESUME\", where,",
       "new": "            if R.check(True, \"E-RUN-RESUME\", where,",
       "k": "unsigned_line"
     },
     {
       "name": "the run_resume is anchored",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                R.check(j <= last, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the run_resume is not anchored\")",
       "new": "                R.check(True, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the run_resume is not anchored\")",
       "k": "must_be_anchored"
     },
     {
       "name": "the resume precedes the engagement validity end",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                R.check(not_after is None or (at is not None and at <= not_after), \"E-RUN-RESUME\",",
       "new": "                R.check(True, \"E-RUN-RESUME\",",
       "k": "engagement_validity"
     },
     {
       "name": "a B-phase event after the resume needs a fresh G0b",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                        R.check(False, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",\n                                f\"B-phase event {y.get('event_type')} after the resume",
       "new": "                        R.check(True, \"E-RUN-RESUME\", f\"{w} seq {y.get('seq')}\",\n                                f\"B-phase event {y.get('event_type')} after the resume",
       "k": "fresh_g0b"
     },
     {
       "name": "the status chain links from to the previous to",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(p.get(\"from\") == prev, \"E-RUN-STATUS\", where,",
       "new": "        R.check(True, \"E-RUN-STATUS\", where,",
       "k": "status_chain"
     },
     {
       "name": "WAITING_GATE -> RUNNING needs a decision",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            R.check(any(x.get(\"event_type\") == \"gate_decision\" for _, x in between), \"E-RUN-STATUS\", where,",
       "new": "            R.check(True, \"E-RUN-STATUS\", where,",
       "k": "waiting_gate_cannot"
     },
     {
       "name": "every pinned artefact has its anchored event",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(len(pins) == 1, \"E-AUDIT-ARTIFACT\", d.path,",
       "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", d.path,",
       "k": "needs_its_anchored_event"
     },
     {
       "name": "an artifact_stored event matches its document",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(seq <= last and len(match) == 1 and content_hash(match[0].data) == sha, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
       "new": "        R.check(True, \"E-AUDIT-ARTIFACT\", f\"{w} seq {seq}\",",
       "k": "cannot_be_rewritten"
@@ -80,7 +80,7 @@
     },
     {
       "name": "initiators need an anchored claim",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "        R.check(who in claimed, \"E-RUN-CLAIM\", w, f\"run.initiators lists {who!r}, who has no anchored signed initiator_claim in this run\")",
       "new": "        R.check(True, \"E-RUN-CLAIM\", w, f\"run.initiators lists {who!r}, who has no anchored signed initiator_claim in this run\")",
       "k": "initiator_without_a_claim"

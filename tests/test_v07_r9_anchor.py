@@ -26,7 +26,7 @@ import json
 
 
 from conftest import doc, rederive
-from vchlib import checks, context, derive, expectations, report, verdict
+from vchlib import checks, checks_audit, context, derive, expectations, report, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -133,11 +133,11 @@ def test_rolling_a_completed_run_back_to_an_earlier_anchor_leaves_a_counter_gap(
 
 
 def test_anchor_counter_problems():
-    assert checks.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (2, "2026-09-24T10:00:00Z", "b")]) == []
-    assert checks.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (3, "2026-09-24T10:00:00Z", "b")])          # gap
-    assert checks.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (1, "2026-09-24T10:00:00Z", "b")])          # twice
-    assert checks.anchor_counter_problems([(2, "2026-09-23T10:00:00Z", "a"), (1, "2026-09-24T10:00:00Z", "b")])          # order
-    assert checks.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), ("2", "2026-09-24T10:00:00Z", "b")])        # type
+    assert checks_audit.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (2, "2026-09-24T10:00:00Z", "b")]) == []
+    assert checks_audit.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (3, "2026-09-24T10:00:00Z", "b")])          # gap
+    assert checks_audit.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (1, "2026-09-24T10:00:00Z", "b")])          # twice
+    assert checks_audit.anchor_counter_problems([(2, "2026-09-23T10:00:00Z", "a"), (1, "2026-09-24T10:00:00Z", "b")])          # order
+    assert checks_audit.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), ("2", "2026-09-24T10:00:00Z", "b")])        # type
 
 
 def test_the_counter_is_inside_the_countersignature(b):

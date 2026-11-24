@@ -283,6 +283,15 @@ CONTRIBUTING 第 2 類「內部審查核實成立的缺陷」：重述的事實�
 
 依 2026-11-04 的架構審查（候選 #1「裁決推導模組」、#2「單一重新封存模組」，設計逐項經使用者決定）：只搬移與重組程式碼，錯誤碼、錯誤訊息、schema 與範例輸出都不變，`rule_version` 維持 `05-v0.15`（CONTRIBUTING「不改變規則語意的實作重構不受凍結限制」）。
 
+### 拆分 checks.py：稽核紀錄群組（PR-D7）
+[ADR 0003](docs/adr/0003-split-checks.md) 的第八步（發現 E8）：
+- 新模組 `tools/vchlib/checks_audit.py`（812 行）：`g_audit`、`anchor_counter_problems`、`report_events`、`ownership_events`、`run_log_state`、`pinned_documents`、`artifact_pins`、`run_transitions`、`spot_check`、`spot_check_item`、`job_audit`、`run_structure`、`audit_anchor_tail`，以及 12 個常數（`RUN_TRANSITIONS`、`G1_GATED_NODES`、`AFTER_W1_NODES`、`GATE_ORDER` 等）。
+- `checks.py` 由 2,262 行減為 1,468 行；`GROUPS` 仍是 24 組、順序不變。`checks` 只匯入 `g_audit`；不再使用的匯入隨之移除。`checks_audit` 匯入 `checks_engagement`、`checks_runs`、`checks_signatures`，不匯入 `checks`；沒有其他檢查模組匯入它。
+- 原文搬移。為通過 mypy 加了 27 行 `type: ignore`（其中一行原本就有說明註解，`type: ignore` 必須排在前面，所以兩段註解對調位置），沒有改任何邏輯。
+- 不留 re-export：`test_v07_r9_anchor.py`、`test_v07_r10_anchor.py`、`test_v07_r9_contracts.py`、`test_v07_r13_external.py` 改用新路徑；`docs/02`、`docs/schemas/README.md` 與 `expectations.py` 中的程式名稱同步（`checks.RUN_TRANSITIONS`、`checks.G1_GATED_NODES` → `checks_audit.…`），規則文字沒有動。
+- 突變清單：13 份清單的 76 個突變改指新模組，錨點都沒有變。`r13_external.json` 另有一個突變錨定 `docs/02` 中含 `checks.G1_GATED_NODES` 的句子，錨點同步為新名稱。`split_checks.json` 增加 3 個突變。
+- 等價證據：`run_all` 對主範例、四個變體與一份刻意弄壞的 bundle 回報的 issue、各群組檢查數與總檢查數，搬移前後以 `cmp` 比對完全相同；`sign_examples.py` 0 個檔案變動；331 個錯誤碼；13 份受影響的突變清單在 `main` 與本分支逐項比對（結果見 PR 說明）。
+
 ### 拆分 checks.py：run 與測試案例群組（PR-D6）
 [ADR 0003](docs/adr/0003-split-checks.md) 的第七步（發現 E8）：
 - 新模組 `tools/vchlib/checks_runs.py`（682 行）：`g_runs`、`run_ownership`、`job_start_rules`、`target_activity_windows`、`result_build`、`result_controls`、`run_manifest`、`artefact_state`、`baseline_checks`、`plan_checks`、`derived_baseline_state` 等與 runs 段的常數；加上只有 `g_runs` 使用的 `s2_not_run`、`snapshot_audit`、`S2_RAN_STATES`、`S2_END_STATES`、`G5_SKIP_OUTCOME`，以及原本在 audit 段的 `JOB_RAN_STATES`。

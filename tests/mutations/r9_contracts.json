@@ -24,21 +24,21 @@
     },
     {
       "name": "spot check: none in Lite",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    if not R.check(profile(c) != \"lite\", \"E-SPOT-CHECK\", where,",
       "new": "    if not R.check(True, \"E-SPOT-CHECK\", where,",
       "k": "lite"
     },
     {
       "name": "spot check: verdicts, clusters, feedback",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "SPOT_CHECK_ITEMS = (\"verdict\", \"cluster\", \"feedback\")",
       "new": "SPOT_CHECK_ITEMS = ()",
       "k": "verdict_cluster_or_suppression"
     },
     {
       "name": "spot check: item reviewer independent",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "    R.check(who not in involved, \"E-SPOT-CHECK\", where,",
       "new": "    R.check(True, \"E-SPOT-CHECK\", where,",
       "k": "g2_approver_cannot"

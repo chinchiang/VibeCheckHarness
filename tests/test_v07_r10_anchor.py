@@ -24,7 +24,7 @@ import time
 
 from conftest import doc, rederive, resign_gate
 from test_v07_r9_anchor import AUDIT, FAUDIT, FRUN, RUN, rechain, refix_nokey, tail_event
-from vchlib import checks, context, derive, expectations, report, verdict
+from vchlib import checks, checks_audit, context, derive, expectations, report, verdict
 from vchlib.bundle import Doc, reload_json
 from vchlib.canonical import content_hash
 from vchlib.checks import run_all
@@ -226,13 +226,13 @@ def test_an_ownership_result_the_event_does_not_list_is_reported(b, keys):
 # ================================================================ robustness
 def test_the_anchor_counter_gap_is_not_enumerated():
     t = time.perf_counter()
-    out = checks.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (10 ** 7, "2026-09-24T10:00:00Z", "b")])
+    out = checks_audit.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (10 ** 7, "2026-09-24T10:00:00Z", "b")])
     assert time.perf_counter() - t < 0.2
     assert any("9999998" in x for x in out)
 
 
 def test_anchor_counter_problems_still_name_the_missing_counters():
-    out = checks.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (4, "2026-09-24T10:00:00Z", "b"),
+    out = checks_audit.anchor_counter_problems([(1, "2026-09-23T10:00:00Z", "a"), (4, "2026-09-24T10:00:00Z", "b"),
                                           (4, "2026-09-25T10:00:00Z", "c")])
     assert any("[2, 3]" in x for x in out) and any("twice" in x for x in out)
 

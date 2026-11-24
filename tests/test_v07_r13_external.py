@@ -27,7 +27,7 @@ import pytest
 from conftest import EXAMPLE_ICC, apps_map, doc, hp_rule, rederive
 from test_v07_r11_anchor import renumber
 from vchlib import adjudicate as adj
-from vchlib import calibration, checks, checks_calibration, checks_integrity, report
+from vchlib import calibration, checks_audit, checks_calibration, checks_integrity, report
 from vchlib.bundle import load_variant
 from vchlib.canonical import jcs
 from vchlib.checks import run_all
@@ -105,8 +105,8 @@ def doc_transitions():
 
 def test_the_transition_table_in_the_docs_is_the_validators():
     table = doc_transitions()
-    assert table and table == {k: tuple(v) for k, v in checks.RUN_TRANSITIONS.items()}
-    assert all(not checks.RUN_TRANSITIONS[s] for s in report.TERMINAL_RUN_STATES)
+    assert table and table == {k: tuple(v) for k, v in checks_audit.RUN_TRANSITIONS.items()}
+    assert all(not checks_audit.RUN_TRANSITIONS[s] for s in report.TERMINAL_RUN_STATES)
 
 
 # ================================================================ 2. the white-box phase follows G1, W1 first
@@ -155,8 +155,8 @@ def test_a_lane_a_run_has_no_g1_and_still_validates(b):
 
 def test_the_phase_prerequisites_are_documented():
     s = text("docs/02-methodology.md")
-    assert "**W 階段的前置條件**" in s and "`checks.G1_GATED_NODES`" in s
-    assert checks.G1_GATED_NODES == ("W1", "W2", "W3", "W4", "W5") and checks.AFTER_W1_NODES == ("W2", "W3", "W4", "W5")
+    assert "**W 階段的前置條件**" in s and "`checks_audit.G1_GATED_NODES`" in s
+    assert checks_audit.G1_GATED_NODES == ("W1", "W2", "W3", "W4", "W5") and checks_audit.AFTER_W1_NODES == ("W2", "W3", "W4", "W5")
 
 
 # ================================================================ 3. JCS numbers at and above 2^53

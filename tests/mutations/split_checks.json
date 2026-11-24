@@ -140,6 +140,27 @@
    "old": "# ============================================================== 12b W4 testcases\n",
    "new": "# ============================================================== 12b W4 testcases\nJOB_RAN_STATES = (\"EXECUTED\",)\n",
    "k": "imports_no_check_group"
+  },
+  {
+   "name": "the audit group changes place",
+   "file": "tools/vchlib/checks.py",
+   "old": "    (\"traceability\", g_trace),\n    (\"audit log\", g_audit),",
+   "new": "    (\"audit log\", g_audit),\n    (\"traceability\", g_trace),",
+   "k": "order_are_unchanged"
+  },
+  {
+   "name": "a check module reads the audit module",
+   "file": "tools/vchlib/checks_runs.py",
+   "old": "def g_runs(R: Report, c: Ctx):\n",
+   "new": "def g_runs(R: Report, c: Ctx):\n    from . import checks_audit  # noqa: F401\n",
+   "k": "imports_no_check_group"
+  },
+  {
+   "name": "the facade redefines an audit table",
+   "file": "tools/vchlib/checks.py",
+   "old": "# ============================================================== 14 traceability\n",
+   "new": "# ============================================================== 14 traceability\nRUN_TRANSITIONS = {}\n",
+   "k": "imports_no_check_group"
   }
  ]
 }

@@ -3,56 +3,56 @@
   "mutations": [
     {
       "name": "the expiry path needs resume_expired",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\" and expired:",
       "new": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\":",
       "k": "closing_without_resume_expired"
     },
     {
       "name": "the expiry path only ends in COMPLETED_WITH_GAPS",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\" and expired:",
       "new": "if prev in RESUMABLE_RUN_STATES and expired:",
       "k": "cannot_end_completed_without_gaps"
     },
     {
       "name": "resume_expired is the system's",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                   and (x.get(\"actor\") or {}).get(\"kind\") == \"system\" and (x.get(\"payload\") or {}).get(\"from_status\") == prev]",
       "new": "                   and (x.get(\"payload\") or {}).get(\"from_status\") == prev]",
       "k": "system_s_event"
     },
     {
       "name": "resume_expired names the state it closes",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "                   and (x.get(\"actor\") or {}).get(\"kind\") == \"system\" and (x.get(\"payload\") or {}).get(\"from_status\") == prev]",
       "new": "                   and (x.get(\"actor\") or {}).get(\"kind\") == \"system\"]",
       "k": "names_the_state"
     },
     {
       "name": "the expiry path exists",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "if prev in RESUMABLE_RUN_STATES and p.get(\"to\") == \"COMPLETED_WITH_GAPS\" and expired:",
       "new": "if False:",
       "k": "closed_by_the_system"
     },
     {
       "name": "resume_expired is anchored",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "R.check(j <= last, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the resume_expired is not anchored\")",
       "new": "R.check(True, \"E-RUN-RESUME\", f\"{w} seq {x.get('seq')}\", \"the resume_expired is not anchored\")",
       "k": "must_be_anchored"
     },
     {
       "name": "expiry only after not_after",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "R.check(not_after is not None and at is not None and at > not_after, \"E-RUN-RESUME\"",
       "new": "R.check(True, \"E-RUN-RESUME\"",
       "k": "before_the_validity_ended or after_the_validity_ended"
     },
     {
       "name": "the status change is checked too",
-      "file": "tools/vchlib/checks.py",
+      "file": "tools/vchlib/checks_audit.py",
       "old": "            for y in (x, e):",
       "new": "            for y in (x,):",
       "k": "status_change_must_also"

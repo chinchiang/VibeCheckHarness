@@ -1,7 +1,7 @@
 {
   "tests": "tests/test_bl60_variants.py",
   "mutations": [
-    {"name": "MANUAL testcases need no job", "file": "tools/vchlib/checks.py",
+    {"name": "MANUAL testcases need no job", "file": "tools/vchlib/checks_audit.py",
      "old": "                if ((tc.data if tc else {}).get(\"tool_binding\") or {}).get(\"kind\") == \"MANUAL\":\n                    continue",
      "new": "                if False:\n                    continue",
      "k": "manual_testcase_needs_no or validates_cleanly"},
