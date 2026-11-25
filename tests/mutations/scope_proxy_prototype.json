@@ -1,0 +1,222 @@
+{
+ "tests": "tests/test_scope_proxy_prototype.py",
+ "mutations": [
+  {
+   "name": "a case is dropped",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| SP-05 | 重複或衝突的長度標頭（`Transfer-Encoding` 與 `Content-Length` 同時出現、重複的 `Content-Length`） | 擋下並有拒絕紀錄；目標收到 0 個請求 | 換候選代理 | 一 |\n",
+   "new": "",
+   "k": "numbered_with"
+  },
+  {
+   "name": "a case is listed twice",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| SP-14 | SSE 上限：時間與位元組上限 | 觸頂時連線被關閉並有紀錄；算一個請求 | SSE 標為 `MANUAL` | 二 |\n",
+   "new": "| SP-14 | SSE 上限：時間與位元組上限 | 觸頂時連線被關閉並有紀錄；算一個請求 | SSE 標為 `MANUAL` | 二 |\n| SP-14 | SSE 上限：時間與位元組上限 | 觸頂時連線被關閉並有紀錄；算一個請求 | SSE 標為 `MANUAL` | 二 |\n",
+   "k": "numbered_with"
+  },
+  {
+   "name": "the Playwright case moves to stage two",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| SP-02 | `playwright:api` 能否設定 proxy 認證；不能時，每個 job 一個監聽埠的做法是否可行 | 兩種做法至少一種成立：Playwright 的每個請求都能歸屬到本 job，借用另一個 job 的白名單被拒絕 | `playwright:api` 不啟用（決策規則 1） | 一 |",
+   "new": "| SP-02 | `playwright:api` 能否設定 proxy 認證；不能時，每個 job 一個監聽埠的做法是否可行 | 兩種做法至少一種成立：Playwright 的每個請求都能歸屬到本 job，借用另一個 job 的白名單被拒絕 | `playwright:api` 不啟用（決策規則 1） |二 |",
+   "k": "numbered_with"
+  },
+  {
+   "name": "a case has no consequence",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 擋下並有拒絕紀錄；目標收到 0 個請求 | 換候選代理 | 一 |",
+   "new": "| 擋下並有拒絕紀錄；目標收到 0 個請求 | — | 一 |",
+   "k": "numbered_with"
+  },
+  {
+   "name": "the lease case no longer names the lease",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| SP-07 | job 的租約失效之後，或候選代理行程中斷時",
+   "new": "| SP-07 | 候選代理行程中斷時",
+   "k": "old_paragraph"
+  },
+  {
+   "name": "the redirect case may hit the canary",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 不跟隨；有拒絕紀錄；越界接收器零命中 | 換候選代理 | 一 |",
+   "new": "| 不跟隨；有拒絕紀錄 | 換候選代理 | 一 |",
+   "k": "old_paragraph"
+  },
+  {
+   "name": "the general pass rule is gone",
+   "file": "docs/08-implementation-spec.md",
+   "old": "每個允許的案例要收到預期回應；每個禁止的案例要有拒絕紀錄，且越界接收器零命中。",
+   "new": "",
+   "k": "old_paragraph"
+  },
+  {
+   "name": "stage one tests TLS",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| SP-03 | 請求的 `Host` 與本 job 的主機不一致時",
+   "new": "| SP-03 | 請求的 SNI 或 `Host` 與本 job 的主機不一致時",
+   "k": "stage_one_is"
+  },
+  {
+   "name": "a failed Playwright case still enables it",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `playwright:api` 不啟用（決策規則 1） | 一 |",
+   "new": "| 記錄後繼續 | 一 |",
+   "k": "stage_one_is"
+  },
+  {
+   "name": "stage two no longer reruns stage one",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| SP-16 | 第一段的案例（SP-01–SP-08）在 HTTPS 目標上是否仍然成立",
+   "new": "| SP-16 | 其他案例在 HTTPS 目標上是否仍然成立",
+   "k": "stage_one_is"
+  },
+  {
+   "name": "the section no longer says why there are two stages",
+   "file": "docs/08-implementation-spec.md",
+   "old": "，所以 Playwright 經代理的路徑在 MVP-1 就要用到，不能等到 MVP-2。",
+   "new": "。",
+   "k": "stage_one_is"
+  },
+  {
+   "name": "playwright is enabled without stage one",
+   "file": "docs/08-implementation-spec.md",
+   "old": "1. 第一段（SP-01–SP-08）全部通過，MVP-1 才能啟用 `playwright:api`。",
+   "new": "1. MVP-1 可以啟用 `playwright:api`。",
+   "k": "decision_rule"
+  },
+  {
+   "name": "MVP1-X1 passes without stage one",
+   "file": "docs/08-implementation-spec.md",
+   "old": "，MVP1-X1 不算通過。",
+   "new": "。",
+   "k": "decision_rule"
+  },
+  {
+   "name": "going direct is allowed",
+   "file": "docs/08-implementation-spec.md",
+   "old": "；**禁止改用直連或關閉 TLS 驗證**。",
+   "new": "。",
+   "k": "decision_rule"
+  },
+  {
+   "name": "an adapter is enabled before its cases pass",
+   "file": "docs/08-implementation-spec.md",
+   "old": "選用的 adapter 只在它的案例通過後啟用。",
+   "new": "",
+   "k": "decision_rule"
+  },
+  {
+   "name": "U-13 closes with no passing candidate",
+   "file": "docs/08-implementation-spec.md",
+   "old": "沒有候選通過時，U-13 不結案、對應的 adapter 不啟用，並回報使用者；",
+   "new": "沒有候選通過時，",
+   "k": "decision_rule"
+  },
+  {
+   "name": "a case may be passed by relaxing the rules",
+   "file": "docs/08-implementation-spec.md",
+   "old": "5. 不允許以放寬本節的規則通過任何案例：",
+   "new": "5. 備註：",
+   "k": "decision_rule"
+  },
+  {
+   "name": "a case falls back to a direct connection",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 連線失敗；越界接收器零命中 | 修正 job 的網路命名空間設定；修不好 → 該工具不啟用 | 一 |",
+   "new": "| 連線失敗；越界接收器零命中 | 該工具改用直連 | 一 |",
+   "k": "decision_rule"
+  },
+  {
+   "name": "the section claims the prototype passed",
+   "file": "docs/08-implementation-spec.md",
+   "old": "**本輪不選定產品，也不宣稱原型已通過，下表沒有任何一個案例執行過**",
+   "new": "原型已通過",
+   "k": "claims_no_result"
+  },
+  {
+   "name": "the prototype replaces the product tests",
+   "file": "docs/08-implementation-spec.md",
+   "old": "仍要在產品程式上執行，原型的結果不能代替它們。",
+   "new": "由原型的結果代替。",
+   "k": "claims_no_result"
+  },
+  {
+   "name": "a case is marked passed",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| 觸頂時連線被關閉並有紀錄；算一個請求 |",
+   "new": "| 已通過 ✅ |",
+   "k": "claims_no_result"
+  },
+  {
+   "name": "MVP1-X5 is gone",
+   "file": "docs/07-roadmap.md",
+   "old": "| MVP1-X5 | **Scope Proxy 原型關卡第一段**",
+   "new": "| MVP1-X9 | **Scope Proxy 原型關卡第一段**",
+   "k": "plan_puts_stage_one"
+  },
+  {
+   "name": "MVP1-X5 no longer gates playwright",
+   "file": "docs/07-roadmap.md",
+   "old": "全部符合預期之後才啟用 `playwright:api`；",
+   "new": "",
+   "k": "plan_puts_stage_one"
+  },
+  {
+   "name": "stage one leaves the order table",
+   "file": "docs/07-roadmap.md",
+   "old": "BL-32 Scope Proxy 原型關卡第一段（MVP1-X5）；",
+   "new": "",
+   "k": "plan_puts_stage_one"
+  },
+  {
+   "name": "MVP2-X5 covers no numbered cases",
+   "file": "docs/07-roadmap.md",
+   "old": "（08 §11.7 的 SP-09–SP-16；第一段見 MVP1-X5）",
+   "new": "",
+   "k": "plan_puts_stage_one"
+  },
+  {
+   "name": "U-13 says decided",
+   "file": "docs/08-implementation-spec.md",
+   "old": "| `toolkit_maintainer`，依 §11.7 的原型報告 |",
+   "new": "| **已決定**：mitmproxy |",
+   "k": "u13_the_backlog"
+  },
+  {
+   "name": "U-13 drops the playwright condition",
+   "file": "docs/08-implementation-spec.md",
+   "old": "；MVP-1 的 `playwright:api` 只在 §11.7 原型關卡第一段（SP-01–SP-08）通過後啟用，其他工具與 TLS 終結等第二段",
+   "new": "",
+   "k": "u13_the_backlog"
+  },
+  {
+   "name": "BL-32 goes back to before MVP-2 only",
+   "file": "docs/09-backlog.md",
+   "old": "| 第一段在 MVP-1 的 B4 之前；第二段在 MVP-2 之前 |",
+   "new": "| MVP-2 之前 |",
+   "k": "u13_the_backlog"
+  },
+  {
+   "name": "BL-32 says the prototype ran",
+   "file": "docs/09-backlog.md",
+   "old": "MVP-2 之前 | 設計已補齊；原型未執行 |",
+   "new": "MVP-2 之前 | 設計已補齊；原型已執行 |",
+   "k": "u13_the_backlog"
+  },
+  {
+   "name": "D5 says fixed",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "| ⚠️ 規格已訂、原型未執行（2026-11-25）：選型仍未決定（U-13）。",
+   "new": "| ✅ 已處理（2026-11-25）：選型仍未決定（U-13）。",
+   "k": "u13_the_backlog"
+  },
+  {
+   "name": "D5 keeps the proxy evidence grade",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "| 三點事實已對原文核對（08 §11.7、§10 U-13、09 BL-32）；沒有執行過任何代理或工具 |",
+   "new": "| **[代理]** |",
+   "k": "u13_the_backlog"
+  }
+ ]
+}

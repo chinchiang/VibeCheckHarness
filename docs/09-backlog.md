@@ -21,7 +21,7 @@ v0.5（[2026-10-25 審查](evidence/review-2026-10-25.md) §3）把 v0.5 分支�
 | BL-29 | CAS 依委任隔離、hash 不是授權、每個 run 一筆生命週期參照 | [08 §7.3](08-implementation-spec.md#73-cas-配置)、§7.5 | CAS 實作之前 | 設計已補齊；未實作 |
 | BL-30 | 取樣與重播分開、每個 trial 的實際呼叫證據與快取紀錄、無法支持獨立同分布時不給上界 | [04 §4.4](04-threat-to-testcase.md#44-機率型測試的次數與上界) | 機率報告啟用之前 | 設計已補齊；trial 紀錄欄位與統計執行器未實作 |
 | BL-31 | job 原子領取、租約與 fencing token（在 Z3、Sandbox、Gateway 出口強制）、結果不明時不自動重送 | [03 §5.8](03-system-architecture.md#58-節點邊界規則) | MVP-0 派送之前；Z3 出口在 MVP-1 之前 | 設計已補齊；未實作 |
-| BL-32 | Scope Proxy 選型前的原型關卡（U-13） | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)、07 MVP2-X5 | MVP-2 之前 | 設計已補齊；原型未執行 |
+| BL-32 | Scope Proxy 選型前的原型關卡（U-13） | [08 §11.7](08-implementation-spec.md#117-scope-proxy-實作)（SP-01–SP-16）、07 MVP1-X5、MVP2-X5 | 第一段在 MVP-1 的 B4 之前；第二段在 MVP-2 之前 | 設計已補齊；原型未執行 |
 | BL-33 | 前導實驗加入純工具組、等費用比較、獨立標註與盲測紀律 | [07 §1.2](07-roadmap.md#12-前導實驗mvp-1-之前的預設值決策-h) | 對外宣稱效益之前 | 設計已補齊；語料與人力未定 |
 | BL-34 | G2 駁回後新證據的報告契約（醒目呈現、去重、不覆寫歷史、已結束 run 建 followup 草稿）；裁決仍依 R10 | [02 B6](02-methodology.md#b6-報告) | MVP-0 報告交付之前 | 設計已補齊；報告欄位與去重未實作 |
 | BL-35 | `{created:}` 的執行期 ID 擷取（`id_pointer`、ID 格式限制、綁定 run／job／步驟／目標／宣告 hash）與 GraphQL document 解析 | [04 §5](04-threat-to-testcase.md#5-安全等級計算規則) | MVP-1 黑箱執行之前 | 靜態檢查已實作（`safety.created_resource_problem`、`created_path_allowed`）；執行期未實作 |
