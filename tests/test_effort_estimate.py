@@ -14,13 +14,15 @@ checked and were wrong or missing:
 docs/07 section 1.5 now lists the unestimated scope without inventing numbers for it; the conflict is docs/08 U-25.
 U-25 was decided by the user on 2026-11-24: one engineer on the spike, at most five person-days, the week-one tickets
 slip by at most that much, and reaching the limit means stop and report -- never fewer cases or a weaker pass rule.
+On 2026-11-25 the Scope Proxy prototype gate (BL-32) joined the list: no row of the estimate mentions it, its first
+stage moved in front of the black-box work of MVP-1 (finding D5), and neither stage has a time limit.
 
 Each test failed before the change and passes after it (tests/mutations/effort_estimate.json); see CONTRIBUTING.md."""
 import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-UNESTIMATED = ("BL-70", "oracle_approvals", "BL-78", "BL-75", "BL-79")
+UNESTIMATED = ("BL-70", "oracle_approvals", "BL-78", "BL-75", "BL-79", "BL-32")
 
 
 def text(rel):
@@ -66,6 +68,9 @@ def test_the_scope_added_after_the_estimate_is_listed_as_unestimated():
         assert key in item and "未估" in item, key
         assert not re.search(r"\d+(\.\d+)? ?人週", item), item          # no invented number
     assert "2026-10-31" in part and "不替它們填數字" in part and "BL-63 重估時必須逐項補上" in part
+    gate = items[-1]
+    assert "SP-01–SP-16" in gate and "上表沒有任何一列提到它" in gate and "兩段都沒有時間上限" in gate
+    assert "第一段（SP-01–SP-08）提前到 MVP-1 的 B4 開工之前（MVP1-X5）" in gate
 
 
 def test_every_unestimated_item_is_really_in_the_specification():
@@ -74,7 +79,8 @@ def test_every_unestimated_item_is_really_in_the_specification():
     assert "class JobLedger" in spec
     assert "oracle_approvals" in text("docs/02-methodology.md")
     backlog = text("docs/09-backlog.md")
-    for bl in ("BL-70", "BL-75", "BL-78", "BL-79"):
+    assert "| SP-16 |" in spec and "| MVP1-X5 |" in text("docs/07-roadmap.md")
+    for bl in ("BL-32", "BL-70", "BL-75", "BL-78", "BL-79"):
         assert f"| {bl} |" in backlog, bl
 
 
@@ -109,6 +115,7 @@ def test_the_spike_section_states_the_limit_and_what_it_may_not_change():
 def test_the_backlog_and_the_findings_say_measured_speed_is_still_missing():
     bl = row("docs/09-backlog.md", "| BL-63 |")
     assert "待量測" in bl and "五項範圍沒有計入" in bl and "已完成" not in bl
+    assert "BL-32 的 Scope Proxy 原型關卡，共六項" in bl
     a6 = row("docs/evidence/findings-2026-11-22.md", "| A6 |")
     assert "⚠️ 部分處理" in a6 and "✅" not in a6
     assert "仍只能由 BL-63 量測" in a6 and "U-25" in a6 and "30，不是 29" in a6

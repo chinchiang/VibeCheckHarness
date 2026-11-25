@@ -161,6 +161,41 @@
    "old": "2026-11-24 使用者決定：一人專做、上限 5 人日，第 1 週工單最多順延 5 人日",
    "new": "待決定",
    "k": "measured_speed_is_still_missing"
+  },
+  {
+   "name": "the prototype gate leaves the unestimated list",
+   "file": "docs/07-roadmap.md",
+   "old": "  - Scope Proxy 原型關卡（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) 的 SP-01–SP-16，BL-32）——未估。它在估算定稿之前就是 MVP-2 前的待辦，但上表沒有任何一列提到它；2026-11-25 重驗發現 D5 時把第一段（SP-01–SP-08）提前到 MVP-1 的 B4 開工之前（MVP1-X5），第二段留在 MVP-2 之前。兩段都沒有時間上限。\n",
+   "new": "",
+   "k": "listed_as_unestimated"
+  },
+  {
+   "name": "the prototype gate gets an invented number",
+   "file": "docs/07-roadmap.md",
+   "old": "的 SP-01–SP-16，BL-32）——未估。",
+   "new": "的 SP-01–SP-16，BL-32）——約 1 人週。",
+   "k": "listed_as_unestimated"
+  },
+  {
+   "name": "the gate is said to be in the table",
+   "file": "docs/07-roadmap.md",
+   "old": "，但上表沒有任何一列提到它；",
+   "new": "；",
+   "k": "listed_as_unestimated"
+  },
+  {
+   "name": "the gate is said to have a time limit",
+   "file": "docs/07-roadmap.md",
+   "old": "第二段留在 MVP-2 之前。兩段都沒有時間上限。",
+   "new": "第二段留在 MVP-2 之前。",
+   "k": "listed_as_unestimated"
+  },
+  {
+   "name": "BL-63 still counts five",
+   "file": "docs/09-backlog.md",
+   "old": "；2026-11-25 再加上 BL-32 的 Scope Proxy 原型關卡，共六項（07 §1.5",
+   "new": "（07 §1.5",
+   "k": "measured_speed_is_still_missing"
   }
  ]
 }
