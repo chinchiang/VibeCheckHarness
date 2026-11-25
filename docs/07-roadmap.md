@@ -58,11 +58,12 @@
 | MVP1-X2 | run 中每一個寫入請求都綁定 `{seed:}`、`{created:}` 或 create-only 端點（沒有綁定的測試案例算出 S3，`E-TC-MUTATION-SCOPE`） | Scope Proxy 紀錄 | 有任何一個沒有綁定的寫入 |
 | MVP1-X3 | 故障注入（session 過期、路徑錯誤、種子遺失）時，結果是 `INVALID`，不是 PASS；報告列出 control 通過率 | 整合測試 | 有任何一例被當成 PASS |
 | MVP1-X4 | 沒有來源叢集的黑箱威脅，每一筆結果（FAIL、PASS、INVALID 都一樣）都寫進該威脅 `origin: black_box` 的叢集並有裁決（`E-CLUSTER-ORIGIN`；範例 K-201、K-202） | 整合測試 | 結果沒有裁決路徑 |
+| MVP1-X5 | **Scope Proxy 原型關卡第一段**（[08 §11.7](08-implementation-spec.md#117-scope-proxy-實作) 的 SP-01–SP-08）：全部符合預期之後才啟用 `playwright:api`；範例 A（MVP1-X1）用的就是這個 adapter | 原型報告（實際版本、每個案例的結果、越界接收器紀錄） | 第一段有案例未通過仍啟用 `playwright:api`；有工具改用直連 |
 | MVP2-X1 | 部署的版本與 `repo_commit` 不一致時，job 不執行，並列入 B6；`build_identity.method: none` 的目標在報告中列為「版本未驗證」（`build_unverified_targets[]`；`tester_controlled` 的目標如 canary 除外；`E-RESULT-BUILD`） | 整合測試 | 不一致仍執行，或報告沒有列出 |
 | MVP2-X2 | 共享平台網域的目標沒有 `platform_project` 證明與同一平台的 `platform_policies` 時，G0b 拒絕（`E-ROE-PLATFORM`） | `security` 線 | 被接受 |
 | MVP2-X3 | 每一批測試前，每個角色都先通過 whoami；需要 CAPTCHA 或第三方 IdP、卻沒有 staging 旁路的角色，其測試標 `SKIPPED` 並列入 B6 | 整合測試 | 未驗證身分就執行，或沒有列出略過的測試 |
 | MVP2-X4 | ST-1＝0：canary-server 的「ROE 以外」接收器沒有任何命中 | `selftest-report.json` | 大於 0 |
-| MVP2-X5 | **Scope Proxy 原型關卡**：必要案例全部符合預期；Executor 的必要 HTTP 工作流通過；未通過的 adapter 不啟用 | 原型報告（實際版本、支援與拒絕情況、越界接收器紀錄） | 有必要案例未通過仍進 MVP-2；有 adapter 改用直連或關閉 TLS 驗證 |
+| MVP2-X5 | **Scope Proxy 原型關卡第二段**（08 §11.7 的 SP-09–SP-16；第一段見 MVP1-X5）：必要案例全部符合預期；Executor 的必要 HTTP 工作流通過；未通過的 adapter 不啟用 | 原型報告（實際版本、支援與拒絕情況、越界接收器紀錄） | 有必要案例未通過仍進 MVP-2；有 adapter 改用直連或關閉 TLS 驗證 |
 
 ### 1.2 前導實驗：MVP-1 之前的預設值決策 [H]
 
@@ -130,9 +131,9 @@ Lite 號稱「一個人就能用」，但目前的設計要求單人開發者自
 |---|---|---|
 | MVP-0 開始派送 job 之前 | BL-22／23 產物生命週期與 BL-13 純工具路徑（v0.5 的 schema 與 validator 已完成，執行期待實作）、BL-31 job 原子領取與結果不明的處置 | 08 §11.13 的生命週期案例；雙 worker 同時搶領、舊 worker 復活、意圖記錄後／外部成功後／結果提交前後逐點當機、租約或代理中斷時有在途請求（03 §5.8） |
 | MVP-0 交付之前 | BL-34 G2 駁回後新證據的報告與去重；純工具結果可以交付 | 沒有任何 LLM 發現項時，工具發現仍可追溯到報告；新證據只列一次並醒目呈現 |
-| MVP-1 黑箱執行之前 | BL-31 在 Z3 出口強制 fencing；BL-28 還原範圍排他權（任何 `snapshot_restore` 之前）；BL-35 `{created:}` 的執行期 ID 擷取與 GraphQL 解析；S2 另需 BL-04 | 舊 worker、結果不明時不重送；兩個 run 爭用同一還原範圍時只有一方開始、目標別名不能繞過、背景寫入未停時拒絕；本 run 的 G4／G5 與職責分離 |
+| MVP-1 黑箱執行之前 | BL-31 在 Z3 出口強制 fencing；BL-28 還原範圍排他權（任何 `snapshot_restore` 之前）；BL-35 `{created:}` 的執行期 ID 擷取與 GraphQL 解析；BL-32 Scope Proxy 原型關卡第一段（MVP1-X5）；S2 另需 BL-04 | 08 §11.7 的 SP-01–SP-08；舊 worker、結果不明時不重送；兩個 run 爭用同一還原範圍時只有一方開始、目標別名不能繞過、背景寫入未停時拒絕；本 run 的 G4／G5 與職責分離 |
 | M1 第一週，T-09 開工之前 | BL-79 LangGraph 相容性 spike（M1-X11；08 U-24） | 08 §11.21 的全部必要案例，在 PostgresSaver 與 SqliteSaver 上各跑一次 |
-| MVP-2 staging 之前 | BL-32 Scope Proxy 原型關卡（MVP2-X5） | 08 §11.7 的全部必要案例 |
+| MVP-2 staging 之前 | BL-32 Scope Proxy 原型關卡第二段（MVP2-X5） | 08 §11.7 的 SP-09–SP-16（含在 HTTPS 上重跑第一段） |
 | CAS 實作之前 | BL-29 委任隔離與多參照保留（08 §7.3、§7.5） | 相同內容不同期限、不同資料等級、legal hold、多 run 共用、刪除後稽核 |
 | 機率報告啟用之前 | BL-30 取樣獨立性與重播分離（04 §4.4） | 固定 seed 重播、快取重用、重置失敗、模型版本變更、有相關性的 trial 都不虛增 n′ |
 | 啟用跨 run G1／G3 沿用之前；**Lite pilot（MVP0-X8）之前** | BL-21 來源鏈驗證（v0.5 validator 已完成，`E-GATE-CARRY`；執行期的沿用畫面待實作）：沒有變更的 G1 項目一鍵確認，否則每個 run 的 G1 都是 3.5 小時，pilot 的「第一份報告 ≤ 1 個工作天」只在第一個 run 成立 | hash 改變、過期、撤銷、來源缺漏都拒絕沿用 |

@@ -1084,7 +1084,7 @@ $VIBECHECK_AUDIT_ROOT/<engagement_id>/
 | U-10 | Calibration 語料的標註人力（兩位標註者＋仲裁者）與預算（05 §5.1） | 使用者 | M2 的出口準則 M2-X1 無法完成 | M2 |
 | U-11 | **已決定（2026-09-25，使用者）**：`claude_haiku`（Claude Haiku 4.5，最早 2026-10-15 退役 [V][E:providers-49]）換成 `claude_opus_48`（`claude-opus-4-8`，legacy 但仍為 Active，最早 2027-05-28 退役，1M context，每百萬 token $5／$25 [V][單源][E:providers-52]）；reporter、Lane A 與 `claude_sonnet` 的 fallback 改用它 | `toolkit_maintainer`＋使用者 | 單價是 Haiku 4.5 的 5 倍，reporter 與 Lane A 的成本上升 [V][單源][E:providers-52]；替代模型仍要先完成 05 §5.8 的最小重跑；Opus 4.8 已是 legacy，2027-05-28 前要再選後繼版本 | M2 |
 | U-12 | **已決定（2026-09-25，使用者）**：`gpt_flagship` 綁 GPT-6 Sol（`openai/gpt-6-sol` [V][E:providers-46]；1,050,000 context [V][E:providers-46]）；走 Responses API，因為 Chat Completions 只有 `reasoning_effort=none` 時才能 function calling [P][E:providers-47] | 使用者 | OpenAI 模型頁目前沒有列退役日；C 級使用前仍需確認 GPT-6 的 ZDR 資格 [V][E:providers-48]；M2 的 manual 線仍要驗證 structured outputs 與工具呼叫 | M2 |
-| U-13 | M4 黑箱工具使用的 HTTP 攔截式 proxy 實作（ZAP、Playwright 等工具要經 Scope Proxy） | `toolkit_maintainer` | M1 的 Scope Proxy 只服務 Executor 自己的 HTTP 用戶端（httpx 0.28.1，BSD-3-Clause [V][E:orchestration-57]；DNS 使用 dnspython 2.8.0，ISC [V][E:orchestration-58]） | M4 |
+| U-13 | M4 黑箱工具使用的 HTTP 攔截式 proxy 實作（ZAP、Playwright 等工具要經 Scope Proxy） | `toolkit_maintainer`，依 §11.7 的原型報告 | M1 的 Scope Proxy 只服務 Executor 自己的 HTTP 用戶端（httpx 0.28.1，BSD-3-Clause [V][E:orchestration-57]；DNS 使用 dnspython 2.8.0，ISC [V][E:orchestration-58]）；MVP-1 的 `playwright:api` 只在 §11.7 原型關卡第一段（SP-01–SP-08）通過後啟用，其他工具與 TLS 終結等第二段 | M4 |
 | U-14 | 鎖檔工具（pip 的 hash 檢查模式、或其他工具） | `toolkit_maintainer` | 以 pip 的 hash 檢查模式實作；它的行為以 T-01 的驗收測試證明，不另外引用文件 | M1 |
 | U-15 | `high_precision_min` 的值：掃描器規則要多準，才能單獨當強工具佐證（[05 §5.10](05-bias-calibration.md#510-掃描器規則的高精準名單high_precision_rules)、§11.2） | `toolkit_maintainer`＋校準負責人 | 0.90。校準前名單是空的，所以暫時不影響任何裁決 | M2 |
 | U-16 | 具名的 PII 偵測器：Presidio（presidio-analyzer 2.2.364 在 PyPI 標 MIT [V][E:whitebox-57]；相依的語言模型另有授權，未查證）或其他 | `toolkit_maintainer`、`legal_reviewer` | 工具包自己的規則式偵測器：email、電話、信用卡號（Luhn）、常見身分證號格式（檢查碼）（§11.17） | M4 |
@@ -1616,7 +1616,43 @@ class SeedService(Protocol):
 
 **`JobAllowlist` 的擴充欄位**（§2.3）：`protocols`、`job_token_id`、`fencing_token`、`edge_ip_ranges`（取自 ROE `targets[].edge_ip_ranges`）。
 
-**選型前的原型關卡**[H]：以本地拋棄式 HTTPS 目標與「越界接收器」驗證候選代理；本輪不選定產品，也不宣稱原型已通過。依上面的協定矩陣測試 Executor、ZAP、Playwright 的代理認證與信任根配置，記錄實際版本、支援與拒絕情況。必要案例：SNI／Host／`:authority` 不一致、路徑編碼與正規化差異、重複或衝突的長度標頭、越界轉址、DNS 改變、HTTP/2 多 stream 的預算、WebSocket 的核准腳本與上限、SSE 上限、租約失效與代理中斷。每個允許的案例要收到預期回應；每個禁止的案例要有拒絕紀錄，且越界接收器零命中；直接繞過出口也必須失敗。代理不支援的工具或協定標為不支援或 `MANUAL`，禁止改用直連或關閉 TLS 驗證。Executor 的必要 HTTP 工作流沒有通過就不能進 MVP-2；選用的 adapter 只在通過後啟用。U-13 依這份證據結案，之後才能宣稱實際的相容範圍。
+**選型前的原型關卡**[H]：以本地拋棄式目標與「越界接收器」驗證候選代理；**本輪不選定產品，也不宣稱原型已通過，下表沒有任何一個案例執行過**。「要回答的問題」欄寫的都是待驗證的事，通過條件只引用本節上文已有的規則，不對任何代理或工具的行為做新的斷言。
+
+- 做法：拋棄式程式，不進產品。每個允許的案例要收到預期回應；每個禁止的案例要有拒絕紀錄，且越界接收器零命中。報告記錄候選代理與各工具的實際版本、支援與拒絕情況。
+- **分兩段**（2026-11-25 重驗發現 D5）：MVP-1 的出場準則是範例 A，它的 adapter 是 `playwright:api`（[04 §6.1](04-threat-to-testcase.md#61-範例-awebapi-的-idorbola)），所以 Playwright 經代理的路徑在 MVP-1 就要用到，不能等到 MVP-2。
+  - **第一段**（MVP-1 的 B4 開工之前，[07 MVP1-X5](07-roadmap.md#11-分段-mvp)）：本地明文 HTTP 目標（`http://localhost`）用得到的案例。
+  - **第二段**（MVP-2 staging 之前，07 MVP2-X5）：本地拋棄式 HTTPS 目標，加上 TLS 終結、DNS 固定、長連線協定與 ZAP。
+
+**必要案例**：
+
+| # | 要回答的問題 | 通過條件 | 不通過時 | 階段 |
+|---|---|---|---|---|
+| SP-01 | Executor 自己的 HTTP 用戶端能否帶本 job 的 proxy 認證權杖經候選代理連到目標 | 帶本 job 權杖的允許請求收到預期回應；不帶權杖、或帶另一個 job 的權杖 → 有拒絕紀錄，目標收到 0 個請求 | 換候選代理；沒有候選通過 → MVP-1 的黑箱執行不開工 | 一 |
+| SP-02 | `playwright:api` 能否設定 proxy 認證；不能時，每個 job 一個監聽埠的做法是否可行 | 兩種做法至少一種成立：Playwright 的每個請求都能歸屬到本 job，借用另一個 job 的白名單被拒絕 | `playwright:api` 不啟用（決策規則 1） | 一 |
+| SP-03 | 請求的 `Host` 與本 job 的主機不一致時 | 擋下並有拒絕紀錄；越界接收器零命中 | 換候選代理；不得以關掉主機檢查通過 | 一 |
+| SP-04 | 路徑編碼與正規化差異：候選代理轉給目標的路徑，與工具包正規化後拿去比對的路徑是否一致 | §8.2 N-32 的每個變體（大小寫、`;參數`、percent 編碼、雙重編碼）都被擋下，目標收到 0 個請求；允許的路徑原樣送達 | 由工具包自己的程式碼在轉送前重寫路徑；做不到 → 換候選代理 | 一 |
+| SP-05 | 重複或衝突的長度標頭（`Transfer-Encoding` 與 `Content-Length` 同時出現、重複的 `Content-Length`） | 擋下並有拒絕紀錄；目標收到 0 個請求 | 換候選代理 | 一 |
+| SP-06 | 目標回應 30x，導向 ROE 以外的主機、`169.254.169.254` 或內網位址（越界轉址，N-17） | 不跟隨；有拒絕紀錄；越界接收器零命中 | 換候選代理 | 一 |
+| SP-07 | job 的租約失效之後，或候選代理行程中斷時，工具發出的請求會怎樣 | 租約失效後的請求被拒絕；代理中斷時請求失敗，工具不會改走直連 | 換候選代理；不得以延長租約或自動重連到別的出口通過 | 一 |
+| SP-08 | 工具容器不經代理、直接連目標或越界接收器（繞過出口） | 連線失敗；越界接收器零命中 | 修正 job 的網路命名空間設定；修不好 → 該工具不啟用 | 一 |
+| SP-09 | TLS 終結下的信任根配置：Executor 與 Playwright 只掛載 Z3 本地 CA 的公開憑證時能否完成 HTTPS 請求；面向目標是否以系統信任庫驗證 | 允許的請求收到預期回應；目標憑證無效時連線失敗；沒有任何一方關閉憑證驗證 | 該工具標為不支援或 `MANUAL`（決策規則 3） | 二 |
+| SP-10 | SNI、`Host`、`:authority` 三者不一致時 | 任兩者不一致就擋下並有拒絕紀錄；越界接收器零命中 | 換候選代理 | 二 |
+| SP-11 | job 期間 DNS 答案改變（包含改指到非公開位址）時 | 仍只連 `open_job` 時固定的 `pinned_ips`；連不上就失敗，不重新解析；越界接收器零命中 | 由工具包自己的程式碼固定位址；做不到 → 換候選代理 | 二 |
+| SP-12 | HTTP/2 多 stream 的預算：每個 stream 是否算一個請求、同時的 stream 數是否受 `max_concurrency` 限制 | 每個 stream 各自經過方法、路徑、主機檢查並計入 `max_requests`；超過上限的 stream 被拒絕；server push 關閉 | 降為 HTTP/1.1；仍不成立 → 換候選代理 | 二 |
+| SP-13 | WebSocket 的核准腳本與上限：升級請求的白名單檢查、逐字送出 `script_turns`、訊息數／位元組數／時間上限 | 不在白名單的升級請求被擋；腳本以外的客戶端訊息被擋；每種上限觸頂時連線被關閉並有紀錄 | WebSocket 標為 `MANUAL` | 二 |
+| SP-14 | SSE 上限：時間與位元組上限 | 觸頂時連線被關閉並有紀錄；算一個請求 | SSE 標為 `MANUAL` | 二 |
+| SP-15 | ZAP 的代理認證與信任根配置 | 與 SP-01、SP-09 相同的條件在 ZAP 上成立 | `zap:*` 不啟用 | 二 |
+| SP-16 | 第一段的案例（SP-01–SP-08）在 HTTPS 目標上是否仍然成立 | 逐案重跑，結果與第一段相同 | 依該案例的「不通過時」欄 | 二 |
+
+**決策規則**（U-13 依此結案）：
+
+1. 第一段（SP-01–SP-08）全部通過，MVP-1 才能啟用 `playwright:api`。沒有通過時，MVP-1 只能使用 Executor 自己的 HTTP 用戶端（§10 U-13 的預設），MVP1-X1 不算通過。
+2. Executor 的必要 HTTP 工作流（SP-01、SP-03–SP-08，第二段另加 SP-09–SP-11）沒有通過就不能進 MVP-2。
+3. 代理不支援的工具或協定標為不支援或 `MANUAL`；**禁止改用直連或關閉 TLS 驗證**。選用的 adapter 只在它的案例通過後啟用。
+4. 候選代理在必要案例上不通過，且「不通過時」欄的做法也不成立 → 換候選重跑。沒有候選通過時，U-13 不結案、對應的 adapter 不啟用，並回報使用者；替代方案另開待辦，本節不預先設計。
+5. 不允許以放寬本節的規則通過任何案例：不得為了通過而取消 per-job 身分、放寬路徑正規化、跟隨越界轉址或在 job 期間重新解析 DNS。
+
+**產出**：原型報告放 `docs/evidence/`，內容為實際版本、每個案例的結果（通過／不通過／不支援與原因）、越界接收器紀錄、重現指令。U-13 依這份證據結案，之後才能宣稱實際的相容範圍；§8.2 的 N-17、N-18、N-32、N-33 仍要在產品程式上執行，原型的結果不能代替它們。
 
 ### 11.8 Session Provider
 
