@@ -15,6 +15,10 @@ REQUIRED_AUTOMATION = {"run-controller", "scheduler", "ci-bot"}
 class Ctx:
     """Shared lookups for the checks."""
 
+    # set by checks.run_all to the bundle as loaded, before quarantine; read with getattr(c, "original", c.b), so a
+    # Ctx built directly in a test has no such attribute (annotation only: nothing is assigned here)
+    original: Bundle
+
     def __init__(self, b: Bundle, real_run: bool = False):
         self.b = b
         self.real_run = real_run      # --real-run: placeholder models reachable from agents are errors
