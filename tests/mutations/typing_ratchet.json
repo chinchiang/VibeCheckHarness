@@ -42,6 +42,90 @@
    "old": "\nmypy==2.3.1 \\\n",
    "new": "\nmypyx==2.3.1 \\\n",
    "k": "ci_runs_the_type_check"
+  },
+  {
+   "name": "vchlib.checks goes back on the exempt list",
+   "file": "pyproject.toml",
+   "old": "    \"vchlib.derive\",        # 14\n",
+   "new": "    \"vchlib.checks\",\n    \"vchlib.derive\",        # 14\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "an ignore in checks.py is removed",
+   "file": "tools/vchlib/checks.py",
+   "old": "\"advisory iff Lane A\")  # type: ignore[union-attr]",
+   "new": "\"advisory iff Lane A\")",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "the Ctx annotation is removed",
+   "file": "tools/vchlib/context.py",
+   "old": "    original: Bundle\n",
+   "new": "",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "E7 says fixed",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "| ⚠️ 改為棘輪：修掉 5 個小模組的 10 個錯誤",
+   "new": "| ✅ 改為棘輪：修掉 5 個小模組的 10 個錯誤",
+   "k": "same_exempt_modules"
+  },
+  {
+   "name": "E7 lists a module the configuration does not exempt",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "（`derive` 14、`verdict` 10、",
+   "new": "（`checks` 7、`derive` 14、`verdict` 10、",
+   "k": "same_exempt_modules"
+  },
+  {
+   "name": "E7 miscounts the exempt errors",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "`expectations` 7，共 38 個錯誤）",
+   "new": "`expectations` 7，共 216 個錯誤）",
+   "k": "same_exempt_modules"
+  },
+  {
+   "name": "E7 calls the ignores fixed",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "，它們是被標記的已知缺口，不是已修正 |",
+   "new": " |",
+   "k": "same_exempt_modules"
+  },
+  {
+   "name": "the legend still says unhandled",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "❌ 不處理（設計取捨）。2026-11-26 盤點",
+   "new": "❌ 未處理。2026-11-26 盤點",
+   "k": "preamble_describes"
+  },
+  {
+   "name": "the legend has no paused mark",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "⏸ 暫緩；❌ 不處理",
+   "new": "❌ 不處理",
+   "k": "preamble_describes"
+  },
+  {
+   "name": "the tally is wrong",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "41 項中 ✅ 16、⚠️ 23、",
+   "new": "41 項中 ✅ 17、⚠️ 22、",
+   "k": "preamble_describes"
+  },
+  {
+   "name": "section 2.1 says nothing was handled",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "（影響最大；都只部分處理）",
+   "new": "（影響最大，全部未處理）",
+   "k": "preamble_describes"
+  },
+  {
+   "name": "the preamble date goes back",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "狀態欄更新到 2026-11-26、",
+   "new": "狀態欄更新到 2026-11-23、",
+   "k": "preamble_describes"
   }
  ]
 }

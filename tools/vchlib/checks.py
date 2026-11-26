@@ -56,7 +56,7 @@ def execution_backed(c: Ctx, tr: dict) -> bool:
         return False
     e, p = ends[0], ends[0].get("payload") or {}
     anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
-    return (type(e.get("seq")) is int and e.get("seq") < anchored and p.get("outcome") == tr.get("outcome")
+    return (type(e.get("seq")) is int and e.get("seq") < anchored and p.get("outcome") == tr.get("outcome")  # type: ignore[operator]
             and all(p.get(k) == v for k, v in derive.execution_pins(tc.data, tr).items()))
 
 
@@ -189,7 +189,7 @@ def g_misc(R: Report, c: Ctx):
             run = c.runs.get(rm.get("run_id"))
             if not R.check(run is not None, "E-REPORT", w, "run not found"):
                 continue
-            R.check(rm.get("advisory") is (run.get("run_kind") == "lane_a"), "E-REPORT", w, "advisory iff Lane A")
+            R.check(rm.get("advisory") is (run.get("run_kind") == "lane_a"), "E-REPORT", w, "advisory iff Lane A")  # type: ignore[union-attr]
             # review r11: a Lite engagement's one person holds every key and runs every zone, so its signatures, anchors
             # and receive times prove nothing to a third party (docs/06 §3 #26); the report says so in a field
             want_ev = "self_attested" if profile(c) == "lite" else "separated"
@@ -199,13 +199,13 @@ def g_misc(R: Report, c: Ctx):
             want_anchor = ANCHOR_LABEL.get(deployment(c), "countersigned")
             R.check(rm.get("audit_anchor") == want_anchor, "E-REPORT-ANCHOR", w,
                     f"audit_anchor must be {want_anchor!r} for deployment_profile {deployment(c)}, not {rm.get('audit_anchor')!r}")
-            final = verdict_heads(c, run.get("verdicts", []))       # v0.5 (V-4): a broken chain is E-VERDICT-CHAIN
+            final = verdict_heads(c, run.get("verdicts", []))  # type: ignore[union-attr]  # v0.5 (V-4): a broken chain is E-VERDICT-CHAIN
             counts = {s: sum(1 for v in final if v.get("status") == s) for s in FINAL_STATUSES}
             R.check(rm.get("verdict_counts") == counts, "E-REPORT", w, f"verdict_counts must be {counts} (latest verdict per cluster)")
             want_m = report_metrics(c, rm.get("run_id"))
             got_m = rm.get("metrics") or {}
             R.check(derive._equal(got_m, want_m), "E-REPORT-METRICS", w, f"metrics {got_m} != recomputed {want_m} (the run's testresults and controls)")
-            R.check(sorted(rm.get("manual_review_clusters", [])) == sorted(run.get("manual_review_clusters", [])), "E-REPORT", w, "manual_review_clusters differ from the run")
+            R.check(sorted(rm.get("manual_review_clusters", [])) == sorted(run.get("manual_review_clusters", [])), "E-REPORT", w, "manual_review_clusters differ from the run")  # type: ignore[union-attr]
             check_report_queues(R, c, w, rm, {v.get("cluster_id"): v.get("status") for v in final})
             for a in rm.get("artifacts", []):
                 if a.get("kind") == "audit_log":
@@ -234,9 +234,9 @@ def g_misc(R: Report, c: Ctx):
         with doc_guard(R, d.path):
             run = c.runs.get(d.data.get("run_id"))
             if R.check(run is not None, "E-CHECKPOINT", d.path, "run not found"):
-                R.check(d.data.get("run_status") == run.get("status") and d.data.get("thread_id") == run.get("run_id"), "E-CHECKPOINT", d.path,
+                R.check(d.data.get("run_status") == run.get("status") and d.data.get("thread_id") == run.get("run_id"), "E-CHECKPOINT", d.path,  # type: ignore[union-attr]
                         "run_status / thread_id disagree with the run")
-                R.check(d.data.get("encrypted") is True or run.get("data_class") == "P", "E-CHECKPOINT", d.path, "C-class checkpoints must be encrypted")
+                R.check(d.data.get("encrypted") is True or run.get("data_class") == "P", "E-CHECKPOINT", d.path, "C-class checkpoints must be encrypted")  # type: ignore[union-attr]
 
 
 GROUPS = [

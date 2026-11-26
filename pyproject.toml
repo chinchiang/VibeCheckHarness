@@ -37,7 +37,7 @@ select = ["E9", "F"]
 "tools/vchlib/checks_trace.py" = ["F841"]      # pipeline_checks moved there in PR-D8
 
 # Type checking is a ratchet (2026-11-22 review E7): `python -m mypy` must pass. Modules listed under ignore_errors are
-# the ones that do not pass yet (the count of their errors on 2026-11-22 is in the comment); remove a module from the
+# the ones that do not pass yet (the count of their errors, measured on 2026-11-26, is in the comment); remove a module from the
 # list when it is clean, never add one. tests/test_typing_ratchet.py keeps the list from growing.
 [tool.mypy]
 files = ["tools/vchlib"]
@@ -47,10 +47,9 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
-    "vchlib.checks",        # 175
     "vchlib.derive",        # 14
     "vchlib.verdict",       # 10
-    "vchlib.calibration",   # 10
+    "vchlib.calibration",   # 7
     "vchlib.expectations",  # 7
 ]
 ignore_errors = true
