@@ -4,6 +4,14 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## `vchlib.calibration` 與 `vchlib.expectations` 移出型別豁免清單（2026-11-28）
+
+CONTRIBUTING 第 3 類（純重構）。驗證器行為、schema、範例與 `rule_version` 都不變。
+
+- **`calibration`**（7 個錯誤，都在 `high_precision_problems`）：`tp`、`fp`、`n` 的型別檢查由 `all(isinstance(x, int) for x in ...)` 改寫成三個 `isinstance` 以 `and` 相連（邏輯相同，mypy 才能收窄型別），解決 4 個；`effective_n_of` 的參數標註改為 `dict | None`（函式本來就處理 `None`），解決 2 個，也讓 `checks_calibration.py` 一個多餘的 `type: ignore` 可以拿掉；剩下 1 個加逐行 `type: ignore[operator]`。
+- **`expectations`**（7 個錯誤）：`val: Any = MISSING` 一個標註解決 5 個；`all(tcs.values())` 改為先濾掉 `None` 再比長度（`Doc` 沒有 `__bool__`／`__len__`，兩者等價），解決 2 個，沒有新增 `type: ignore`。
+- `pyproject.toml` 的豁免清單由 4 個模組縮為 2 個（`derive` 14、`verdict` 10）；`tests/test_typing_ratchet.py` 的上限同步縮小。findings E7 更新，仍是「部分處理」。
+
 ## 發現清單的過期前言與 E7 紀錄；`vchlib.checks` 移出型別豁免清單（2026-11-26）
 
 CONTRIBUTING 第 3 類（純重構）加文件更正。驗證器行為、schema、範例與 `rule_version` 都不變。

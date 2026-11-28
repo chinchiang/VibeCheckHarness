@@ -49,7 +49,5 @@ warn_unused_ignores = true
 module = [
     "vchlib.derive",        # 14
     "vchlib.verdict",       # 10
-    "vchlib.calibration",   # 7
-    "vchlib.expectations",  # 7
 ]
 ignore_errors = true

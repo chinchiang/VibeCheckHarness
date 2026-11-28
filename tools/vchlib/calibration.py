@@ -90,11 +90,11 @@ def high_precision_problems(h: dict, lim: float, icc=None, corpus_split: dict | 
     `holdout_apps`) has n >= 10, a point precision >= high_precision_min - 0.05 and (r14, B6) a Clopper-Pearson lower bound
     on its n_eff >= high_precision_min - 0.05 (docs/05 §5.10)."""
     tp, fp, n = h.get("tp"), h.get("fp"), h.get("n")
-    if not all(isinstance(x, int) for x in (tp, fp, n)):
+    if not (isinstance(tp, int) and isinstance(fp, int) and isinstance(n, int)):      # spelled out: mypy narrows on it
         return ["tp, fp and n are required counts"]
     out = []
     if not all(type(x) is int and x >= 0 for x in (n, tp, fp, h.get("holdout_n"), h.get("holdout_tp"))) \
-            or h.get("holdout_tp") > h.get("holdout_n"):
+            or h.get("holdout_tp") > h.get("holdout_n"):  # type: ignore[operator]
         return [f"counts tp {tp!r} / fp {fp!r} / n {n!r} / holdout {h.get('holdout_tp')!r}/{h.get('holdout_n')!r} must be non-negative "
                 "integers with holdout_tp <= holdout_n (E-CAL-COUNT)"]       # v0.7 (review r8, external review 4)
     for split, key, cnt in (("calibration", "apps", n), ("holdout", "holdout_apps", h.get("holdout_n"))):
@@ -156,7 +156,7 @@ def design_effect(counts, icc) -> float:
     return 1 + (sum(m * m for m in counts) / n - 1) * icc
 
 
-def effective_n_of(apps: dict, icc) -> float:
+def effective_n_of(apps: dict | None, icc) -> float:
     """n / DE for a split's `apps` map ({app_id: clusters from that application}); 0 for an empty map."""
     counts = list((apps or {}).values())
     n = sum(m for m in counts if isinstance(m, int) and not isinstance(m, bool) and m > 0)

@@ -4,8 +4,8 @@
   {
    "name": "a module is added to the exempt list",
    "file": "pyproject.toml",
-   "old": "    \"vchlib.expectations\",  # 7\n",
-   "new": "    \"vchlib.expectations\",  # 7\n    \"vchlib.safety\",\n",
+   "old": "    \"vchlib.verdict\",       # 10\n",
+   "new": "    \"vchlib.verdict\",       # 10\n    \"vchlib.safety\",\n",
    "k": "exempt_list_does_not_grow"
   },
   {
@@ -74,15 +74,15 @@
   {
    "name": "E7 lists a module the configuration does not exempt",
    "file": "docs/evidence/findings-2026-11-22.md",
-   "old": "（`derive` 14、`verdict` 10、",
-   "new": "（`checks` 7、`derive` 14、`verdict` 10、",
+   "old": "仍豁免的是 2 個模組（`derive` 14、",
+   "new": "仍豁免的是 2 個模組（`checks` 7、`derive` 14、",
    "k": "same_exempt_modules"
   },
   {
    "name": "E7 miscounts the exempt errors",
    "file": "docs/evidence/findings-2026-11-22.md",
-   "old": "`expectations` 7，共 38 個錯誤）",
-   "new": "`expectations` 7，共 216 個錯誤）",
+   "old": "`verdict` 10，共 24 個錯誤）",
+   "new": "`verdict` 10，共 216 個錯誤）",
    "k": "same_exempt_modules"
   },
   {
@@ -123,9 +123,51 @@
   {
    "name": "the preamble date goes back",
    "file": "docs/evidence/findings-2026-11-22.md",
-   "old": "狀態欄更新到 2026-11-26、",
+   "old": "狀態欄更新到 2026-11-28、",
    "new": "狀態欄更新到 2026-11-23、",
    "k": "preamble_describes"
+  },
+  {
+   "name": "vchlib.calibration goes back on the exempt list",
+   "file": "pyproject.toml",
+   "old": "    \"vchlib.verdict\",       # 10\n",
+   "new": "    \"vchlib.verdict\",       # 10\n    \"vchlib.calibration\",\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "vchlib.expectations goes back on the exempt list",
+   "file": "pyproject.toml",
+   "old": "    \"vchlib.verdict\",       # 10\n",
+   "new": "    \"vchlib.verdict\",       # 10\n    \"vchlib.expectations\",\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "the spelled-out isinstance check is folded back",
+   "file": "tools/vchlib/calibration.py",
+   "old": "    if not (isinstance(tp, int) and isinstance(fp, int) and isinstance(n, int)):",
+   "new": "    if not all(isinstance(x, int) for x in (tp, fp, n)):",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "effective_n_of no longer accepts None",
+   "file": "tools/vchlib/calibration.py",
+   "old": "def effective_n_of(apps: dict | None, icc) -> float:",
+   "new": "def effective_n_of(apps: dict, icc) -> float:",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "the val annotation is removed",
+   "file": "tools/vchlib/expectations.py",
+   "old": "        val: Any = MISSING\n",
+   "new": "        val = MISSING\n",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "E7 no longer says the two modules left",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "2026-11-28 `calibration` 與 `expectations`（各 7 個）也移出，",
+   "new": "",
+   "k": "same_exempt_modules"
   }
  ]
 }
