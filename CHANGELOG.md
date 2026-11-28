@@ -4,6 +4,16 @@
 
 **版本規則**（v0.7 補，審查 r8）：設計文件版本（v0.x）只在整套文件重寫或合併分支時升；裁決規則版本（`rule_version 05-v0.x`，`vchlib.adjudicate.RULE_VERSION`）在任何改變裁決語意的變更時升，與文件版本無關；程式與 schema 註解中的「v0.7」指第八、九輪審查這一批變更（第九輪的註解另標 review r9）。目前：設計文件 v0.5，`rule_version 05-v0.17`，`toolkit_version` 與 `pyproject` 版本 0.5.0。歷程：`05-v0.4`（v0.4）→ `05-v0.5`（v0.5 第 2 組）→ `05-v0.6`（第七輪第 3 組）→ `05-v0.7`（第八輪第 3 組）→ `05-v0.8`（第九輪 PR2）→ `05-v0.9`（第十輪 PR2）→ `05-v0.10`（第十一輪 PR2）→ `05-v0.11`（第十二輪 PR2）→ `05-v0.12`（第十二輪外部審查，PR5）→ `05-v0.13`（第十二輪第二次外部審查，PR6）→ `05-v0.14`（第十三輪外部審查，PR1）→ `05-v0.15`（第十四輪內部審查，PR2）→ `05-v0.16`（2026-11-22 內部審查，使用者決定 D2／D4／D6）→ `05-v0.17`（同一次審查，使用者決定 D3）。
 
+## 型別豁免清單清空：`vchlib.verdict` 與 `vchlib.derive`（2026-11-28）
+
+CONTRIBUTING 第 3 類（純重構）。驗證器行為、schema、範例與 `rule_version` 都不變。**24 個型別錯誤全部以放寬標註或等價改寫解決，沒有新增 `type: ignore`，另拿掉一行變成多餘的。**
+
+- **標註寫得比實際窄**（只改標註）：`RESULT_PHASES`、`PHASE_CODE`、`TEST_AUTHOR_ROLES` 的鍵可以用 `None` 查；`members_at_vote` 的 `ix`、`registry_entry`／`split_adapter` 的 `adapter` 本來就處理 `None`；`control_results`、`g4_final_states`、`approved_requirement_ids`、`e_fail_u_refs`、`eligible_verifier_models` 的回傳型別改為實際型別；`adjudicate.strongest` 的參數改為 `Collection[str]`。
+- **等價改寫**：三處 `type(e.get("seq")) is int and e.get("seq") < anchored` 改為先取 `seq` 再比較；`rubric_inputs` 的 `inv` 不再先後是文件與 dict；`all_evidence_not_found` 先濾掉 `None` 再比長度；`llm_threat` 把 `ix is None` 改為提早返回；`eligible_verifier_families` 加上對 `str` 的過濾（`eligible_verifier_models` 本來就只收 `family` 是字串的模型）。
+- `pyproject.toml` 移除 `ignore_errors` 的 override；`tests/test_typing_ratchet.py` 改為斷言它不得再出現。findings E7 更新，仍是「部分處理」：受檢模組裡還有約 160 行逐行 `type: ignore`。
+- **等價證據**：10,680 筆擾動輸入（audit 事件的 `seq` 換成 11 種值、拿掉 inventory 與 DFD、拿掉部分或全部 finding、證據全標 `NOT_FOUND`、拿掉 adapter 與模型的 family、塞入非字串的 `result_ref`）在 `main` 與分支上結果相同（固定雜湊種子、`E-INTERNAL` 訊息裡的行號正規化）；6 份 bundle 的 issue 清單相同。
+- **順帶看到、沒有處理**：`derived_tool_signal` 對非字串的 `result_ref` 會在 `sorted()` 丟 `TypeError`，被外層接成 `E-INTERNAL`（該文件的檢查被略過並回報錯誤，不是靜默通過）。`main` 上就如此。
+
 ## `vchlib.calibration` 與 `vchlib.expectations` 移出型別豁免清單（2026-11-28）
 
 CONTRIBUTING 第 3 類（純重構）。驗證器行為、schema、範例與 `rule_version` 都不變。

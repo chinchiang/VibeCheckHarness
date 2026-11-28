@@ -2,13 +2,6 @@
  "tests": "tests/test_typing_ratchet.py",
  "mutations": [
   {
-   "name": "a module is added to the exempt list",
-   "file": "pyproject.toml",
-   "old": "    \"vchlib.verdict\",       # 10\n",
-   "new": "    \"vchlib.verdict\",       # 10\n    \"vchlib.safety\",\n",
-   "k": "exempt_list_does_not_grow"
-  },
-  {
    "name": "everything is excluded",
    "file": "pyproject.toml",
    "old": "ignore_missing_imports = true\nwarn_unused_ignores = true\n",
@@ -44,13 +37,6 @@
    "k": "ci_runs_the_type_check"
   },
   {
-   "name": "vchlib.checks goes back on the exempt list",
-   "file": "pyproject.toml",
-   "old": "    \"vchlib.derive\",        # 14\n",
-   "new": "    \"vchlib.checks\",\n    \"vchlib.derive\",        # 14\n",
-   "k": "exempt_list_does_not_grow"
-  },
-  {
    "name": "an ignore in checks.py is removed",
    "file": "tools/vchlib/checks.py",
    "old": "\"advisory iff Lane A\")  # type: ignore[union-attr]",
@@ -69,28 +55,14 @@
    "file": "docs/evidence/findings-2026-11-22.md",
    "old": "| ⚠️ 改為棘輪：修掉 5 個小模組的 10 個錯誤",
    "new": "| ✅ 改為棘輪：修掉 5 個小模組的 10 個錯誤",
-   "k": "same_exempt_modules"
-  },
-  {
-   "name": "E7 lists a module the configuration does not exempt",
-   "file": "docs/evidence/findings-2026-11-22.md",
-   "old": "仍豁免的是 2 個模組（`derive` 14、",
-   "new": "仍豁免的是 2 個模組（`checks` 7、`derive` 14、",
-   "k": "same_exempt_modules"
-  },
-  {
-   "name": "E7 miscounts the exempt errors",
-   "file": "docs/evidence/findings-2026-11-22.md",
-   "old": "`verdict` 10，共 24 個錯誤）",
-   "new": "`verdict` 10，共 216 個錯誤）",
-   "k": "same_exempt_modules"
+   "k": "findings_record_says"
   },
   {
    "name": "E7 calls the ignores fixed",
    "file": "docs/evidence/findings-2026-11-22.md",
    "old": "，它們是被標記的已知缺口，不是已修正 |",
    "new": " |",
-   "k": "same_exempt_modules"
+   "k": "findings_record_says"
   },
   {
    "name": "the legend still says unhandled",
@@ -128,20 +100,6 @@
    "k": "preamble_describes"
   },
   {
-   "name": "vchlib.calibration goes back on the exempt list",
-   "file": "pyproject.toml",
-   "old": "    \"vchlib.verdict\",       # 10\n",
-   "new": "    \"vchlib.verdict\",       # 10\n    \"vchlib.calibration\",\n",
-   "k": "exempt_list_does_not_grow"
-  },
-  {
-   "name": "vchlib.expectations goes back on the exempt list",
-   "file": "pyproject.toml",
-   "old": "    \"vchlib.verdict\",       # 10\n",
-   "new": "    \"vchlib.verdict\",       # 10\n    \"vchlib.expectations\",\n",
-   "k": "exempt_list_does_not_grow"
-  },
-  {
    "name": "the spelled-out isinstance check is folded back",
    "file": "tools/vchlib/calibration.py",
    "old": "    if not (isinstance(tp, int) and isinstance(fp, int) and isinstance(n, int)):",
@@ -163,11 +121,81 @@
    "k": "checked_modules_pass"
   },
   {
-   "name": "E7 no longer says the two modules left",
+   "name": "a module is exempted again",
+   "file": "pyproject.toml",
+   "old": "ignore_missing_imports = true\nwarn_unused_ignores = true\n",
+   "new": "ignore_missing_imports = true\nwarn_unused_ignores = true\n\n[[tool.mypy.overrides]]\nmodule = [\"vchlib.derive\"]\nignore_errors = true\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "an error code is switched off for a module",
+   "file": "pyproject.toml",
+   "old": "ignore_missing_imports = true\nwarn_unused_ignores = true\n",
+   "new": "ignore_missing_imports = true\nwarn_unused_ignores = true\n\n[[tool.mypy.overrides]]\nmodule = [\"vchlib.verdict\"]\ndisable_error_code = [\"union-attr\"]\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "an error code is switched off everywhere",
+   "file": "pyproject.toml",
+   "old": "ignore_missing_imports = true\nwarn_unused_ignores = true\n",
+   "new": "ignore_missing_imports = true\nwarn_unused_ignores = true\ndisable_error_code = [\"union-attr\"]\n",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "the note against ignore_errors is removed",
+   "file": "pyproject.toml",
+   "old": "Do not add an ignore_errors override:",
+   "new": "An ignore_errors override is fine:",
+   "k": "exempt_list_does_not_grow"
+  },
+  {
+   "name": "the seq check in verdict.py is folded back",
+   "file": "tools/vchlib/verdict.py",
+   "old": "        if not (type(seq) is int and seq < anchored):",
+   "new": "        if not (type(e.get(\"seq\")) is int and e.get(\"seq\") < anchored):",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "the seq check in derive.py is folded back",
+   "file": "tools/vchlib/derive.py",
+   "old": "    return type(seq) is int and seq < anchored and (e.get(\"payload\") or {}).get(\"outcome\") == tr.get(\"outcome\")",
+   "new": "    return type(e.get(\"seq\")) is int and e.get(\"seq\") < anchored and (e.get(\"payload\") or {}).get(\"outcome\") == tr.get(\"outcome\")",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "members_at_vote no longer accepts None",
+   "file": "tools/vchlib/verdict.py",
+   "old": "def members_at_vote(ix: \"Index | None\", v: dict, cluster: dict)",
+   "new": "def members_at_vote(ix: \"Index\", v: dict, cluster: dict)",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "control_results claims string fields again",
+   "file": "tools/vchlib/derive.py",
+   "old": "-> list[tuple[str | None, str | None, str | None]]:",
+   "new": "-> list[tuple[str, str, str | None]]:",
+   "k": "checked_modules_pass"
+  },
+  {
+   "name": "E7 no longer says the list is empty",
    "file": "docs/evidence/findings-2026-11-22.md",
-   "old": "2026-11-28 `calibration` 與 `expectations`（各 7 個）也移出，",
-   "new": "",
-   "k": "same_exempt_modules"
+   "old": "豁免清單已清空，現在全部 35 個模組",
+   "new": "現在全部 35 個模組",
+   "k": "findings_record_says"
+  },
+  {
+   "name": "E7 forgets a module that left",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "`verdict`（10 個）與 `derive`（14 個）。",
+   "new": "`verdict`（10 個）。",
+   "k": "findings_record_says"
+  },
+  {
+   "name": "E7 miscounts the checked modules",
+   "file": "docs/evidence/findings-2026-11-22.md",
+   "old": "現在全部 35 個模組都必須通過",
+   "new": "現在全部 33 個模組都必須通過",
+   "k": "findings_record_says"
   }
  ]
 }

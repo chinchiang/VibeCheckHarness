@@ -5,7 +5,8 @@
 other 216 are in five modules listed under `ignore_errors` in pyproject.toml. `python -m mypy` must pass (CI job lint),
 so the checked modules stay clean, and the exempt list may only shrink. On 2026-11-26 `vchlib.checks` left the list:
 four modules were exempt and thirty-one checked. On 2026-11-28 `vchlib.calibration` and `vchlib.expectations` followed:
-two modules are exempt, thirty-three are checked, and the findings record (E7) says the same thing as pyproject.toml.
+two modules were exempt. Later the same day `vchlib.verdict` and `vchlib.derive` left as well: no module is exempt, all
+thirty-five are checked, an `ignore_errors` override may not come back, and the findings record (E7) says so too.
 
 Each test failed before the change and passes after it (tests/mutations/typing_ratchet.json); see CONTRIBUTING.md."""
 import pathlib
@@ -23,8 +24,9 @@ except ModuleNotFoundError:                                    # Python 3.10 is 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 # The modules that did not pass on 2026-11-22. Remove a name here when its module is clean; never add one.
 # 2026-11-26: vchlib.checks left the list (7 errors remained after the split of checks.py, finding E8).
-# 2026-11-28: vchlib.calibration and vchlib.expectations left it too (7 errors each).
-EXEMPT_AT_MOST = {"vchlib.derive", "vchlib.verdict"}
+# 2026-11-28: vchlib.calibration and vchlib.expectations left it too (7 errors each), then vchlib.verdict (10) and
+# vchlib.derive (14). The list is empty and stays empty.
+EXEMPT_AT_MOST: set[str] = set()
 
 
 def config():
@@ -34,12 +36,16 @@ def config():
 def test_the_exempt_list_does_not_grow():
     cfg = config()
     assert cfg["files"] == ["tools/vchlib"]
-    exempt = [o for o in cfg["overrides"] if o.get("ignore_errors")]
-    assert len(exempt) == 1 and set(exempt[0]["module"]) <= EXEMPT_AT_MOST, set(exempt[0]["module"]) - EXEMPT_AT_MOST
-    assert not any(o.get("ignore_errors") is None and o.get("disable_error_code") for o in cfg["overrides"])
-    assert "exclude" not in cfg and cfg.get("warn_unused_ignores") is True
-    modules = {f"vchlib.{p.stem}" for p in (ROOT / "tools" / "vchlib").glob("*.py")}
-    assert set(exempt[0]["module"]) <= modules and len(modules - set(exempt[0]["module"])) >= 33
+    overrides = cfg.get("overrides", [])
+    exempt = {m for o in overrides if o.get("ignore_errors") for m in o.get("module", [])}
+    assert exempt <= EXEMPT_AT_MOST, exempt - EXEMPT_AT_MOST                 # the list is empty: any name here is new
+    assert not any(o.get("ignore_errors") or o.get("disable_error_code") or o.get("follow_imports") == "skip"
+                   for o in overrides), overrides
+    assert not any(k in cfg for k in ("exclude", "disable_error_code", "ignore_errors"))
+    assert cfg.get("warn_unused_ignores") is True
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "ignore_errors = true" not in text and "Do not add an ignore_errors override" in text
+    assert len(list((ROOT / "tools" / "vchlib").glob("*.py"))) >= 35
 
 
 def test_the_checked_modules_pass():
@@ -62,21 +68,21 @@ def findings():
     return (ROOT / "docs" / "evidence" / "findings-2026-11-22.md").read_text(encoding="utf-8")
 
 
-def test_the_findings_record_names_the_same_exempt_modules_as_the_configuration():
+def test_the_findings_record_says_what_the_configuration_says():
     (e7,) = [ln for ln in findings().splitlines() if ln.startswith("| E7 |")]
-    exempt = [o for o in config()["overrides"] if o.get("ignore_errors")][0]["module"]
+    overrides = config().get("overrides", [])
+    assert not [o for o in overrides if o.get("ignore_errors")]
     update = e7.split("**2026-11-28 更新**", 1)[1]
-    listed = update.split("仍豁免的是", 1)[1].split("）", 1)[0]
-    assert sorted(f"vchlib.{name}" for name in re.findall(r"`(\w+)` \d+", listed)) == sorted(exempt)
-    assert f"仍豁免的是 {len(exempt)} 個模組" in update and "已處理並移出豁免清單" in update
-    counts = [int(n) for n in re.findall(r"`\w+` (\d+)", listed)]
-    assert f"共 {sum(counts)} 個錯誤" in update
-    checked = len(list((ROOT / "tools" / "vchlib").glob("*.py"))) - len(exempt)
-    assert f"現在 {checked} 個模組必須通過" in update
-    assert "⚠️" in e7 and "✅" not in e7                       # still partly handled: exempt modules and ignores remain
+    assert "豁免清單已清空" in update and "仍豁免" not in update
+    for name in ("checks", "calibration", "expectations", "verdict", "derive"):
+        assert f"`{name}`" in update, name                     # each of the five, and when it left
+    checked = len(list((ROOT / "tools" / "vchlib").glob("*.py")))
+    assert f"現在全部 {checked} 個模組都必須通過" in update
+    assert "⚠️" in e7 and "✅" not in e7                       # still partly handled: the per-line ignores remain
     ignores = sum(p.read_text(encoding="utf-8").count("# type: ignore")
                   for p in (ROOT / "tools" / "vchlib").glob("*.py"))
-    assert 150 <= ignores <= 170 and "約 160 行逐行 `type: ignore`" in update and "`calibration` 與 `expectations`" in update and "不是已修正" in update, ignores
+    assert 150 <= ignores <= 170 and "約 160 行逐行 `type: ignore`" in update and "不是已修正" in update, ignores
+    assert "沒有新增任何 `type: ignore`" in update
 
 
 def test_the_findings_preamble_describes_the_statuses_the_rows_use():

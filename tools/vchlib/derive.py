@@ -273,7 +273,7 @@ class Index:
             return t.get("value") if t.get("feasible") is True and t.get("generalised") is True else None
         return value("theta_confirm"), value("theta_reject")
 
-    def approved_requirement_ids(self) -> set[str]:
+    def approved_requirement_ids(self) -> set[str | None]:
         """Requirements approved at G1 (D10): invariants whose signoff is ACCEPTED by the G1 record named in
         invariants.yaml and whose decision there is accept; baseline items when that G1 record is APPROVED
         and the file-level signoff is ACCEPTED. REJECTED / NEEDS_INFO items are not testable."""
@@ -317,7 +317,7 @@ def independent_families(ix: Index, cluster: dict) -> list[str]:
     one source: a fine-tune of the reporter's base inherits its blind spots. Of each base lineage the first family in
     sorted order is kept, so len() is the number of independent base lineages; the verifier pool, the Result Analyst
     and diversity (R8) judge independence on the same roots."""
-    fams = {}
+    fams: dict = {}
     for fid in cluster.get("member_finding_ids") or []:
         f = ix.finding(fid)
         rep = (f or {}).get("reporter") or {}
@@ -341,8 +341,8 @@ def rubric_inputs(ix: Index, cluster: dict) -> dict:
     which the rubric treats as internet), and rubric_severity never lets an unresolved input lower the score.
     v0.7 (review r8 F5): v0.4-v0.6 documented the rubric but routed G2 on the reviewers' self-reported finding.severity."""
     rid, loc = cluster.get("run_id"), cluster.get("canonical_location") or {}
-    inv = ix.first("inventory", run_id=rid)
-    inv = inv.data if inv else {}
+    inv_doc = ix.first("inventory", run_id=rid)
+    inv = inv_doc.data if inv_doc else {}
     dfd = ix.first("dfd", run_id=rid, viewpoint="merged")
     els = [e for e in (dfd.data.get("elements") if dfd else []) or [] if isinstance(e, dict)]
     by_id = {e.get("element_id"): e for e in els}
@@ -357,7 +357,7 @@ def rubric_inputs(ix: Index, cluster: dict) -> dict:
     procs = {e.get("element_id") for e in els if e.get("type") == "process"
              and any(r in refs or any(r.startswith(x + ":") for x in refs) for r in e.get("evidence_refs") or [])}
     # 2. the data stores those processes read or write -> inventory tables -> G1 data classification
-    tables = set()
+    tables: set[Any] = set()
     sym = str(loc.get("symbol") or "")
     if cluster.get("origin") != "black_box" and sym.startswith("public."):
         tables.add(sym.split(".", 1)[1])
@@ -457,7 +457,7 @@ def oracle_types(tc: dict) -> set[str]:
     return {t for t in types if isinstance(t, str)} if isinstance(types, list) else set()
 
 
-def control_results(tc: dict, tr: dict) -> list[tuple[str, str, str | None]]:
+def control_results(tc: dict, tr: dict) -> list[tuple[str | None, str | None, str | None]]:
     """[(control_id, kind, outcome or None)] for every control of the testcase, in testcase order."""
     got = {x.get("control_id"): x.get("outcome") for x in tr.get("controls") or [] if isinstance(x, dict)}
     return [(c.get("control_id"), c.get("kind"), got.get(c.get("control_id")))
@@ -487,7 +487,9 @@ LLM_TAXONOMY_SCHEMES = ("owasp-llm", "owasp-asi")             # a threat in thes
 def llm_threat(ix: Index | None, tc: dict) -> bool:
     """v0.7 (review r8, external review 2): the testcase's threat targets an LLM component: its taxonomy is an LLM one
     (owasp-llm / owasp-asi, any version), or its source cluster is in the llm_specific bucket."""
-    th = ix.first("threat", threat_id=tc.get("threat_id")) if ix is not None and isinstance(tc.get("threat_id"), str) else None
+    if ix is None or not isinstance(tc.get("threat_id"), str):
+        return False
+    th = ix.first("threat", threat_id=tc.get("threat_id"))
     if th is None:
         return False
     schemes = {str(x.get("scheme") or "").split("@")[0] for x in th.data.get("taxonomy") or [] if isinstance(x, dict)}
@@ -601,7 +603,7 @@ def g4_state(ix: "Index", run_id, testcase_id, at=None) -> G4State:
     return state
 
 
-def g4_final_states(ix: "Index", run_id) -> dict[str, G4State]:
+def g4_final_states(ix: "Index", run_id) -> dict[str | None, G4State]:
     """testcase_id -> its G4 state at the end of the log, for every testcase any signed G4 record decides."""
     ids = []
     for rec in ix.gate_records(run_id, "G4"):
@@ -701,7 +703,7 @@ def result_oracle_unreviewed(ix: "Index", tc: dict, tr: dict, cluster: dict, pha
     return tr.get("phase") == "W4" and not oracle_preregistered_by_code(tc) and not w4_oracle_approved(ix, tc, tr, phase)
 
 
-TEST_AUTHOR_ROLES = {"W4": ("test_generator", "test_critic"), "B4": ("test_designer", "test_implementer", "test_critic")}
+TEST_AUTHOR_ROLES: dict[str | None, tuple[str, ...]] = {"W4": ("test_generator", "test_critic"), "B4": ("test_designer", "test_implementer", "test_critic")}
 
 
 def test_author_families(ix: "Index", tr: dict) -> tuple[set, set]:
@@ -854,7 +856,8 @@ def pinned_job_end(ix: Index, tr: dict) -> dict | None:
         return None
     e, p = ends[0], ends[0].get("payload") or {}
     anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
-    ok = (type(e.get("seq")) is int and e.get("seq") < anchored and p.get("outcome") == tr.get("outcome")
+    seq = e.get("seq")
+    ok = (type(seq) is int and seq < anchored and p.get("outcome") == tr.get("outcome")
           and all(p.get(k) == v for k, v in execution_pins(tc.data, tr).items()))
     return e if ok else None
 
@@ -874,7 +877,8 @@ def execution_anchored(ix: Index, tr: dict) -> bool:
         return False
     e = ends[0]
     anchored = max((i + 1 for i, x in enumerate(evs) if x.get("event_type") == "audit_anchor"), default=0)
-    return type(e.get("seq")) is int and e.get("seq") < anchored and (e.get("payload") or {}).get("outcome") == tr.get("outcome")
+    seq = e.get("seq")
+    return type(seq) is int and seq < anchored and (e.get("payload") or {}).get("outcome") == tr.get("outcome")
 
 
 def job_end_of(e, tr: dict) -> bool:

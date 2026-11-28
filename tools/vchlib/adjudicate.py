@@ -86,6 +86,7 @@ v0.6 (rule_version 05-v0.6, review r7 group 3):
 """
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
 RULE_VERSION = "05-v0.17"
@@ -140,7 +141,7 @@ def trace_statuses(out: Outcome) -> list[str]:
             for r in out.rules]
 
 
-def strongest(evidence: set[str]) -> str | None:
+def strongest(evidence: Collection[str]) -> str | None:
     for c in EVIDENCE_ORDER:
         if c in evidence:
             return c
