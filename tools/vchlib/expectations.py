@@ -308,8 +308,9 @@ def _run_expectations(ix: Index, d: Doc, exp, slice_by_run, for_writer=False):
 
     g3 = ix.gate_records(rid, "G3")
     exp(d, ["threat_model_ref"], artifact_sha(g3[-1].data) if g3 else None, "G3 artifact")
-    tcs = {tid: ix.first("testcase", testcase_id=tid) for tid in r.get("testcase_ids", [])}
-    if all(tcs.values()):
+    found = {tid: ix.first("testcase", testcase_id=tid) for tid in r.get("testcase_ids", [])}
+    tcs = {tid: doc for tid, doc in found.items() if doc is not None}
+    if len(tcs) == len(found):                       # every testcase of the run is in the bundle
         exp(d, ["artifact_hashes"], {k: approval_hash(v.data) for k, v in tcs.items()}, "approval hash of each testcase")
         exp(d, ["testplan_ref"], set_digest([{"id": k, "sha256": approval_hash(v.data)} for k, v in tcs.items()]) if tcs else None,
             "set digest of the run's testcases (= G4 artifact)")
@@ -354,7 +355,7 @@ def _report_expectations(ix: Index, d: Doc, exp):
     audit = ix.audit_for(rid)
     for i, a in enumerate(d.data.get("artifacts", [])):
         kind, ref = a.get("kind"), a.get("ref")
-        val = MISSING
+        val: Any = MISSING
         if kind in ("threat_model", "test_plan", "gate_record"):
             rec = ix.first("gate-record", gate_record_id=ref)
             if rec:

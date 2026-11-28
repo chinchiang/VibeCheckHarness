@@ -327,7 +327,7 @@ def split_problems(label: str, split: str, s: dict, icc=None, corpus_split: dict
     if prob:
         return [(label, prob)]
     icc = CAL_POLICY["clustering"]["icc"] if icc is None else icc
-    n_eff = effective_n_of(apps, icc)  # type: ignore[arg-type]
+    n_eff = effective_n_of(apps, icc)
     want = {"precision": tp / n if n else 0.0, "ci_low": wilson_lower(tp / n * n_eff if n else 0, n_eff),
             "ci_high": wilson_upper(tp / n * n_eff if n else 0, n_eff)}
     for k, v in want.items():
