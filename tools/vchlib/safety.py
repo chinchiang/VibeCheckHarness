@@ -72,7 +72,7 @@ def hi(a: str, b: str) -> str:
     return a if ORDER.index(a) >= ORDER.index(b) else b
 
 
-def split_adapter(adapter: str) -> tuple[str, str] | None:
+def split_adapter(adapter: str | None) -> tuple[str, str] | None:
     if not isinstance(adapter, str) or not ADAPTER_RE.match(adapter):
         return None
     tool, mode = adapter.split(":", 1)
@@ -859,7 +859,7 @@ def host_excluded(host: str | None, excluded_hosts) -> bool:
     return any(host_matches(host, x) for x in excluded_hosts or [])
 
 
-def registry_entry(tools: dict, adapter: str) -> dict | None:
+def registry_entry(tools: dict, adapter: str | None) -> dict | None:
     """tools.yaml lookup: {tool, mode, base_class, b4_executable, ...} or None."""
     parsed = split_adapter(adapter)
     if parsed is None:

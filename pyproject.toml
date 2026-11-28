@@ -36,18 +36,11 @@ select = ["E9", "F"]
 # import moved to report.py with the Report class in PR-D0, so nothing is shadowed any more.)
 "tools/vchlib/checks_trace.py" = ["F841"]      # pipeline_checks moved there in PR-D8
 
-# Type checking is a ratchet (2026-11-22 review E7): `python -m mypy` must pass. Modules listed under ignore_errors are
-# the ones that do not pass yet (the count of their errors, measured on 2026-11-26, is in the comment); remove a module from the
-# list when it is clean, never add one. tests/test_typing_ratchet.py keeps the list from growing.
+# Type checking is a ratchet (2026-11-22 review E7): `python -m mypy` must pass for every module. Five modules were
+# exempt (ignore_errors) on 2026-11-22; the last two left on 2026-11-28. Do not add an ignore_errors override:
+# tests/test_typing_ratchet.py fails if one appears. A line that cannot be typed gets its own `# type: ignore[code]`.
 [tool.mypy]
 files = ["tools/vchlib"]
 python_version = "3.11"
 ignore_missing_imports = true
 warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = [
-    "vchlib.derive",        # 14
-    "vchlib.verdict",       # 10
-]
-ignore_errors = true

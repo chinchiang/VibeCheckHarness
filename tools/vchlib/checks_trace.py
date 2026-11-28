@@ -714,5 +714,5 @@ def pipeline_checks(R: Report, c: Ctx):
 def _tool_of(c: Ctx, cluster: dict, ref) -> str | None:
     """The tools.yaml tool (not the mode) whose W1 invocation produced a SARIF ref."""
     e, _ = _resolving_event(c, cluster, ref)
-    entry = safety.registry_entry(c.tools, (e.get("payload") or {}).get("adapter")) if e else None  # type: ignore[arg-type]  # a value an earlier check or lookup ruled out as None; mypy cannot follow it
+    entry = safety.registry_entry(c.tools, (e.get("payload") or {}).get("adapter")) if e else None
     return entry["tool"] if entry else None

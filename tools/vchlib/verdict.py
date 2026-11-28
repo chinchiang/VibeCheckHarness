@@ -7,6 +7,7 @@ all read a verdict version's derived fields from here (architecture refactor PR-
 from __future__ import annotations
 
 from functools import cached_property
+from typing import Any
 
 from . import adjudicate as adj
 from . import derive, safety, timeutil
@@ -62,7 +63,7 @@ def derived_score(ix: "Index", v: dict, cluster: dict) -> float:
 
 # v0.5 (review 2026-10-25 A-7): the test phases a verdict version may see. A W4 version is written before any
 # black-box execution, so it cannot cite B4 results; v0.4 linked every result of the run to every version.
-RESULT_PHASES = {"W3_adjudicate": (), "G2_apply": (), "W4_readjudicate": ("W4",), "B5_readjudicate": ("W4", "B4")}
+RESULT_PHASES: dict[str | None, tuple[str, ...]] = {"W3_adjudicate": (), "G2_apply": (), "W4_readjudicate": ("W4",), "B5_readjudicate": ("W4", "B4")}
 
 
 def linked_results(ix: Index, cluster: dict, readjudicated_by: str | None = "B5_readjudicate") -> list[dict]:
@@ -142,7 +143,7 @@ def cited_relevant(ix: "Index", v: dict, cluster: dict) -> bool:
     return False
 
 
-def members_at_vote(ix: "Index", v: dict, cluster: dict) -> tuple[list, list]:
+def members_at_vote(ix: "Index | None", v: dict, cluster: dict) -> tuple[list, list]:
     """r11 (05-v0.10): the cluster's (families, lineages) as they stood when the vote was cast: the members whose reporter
     round is at most the vote's `voted_after_round`. Without the field (or without an index) every member counts, the
     stricter reading. v0.7 r10 judged every vote against the members present now, so a same-family reporter added to the
@@ -292,7 +293,7 @@ def vote_model(c: Ctx, vt: dict) -> dict | None:
     return None
 
 
-def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
+def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[Any, dict]:
     """model key -> models.yaml entry of every agents.yaml `verifier` whose registry family is not in
     cluster.families, whose registry lineage is not in cluster.lineages (never self-declared) and whose independence key
     is none of the members' (r14, 05-v0.15)."""
@@ -318,7 +319,8 @@ def eligible_verifier_models(c: Ctx, cluster: dict) -> dict[str, dict]:
 
 def eligible_verifier_families(c: Ctx, cluster: dict) -> set[str]:
     """E(cluster) (docs/05 §3, v0.3): the registry families of eligible_verifier_models."""
-    return {m.get("family") for m in eligible_verifier_models(c, cluster).values()}
+    families = (m.get("family") for m in eligible_verifier_models(c, cluster).values())
+    return {f for f in families if isinstance(f, str)}       # always a str: eligible_verifier_models keeps no other model
 
 
 def derived_no_eligible_verifier(c: Ctx, cluster: dict) -> bool:
@@ -390,7 +392,8 @@ def _resolving_event(c: Ctx, cluster: dict, ref) -> tuple[dict | None, str | Non
     anchored = max((i + 1 for i, e in enumerate(audit.data) if isinstance(e, dict) and e.get("event_type") == "audit_anchor"), default=0)
     reasons = []
     for e in ends:
-        if not (type(e.get("seq")) is int and e.get("seq") < anchored):
+        seq = e.get("seq")
+        if not (type(seq) is int and seq < anchored):
             reasons.append(f"seq {e.get('seq')}: the event is in the unanchored tail of the audit log (last audit_anchor at "
                            f"line {anchored}); unanchored lines cannot back a verdict")
             continue
@@ -493,7 +496,7 @@ def weak_sarif_refs(c: Ctx, cluster: dict) -> list[str]:
     return [r for r in resolved_sarif_refs(c, cluster) if not sarif_is_strong(c, cluster, r)]
 
 
-def e_fail_u_refs(v: dict) -> set[str]:
+def e_fail_u_refs(v: dict) -> set[Any]:
     return {x.get("result_ref") for x in (v.get("test_evidence") or {}).get("results", [])
             if isinstance(x, dict) and x.get("class") == "E_fail_u" and x.get("result_ref")}
 
@@ -535,8 +538,9 @@ def all_evidence_not_found(c: Ctx, cluster: dict) -> bool:
     NOT_FOUND; False when there are no members. v0.6 (review r7): v0.5 needed every item NOT_FOUND, so one NOT_CHECKED
     item kept an otherwise ungrounded cluster out of R0.
     (v0.4: R0 itself also needs no resolved SARIF and no FAIL-class test evidence, adjudicate.r0_applies.)"""
-    members = [c.ix.finding(f) for f in cluster.get("member_finding_ids") or []]
-    if not members or any(m is None for m in members):
+    found = [c.ix.finding(f) for f in cluster.get("member_finding_ids") or []]
+    members = [m for m in found if m is not None]
+    if not found or len(members) != len(found):
         return False
     items = [e for m in members for e in m.get("evidence") or [] if isinstance(e, dict)]
     return (any(e.get("match") == "NOT_FOUND" for e in items)
@@ -725,7 +729,7 @@ def required_regression_testcases(c: Ctx, cluster: dict, run: dict) -> set:
 # The adjudication phases (GLOSSARY: 裁決階段) keyed by readjudicated_by, in order: one table for the code the rules see
 # (adj.Inputs.phase) and the order the versions of a chain follow (E-VERDICT-PHASE). RESULT_PHASES is another concept:
 # which test phases a version may cite.
-PHASE_CODE = {"W3_adjudicate": "W3", "G2_apply": "G2", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}
+PHASE_CODE: dict[str | None, str] = {"W3_adjudicate": "W3", "G2_apply": "G2", "W4_readjudicate": "W4", "B5_readjudicate": "B5"}
 PHASE_ORDER = {k: i for i, k in enumerate(PHASE_CODE)}
 
 
